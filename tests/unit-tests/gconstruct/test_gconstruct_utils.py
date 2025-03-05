@@ -24,8 +24,9 @@ import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 import torch as th
+import graphstorm
 
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_raises
 
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
@@ -34,7 +35,10 @@ from graphstorm.gconstruct.utils import multiprocessing_data_read
 from graphstorm.gconstruct.utils import (save_maps,
                                          load_maps,
                                          get_hard_edge_negs_feats,
-                                         shuffle_hard_nids)
+                                         shuffle_hard_nids,
+                                         validate_features,
+                                         stop_validate_features,
+                                         validate_numerical_feats)
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
@@ -237,12 +241,8 @@ def test_read_empty_parquet():
         empty_table = pa.Table.from_pandas(empty_df)
         pq.write_table(empty_table, data_file)
 
-        pass_test = False
-        try:
-            read_data_parquet(data_file, fields)
-        except:
-            pass_test = True
-        assert pass_test
+        ret = read_data_parquet(data_file, fields)
+        assert ret is None
 
 def test_read_empty_csv():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -251,41 +251,19 @@ def test_read_empty_csv():
         empty_df = pd.DataFrame(columns=fields)
         empty_df.to_csv(data_file, index=True, sep=",")
 
-        pass_test = False
-        try:
-            read_data_csv(data_file, fields, ",")
-        except:
-            pass_test = True
-        assert pass_test
+        ret = read_data_csv(data_file, fields, ",")
+        assert ret is None
 
 def test_read_empty_json():
     with tempfile.TemporaryDirectory() as tmpdirname:
         data_file = os.path.join(tmpdirname, "test.json")
         data = {}
+        fields = ["a", "b"]
         with open(data_file, 'w', encoding="utf8") as json_file:
             json.dump(data, json_file)
 
-        pass_test = False
-        try:
-            read_data_json(data_file)
-        except:
-            pass_test = True
-        assert pass_test
-
-def test_read_empty_parquet():
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        data_file = os.path.join(tmpdirname, "test.parquet")
-        fields = ["a", "b"]
-        empty_df = pd.DataFrame(columns=fields)
-        empty_table = pa.Table.from_pandas(empty_df)
-        pq.write_table(empty_table, data_file)
-
-        pass_test = False
-        try:
-            read_data_parquet(data_file, fields)
-        except:
-            pass_test = True
-        assert pass_test
+        with assert_raises(AssertionError):
+            _ = read_data_json(data_file, fields)
 
 def test_get_in_files():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -518,7 +496,38 @@ def test_single_directory_expansion():
         expected_files = sorted([os.path.join(temp_dir, f) for f in test_files])
         assert sorted(result) == expected_files
 
+def test_validate_features():
+    assert validate_features()
+    stop_validate_features()
+    assert validate_features() is False
+    # set VALIDATE_FEATRE back
+    graphstorm.gconstruct.utils.VALIDATE_FEATRE = True
+
+def test_validate_numerical_feats():
+    array = np.array([1,2,3])
+    assert validate_numerical_feats(array) is True
+
+    array = np.array([1,2,np.inf])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([1,2,np.nan])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([[1,2,np.nan],
+                      [1,2,np.inf]])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([[1,2,3],
+                      [1,2,np.inf]])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([[1,2,3],
+                      [1,2,np.nan]])
+    assert validate_numerical_feats(array) is False
+
 if __name__ == '__main__':
+    test_validate_numerical_feats()
+    test_validate_features()
     test_shuffle_hard_nids()
     test_save_load_maps()
     test_get_hard_edge_negs_feats()

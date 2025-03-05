@@ -41,6 +41,28 @@ SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
+VALIDATE_FEATRE= True
+
+def validate_features():
+    """ Check whether gconstruct needs to validate the input features
+    """
+    return VALIDATE_FEATRE
+
+def stop_validate_features():
+    """ Set gconstruct in debug mode.
+    """
+    global VALIDATE_FEATRE
+    VALIDATE_FEATRE = False
+
+def validate_numerical_feats(feats):
+    """ Validate the numerical features
+
+    Returns
+    -------
+    bool: Whether the values of the input feature are all valid
+    """
+    return (not np.isnan(feats).any()) and \
+        (not np.isinf(feats).any())
 
 def _is_numeric(arr):
     """ Check if the input array has the numeric data type.
@@ -162,7 +184,9 @@ def _estimate_sizeof(data):
     data: dict/tuple/list of tensors
         Data returned by user_parser
     """
-    if th.is_tensor(data):
+    if data is None:
+        return 0
+    elif th.is_tensor(data):
         data_size = data.element_size() * data.nelement()
     elif isinstance(data, np.ndarray):
         assert data.dtype is not np.object_, \
@@ -257,6 +281,9 @@ def update_two_phase_feat_ops(phase_one_info, ops):
     """
     feat_info = {}
     for _, finfo in phase_one_info.items():
+        if finfo is None:
+            # the info is empty, skip
+            continue
         for feat_name, info in finfo.items():
             if feat_name not in feat_info:
                 feat_info[feat_name] = [info]

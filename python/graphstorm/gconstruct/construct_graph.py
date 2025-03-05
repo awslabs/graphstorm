@@ -44,7 +44,9 @@ from .transform import (print_node_label_stats,
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
-                    partition_graph, ExtMemArrayWrapper)
+                    partition_graph,
+                    ExtMemArrayWrapper,
+                    stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
 
@@ -130,6 +132,10 @@ def prepare_edge_data(in_file, feat_ops, read_file):
     dict : A dict of edge feature info.
     """
     data = read_file(in_file)
+    if data is None:
+        # the in_file is empty
+        return None
+
     assert feat_ops is not None, "feat_ops must exist when prepare_edge_data is called."
     feat_info = preprocess_features(data, feat_ops)
 
@@ -174,6 +180,10 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     edge_type = conf['relation']
 
     data = read_file(in_file)
+    if data is None:
+        # the in_file is empty
+        return None
+
     feat_data = process_features(data, feat_ops, ext_mem) if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
@@ -434,6 +444,40 @@ def process_node_data(process_confs, arr_merger, remap_id,
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data, label_stats, label_masks)
 
+def _collect_parsed_edge_data(data_dict):
+    """ Collect edge data parsed by parse_edge_data
+
+    Parameters
+    ----------
+    data_dict: dict
+        The edge data
+    """
+    # Order the return data first
+    return_data = [None] * len(data_dict)
+    for i, ret_data in data_dict.items():
+        # when the input file is empty, the return data will be None
+        if ret_data is None:
+            continue
+        # Order the data according to the file ID (i)
+        return_data[i] = ret_data
+
+    type_src_ids = []
+    type_dst_ids = []
+    type_edge_data = {}
+    for ret_data in return_data:
+        if ret_data is None:
+            continue
+        src_ids, dst_ids, part_data = ret_data
+        type_src_ids.append(src_ids)
+        type_dst_ids.append(dst_ids)
+        for feat_name in part_data:
+            if feat_name not in type_edge_data:
+                type_edge_data[feat_name] = [part_data[feat_name]]
+            else:
+                type_edge_data[feat_name].append(part_data[feat_name])
+
+    return type_src_ids, type_dst_ids, type_edge_data
+
 def process_edge_data(process_confs, node_id_map, arr_merger,
                       ext_mem_workspace=None, num_processes=1,
                       skip_nonexist_edges=False):
@@ -547,17 +591,9 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                                     num_proc,
                                     f"edge {edge_type}",
                                     ext_mem_workspace_type)
-        type_src_ids = [None] * len(return_dict)
-        type_dst_ids = [None] * len(return_dict)
-        type_edge_data = {}
-        for i, (src_ids, dst_ids, part_data) in return_dict.items():
-            type_src_ids[i] = src_ids
-            type_dst_ids[i] = dst_ids
-            for feat_name in part_data:
-                if feat_name not in type_edge_data:
-                    type_edge_data[feat_name] = [None] * len(return_dict)
-                type_edge_data[feat_name][i] = part_data[feat_name]
-        return_dict = None
+
+        type_src_ids, type_dst_ids, type_edge_data = \
+            _collect_parsed_edge_data(return_dict)
 
         edge_type = tuple(edge_type)
         if edge_type not in label_stats:
@@ -591,6 +627,9 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
             gc.collect()
 
+        assert len(type_src_ids) > 0, \
+            f"{edge_type} does not contain any edges." \
+            "GraphStorm does not support such case."
         if type_src_ids[0] is not None: # handle src_ids and dst_ids
             assert all(src_ids is not None for src_ids in type_src_ids)
             assert all(dst_ids is not None for dst_ids in type_dst_ids)
@@ -744,6 +783,13 @@ def process_graph(args):
     """
     check_graph_name(args.graph_name)
     logging.basicConfig(level=get_log_level(args.logging_level))
+    if args.no_feature_validate:
+        logging.warning("Turn off input feature validation."
+                        "This will speedup data processing, "
+                        "but won't check whether there are "
+                        "invalid values from the input.")
+        stop_validate_features()
+
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 
@@ -919,6 +965,8 @@ if __name__ == '__main__':
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
+    argparser.add_argument("--no-feature-validate", action='store_true',
+                           help="Turn off features validation.")
     argparser.add_argument("--output-format", type=str, nargs='+', default=["DistDGL"],
                            help="The output format of the constructed graph."
                                 "It can be a single output format, for example "

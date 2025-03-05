@@ -30,3 +30,10 @@ TEST_IDX = 'test_mask'
 
 REGRESSION_TASK = "regression"
 CLASSIFICATION_TASK = "classification"
+
+# Names to give ID mapping columns
+MAPPING_INPUT_ID = "orig"
+MAPPING_OUTPUT_ID = "new"
+# The names that GSProcessing uses
+GSP_MAPPING_INPUT_ID = "node_str_id"
+GSP_MAPPING_OUTPUT_ID = "node_int_id"

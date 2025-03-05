@@ -187,8 +187,11 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
     dict of Numpy arrays.
     """
     data = pd.read_csv(data_file, delimiter=delimiter)
-    assert data.shape[0] > 0, \
-        f"{data_file} has an empty data. The data frame shape is {data.shape}"
+    if data.shape[0] == 0:
+        logging.warning("%s has an empty data. "
+                        "The data frame shape is %s",
+                        data_file, data.shape)
+        return None
 
     if data_fields is not None:
         for field in data_fields:
@@ -242,6 +245,9 @@ def read_data_json(data_file, data_fields):
         for line in json_file.readlines():
             record = json.loads(line)
             data_records.append(record)
+    logging.warning("JSON as graph input data support is deprecated "
+                    "and no longer maintained. Please use CSV or parquet.")
+
     assert len(data_records) > 0, \
         f"{data_file} is empty {data_records}."
 
@@ -308,8 +314,12 @@ def read_data_parquet(data_file, data_fields=None):
     table = pq.read_table(data_file)
     data = {}
     df_table = table.to_pandas()
-    assert df_table.shape[0] > 0, \
-        f"{data_file} has an empty data. The data frame shape is {df_table.shape}"
+
+    if df_table.shape[0] == 0:
+        logging.warning("%s has an empty data. "
+                        "The data frame shape is %s",
+                        data_file, df_table.shape)
+        return None
 
     if data_fields is None:
         data_fields = list(df_table.keys())

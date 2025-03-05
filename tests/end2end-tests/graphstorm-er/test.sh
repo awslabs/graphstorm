@@ -99,6 +99,11 @@ then
     exit -1
 fi
 
+if [ -f "/data/gsgnn_er_ml_ef/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
+    exit -1
+fi
+
 rm -R /data/gsgnn_er_ml_ef/
 
 rm -fr /tmp/*

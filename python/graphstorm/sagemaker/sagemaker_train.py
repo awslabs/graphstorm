@@ -15,16 +15,16 @@
 
     Training entry point.
 """
-# Install additional requirements
-import os
-import logging
-import socket
-import time
+
 import json
-import subprocess
-from threading import Thread, Event
-import sys
+import logging
+import os
 import queue
+import socket
+import subprocess
+import sys
+import time
+from threading import Thread, Event
 
 import boto3
 import sagemaker
@@ -36,6 +36,7 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_MULTI_TASK)
 from .utils import (download_yaml_config,
                     download_graph,
+                    get_job_port,
                     keep_alive,
                     barrier_master,
                     barrier,
@@ -164,7 +165,16 @@ def run_train(args, unknownargs):
         os.makedirs(restore_model_path, exist_ok=True)
     else:
         restore_model_path = None
-    output_path = "/tmp/gsgnn_model/"
+
+    if args.model_artifact_s3:
+        # If a user provides an S3 output destination as an input arg, the script itself
+        # will upload the model artifacts after training, so we save under /tmp.
+        output_path = "/tmp/gsgnn_model/"
+    else:
+        # If the user does not provide an output destination as an arg, we rely on SageMaker to
+        # do the model upload so we save the model to the pre-determined path /opt/ml/model
+        output_path = "/opt/ml/model"
+
     os.makedirs(output_path, exist_ok=True)
 
     # start the ssh server
@@ -195,12 +205,14 @@ def run_train(args, unknownargs):
         raise RuntimeError(f"Can not get host name of {hosts}")
 
     master_addr = args.master_addr
+    master_port = get_job_port(train_env['job_name'])
     # sync with all instances in the cluster
     if host_rank == 0:
         # sync with workers
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((master_addr, 12345))
+        sock.bind((master_addr, master_port))
         sock.listen(world_size)
+        logging.info("Master listening on %s:%s", master_addr, master_port)
 
         client_list = [None] * world_size
         for i in range(1, world_size):
@@ -211,12 +223,12 @@ def run_train(args, unknownargs):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         for _ in range(30):
             try:
-                sock.connect((master_addr, 12345))
+                sock.connect((master_addr, master_port))
                 break
             except: # pylint: disable=bare-except
-                logging.info("Try to connect %s", master_addr)
+                logging.info("Trying to connect to %s:%s...", master_addr, master_port)
                 time.sleep(10)
-        logging.info("Connected")
+        logging.info("Connected to %s:%s", master_addr, master_port)
 
     # write ip list info into disk
     ip_list_path = os.path.join(data_path, 'ip_list.txt')
@@ -229,7 +241,11 @@ def run_train(args, unknownargs):
     graph_data_s3 = args.graph_data_s3
     task_type = args.task_type
     train_yaml_s3 = args.train_yaml_s3
-    model_artifact_s3 = args.model_artifact_s3.rstrip('/')
+    # If the user provided an output destination, trim any trailing '/'
+    if args.model_artifact_s3:
+        gs_model_artifact_s3 = args.model_artifact_s3.rstrip('/')
+    else:
+        gs_model_artifact_s3 = None
     custom_script = args.custom_script
 
     boto_session = boto3.session.Session(region_name=args.region)
@@ -292,6 +308,7 @@ def run_train(args, unknownargs):
         logging.error("Task failed")
         sys.exit(-1)
 
-    # If there are saved models
-    if os.path.exists(save_model_path):
-        upload_model_artifacts(model_artifact_s3, save_model_path, sagemaker_session)
+    # We upload models only when the user explicitly set the model_artifact_s3
+    # argument. Otherwise we can rely on the SageMaker service to do the upload.
+    if gs_model_artifact_s3 and os.path.exists(save_model_path):
+        upload_model_artifacts(gs_model_artifact_s3, save_model_path, sagemaker_session)

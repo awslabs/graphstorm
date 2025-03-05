@@ -54,7 +54,7 @@ from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader,
                                     GSgnnLinkPredictionTestDataLoader)
-from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel
+from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel, HGTLayerwithEdgeFeat
 from numpy.testing import assert_equal, assert_raises
 
 from util import (DummyGSgnnEncoderModel,
@@ -1118,8 +1118,11 @@ def test_hgt_nc4ef():
                             local_rank=0)
         config = GSConfig(args)
 
-        with assert_raises(AssertionError):
-            model2 = create_builtin_node_gnn_model(gdata.g, config, True)
+        # 02/06/2025: HGT suppurts edge features. So disable this test case and model2 should be
+        # created successfully
+        model2 = create_builtin_node_gnn_model(gdata.g, config, True)
+        assert isinstance(model2.gnn_encoder.layers[0], HGTLayerwithEdgeFeat)
+        assert isinstance(model2.gnn_encoder.layers[1], HGTLayerwithEdgeFeat)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
@@ -1174,6 +1177,107 @@ def test_hgt_nc4ef():
                 num_epochs=2
                 )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 3: normal case, set HGT model with edge features for NC, and provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model4 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer4 = GSgnnNodePredictionTrainer(model4)
+        trainer4.setup_device(device)
+
+        train_dataloader4 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            train_task=True)
+        val_dataloader4 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            train_task=False)
+
+        evaluator4 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer4.setup_evaluator(evaluator4)
+
+        trainer4.fit(
+            train_loader=train_dataloader4,
+            val_loader=val_dataloader4,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 4: abnormal case, set HGT model with edge features for NC, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model5 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer5 = GSgnnNodePredictionTrainer(model5)
+        trainer5.setup_device(device)
+
+        train_dataloader5 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=True)
+        val_dataloader5 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=False)
+
+        evaluator5 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer5.setup_evaluator(evaluator5)
+
+        with assert_raises(AssertionError):
+            trainer5.fit(
+                train_loader=train_dataloader5,
+                val_loader=val_dataloader5,
+                num_epochs=2
+                )
+    
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1199,8 +1303,8 @@ def test_rgcn_ec4ef():
         #              edge features.
         #              Should complete 2 epochs and output training loss and evaluation
         #              metrics.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=True)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         
@@ -1250,8 +1354,8 @@ def test_rgcn_ec4ef():
         #              provide edge features.
         #              Should complete 2 epochs and output training loss and evaluation
         #              metrics.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', task='ec', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
 
@@ -1301,8 +1405,8 @@ def test_rgcn_ec4ef():
         #              provide edge features.
         #              This will trigger an assertion error, asking for giving edge feature
         #              for message passing computation.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=True)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         
@@ -1353,8 +1457,8 @@ def test_rgcn_ec4ef():
         #              provide edge features.
         #              This will trigger an assertion error, asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', task='ec', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         
@@ -1425,9 +1529,9 @@ def test_hgt_ec4ef():
         #              edge features.
         #              Should complete 2 epochs and output training loss and evaluation
         #              metrics.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt',
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='hgt',
                          task='ec', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
 
@@ -1477,13 +1581,16 @@ def test_hgt_ec4ef():
         #              edge features.
         #              Should trigger an assertion error of not support edge feature in hgt
         #              encoder.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', task='ec', use_ef=True)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='hgt', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
 
-        with assert_raises(AssertionError):
-            model2 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        # 02/06/2025: HGT suppurts edge features. So disable this test case and model2 should be
+        # created successfully
+        model2 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        assert isinstance(model2.gnn_encoder.layers[0], HGTLayerwithEdgeFeat)
+        assert isinstance(model2.gnn_encoder.layers[1], HGTLayerwithEdgeFeat)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
@@ -1494,9 +1601,9 @@ def test_hgt_ec4ef():
         #              edge features.
         #              Should trigger an assertion error， asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt',
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='hgt',
                          task='ec', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
 
@@ -1540,6 +1647,111 @@ def test_hgt_ec4ef():
                 num_epochs=2
                 )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 3: normal case, set HGT model with edge features for EC, and provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='hgt', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model4 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        trainer4 = GSgnnEdgePredictionTrainer(model4)
+        trainer4.setup_device(device)
+
+        train_dataloader4 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=True)
+        val_dataloader4 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+
+        evaluator4 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer4.setup_evaluator(evaluator4)
+
+        trainer4.fit(
+            train_loader=train_dataloader4,
+            val_loader=val_dataloader4,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 4: abnormal case, set HGT model with edge features for EC, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='hgt', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model5 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        trainer5 = GSgnnEdgePredictionTrainer(model5)
+        trainer5.setup_device(device)
+
+        train_dataloader5 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=True)
+        val_dataloader5 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+
+        evaluator5 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer5.setup_evaluator(evaluator5)
+
+        with assert_raises(AssertionError):
+            trainer5.fit(
+                train_loader=train_dataloader5,
+                val_loader=val_dataloader5,
+                num_epochs=2
+                )
+    
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1794,8 +2006,8 @@ def test_hgt_lp4ef():
         #              edge features.
         #              Should complete 2 epochs and output training loss and evaluation
         #              metrics.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', task='lp', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='hgt', task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         gdata = GSgnnData(part_config=part_config,
@@ -1846,15 +2058,18 @@ def test_hgt_lp4ef():
         #              edge features.
         #              Should trigger an assertion error of not support edge feature in hgt
         #              encoder.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', task='lp', use_ef=True)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='hgt', task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         gdata = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name)
 
-        with assert_raises(AssertionError):
-            model2 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        # 02/06/2025: HGT suppurts edge features. So disable this test case and model2 should be
+        # created successfully
+        model2 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        assert isinstance(model2.gnn_encoder.layers[0], HGTLayerwithEdgeFeat)
+        assert isinstance(model2.gnn_encoder.layers[1], HGTLayerwithEdgeFeat)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
@@ -1864,9 +2079,9 @@ def test_hgt_lp4ef():
         #              edge features.
         #              Should trigger an assertion error， asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt',
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='hgt',
                          task='lp', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         gdata = GSgnnData(part_config=part_config,
@@ -1911,6 +2126,117 @@ def test_hgt_lp4ef():
             trainer3.fit(
                 train_loader=train_dataloader3,
                 val_loader=val_dataloader3,
+                num_epochs=2
+                )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
+        # Test case 3: normal case, set HGT model with edge features for LP, and provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='hgt', task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name,
+                          edge_feat_field=config.edge_feat_name,
+        )
+
+        model4 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        trainer4 = GSgnnLinkPredictionTrainer(model4)
+        trainer4.setup_device(device)
+
+        train_dataloader4 = GSgnnLinkPredictionDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+
+        val_dataloader4 = GSgnnLinkPredictionTestDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            num_negative_edges=config.num_negative_edges,
+        )
+
+        evaluator4 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+
+        trainer4.setup_evaluator(evaluator4)
+
+        trainer4.fit(
+            train_loader=train_dataloader4,
+            val_loader=val_dataloader4,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
+        # Test case 4: abnormal case, set HGT model with edge features for LP, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='hgt', task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name,
+                          edge_feat_field=config.edge_feat_name,
+        )
+
+        model5 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        trainer5 = GSgnnLinkPredictionTrainer(model5)
+        trainer5.setup_device(device)
+
+        train_dataloader5 = GSgnnLinkPredictionDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+
+        val_dataloader5 = GSgnnLinkPredictionTestDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            num_negative_edges=config.num_negative_edges,
+        )
+
+        evaluator5 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+
+        trainer5.setup_evaluator(evaluator5)
+
+        with assert_raises(AssertionError):
+            trainer5.fit(
+                train_loader=train_dataloader5,
+                val_loader=val_dataloader5,
                 num_epochs=2
                 )
 

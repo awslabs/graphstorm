@@ -18,7 +18,18 @@ provide their own model implementations and use GraphStorm training pipeline to 
 ### Installation
 GraphStorm is compatible to Python 3.8+. It requires PyTorch 1.13+, DGL 1.0+ and transformers 4.3.0+. GraphStorm only supports DGL up to version 2.3.0.
 
-GraphStorm can be installed with pip and it can be used to train GNN models in a standalone mode. To run GraphStorm in a distributed environment, we recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to reduce environment setup efforts. A guideline to setup GraphStorm running environment can be found at [here](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-docker-environment) and a full instruction on how to setup distributed training can be found [here](https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/distributed/cluster.html).
+GraphStorm can be installed with pip and it can be used to train GNN models in a standalone mode. To run GraphStorm in a distributed environment, we recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to reduce environment setup efforts. A guideline to setup GraphStorm running environment can be found at [here](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-docker-environment) and a full instruction on how to setup distributed training can be found [here](https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/distributed/cluster.html). For quick installation, please refer to the following command:
+```
+pip install torchdata==0.9.0 pydantic
+#CPU
+pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install dgl==2.3.0 -f https://data.dgl.ai/wheels/torch-2.3/repo.html
+#GPU
+pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install dgl==2.3.0+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html
+
+pip install graphstorm
+```
 
 ### Run GraphStorm with OGB datasets
 
