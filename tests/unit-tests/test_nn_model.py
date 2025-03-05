@@ -613,6 +613,13 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert emb2['n1'].shape[0] == len(seeds['n1'])
     assert emb2['n1'].shape[1] == output_dim
 
+    # the value of emb0, emb1 and emb2 should be different,
+    # as emb0 integrates edge features from  both etypes, emb1 integrates edge features from
+    # one etype, and emb2 does not integrate edge features
+    assert not th.allclose(emb0['n1'], emb1['n1'], atol=0.001)
+    assert not th.allclose(emb0['n1'], emb2['n1'], atol=0.001)
+    assert not th.allclose(emb1['n1'], emb2['n1'], atol=0.001)
+
     # Test case 3: normal case, all 5 message passing ops
     # Test 3.1, "add" op
     layer = RelationalAttLayer(
@@ -683,6 +690,14 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert emb34['n1'].shape[0] == len(seeds['n1'])
     assert emb34['n1'].shape[1] == output_dim
 
+    # the value of emb31, emb32, emb33, and emb34 should be different
+    assert not th.allclose(emb31['n1'], emb32['n1'], atol=0.001)
+    assert not th.allclose(emb31['n1'], emb33['n1'], atol=0.001)
+    assert not th.allclose(emb31['n1'], emb34['n1'], atol=0.001)
+    assert not th.allclose(emb32['n1'], emb33['n1'], atol=0.001)
+    assert not th.allclose(emb32['n1'], emb34['n1'], atol=0.001)
+    assert not th.allclose(emb33['n1'], emb34['n1'], atol=0.001)
+
     # Test case 4: abnormal case, layer has no edge feature weights, but give edge features。
     #              this will trigger an assertion error to let users know that they need to use
     #              GATConvwithEdgeFeat.
@@ -696,8 +711,9 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     with assert_raises(AssertionError):
         layer(block, node_feats, edge_feats)
 
-    # Test case 5: abnormal case, layer has edge feature weights, but not give edge features
-    #              this will trigger an assertion error of mismatch of the number of inputs
+    # Test case 5: abnormal case, layer has edge feature defined in initialization, but not give
+    #              edge features in forward.
+    #              This will trigger an assertion error of mismatch of the number of inputs.
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,

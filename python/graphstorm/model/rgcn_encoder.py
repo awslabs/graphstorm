@@ -143,7 +143,7 @@ class RelGraphConvLayer(nn.Module):
         # check which GraphConv to use depending on if using edge feature
         rel_convs = {}
         for rel in rel_names:
-            if edge_feat_name and rel in edge_feat_name:
+            if edge_feat_name is not None and rel in edge_feat_name:
                 rel_convs[rel] = GraphConvwithEdgeFeat(in_feat, out_feat,
                                                        edge_feat_mp_op=edge_feat_mp_op,
                                                        bias=False)
@@ -540,7 +540,8 @@ class GraphConvwithEdgeFeat(nn.Module):
         rel_graph: DGLGraph
             Input DGL heterogenous graph with one edge type only.
         inputs: tuple of Tensors
-            Tuple of input node and edge features, i.e., (src_inputs, dst_inputs, edge_inputs).
+            Tuple of input node and edge features. For example, (src_inputs, dst_inputs,
+            edge_inputs)
         weight: dict of Tensor 
             optional external node weight tensor. Not implemented. Reserved for future use.
         edge_weight: Tensor 

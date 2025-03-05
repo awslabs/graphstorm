@@ -828,7 +828,6 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
 def test_rgcn_nc4ef():
     """ Test RGCN model Node Classification traning pipeline with/without edge features.
     """
-    print(f'=================== Test RGCN Training NC with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -1046,7 +1045,6 @@ def test_rgcn_nc4ef():
 def test_rgat_nc4ef():
     """ Test RGAT model Node Classification traning pipeline with/without edge features.
     """
-    print(f'=================== Test RGAT Training NC with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -1506,7 +1504,6 @@ def test_hgt_nc4ef():
 def test_rgcn_ec4ef():
     """ Test RGCN model Edge Classification training pipeline with/without edge features.
     """
-    print(f'=================== Test RGCN Training EC with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -1730,7 +1727,6 @@ def test_rgcn_ec4ef():
 def test_rgat_ec4ef():
     """ Test RGAT model Edge Classification training pipeline with/without edge features.
     """
-    print(f'=================== Test RGAT Training EC with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -2208,7 +2204,6 @@ def test_hgt_ec4ef():
 def test_rgcn_lp4ef():
     """ Test RGCN model Link Prediction traning pipeline with/without edge features.
     """
-    print(f'=================== Test RGCN Training LP with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -2436,7 +2431,6 @@ def test_rgcn_lp4ef():
 def test_rgat_lp4ef():
     """ Test RGAT model Link Prediction traning pipeline with/without edge features.
     """
-    print(f'=================== Test RGAT Training LP with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -2924,24 +2918,3 @@ def test_hgt_lp4ef():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
-
-if __name__ == '__main__':
-    test_mtask_eval()
-    test_trainer_setup_evaluator()
-
-    test_mtask_prepare_node_mini_batch()
-    test_mtask_prepare_edge_mini_batch()
-    test_mtask_prepare_lp_mini_batch()
-    test_mtask_prepare_reconstruct_node_feat()
-    test_mtask_prepare_reconstruct_edge_feat()
-
-    test_rgcn_nc4ef()
-    test_rgat_nc4ef()
-    test_hgt_nc4ef()
-    test_rgcn_ec4ef()
-    test_rgat_ec4ef()
-    test_hgt_ec4ef()
-    test_rgcn_lp4ef()
-    test_rgat_lp4ef()
-    test_hgt_lp4ef()

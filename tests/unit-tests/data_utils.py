@@ -112,7 +112,8 @@ def generate_dummy_hetero_graph_for_efeat_gnn(is_random=True):
     return hetero_graph
 
 
-def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, is_random=True):
+def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, is_random=True,
+                                add_reverse_efeat=False):
     """
     generate a dummy heterogeneous graph.
     Parameters
@@ -153,6 +154,8 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, i
 
     edge_feat = {'r0': th.randn(data_size, 2),
                  'r1': th.randn(2 * data_size, 2)}
+    if add_reverse and add_reverse_efeat:
+        edge_feat['r2'] = th.randn(2 * data_size, 2)
 
     hetero_graph.nodes['n0'].data['feat'] = node_feat['n0']
     hetero_graph.nodes['n1'].data['feat'] = node_feat['n1']
@@ -162,6 +165,8 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, i
 
     hetero_graph.edges['r0'].data['feat'] = edge_feat['r0']
     hetero_graph.edges['r1'].data['feat'] = edge_feat['r1']
+    if 'r2' in edge_feat:
+        hetero_graph.edges['r2'].data['feat'] = edge_feat['r2']
     hetero_graph.edges['r1'].data['label'] = th.randint(10, (hetero_graph.number_of_edges('r1'), ))
 
     # set train/val/test masks for nodes and edges
@@ -581,7 +586,7 @@ def generate_special_dummy_dist_graph_for_efeat_gnn(dirname, graph_name='special
 
 def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy',
                               gen_mask=True, is_homo=False, add_reverse=False,
-                              is_random=True):
+                              is_random=True, add_reverse_efeat=False):
     """
     Generate a dummy DGL distributed graph with the given size
     Parameters
@@ -597,7 +602,8 @@ def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy',
     """
     if not is_homo:
         hetero_graph = generate_dummy_hetero_graph(size=size, gen_mask=gen_mask,
-                                                   add_reverse=add_reverse, is_random=is_random)
+                                                   add_reverse=add_reverse, is_random=is_random,
+                                                   add_reverse_efeat=add_reverse_efeat)
     else:
         hetero_graph = generate_dummy_homo_graph(size=size, gen_mask=gen_mask)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
