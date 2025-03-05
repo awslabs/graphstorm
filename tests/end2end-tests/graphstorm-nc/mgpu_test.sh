@@ -688,6 +688,34 @@ fi
 
 rm -R /data/gsgnn_nc_ml_ef/
 
+echo "**************dataset: MovieLens: NC, HGT layer: 1, node feat: fixed HF BERT, BERT nodes: movie, edge feat: user,rating,movie:feat inference: mini-batch, edge-feat-mp-op: div"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type hgt -—edge-feat-mp-op div
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-prediction-path /data/gsgnn_nc_ml_ef/prediction/ --logging-file /tmp/log.txt --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl --model-encoder-type hgt -—edge-feat-mp-op div
+
+error_and_exit $?
+
+## Emb Gen
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_nc_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl --model-encoder-type hgt -—edge-feat-mp-op div
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_nc_ml_ef/ | wc -l)
+if test $cnt != 4
+then
+    echo "We save models, predictions, and embeddings."
+    exit -1
+fi
+
+if [ -f "/data/gsgnn_nc_ml_ef/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
+    exit -1
+fi
+
+rm -R /data/gsgnn_nc_ml_ef/
+
 echo "=================== test save model and restore with learnable embeddings ==================="
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: learnable, inference: mini-batch, no-topk save model, no eval frequency"
