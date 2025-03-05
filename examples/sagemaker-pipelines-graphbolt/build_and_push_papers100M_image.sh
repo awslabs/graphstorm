@@ -54,11 +54,20 @@ IMAGE=papers100m-processor
 # Download ripunzip to copy to image
 curl -L -O https://github.com/google/ripunzip/releases/download/v2.0.0/ripunzip_2.0.0-1_amd64.deb
 
+aws sts get-caller-identity
+echo past awscli curl
+
 # Auth to AWS public ECR gallery
 aws ecr-public get-login-password --region $REGION | docker login --username AWS --password-stdin public.ecr.aws
 
+aws sts get-caller-identity
+echo past public auth
+
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
+
+aws sts get-caller-identity
+echo past docker build
 
 # Create repository if it doesn't exist
 echo "Getting or creating container repository: $IMAGE"
@@ -67,8 +76,14 @@ if ! $(aws ecr describe-repositories --repository-names $IMAGE --region ${REGION
     aws ecr create-repository --repository-name $IMAGE --region ${REGION} > /dev/null
 fi
 
+aws sts get-caller-identity
+echo past create repo
+
 # Auth to private ECR
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
+
+aws sts get-caller-identity
+echo past private auth
 
 # Tag and push the image
 docker tag $IMAGE:latest $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$IMAGE:latest
