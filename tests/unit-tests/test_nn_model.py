@@ -1184,18 +1184,82 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         with assert_raises(AssertionError):
             layerwithef(block, node_feats, edge_feats)
 
+    # Test case 8: a corner case, layer was set with edge feature name, but the input block has 0
+    #              number of edge types that should have edge features.
+    #       8.1 abnormal case, set layer with  ('n0', 'r0', 'n1') edge feature name, but has >0
+    #           input edges, but either don't provide edge features to forward or provide an emtpy
+    #           dict. This will trigger an asserttion error.
+    #       This has been tested in the Test Case 5 and the Test Case 7.
 
-if __name__ == '__main__':
-    test_rgcn_with_zero_input(32, 64)
-    test_rgat_with_zero_input(32, 64)
-    test_hgt_with_zero_input(32, 64)
+    #       8.2 normal case, set layer with ('n0', 'r0', 'n1') edge feature name, but 0 input edges
+    #           by either not providing input edge feature or providing an empty dict
 
-    test_rgcn_with_no_indegree_dstnodes(32, 64)
-    test_rgat_with_no_indegree_dstnodes(32, 64)
-    test_hgt_with_no_indegree_dstnodes(32, 64)
+    # remove all edges in ('n0', 'r0', 'n1') edge type
+    subg.remove_edges(th.tensor([0,1]), etype=('n0', 'r0', 'n1'))
 
-    test_rgcn_with_edge_features(32, 64, 'cpu')
-    test_rgcn_with_edge_features(64, 64, 'cpu')
-    test_rgcn_with_edge_features(32, 64, 'cuda:0')
+    # collect new src and dst node ids
+    src1, dst1, r0_eid = subg.edges(form='all', etype='r0')
+    src2, dst2, r1_eid = subg.edges(form='all', etype='r1')
 
-    test_hgt_with_edge_features(32, 64, 'cpu')
+    src_idx = th.unique(th.concat([src1, src2]))
+    dst_idx = th.unique(th.concat([dst1, dst2]))
+
+    # set node feature input to be a fix value, all 1s
+    node_feats = {
+        "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
+    }
+
+    # convert the new subgraph to a block with 0 number of edges in ('n0', 'r0', 'n1')
+    block_zero_edge = dgl.to_block(subg, seeds).to(dev)
+
+    # intialize hgt layer with ('n0', 'r0', 'n1') edge
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat']},
+        edge_feat_mp_op='sub',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+
+    # method A: not provide input edge feature
+    emb_a = layerwithef(block_zero_edge, node_feats)
+
+    assert 'n0' not in emb_a
+    assert emb_a['n1'].shape[0] == len(seeds['n1'])
+    assert emb_a['n1'].shape[1] == output_dim 
+
+    # method B: provide an empty dict as input edge feature 
+    emb_b = layerwithef(block_zero_edge, node_feats, {})
+
+    assert 'n0' not in emb_b
+    assert emb_b['n1'].shape[0] == len(seeds['n1'])
+    assert emb_b['n1'].shape[1] == output_dim 
+
+    # check the two inputs should generate the same output
+    assert_almost_equal(emb_a['n1'].detach().cpu().numpy(),
+                        emb_b['n1'].detach().cpu().numpy())
+
+    # check this should be the same as HGTLayer withouth any edge features.
+    hgt_layer = HGTLayer(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(hgt_layer)
+    hgt_layer = hgt_layer.to(dev)
+    hgt_layer.eval()
+    baseline_emb = hgt_layer(block_zero_edge, node_feats)
+
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
+                        emb_a['n1'].detach().cpu().numpy())
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
+                        emb_b['n1'].detach().cpu().numpy())
+
