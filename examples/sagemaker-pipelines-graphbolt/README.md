@@ -279,8 +279,9 @@ In this section, you will create a [Sagemaker Pipeline](https://docs.aws.amazon.
 * Launch GraphStorm Inference Job. This will generate predictions and embeddings for every node in the input graph.
 
 ```bash
-PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
+cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
 
+PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 bash deploy_arxiv_pipeline.sh \
     --account $ACCOUNT_ID \
     --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
@@ -308,7 +309,7 @@ The ogbn-arxiv data are small enough that you can execute the pipeline locally. 
 ```bash
 PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 
-python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
+python execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION \
     --local-execution | tee arxiv-local-logs.txt
