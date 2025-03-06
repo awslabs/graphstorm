@@ -171,10 +171,27 @@ class DistLabelLoader:
 
             transformed_label = label_transformer.apply(input_df)
             if self.order_col:
-                assert self.order_col in transformed_label.columns, (
-                    f"{self.order_col=} needs to be part of transformed "
-                    f"label DF, got {transformed_label.columns=}"
-                )
+                # For Node Label, it should be a string
+                if isinstance(self.order_col, str):
+                    assert self.order_col in transformed_label.columns, (
+                        f"Order column '{self.order_col=}' not found in label dataframe, "
+                        f"{transformed_label.columns=}"
+                    )
+                # For Edge Label, it should be a list
+                elif isinstance(self.order_col, list):
+                    missing_cols = [
+                        col for col in self.order_col if col not in transformed_label.columns
+                    ]
+                    assert not missing_cols, (
+                        f"Some columns in {self.order_col=} are missing from transformed "
+                        f"label DF, missing columns: {missing_cols}, "
+                        f"got {transformed_label.columns=}"
+                    )
+                else:
+                    raise TypeError(
+                        f"Invalid type for order_col: {type(self.order_col).__name__}. "
+                        "Expected str or list."
+                    )
                 transformed_label = transformed_label.sort(self.order_col).cache()
 
             self.label_map = label_transformer.value_map
