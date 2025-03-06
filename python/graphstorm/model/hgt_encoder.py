@@ -710,9 +710,17 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         -------
         dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
         """
-        assert e_h is not None and len(e_h) != 0,  "No edge features provided for message " + \
-            "passing computation in HGTLayerwithEdgeFeat, please provide edge feature " + \
-            "dictionary specified in the \"edge_feat_name\" argument."
+        # A corner case, there is 0 edges of edge type with edge features. So no input e_h will
+        # be given.
+        if e_h is None or len(e_h) == 0:
+            total_num_edge = 0
+            for can_etype in self.edge_feat_name.keys():
+                total_num_edge += g.num_edges(etype=can_etype)
+            assert total_num_edge == 0, f"No edge features provided for {total_num_edge} " + \
+                "edges in HGTLayerwithEdgeFeat, please check the edge feature information " + \
+                "specified in the \"edge_feat_name\" argument during initialization " + \
+                "or check the \"e_h\" argument of the forward function.."
+            e_h = {}
 
         # pylint: disable=no-member
         with g.local_scope():
