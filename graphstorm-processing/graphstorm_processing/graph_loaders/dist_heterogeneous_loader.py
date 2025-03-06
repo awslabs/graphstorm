@@ -80,7 +80,6 @@ FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
 NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
-EDGE_MAPPING_INT = "edge_order_col"
 CUSTOM_DATA_SPLIT_ORDER = "custom_split_order_flag"
 
 
@@ -1572,18 +1571,6 @@ class DistHeterogeneousGraphLoader(object):
             how="inner",
         )
 
-        # Always create the order column for the edges dataframe before writing
-        original_schema = edge_df_with_int_ids.schema
-        edge_df_with_int_ids = edge_df_with_int_ids.rdd.zipWithIndex()
-
-        new_schema = original_schema.add(StructField(EDGE_MAPPING_INT, LongType(), False))
-
-        edge_rdd_with_order_ids = edge_df_with_int_ids.map(
-            lambda rdd_row: (list(rdd_row[0]) + [rdd_row[1]])  # type: ignore
-        )
-
-        edge_df_with_int_ids = self.spark.createDataFrame(edge_rdd_with_order_ids, new_schema)
-
         # After the two joins, the result is the incoming edge
         # df now has the src and dst node ids as int ids
         # TODO: We need to repartition to ensure same file count for
@@ -1967,10 +1954,13 @@ class DistHeterogeneousGraphLoader(object):
             if label_conf.task_type != "link_prediction":
                 # We only should re-order for classification
                 if label_conf.task_type == "classification":
-                    order_col = EDGE_MAPPING_INT
-                    assert order_col in edges_df.columns, (
-                        f"Order column '{order_col}' not found in edge dataframe, "
-                        f"{edges_df.columns=}"
+                    # We do not create an additional column for reordering as
+                    # there might be huge amount of edges to save memory.
+                    order_col = ["src_int_id", "dst_int_id"]
+                    missing_cols = [col for col in order_col if col not in edges_df.columns]
+                    assert not missing_cols, (
+                        f"Some columns in {self.order_col=} are missing from edge_df, "
+                        f"missing columns: {missing_cols}, got {edges_df.columns=}"
                     )
                 else:
                     order_col = None
@@ -2023,7 +2013,7 @@ class DistHeterogeneousGraphLoader(object):
                             label_conf.label_column,
                         )
                         transformed_label_pd = transformed_label.select(
-                            label_conf.label_column, order_col
+                            label_conf.label_column
                         ).toPandas()
 
                         # Write to parquet using zero-copy column values from Pandas DF

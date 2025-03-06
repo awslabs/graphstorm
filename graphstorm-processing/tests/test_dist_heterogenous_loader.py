@@ -36,7 +36,6 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     HeterogeneousLoaderConfig,
     NODE_MAPPING_INT,
     NODE_MAPPING_STR,
-    EDGE_MAPPING_INT,
 )
 from graphstorm_processing.data_transformations.dist_label_loader import SplitRates
 from graphstorm_processing.config.label_config_base import (
@@ -1496,7 +1495,7 @@ def test_edge_dist_label_order_partitioned(
     label_col = STR_LABEL_COL
 
     # Create a Pandas DF with a label column with 10k "zero", 10k "one", 10k None rows
-    num_datapoints = 10**4
+    num_datapoints = 10**5
     ids = list(range(3 * num_datapoints))
     data_zeros = ["zero" for _ in range(num_datapoints)]
     data_ones = ["one" for _ in range(num_datapoints)]
@@ -1515,11 +1514,7 @@ def test_edge_dist_label_order_partitioned(
     )
     # We shuffle the rows so that "zero", "one" and None values are mixed and not continuous
     pandas_shuffled = pandas_input.sample(frac=1, random_state=42).reset_index(drop=True)
-    # Then we assign a sequential numerical ID that we use as an order identifier
-    # DGHL by default uses `EDGE_MAPPING_INT` for the name of this column, so we
-    # use it here as well.
-    order_col = EDGE_MAPPING_INT
-    pandas_shuffled[order_col] = ids
+    order_col = ["src_int_id", "dst_int_id"]
     names_df = spark.createDataFrame(pandas_shuffled)
 
     # Consistently shuffle the DF to multiple partitions

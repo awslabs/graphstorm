@@ -155,7 +155,7 @@ class DistLabelLoader:
             or if a passed in regression column is not of FloatType.
         """
         label_type = input_df.schema[self.label_column].dataType
-
+        input_df.show()
         if self.label_config.task_type == "classification":
             assert self.order_col, f"{self.order_col} must be provided for classification tasks"
             if self.label_config.multilabel:
@@ -171,10 +171,19 @@ class DistLabelLoader:
 
             transformed_label = label_transformer.apply(input_df)
             if self.order_col:
-                assert self.order_col in transformed_label.columns, (
-                    f"{self.order_col=} needs to be part of transformed "
-                    f"label DF, got {transformed_label.columns=}"
-                )
+                if isinstance(self.order_col, str):
+                    assert self.order_col in transformed_label.columns, (
+                        f"Order column '{order_col}' not found in label dataframe, "
+                        f"{transformed_label.columns=}"
+                    )
+                elif isinstance(self.order_col, list):
+                    missing_cols = [
+                        col for col in self.order_col if col not in transformed_label.columns
+                    ]
+                    assert not missing_cols, (
+                        f"Some columns in {self.order_col=} are missing from transformed "
+                        f"label DF, missing columns: {missing_cols}, got {transformed_label.columns=}"
+                    )
                 transformed_label = transformed_label.sort(self.order_col).cache()
 
             self.label_map = label_transformer.value_map
