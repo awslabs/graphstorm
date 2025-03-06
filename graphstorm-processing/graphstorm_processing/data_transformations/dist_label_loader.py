@@ -174,7 +174,7 @@ class DistLabelLoader:
                 # For Node Label, it should be a string
                 if isinstance(self.order_col, str):
                     assert self.order_col in transformed_label.columns, (
-                        f"Order column '{order_col}' not found in label dataframe, "
+                        f"Order column '{self.order_col=}' not found in label dataframe, "
                         f"{transformed_label.columns=}"
                     )
                 # For Edge Label, it should be a list
@@ -184,7 +184,8 @@ class DistLabelLoader:
                     ]
                     assert not missing_cols, (
                         f"Some columns in {self.order_col=} are missing from transformed "
-                        f"label DF, missing columns: {missing_cols}, got {transformed_label.columns=}"
+                        f"label DF, missing columns: {missing_cols}, "
+                        f"got {transformed_label.columns=}"
                     )
                 transformed_label = transformed_label.sort(self.order_col).cache()
 
