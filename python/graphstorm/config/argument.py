@@ -3383,7 +3383,8 @@ def _add_hyperparam_args(parser):
             help="Specify the early stop strategy. "
             "It can be either consecutive_increase or average_increase")
     group.add_argument("--use-early-stop",
-            type=bool, default=argparse.SUPPRESS,
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
             help='whether to use early stopping by monitoring the validation loss')
     return parser
 

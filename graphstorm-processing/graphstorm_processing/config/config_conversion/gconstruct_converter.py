@@ -150,7 +150,7 @@ class GConstructConfigConverter(ConfigConverter):
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {
                         "normalizer": "min-max",
-                        "imputer": "none",
+                        "imputer": "mean",
                     }
                     if gconstruct_transform_dict.get("out_dtype") in VALID_OUTDTYPE:
                         gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
@@ -160,7 +160,7 @@ class GConstructConfigConverter(ConfigConverter):
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {
                         "normalizer": "standard",
-                        "imputer": "none",
+                        "imputer": "mean",
                     }
 
                     if gconstruct_transform_dict.get("out_dtype") in VALID_OUTDTYPE:
@@ -179,13 +179,13 @@ class GConstructConfigConverter(ConfigConverter):
                         "bucket_cnt": gconstruct_transform_dict["bucket_cnt"],
                         "range": gconstruct_transform_dict["range"],
                         "slide_window_size": gconstruct_transform_dict["slide_window_size"],
-                        "imputer": "none",
+                        "imputer": "mean",
                     }
                 elif gconstruct_transform_dict["name"] == "rank_gauss":
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {
                         "normalizer": "rank-gauss",
-                        "imputer": "none",
+                        "imputer": "mean",
                     }
 
                     if "epsilon" in gconstruct_transform_dict:
