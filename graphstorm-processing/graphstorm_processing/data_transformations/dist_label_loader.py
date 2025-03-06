@@ -187,6 +187,11 @@ class DistLabelLoader:
                         f"label DF, missing columns: {missing_cols}, "
                         f"got {transformed_label.columns=}"
                     )
+                else:
+                    raise TypeError(
+                        f"Invalid type for order_col: {type(self.order_col).__name__}. "
+                        "Expected str or list."
+                    )
                 transformed_label = transformed_label.sort(self.order_col).cache()
 
             self.label_map = label_transformer.value_map

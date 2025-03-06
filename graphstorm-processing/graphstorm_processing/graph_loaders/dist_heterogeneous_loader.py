@@ -1956,6 +1956,7 @@ class DistHeterogeneousGraphLoader(object):
                 if label_conf.task_type == "classification":
                     # We do not create an additional column for reordering as
                     # there might be huge amount of edges to save memory.
+                    # TODO: replace all the src_int_id and dst_int_id into constants
                     order_col = ["src_int_id", "dst_int_id"]
                     missing_cols = [col for col in order_col if col not in edges_df.columns]
                     assert not missing_cols, (
