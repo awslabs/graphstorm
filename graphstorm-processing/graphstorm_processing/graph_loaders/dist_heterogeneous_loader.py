@@ -23,7 +23,7 @@ from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, Union, List
 from uuid import uuid4
 
 import numpy as np
@@ -1410,7 +1410,7 @@ class DistHeterogeneousGraphLoader(object):
                         num_files=input_num_parts,
                     )
             else:
-                # Regression and LP tasks will preserve input order, no need to re-order
+                # Regression tasks will preserve input order, no need to re-order
                 path_list = self._write_df(
                     transformed_label.select(label_conf.label_column), label_output_path
                 )
@@ -1471,7 +1471,7 @@ class DistHeterogeneousGraphLoader(object):
         ints and write the edge structure as a file with two
         columns: "src_int_id","dst_int_id".
 
-        If `self.add_reverse_edges` is True, it it will also write the
+        If `self.add_reverse_edges` is True, it will also write the
         reverse edge type with the src and dst columns reversed.
 
         Parameters
@@ -1952,13 +1952,24 @@ class DistHeterogeneousGraphLoader(object):
         label_metadata_dicts = {}
         for label_conf in label_configs:
             if label_conf.task_type != "link_prediction":
-                edge_label_loader = DistLabelLoader(label_conf, self.spark)
+                # We only should re-order for classification
+                if label_conf.task_type == "classification":
+                    # We do not create an additional column for reordering as
+                    # there might be huge amount of edges to save memory.
+                    # TODO: replace all the src_int_id and dst_int_id into constants
+                    order_col = ["src_int_id", "dst_int_id"]
+                    missing_cols = [col for col in order_col if col not in edges_df.columns]
+                    assert not missing_cols, (
+                        f"Some columns in {order_col} are missing from edge_df, "
+                        f"missing columns: {missing_cols}, got {edges_df.columns}"
+                    )
+                else:
+                    order_col = None
+
+                edge_label_loader = DistLabelLoader(label_conf, self.spark, order_col)
                 self.graph_info["task_type"] = (
                     "edge_class" if label_conf.task_type == "classification" else "edge_regression"
                 )
-                if label_conf.task_type == "classification":
-                    self.graph_info["is_multilabel"] = label_conf.multilabel
-                    self.graph_info["label_map"] = edge_label_loader.label_map
 
                 logging.info(
                     "Processing edge label(s) '%s' for edge type '%s'...",
@@ -1967,12 +1978,59 @@ class DistHeterogeneousGraphLoader(object):
                 )
                 transformed_label = edge_label_loader.process_label(edges_df)
 
+                # Update the label map after do label transformation
+                if label_conf.task_type == "classification":
+                    self.graph_info["is_multilabel"] = label_conf.multilabel
+                    self.graph_info["label_map"] = edge_label_loader.label_map
+
                 label_output_path = os.path.join(
                     self.output_prefix,
                     f"edge_data/{edge_type.replace(':', '_')}-label-{rel_type_prefix}",
                 )
+                if label_conf.task_type == "classification":
+                    assert order_col, "An order column is needed to process classification labels."
+                    if label_conf.custom_split_filenames:
+                        # When using custom splits we can rely on order being preserved by Spark
+                        path_list = self._write_df(
+                            transformed_label.select(label_conf.label_column), label_output_path
+                        )
+                    else:
+                        input_num_parts = edges_df.rdd.getNumPartitions()
+                        # If num parts is different for original and transformed, log a warning
+                        transformed_num_parts = transformed_label.rdd.getNumPartitions()
+                        if input_num_parts != transformed_num_parts:
+                            logging.warning(
+                                "Number of partitions for original (%d) and transformed label data "
+                                "(%d) differ.  This may cause issues with the label split files.",
+                                input_num_parts,
+                                transformed_num_parts,
+                            )
+                        # For random splits we need to collect the ordered DF to Pandas
+                        # and write to storage directly
+                        logging.info(
+                            "Collecting label data for edge type '%s', "
+                            "label col: '%s' to leader...",
+                            edge_type,
+                            label_conf.label_column,
+                        )
+                        transformed_label_pd = transformed_label.select(
+                            label_conf.label_column
+                        ).toPandas()
 
-                path_list = self._write_df(transformed_label, label_output_path)
+                        # Write to parquet using zero-copy column values from Pandas DF
+                        path_list = self._write_pyarrow_table(
+                            pa.Table.from_arrays(
+                                [transformed_label_pd[label_conf.label_column].values],
+                                names=[label_conf.label_column],
+                            ),
+                            label_output_path,
+                            num_files=input_num_parts,
+                        )
+                else:
+                    # Regression tasks will preserve input order, no need to re-order
+                    path_list = self._write_df(
+                        transformed_label.select(label_conf.label_column), label_output_path
+                    )
 
                 label_metadata_dict = {
                     "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
@@ -2103,7 +2161,7 @@ class DistHeterogeneousGraphLoader(object):
         custom_split_file: Optional[CustomSplit] = None,
         seed: Optional[int] = None,
         mask_field_names: Optional[tuple[str, str, str]] = None,
-        order_col: Optional[str] = None,
+        order_col: Optional[Union[str, List[str]]] = None,
     ) -> Dict:
         """
         Given an input dataframe and a list of split rates or a list of custom split files
@@ -2132,6 +2190,9 @@ class DistHeterogeneousGraphLoader(object):
             An optional tuple of field names to use for the split masks.
             If not provided, the default field names "train_mask",
             "val_mask", and "test_mask" are used.
+        order_col: Optional[Union[str, List[str]]]
+            A string or a list of strings that helps to keep the order of the mask dataframe.
+            For node label, it should be a string. For edge label, it should be a list.
 
         Returns
         -------
@@ -2227,7 +2288,7 @@ class DistHeterogeneousGraphLoader(object):
         label_column: str,
         split_rates: Optional[SplitRates],
         seed: Optional[int],
-        order_col: Optional[str] = None,
+        order_col: Optional[Union[str, List[str]]] = None,
     ) -> DataFrame:
         """
         Creates the train/val/test mask dataframe based on split rates.
@@ -2245,8 +2306,9 @@ class DistHeterogeneousGraphLoader(object):
             If None, a default split rate of 0.8:0.1:0.1 is used.
         seed: Optional[int]
             An optional random seed for reproducibility.
-        order_col: Optional[str]
-            A column to order the output by. Required for classification tasks.
+        order_col: Optional[Union[str, List[str]]]
+            A string or a list of strings that helps to keep the order of the mask dataframe.
+            For node label, it should be a string. For edge label, it should be a list.
 
         Returns
         -------
