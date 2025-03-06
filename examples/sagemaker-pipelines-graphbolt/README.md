@@ -284,7 +284,7 @@ cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
 PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 bash deploy_arxiv_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --role-arn $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
 ```
@@ -403,7 +403,7 @@ You can use the same pipeline creation script, but change two variables, providi
 PIPELINE_NAME_GRAPHBOLT="ogbn-arxiv-gs-graphbolt-pipeline"
 bash deploy_arxiv_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --role-arn $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 # Execute the pipeline locally
@@ -473,7 +473,7 @@ PIPELINE_NAME="ogb-papers100M-pipeline"
 cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt/
 bash deploy_papers100M_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --role-arn $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
 ```
@@ -496,7 +496,7 @@ Next, you can deploy and execute another pipeline, now with GraphBolt enabled:
 PIPELINE_NAME_GRAPHBOLT="ogb-papers100M-graphbolt-pipeline"
 bash deploy_papers100M_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --role-arn $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 
