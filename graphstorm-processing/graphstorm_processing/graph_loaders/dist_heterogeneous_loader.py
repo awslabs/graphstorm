@@ -23,7 +23,7 @@ from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, Union, List
 from uuid import uuid4
 
 import numpy as np
@@ -1959,8 +1959,8 @@ class DistHeterogeneousGraphLoader(object):
                     order_col = ["src_int_id", "dst_int_id"]
                     missing_cols = [col for col in order_col if col not in edges_df.columns]
                     assert not missing_cols, (
-                        f"Some columns in {self.order_col=} are missing from edge_df, "
-                        f"missing columns: {missing_cols}, got {edges_df.columns=}"
+                        f"Some columns in {order_col} are missing from edge_df, "
+                        f"missing columns: {missing_cols}, got {edges_df.columns}"
                     )
                 else:
                     order_col = None
@@ -2160,7 +2160,7 @@ class DistHeterogeneousGraphLoader(object):
         custom_split_file: Optional[CustomSplit] = None,
         seed: Optional[int] = None,
         mask_field_names: Optional[tuple[str, str, str]] = None,
-        order_col: Optional[str] = None,
+        order_col: Optional[Union[str, List[str]]] = None,
     ) -> Dict:
         """
         Given an input dataframe and a list of split rates or a list of custom split files
@@ -2189,8 +2189,9 @@ class DistHeterogeneousGraphLoader(object):
             An optional tuple of field names to use for the split masks.
             If not provided, the default field names "train_mask",
             "val_mask", and "test_mask" are used.
-        order_col: Optional[str]
-            A string that helps to keep the order of the mask dataframe.
+        order_col: Optional[Union[str, List[str]]]
+            A string or a list of strings that helps to keep the order of the mask dataframe.
+            For node label, it should be a string. For edge label, it should be a list.
 
         Returns
         -------
@@ -2286,7 +2287,7 @@ class DistHeterogeneousGraphLoader(object):
         label_column: str,
         split_rates: Optional[SplitRates],
         seed: Optional[int],
-        order_col: Optional[str] = None,
+        order_col: Optional[Union[str, List[str]]] = None,
     ) -> DataFrame:
         """
         Creates the train/val/test mask dataframe based on split rates.
@@ -2304,8 +2305,9 @@ class DistHeterogeneousGraphLoader(object):
             If None, a default split rate of 0.8:0.1:0.1 is used.
         seed: Optional[int]
             An optional random seed for reproducibility.
-        order_col: Optional[str]
-            A column to order the output by. Required for classification tasks.
+        order_col: Optional[Union[str, List[str]]]
+            A string or a list of strings that helps to keep the order of the mask dataframe.
+            For node label, it should be a string. For edge label, it should be a list.
 
         Returns
         -------

@@ -155,7 +155,7 @@ class DistLabelLoader:
             or if a passed in regression column is not of FloatType.
         """
         label_type = input_df.schema[self.label_column].dataType
-        input_df.show()
+
         if self.label_config.task_type == "classification":
             assert self.order_col, f"{self.order_col} must be provided for classification tasks"
             if self.label_config.multilabel:
@@ -171,11 +171,13 @@ class DistLabelLoader:
 
             transformed_label = label_transformer.apply(input_df)
             if self.order_col:
+                # For Node Label, it should be a string
                 if isinstance(self.order_col, str):
                     assert self.order_col in transformed_label.columns, (
                         f"Order column '{order_col}' not found in label dataframe, "
                         f"{transformed_label.columns=}"
                     )
+                # For Edge Label, it should be a list
                 elif isinstance(self.order_col, list):
                     missing_cols = [
                         col for col in self.order_col if col not in transformed_label.columns
