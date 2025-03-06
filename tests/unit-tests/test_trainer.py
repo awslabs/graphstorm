@@ -783,6 +783,10 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
     gsf_object["hyperparam"] = hp_ob
 
     # config encoder model specific configurations
+    if encoder == "rgat":
+        rgat_obj = {"num_heads": 4}
+        gsf_object["rgat"] = rgat_obj
+
     if encoder == "hgt":
         hgt_obj = {"num_heads": 4}
         gsf_object["hgt"] = hgt_obj
@@ -824,7 +828,6 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
 def test_rgcn_nc4ef():
     """ Test RGCN model Node Classification traning pipeline with/without edge features.
     """
-    print(f'=================== Test RGCN Training NC with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -994,6 +997,223 @@ def test_rgcn_nc4ef():
         #              This will trigger an assertion error, asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
         create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model4 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer4 = GSgnnNodePredictionTrainer(model4)
+        trainer4.setup_device(device)
+
+        train_dataloader4 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats={('n0', 'r0', 'n1'): ['feat'],
+                        ('n0', 'r1', 'n1'): ['feat']},  # Manually set, as config does not have it.
+            train_task=True)
+        val_dataloader4 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats={('n0', 'r0', 'n1'): ['feat'],
+                        ('n0', 'r1', 'n1'): ['feat']},  # Manually set, as config does not have it.
+            train_task=False)
+        evaluator4 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer4.setup_evaluator(evaluator4)
+
+        with assert_raises(AssertionError):
+            trainer4.fit(
+                train_loader=train_dataloader4,
+                val_loader=val_dataloader4,
+                num_epochs=2
+                )
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_rgat_nc4ef():
+    """ Test RGAT model Node Classification traning pipeline with/without edge features.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 0: normal case, set RGAT model with edge features for NC, and provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='rgat', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model1 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer1 = GSgnnNodePredictionTrainer(model1)
+        trainer1.setup_device(device)
+
+        train_dataloader1 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            train_task=True)
+        val_dataloader1 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            train_task=False)
+
+        evaluator1 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+        trainer1.setup_evaluator(evaluator1)
+
+        trainer1.fit(
+            train_loader=train_dataloader1,
+            val_loader=val_dataloader1,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 1: normal case, set RGAT model without edge features for NC, and not
+        #              provide edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='rgat', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model2 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer2 = GSgnnNodePredictionTrainer(model2)
+        trainer2.setup_device(device)
+
+        train_dataloader2 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=True)
+        val_dataloader2 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=False)
+
+        evaluator2 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer2.setup_evaluator(evaluator2)
+
+        trainer2.fit(
+            train_loader=train_dataloader2,
+            val_loader=val_dataloader2,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 2: abnormal case, set RGAT model with edge features for NC, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='rgat', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model3 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer3 = GSgnnNodePredictionTrainer(model3)
+        trainer3.setup_device(device)
+
+        train_dataloader3 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=True)
+        val_dataloader3 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=False)
+
+        evaluator3 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer3.setup_evaluator(evaluator3)
+
+        with assert_raises(AssertionError):
+            trainer3.fit(
+                train_loader=train_dataloader3,
+                val_loader=val_dataloader3,
+                num_epochs=2
+                )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 3: abnormal case, set RGAT model without edge features for NC, but
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for projection weights
+        #              in the GSEdgeEncoderInputLayer.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='rgat', use_ef=False)
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
                             local_rank=0)
         config = GSConfig(args)
@@ -1277,14 +1497,13 @@ def test_hgt_nc4ef():
                 val_loader=val_dataloader5,
                 num_epochs=2
                 )
-    
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
 def test_rgcn_ec4ef():
-    """ Test RGCN model Edge Classification traning pipeline with/without edge features.
+    """ Test RGCN model Edge Classification training pipeline with/without edge features.
     """
-    print(f'=================== Test RGCN Training EC with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -1505,9 +1724,236 @@ def test_rgcn_ec4ef():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_rgat_ec4ef():
+    """ Test RGAT model Edge Classification training pipeline with/without edge features.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 0: normal case, set RGAT model with edge features for EC, and provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='rgat',
+                         task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model1 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        trainer1 = GSgnnEdgePredictionTrainer(model1)
+        trainer1.setup_device(device)
+
+        train_dataloader1 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=True)
+        val_dataloader1 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+
+        evaluator1 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+        trainer1.setup_evaluator(evaluator1)
+
+        trainer1.fit(
+            train_loader=train_dataloader1,
+            val_loader=val_dataloader1,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 1: normal case, set RGAT model without edge features for EC, and not
+        #              provide edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='rgat',
+                         task='ec', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model2 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        trainer2 = GSgnnEdgePredictionTrainer(model2)
+        trainer2.setup_device(device)
+
+        train_dataloader2 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=True)
+        val_dataloader2 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+
+        evaluator2 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+        trainer2.setup_evaluator(evaluator2)
+
+        trainer2.fit(
+            train_loader=train_dataloader2,
+            val_loader=val_dataloader2,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 2: abnormal case, set RGAT model with edge features for EC, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='rgat',
+                         task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model3 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        trainer3 = GSgnnEdgePredictionTrainer(model3)
+        trainer3.setup_device(device)
+
+        train_dataloader3 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=True)
+        val_dataloader3 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+
+        evaluator3 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+        trainer3.setup_evaluator(evaluator3)
+
+        with assert_raises(AssertionError):
+            trainer3.fit(
+                train_loader=train_dataloader3,
+                val_loader=val_dataloader3,
+                num_epochs=2
+                )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test case 3: abnormal case, set RGAT model without edge features for NC, but
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for projection weights
+        #              in the GSEdgeEncoderInputLayer.
+        create_config4ef(Path(tmpdirname), 'gnn_ec.yaml', encoder='rgat',
+                         task='ec', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model4 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        trainer4 = GSgnnEdgePredictionTrainer(model4)
+        trainer4.setup_device(device)
+
+        train_dataloader4 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats={('n0', 'r0', 'n1'): ['feat'],
+                        ('n0', 'r1', 'n1'): ['feat']},  # Manually set, as config does not have it.
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=True)
+        val_dataloader4 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats={('n0', 'r0', 'n1'): ['feat'],
+                        ('n0', 'r1', 'n1'): ['feat']},  # Manually set, as config does not have it.
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+
+        evaluator4 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+        trainer4.setup_evaluator(evaluator4)
+
+        with assert_raises(AssertionError):
+            trainer4.fit(
+                train_loader=train_dataloader4,
+                val_loader=val_dataloader4,
+                num_epochs=2
+                )
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def test_hgt_ec4ef():
-    """ Test HGT model Edge Classification traning pipeline with/without edge features.
-    
+    """ Test HGT model Edge Classification training pipeline with/without edge features.
+
     Because HGT encoder dose not support edge feature so far, if initialized with edge_feat_name,
     it will trigger a Not-support assertion error.
     """
@@ -1751,14 +2197,13 @@ def test_hgt_ec4ef():
                 val_loader=val_dataloader5,
                 num_epochs=2
                 )
-    
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
 def test_rgcn_lp4ef():
     """ Test RGCN model Link Prediction traning pipeline with/without edge features.
     """
-    print(f'=================== Test RGCN Training LP with EF ===================')
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -1983,8 +2428,239 @@ def test_rgcn_lp4ef():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_rgat_lp4ef():
+    """ Test RGAT model Link Prediction traning pipeline with/without edge features.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
+        # Test case 0: normal case, set RGAT model with edge features for LP, and provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='rgat',
+                         task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata_lp = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name,  # Need to set these features in
+                          edge_feat_field=config.edge_feat_name,  # dataset, as lp_trainer uses
+                          )                                       # a different mini-batch method.
+
+        model1 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
+        trainer1 = GSgnnLinkPredictionTrainer(model1)
+        trainer1.setup_device(device)
+
+        train_dataloader1 = GSgnnLinkPredictionDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader1 = GSgnnLinkPredictionTestDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator1 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer1.setup_evaluator(evaluator1)
+
+        trainer1.fit(
+            train_loader=train_dataloader1,
+            val_loader=val_dataloader1,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
+        # Test case 1: normal case, set RGAT model without edge features for LP, and not
+        #              provide edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='rgat',
+                         task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata_lp = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name)
+
+        model2 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
+        trainer2 = GSgnnLinkPredictionTrainer(model2)
+        trainer2.setup_device(device)
+
+        train_dataloader2 = GSgnnLinkPredictionDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader2 = GSgnnLinkPredictionTestDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator2 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer2.setup_evaluator(evaluator2)
+
+        trainer2.fit(
+            train_loader=train_dataloader2,
+            val_loader=val_dataloader2,
+            num_epochs=2
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
+        # Test case 2: abnormal case, set RGAT model with edge features for LP, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='rgat',
+                         task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata_lp = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name)  # only provide node features.
+
+        model3 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
+        trainer3 = GSgnnLinkPredictionTrainer(model3)
+        trainer3.setup_device(device)
+
+        train_dataloader3 = GSgnnLinkPredictionDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader3 = GSgnnLinkPredictionTestDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator3 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer3.setup_evaluator(evaluator3)
+
+        with assert_raises(AssertionError):
+            trainer3.fit(
+                train_loader=train_dataloader3,
+                val_loader=val_dataloader3,
+                num_epochs=2
+                )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
+        # Test case 3: abnormal case, set RGAT model without edge features for LP, but
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for projection weights
+        #              in the GSEdgeEncoderInputLayer.
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', encoder='rgat',
+                         task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        gdata_lp = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name,
+                          edge_feat_field={('n0', 'r0', 'n1'): ['feat'],
+                                            ('n0', 'r1', 'n1'): ['feat']},# Manually set, as
+                                                                          # config does not have it
+                          )
+        model4 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
+        trainer4 = GSgnnLinkPredictionTrainer(model4)
+        trainer4.setup_device(device)
+
+        train_dataloader4 = GSgnnLinkPredictionDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader4 = GSgnnLinkPredictionTestDataLoader(
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator4 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer4.setup_evaluator(evaluator4)
+
+        with assert_raises(AssertionError):
+            trainer4.fit(
+                train_loader=train_dataloader4,
+                val_loader=val_dataloader4,
+                num_epochs=2
+                )
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def test_hgt_lp4ef():
-    """ Test HGT model Link Prediction traning pipeline with/without edge features.
+    """ Test HGT model Link Prediction training pipeline with/without edge features.
     
     Because HGT encoder dose not support edge feature so far, if initialized with edge_feat_name,
     it will trigger a Not-support assertion error.
@@ -2242,21 +2918,3 @@ def test_hgt_lp4ef():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
-
-if __name__ == '__main__':
-    test_mtask_eval()
-    test_trainer_setup_evaluator()
-
-    test_mtask_prepare_node_mini_batch()
-    test_mtask_prepare_edge_mini_batch()
-    test_mtask_prepare_lp_mini_batch()
-    test_mtask_prepare_reconstruct_node_feat()
-    test_mtask_prepare_reconstruct_edge_feat()
-
-    test_rgcn_nc4ef()
-    test_hgt_nc4ef()
-    test_rgcn_ec4ef()
-    test_hgt_ec4ef()
-    test_rgcn_lp4ef()
-    test_hgt_lp4ef()
