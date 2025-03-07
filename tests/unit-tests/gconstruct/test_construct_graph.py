@@ -1787,6 +1787,26 @@ def test_partition_graph(num_parts):
             assert name in edata2
             np.testing.assert_array_equal(edata1[name].numpy(), edata2[name].numpy())
 
+    # Test the case when graph is a homogeneous graph
+    # and there's no node mask. (Issue #1205)
+    num_nodes = {'node1': 100}
+    edges = {('node1', 'rel1', 'node1'): \
+             (np.random.randint(0, num_nodes['node1'], size=300),
+              np.random.randint(0, num_nodes['node1'], size=300))}
+    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        partition_graph(g, {}, {}, 'test', num_parts, tmpdirname,
+                        part_method="random", save_mapping=True)
+        for i in range(num_parts):
+            part_dir = os.path.join(tmpdirname, "part" + str(i))
+            ndata = dgl.data.utils.load_tensors(os.path.join(part_dir,
+                                                                       'node_feat.dgl'))
+            edata = dgl.data.utils.load_tensors(os.path.join(part_dir,
+                                                                       'edge_feat.dgl'))
+            assert len(ndata) == 0
+            assert len(edata) == 0
+
+
 def test_multiprocessing_checks():
     # If the data are stored in multiple HDF5 files and there are
     # features and labels for processing.
@@ -2644,25 +2664,5 @@ def test_collect_parsed_edge_data():
     test_two_none(4, 10)
 
 if __name__ == '__main__':
-    test_collect_parsed_edge_data()
-    test_prepare_edge_data()
-    test_multitask_label()
     test_partition_graph(2)
-    test_parse_feat_ops_data_format()
-    test_parse_edge_data()
-    test_multiprocessing_checks()
-    test_csv(None)
-    test_hdf5()
-    test_json()
-    test_merge_arrays()
-    test_map_node_ids()
-    test_id_map()
-    test_id_reverse_map()
-    test_parquet()
-    test_feat_ops()
-    test_process_features()
-    test_process_features_fp16()
-    test_label()
-    test_multicolumn(None)
-    test_multicolumn("/tmp/")
-    test_feature_wrapper()
+
