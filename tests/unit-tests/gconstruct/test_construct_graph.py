@@ -2662,7 +2662,3 @@ def test_collect_parsed_edge_data():
 
     test_two_none(0, 4)
     test_two_none(4, 10)
-
-if __name__ == '__main__':
-    test_partition_graph(2)
-
