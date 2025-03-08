@@ -48,11 +48,11 @@ COPY build_artifacts/changehostname.c /usr/local/bin/changehostname.c
 COPY build_artifacts/start_with_right_hostname.sh /usr/local/bin/start_with_right_hostname.sh
 
 # /opt/ml and all subdirectories are utilized by SageMaker,
-# we use the /usr/local/bin subdirectory to store our user code.
-COPY code/graphstorm/ /usr/local/bin/graphstorm/
-ENV PYTHONPATH="/usr/local/bin/graphstorm/python/:${PYTHONPATH}"
+# we use the /usr/local/lib subdirectory to store our user code.
+COPY code/graphstorm/ /usr/local/lib/graphstorm/
+ENV PYTHONPATH="/usr/local/lib/graphstorm/python/:${PYTHONPATH}"
 
-RUN cp /usr/local/bin/graphstorm/sagemaker/run/* /usr/local/bin/
+RUN cp /usr/local/lib/graphstorm/sagemaker/run/* /usr/local/lib/
 
 # Download DGL source code
 RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.com/dmlc/dgl.git
@@ -60,7 +60,7 @@ RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.
 # COPY dgl /root/dgl
 ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 
-WORKDIR /usr/local/bin/
+WORKDIR /usr/local/lib/
 
 ENTRYPOINT ["bash", "-m", "/usr/local/bin/start_with_right_hostname.sh"]
 CMD ["/bin/bash"]
