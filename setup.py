@@ -33,7 +33,9 @@ requirements = [
     'scikit-learn',
     'ogb==1.3.6',
     'packaging',
-    'psutil'
+    'psutil',
+    'torchdata==0.9.0',
+    'pydantic'
 ]
 
 extensions = []
