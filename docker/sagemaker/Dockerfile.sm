@@ -52,7 +52,7 @@ COPY build_artifacts/start_with_right_hostname.sh /usr/local/bin/start_with_righ
 COPY code/graphstorm/ /usr/local/lib/graphstorm/
 ENV PYTHONPATH="/usr/local/lib/graphstorm/python/:${PYTHONPATH}"
 
-RUN cp /usr/local/lib/graphstorm/sagemaker/run/* /usr/local/lib/
+COPY code/graphstorm/sagemaker/run/* /opt/ml/code/
 
 # Download DGL source code
 RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.com/dmlc/dgl.git
@@ -60,7 +60,7 @@ RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.
 # COPY dgl /root/dgl
 ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 
-WORKDIR /usr/local/lib/
+WORKDIR  /opt/ml/code/
 
 ENTRYPOINT ["bash", "-m", "/usr/local/bin/start_with_right_hostname.sh"]
 CMD ["/bin/bash"]
