@@ -91,7 +91,7 @@ def run_job(input_args, image, unknownargs):
     if input_args.raw_node_mappings_s3 is not None:
         params["raw-node-mappings-s3"] = input_args.raw_node_mappings_s3
 
-    unknown_args_dict = parse_unknown_gs_args(unknowargs)
+    unknown_args_dict = parse_unknown_gs_args(unknownargs)
     params.update(unknown_args_dict)
 
     print(f"SageMaker launch parameters {params}")
