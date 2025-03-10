@@ -1,10 +1,10 @@
 .. _graphstorm-sagemaker-pipeline-ref:
 
-Using SageMaker Pipelines with GraphStorm
+Using GraphStorm with SageMaker Pipelines
 =========================================
 
 GraphStorm provides integration with Amazon SageMaker Pipelines to automate and orchestrate graph machine learning workflows at scale.
-This guide shows you how to use the provided tools to create, configure, and execute SageMaker pipelines for graph construction, training, and inference tasks.
+This guide shows you how to use the provided tools to create, configure, and execute SageMaker pipelines for graph construction, training, and inference.
 
 Introduction
 ------------
@@ -21,7 +21,7 @@ Pre-requisites
 
 Before starting with GraphStorm Pipelines on SageMaker, you'll need:
 
-* Python 3.8 or later
+* An execution environment with Python 3.8 or later
 * An AWS account with appropriate permissions. See the official
   `SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/build-and-manage-access.html>`_
   for detailed information about required permissions.
@@ -55,7 +55,7 @@ GraphStorm provides Python scripts to help you create and manage SageMaker pipel
 
 * ``create_sm_pipeline.py``: Creates or updates pipeline definitions
 * ``pipeline_parameters.py``: Manages pipeline configuration
-* ``execute_sm_pipeline.py``: Runs pipeline executions
+* ``execute_sm_pipeline.py``: Runs pipelines
 
 Here's an example of how to create a basic pipeline that includes graph construction, training, and inference:
 
@@ -117,7 +117,7 @@ A GraphStorm SageMaker pipeline can include several components that you can comb
 We list those here, with the step name that you can provide in ``--jobs-to-run`` in parentheses.
 
 1. **Single-instance Graph Construction** (``gconstruct``):
-   Single-instance graph construction for smaller graphs.
+   Single-instance graph construction for small graphs.
 
 2. **Distributed Graph pre-processing** (``gsprocessing``):
    PySpark-based distributed data preparation for large graphs.
@@ -126,7 +126,7 @@ We list those here, with the step name that you can provide in ``--jobs-to-run``
    Multi-instance graph partitioning for distributed training.
 
 4. **GraphBolt Conversion** (``gb_convert``):
-   Converts partitioned data to GraphBolt format for improved performance.
+   Converts partitioned data to GraphBolt format for improved training/inference efficiency..
 
 5. **Training** (``train``):
    Trains your graph neural network model.
@@ -167,7 +167,7 @@ Task Configuration
 * ``--output-prefix-s3``: S3 prefix for the output data. (Required)
 * ``--pipeline-name``: Name for the pipeline.
 * ``--base-job-name``: Base job name for SageMaker jobs. (Default: 'gs')
-* ``--jobs-to-run``: Space-separated string of jobs to run in the pipeline.
+* ``--jobs-to-run``: Space-separated strings of jobs to run in the pipeline.
   Possible values are: ``gconstruct``, ``gsprocessing``, ``dist_part``, ``gb_convert``, ``train``, ``inference`` (Required).
 * ``--log-level``: Logging level for the jobs. (Default: INFO)
 * ``--step-cache-expiration``: Expiration time for the step cache. (Default: 30d)
@@ -214,7 +214,7 @@ Script Paths
 * ``--gconstruct-script``: Path to GConstruct SageMaker entry point script.
 * ``--gsprocessing-script``: Path to GSProcessing SageMaker entry point script.
 
-Using Configuration Options
+Using Configuration Options (Example)
 ---------------------------
 
 When creating or executing a pipeline, you can use these options to customize your workflow. For example:
