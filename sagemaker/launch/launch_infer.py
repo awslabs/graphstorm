@@ -169,7 +169,8 @@ def get_inference_parser():
 if __name__ == "__main__":
     arg_parser = get_inference_parser()
     args, unknownargs = arg_parser.parse_known_args()
-    print(args)
+    print(f"Inference launch Known args: '{args}'")
+    print(f"Inference launch unknown args:{type(unknownargs)=} '{unknownargs=}'")
 
     infer_image = args.image_url
     if not args.instance_type:
