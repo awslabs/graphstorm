@@ -21,7 +21,12 @@ import boto3 # pylint: disable=import-error
 import sagemaker
 from sagemaker.pytorch.estimator import PyTorch
 
-from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_INFER_TASKS
+from common_parser import (
+    get_common_parser,
+    parse_estimator_kwargs,
+    SUPPORTED_INFER_TASKS,
+    parse_unknown_gs_args,
+    )
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
 
@@ -78,7 +83,6 @@ def run_job(input_args, image, unknownargs):
         "output-emb-s3": output_emb_s3_path,
         "task-type": task_type,
         "log-level": log_level,
-        "use-graphbolt": input_args.use_graphbolt,
     }
     # In Link Prediction, no prediction outputs
     if task_type not in ["link_prediction", "compute_emb"]:
@@ -86,26 +90,12 @@ def run_job(input_args, image, unknownargs):
     # If no raw mapping files are provided, remapping is skipped
     if input_args.raw_node_mappings_s3 is not None:
         params["raw-node-mappings-s3"] = input_args.raw_node_mappings_s3
-    # We must handle cases like
-    # --target-etype query,clicks,asin query,search,asin
-    # --feat-name ntype0:feat0 ntype1:feat1
-    # --column-names nid,~id emb,embedding
-    unknow_idx = 0
-    while unknow_idx < len(unknownargs):
-        print(unknownargs[unknow_idx])
-        assert unknownargs[unknow_idx].startswith("--")
-        sub_params = []
-        for i in range(unknow_idx+1, len(unknownargs)+1):
-            # end of loop or stand with --
-            if i == len(unknownargs) or \
-                unknownargs[i].startswith("--"):
-                break
-            sub_params.append(unknownargs[i])
-        params[unknownargs[unknow_idx][2:]] = ' '.join(sub_params)
-        unknow_idx = i
 
-    print(f"Parameters {params}")
-    print(f"GraphStorm Parameters {unknownargs}")
+    unknown_args_dict = parse_unknown_gs_args(unknowargs)
+    params.update(unknown_args_dict)
+
+    print(f"SageMaker launch parameters {params}")
+    print(f"GraphStorm forwarded parameters {unknown_args_dict}")
     if input_args.sm_estimator_parameters:
         print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
 
