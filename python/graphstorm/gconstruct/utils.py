@@ -1047,7 +1047,8 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         "num_parts": num_partitions,
         "out_path": output_dir,
         'part_method': part_method,
-        'balance_ntypes': balance_ntypes,
+        # handle the case when balance_ntypes is empty
+        'balance_ntypes': balance_ntypes if len(balance_ntypes) > 0 else None,
         'balance_edges': True,
         'return_mapping': save_mapping,
     }

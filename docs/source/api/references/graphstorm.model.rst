@@ -82,6 +82,7 @@ GNN Layer
     GATEncoder
     GATv2Conv
     GATv2Encoder
+    GATConvwithEdgeFeat
 
 Decoder Layer
 ----------------

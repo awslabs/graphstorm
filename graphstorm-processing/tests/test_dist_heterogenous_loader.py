@@ -1483,3 +1483,130 @@ def test_node_dist_label_order_partitioned(
         )
         print(grouped_values)
         raise ValueError("\n".join(errors))
+
+
+def test_edge_dist_label_order_partitioned(
+    spark: SparkSession,
+    dghl_loader: DistHeterogeneousGraphLoader,
+):
+    """Test that label and mask order is maintained after label processing.
+    NOTE: Tests DGHL code together with DistLabelLoader code because their results are coupled.
+    """
+    label_col = STR_LABEL_COL
+
+    # Create a Pandas DF with a label column with 10k "zero", 10k "one", 10k None rows
+    num_datapoints = 10**5
+    ids = list(range(3 * num_datapoints))
+    data_zeros = ["zero" for _ in range(num_datapoints)]
+    data_ones = ["one" for _ in range(num_datapoints)]
+    data_nan = [None for _ in range(num_datapoints)]
+    data = data_zeros + data_ones + data_nan
+    # Create DF with label data that contains "zero", "one", None values
+    # and a set of unique IDs that we treat as strings
+    pandas_input = pd.DataFrame.from_dict(
+        {
+            label_col: data,
+            "src_str_id": ids,
+            "src_int_id": ids,
+            "dst_str_id": ids,
+            "dst_int_id": ids,
+        }
+    )
+    # We shuffle the rows so that "zero", "one" and None values are mixed and not continuous
+    pandas_shuffled = pandas_input.sample(frac=1, random_state=42).reset_index(drop=True)
+    order_col = ["src_int_id", "dst_int_id"]
+    names_df = spark.createDataFrame(pandas_shuffled)
+
+    # Consistently shuffle the DF to multiple partitions
+    names_df_repart = names_df.repartition(64)
+
+    assert names_df_repart.rdd.getNumPartitions() == 64
+    # Now we re-order by the order column, this way we have multiple partitions,
+    # but the incoming data are ordered by a separate order id for edge data only.
+    names_df_repart = names_df_repart.sort(order_col)
+
+    # Convert the partitioned/shuffled DF to pandas for test verification
+    names_df_repart_pd = names_df_repart.toPandas()
+
+    classification_config_dict = {
+        "column": STR_LABEL_COL,
+        "type": "classification",
+        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+    }
+    label_configs = [
+        EdgeLabelConfig(classification_config_dict),
+    ]
+
+    # Process the label, create masks and write the output DFs,
+    # we will read it from disk to emulate real downstream scenario
+    label_metadata_dicts = dghl_loader._process_edge_labels(
+        label_configs, names_df_repart, "dummy-src-type:dummy-rel:dummy-dst-type", "dummy-rel"
+    )
+
+    assert label_metadata_dicts.keys() == {
+        STR_LABEL_COL,
+        "train_mask",
+        "val_mask",
+        "test_mask",
+    }
+
+    # Apply transformation in Pandas to check against Spark,
+    # ensuring we use the same replacements as DGHL loader applied
+    label_map = dghl_loader.graph_info["label_map"]
+    expected_transformed_pd = names_df_repart_pd.replace(
+        {
+            "zero": label_map["zero"],
+            "one": label_map["one"],
+        }
+    )
+
+    def read_pandas_from_relative_list(file_list) -> pd.DataFrame:
+        full_paths = [f"{dghl_loader.output_prefix}/{single_file}" for single_file in file_list]
+        return pq.read_table(*full_paths).to_pandas()
+
+    label_files = label_metadata_dicts[STR_LABEL_COL]["data"]
+    # These are the transformed label value, read in as a Pandas DF
+    actual_transformed_label_pd: pd.DataFrame = read_pandas_from_relative_list(label_files)
+
+    # Expect the label values to match those in our local Pandas conversion, in-order
+    assert_frame_equal(
+        actual_transformed_label_pd.loc[:, [label_col]],
+        expected_transformed_pd.loc[:, [label_col]],
+        check_dtype=False,
+    )
+
+    # Now let's test the mask transformation, read the produced mask values as pandas DFs
+    train_mask = read_pandas_from_relative_list(label_metadata_dicts["train_mask"]["data"])
+    val_mask = read_pandas_from_relative_list(label_metadata_dicts["val_mask"]["data"])
+    test_mask = read_pandas_from_relative_list(label_metadata_dicts["test_mask"]["data"])
+
+    mask_names = ["train_mask", "val_mask", "test_mask"]
+    masks_and_names = zip([train_mask, val_mask, test_mask], mask_names)
+
+    # Add mask values to the label pandas DF as individual columns
+    # This allows us to easily check label values against mask values
+    for mask, mask_name in masks_and_names:
+        actual_transformed_label_pd[mask_name] = mask
+
+    # Check every mask value against the label values, and report errors
+    # if there exists a mask that has value 1 in a location where the label is NaN
+    errors = []
+    for mask_name in mask_names:
+        has_error, error_msg = check_mask_nan_distribution(
+            actual_transformed_label_pd,
+            label_col,
+            mask_name,
+        )
+        if has_error:
+            errors.append(error_msg)
+
+    # TODO: Check the approximated numbers of 1s we expected in the masks
+
+    # If any issues were found, raise error with grouped values as info
+    if errors:
+        # Perform the groupby operation for a human-friendly printout
+        grouped_values = actual_transformed_label_pd.groupby([label_col], dropna=False).agg(
+            {i: "value_counts" for i in ["train_mask", "val_mask", "test_mask"]}
+        )
+        print(grouped_values)
+        raise ValueError("\n".join(errors))

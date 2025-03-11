@@ -48,6 +48,12 @@ def test_compute_mse():
     assert_almost_equal(mse32, mse_pred64)
     assert_almost_equal(mse32, mse_label64)
 
+    # Test the case when label is a 1D tensor
+    # and pred is a 2D tensor
+    label32 = label32.squeeze()
+    mse32_2 = compute_mse(pred32, label32)
+    assert_almost_equal(mse32, mse32_2)
+
 def test_compute_rmse():
     pred64 = th.rand((100,1), dtype=th.float64)
     label64 = pred64 + th.rand((100,1), dtype=th.float64) / 10
@@ -61,6 +67,12 @@ def test_compute_rmse():
 
     assert_almost_equal(rmse32, rmse_pred64)
     assert_almost_equal(rmse32, rmse_label64)
+
+    # Test the case when label is a 1D tensor
+    # and pred is a 2D tensor
+    label32 = label32.squeeze()
+    rmse32_2 = compute_rmse(pred32, label32)
+    assert_almost_equal(rmse32, rmse32_2)
 
 def test_eval_roc_auc():
     # GraphStorm inputs: preds are logits>= 2D, and labels are all 1D list.
@@ -610,25 +622,3 @@ def test_compute_amri():
         expected_amri,
         decimal=2
     )
-
-
-
-if __name__ == '__main__':
-    test_LinkPredictionMetrics()
-    test_compute_hit_at_link_prediction()
-
-    test_ClassificationMetrics()
-    test_compute_hit_at_classification()
-
-    test_compute_mse()
-    test_compute_rmse()
-
-    test_eval_roc_auc()
-    test_compute_roc_auc()
-    test_compute_per_class_roc_auc()
-
-    test_compute_f1_score()
-
-    test_eval_acc()
-
-    test_compute_precision_recall_auc()
