@@ -726,9 +726,9 @@ def parse_pipeline_args() -> PipelineArgs:
     optional_args.add_argument(
         "--num-trainers",
         type=int,
-        default=4,
+        default=1,
         help="Number of trainers to use during training/inference. Set this to the number of GPUs."
-        "Default: 4",
+        "Default: 1",
     )
     required_args.add_argument(
         "--train-inference-task",
