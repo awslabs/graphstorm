@@ -287,6 +287,8 @@ bash deploy_arxiv_pipeline.sh \
     --bucket-name $BUCKET_NAME --execution-role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
+
+echo deploy arxiv pipeline
 ```
 
 ### Inspect pipeline
@@ -313,6 +315,8 @@ python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION \
     --local-execution | tee arxiv-local-logs.txt
+
+echo execute arxiv pipeline
 ```
 
 Note that we save the log output to `arxiv-local-logs.txt`. We'll use that later to analyze the training speed.
@@ -406,11 +410,16 @@ bash deploy_arxiv_pipeline.sh \
     --bucket-name $BUCKET_NAME --execution-role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
+
+echo deploy graphbolt arxiv pipeline
+
 # Execute the pipeline locally
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region us-east-1 \
     --local-execution | tee arxiv-local-gb-logs.txt
+
+echo execute graphbolt arxiv pipeline
 ```
 
 Analyzing the training logs you can see a noticeable reduction in per-epoch time:
