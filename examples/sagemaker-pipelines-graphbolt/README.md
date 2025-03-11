@@ -452,6 +452,8 @@ bash ./docker/build_graphstorm_image.sh --environment sagemaker --device gpu --i
 bash docker/push_graphstorm_image.sh -e sagemaker -r $REGION -a $ACCOUNT_ID -d gpu -i graphstorm-example-sagemaker-pipeline
 # This will push an image to
 # ${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/graphstorm-example-sagemaker-pipeline:sagemaker-gpu
+
+echo past sm gpu push
 ```
 
 ### Deploy and execute pipelines for papers-100M
@@ -485,6 +487,8 @@ python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION
     --async-execution
+
+echo past execute sm pipeline 100m
 ```
 
 >Note that your account needs to meet the required quotas for the requested instances. Here the defaults are set to four `ml.g5.48xlarge` for training jobs and one `ml.r5.24xlarge` instance for a processing job. To adjust your SageMaker service quotas you can use the [Service Quotas console UI](https://us-east-1.console.aws.amazon.com/servicequotas/home/services/sagemaker/quotas).  To run both pipelines in parallel you will need 8 x $TRAIN_GPU_INSTANCE and 2 x $GCONSTRUCT_INSTANCE.
@@ -505,6 +509,8 @@ python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region $REGION \
     --async-execution
+
+echo past sm pipeline 100m graphbolt
 ```
 
 ### Compare performance for GraphBolt-enabled training
