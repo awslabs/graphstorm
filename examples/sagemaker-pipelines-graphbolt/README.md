@@ -309,7 +309,7 @@ The ogbn-arxiv data are small enough that you can execute the pipeline locally. 
 ```bash
 PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 
-python execute_sm_pipeline.py \
+python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION \
     --local-execution | tee arxiv-local-logs.txt
@@ -485,7 +485,7 @@ Execute the pipeline and let it run the background.
 ```bash
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
-    --region $REGION
+    --region $REGION \
     --async-execution
 
 echo past execute sm pipeline 100m
