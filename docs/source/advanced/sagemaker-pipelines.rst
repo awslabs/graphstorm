@@ -126,7 +126,7 @@ We list those here, with the step name that you can provide in ``--jobs-to-run``
    Multi-instance graph partitioning for distributed training.
 
 4. **GraphBolt Conversion** (``gb_convert``):
-   Converts partitioned data to GraphBolt format for improved training/inference efficiency..
+   Converts partitioned data to GraphBolt format for improved training/inference efficiency.
 
 5. **Training** (``train``):
    Trains your graph neural network model.
