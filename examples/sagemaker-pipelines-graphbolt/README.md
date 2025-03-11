@@ -463,7 +463,7 @@ Before you deploy your new pipeline, upload the training YAML configuration for 
 
 ```bash
 aws s3 cp \
-    ~/graphstorm/training_scripts/gsgnn_np/papers_100M_nc.yaml \
+    ~/graphstorm/training_scripts/gsgnn_np/papers100M_nc.yaml \
     s3://$BUCKET_NAME/yaml/
 ```
 
