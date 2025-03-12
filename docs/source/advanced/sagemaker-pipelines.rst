@@ -102,6 +102,11 @@ Once you've created a pipeline, you can execute it using the ``execute_sm_pipeli
 
 You can override default parameters during execution to customize the run:
 
+.. note::
+    Pipelines are created in a specific region. When you execute a
+    pipeline with the script below you'll need to specify the region
+    in which you created the pipeline.
+
 .. code-block:: bash
 
     python execute_sm_pipeline.py \
