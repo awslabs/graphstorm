@@ -314,7 +314,7 @@ PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION \
-    --local-execution | tee arxiv-local-logs.txt
+    --async-execution
 
 echo execute arxiv pipeline
 ```
@@ -376,7 +376,9 @@ You can inspect the mean epoch and evaluation time using the provided `analyze_t
 
 
 ```bash
-python analyze_training_time.py --log-file arxiv-local-logs.txt
+python analyze_training_time.py \
+    --pipeline-name $PIPELINE_NAME \
+    --execution-name <execution-name>
 ```
 
 Your output will look like
@@ -417,7 +419,7 @@ echo deploy graphbolt arxiv pipeline
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region us-east-1 \
-    --local-execution | tee arxiv-local-gb-logs.txt
+    --async-execution
 
 echo execute graphbolt arxiv pipeline
 ```
@@ -425,7 +427,9 @@ echo execute graphbolt arxiv pipeline
 Analyzing the training logs you can see a noticeable reduction in per-epoch time:
 
 ```bash
-python analyze_training_time.py --log-file arxiv-local-gb-logs.txt
+python analyze_training_time.py \
+    --pipeline-name $PIPELINE_NAME \
+    --execution-name <execution-name>
 ```
 
 Your output will look like
