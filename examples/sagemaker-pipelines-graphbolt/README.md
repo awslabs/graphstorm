@@ -303,9 +303,9 @@ To review the pipeline, navigate to [SageMaker AI Studio](https://us-east-1.cons
 
 On the left navigation menu, select **Pipelines**. There should be a pipeline named **ogbn-arxiv-gs-pipeline**. Select that, which will take you to the **Executions** tab for the pipeline. Select **Graph** to view the pipeline steps.
 
-### Execute SageMaker pipeline locally for ogbn-arxiv
+### Execute SageMaker pipeline for ogbn-arxiv
 
-The ogbn-arxiv data are small enough that you can execute the pipeline locally. Execute the following command to start a local execution of the pipeline:
+Execute the following command to start an execution of the pipeline on the ogbn-arxiv data:
 
 
 ```bash
@@ -314,12 +314,11 @@ PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION \
-    --async-execution
 
 echo execute arxiv pipeline
 ```
 
-Note that we save the log output to `arxiv-local-logs.txt`. We'll use that later to analyze the training speed.
+We'll use the logs later to analyze the training speed.
 
 Once the pipeline finishes it will print a message like
 
@@ -372,7 +371,7 @@ aws s3 ls \
 
 You'll be able to see the output of each step in the pipeline. The GConstruct job created the partitioned graph, the training job created models for 10 epochs, and the inference job created embeddings for the nodes and predictions for the nodes in the test set.
 
-You can inspect the mean epoch and evaluation time using the provided `analyze_training_time.py` script and the log file you created:
+You can inspect the mean epoch and evaluation time using the provided `analyze_training_time.py` script and the execution name:
 
 
 ```bash
@@ -384,8 +383,6 @@ python analyze_training_time.py \
 Your output will look like
 
 ```
-Reading logs from file: arxiv-logs.txt
-
 === Training Epochs Summary ===
 Total epochs completed: 10
 Average epoch time: 7.43 seconds
@@ -405,6 +402,7 @@ You can use the same pipeline creation script, but change two variables, providi
 
 
 ```bash
+analyze_training_time_0
 # Deploy the GraphBolt-enabled pipeline
 PIPELINE_NAME_GRAPHBOLT="ogbn-arxiv-gs-graphbolt-pipeline"
 bash deploy_arxiv_pipeline.sh \
@@ -415,11 +413,10 @@ bash deploy_arxiv_pipeline.sh \
 
 echo deploy graphbolt arxiv pipeline
 
-# Execute the pipeline locally
+# Execute the pipeline
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region us-east-1 \
-    --async-execution
 
 echo execute graphbolt arxiv pipeline
 ```
@@ -435,8 +432,6 @@ python analyze_training_time.py \
 Your output will look like
 
 ```
-Reading logs from file: arxiv-gb-logs.txt
-
 === Training Epochs Summary ===
 Total epochs completed: 10
 Average epoch time: 6.83 seconds
@@ -458,6 +453,7 @@ For this job you will use large GPU instances, so you will build and push the GP
 
 
 ```bash
+analyze_training_time_0
 cd ~/graphstorm
 
 bash ./docker/build_graphstorm_image.sh --environment sagemaker --device gpu --image graphstorm-example-sagemaker-pipeline
@@ -475,6 +471,7 @@ Before you deploy your new pipeline, upload the training YAML configuration for 
 
 
 ```bash
+analyze_training_time_0
 aws s3 cp \
     ~/graphstorm/training_scripts/gsgnn_np/papers100M_nc.yaml \
     s3://$BUCKET_NAME/yaml/
@@ -484,6 +481,7 @@ aws s3 cp \
 Now you are ready to deploy your initial pipeline for papers-100M
 
 ```bash
+analyze_training_time_0
 PIPELINE_NAME="ogb-papers100M-pipeline"
 cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt/
 bash deploy_papers100M_pipeline.sh \
@@ -496,10 +494,10 @@ bash deploy_papers100M_pipeline.sh \
 Execute the pipeline and let it run the background.
 
 ```bash
+analyze_training_time_0
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
-    --region $REGION \
-    --async-execution
+    --region $REGION --async-execution
 
 echo past execute sm pipeline 100m
 ```
@@ -510,6 +508,7 @@ echo past execute sm pipeline 100m
 Next, you can deploy and execute another pipeline, now with GraphBolt enabled:
 
 ```bash
+analyze_training_time_0
 PIPELINE_NAME_GRAPHBOLT="ogb-papers100M-graphbolt-pipeline"
 bash deploy_papers100M_pipeline.sh \
     --account $ACCOUNT_ID \
@@ -520,8 +519,7 @@ bash deploy_papers100M_pipeline.sh \
 # Execute the GraphBolt-enabled pipeline on SageMaker
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
-    --region $REGION \
-    --async-execution
+    --region $REGION --async-execution
 
 echo past sm pipeline 100m graphbolt
 ```
