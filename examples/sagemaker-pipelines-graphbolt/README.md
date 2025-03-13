@@ -182,7 +182,7 @@ sudo apt update
 sudo apt install Docker.io
 docker -v
 
-# Run a SageMaker job to do the processing and upload the output to S3
+# Set env variables
 SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
 ACCOUNT_ID=<your-aws-account-id>
 REGION=us-east-1
@@ -192,6 +192,7 @@ bash build_and_push_papers100M_image.sh
 # This creates an ECR repository at
 # $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/papers100m-processor
 
+# Run a SageMaker job to do the processing and upload the output to S3
 aws configure set region $REGION
 python sagemaker_convert_papers100m.py \
     --output-bucket $BUCKET_NAME \
