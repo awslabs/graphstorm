@@ -368,13 +368,14 @@ You can inspect the mean epoch and evaluation time using the provided `analyze_t
 
 
 ```bash
-python analyze_training_time.py \
-    --pipeline-name $PIPELINE_NAME --log-file arxiv-local-logs.txt
+python analyze_training_time.py --log-file arxiv-local-logs.txt
 ```
 
 Your output will look like
 
 ```
+Reading logs from file: arxiv-local-logs.txt
+
 === Training Epochs Summary ===
 Total epochs completed: 10
 Average epoch time: 7.43 seconds
@@ -412,13 +413,14 @@ python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
 Analyzing the training logs you can see a noticeable reduction in per-epoch time:
 
 ```bash
-python analyze_training_time.py \
-    --pipeline-name $PIPELINE_NAME --log-file arxiv-local-gb-logs.txt
+python analyze_training_time.py --log-file arxiv-local-gb-logs.txt
 ```
 
 Your output will look like
 
 ```
+Reading logs from file: arxiv-local-gb-logs.txt
+
 === Training Epochs Summary ===
 Total epochs completed: 10
 Average epoch time: 6.83 seconds
