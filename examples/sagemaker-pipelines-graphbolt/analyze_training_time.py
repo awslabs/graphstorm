@@ -175,7 +175,7 @@ def analyze_logs(
             print(f"         to: {datetime.fromtimestamp(end_time/1000)}")
 
             log_events = get_cloudwatch_logs(
-                logs_client, LOG_GROUP, log_stream, start_time, end_time
+                logs_client, LOG_GROUP, log_stream_name, start_time, end_time
             )
         except Exception as e:
             print(f"Error while retrieving logs from CloudWatch: {e}")

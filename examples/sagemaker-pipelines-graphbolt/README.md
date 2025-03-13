@@ -140,7 +140,7 @@ You will use this script to directly download, transform and upload the data to 
 ```bash
 cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
 python convert_arxiv_to_gconstruct.py \
-    --output-prefix s3://$BUCKET_NAME/ogb-arxiv-input
+    --output-s3-prefix s3://$BUCKET_NAME/ogb-arxiv-input
 ```
 
 This will create the tabular graph data on S3 which you can verify by running
@@ -182,16 +182,17 @@ sudo apt update
 sudo apt install Docker.io
 docker -v
 
+# Set env variables
+SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
+ACCOUNT_ID=<your-aws-account-id>
+REGION=us-east-1
+
 # Build and push a Docker image to download and process the papers100M data
 bash build_and_push_papers100M_image.sh
 # This creates an ECR repository at
 # $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/papers100m-processor
 
 # Run a SageMaker job to do the processing and upload the output to S3
-SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
-ACCOUNT_ID=<your-aws-account-id>
-REGION=us-east-1
-
 aws configure set region $REGION
 python sagemaker_convert_papers100m.py \
     --output-bucket $BUCKET_NAME \
@@ -249,9 +250,7 @@ Next you will build and push the GraphStorm PyTorch Docker image that you'll use
 
 
 ```bash
-# Ensure Docker is installed
-sudo apt update
-sudo apt install -y Docker.io
+# Ensure dependencies are installed
 docker -v
 
 cd ~/graphstorm
@@ -274,11 +273,12 @@ In this section, you will create a [Sagemaker Pipeline](https://docs.aws.amazon.
 * Launch GraphStorm Inference Job. This will generate predictions and embeddings for every node in the input graph.
 
 ```bash
-PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
+cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
 
+PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 bash deploy_arxiv_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --execution-role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
 ```
@@ -372,7 +372,7 @@ python analyze_training_time.py --log-file arxiv-local-logs.txt
 Your output will look like
 
 ```
-Reading logs from file: arxiv-logs.txt
+Reading logs from file: arxiv-local-logs.txt
 
 === Training Epochs Summary ===
 Total epochs completed: 10
@@ -397,13 +397,14 @@ You can use the same pipeline creation script, but change two variables, providi
 PIPELINE_NAME_GRAPHBOLT="ogbn-arxiv-gs-graphbolt-pipeline"
 bash deploy_arxiv_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --execution-role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
+
 # Execute the pipeline locally
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
-    --region us-east-1 \
+    --region $REGION \
     --local-execution | tee arxiv-local-gb-logs.txt
 ```
 
@@ -416,7 +417,7 @@ python analyze_training_time.py --log-file arxiv-local-gb-logs.txt
 Your output will look like
 
 ```
-Reading logs from file: arxiv-gb-logs.txt
+Reading logs from file: arxiv-local-gb-logs.txt
 
 === Training Epochs Summary ===
 Total epochs completed: 10
@@ -455,7 +456,7 @@ Before you deploy your new pipeline, upload the training YAML configuration for 
 
 ```bash
 aws s3 cp \
-    ~/graphstorm/training_scripts/gsgnn_np/papers_100M_nc.yaml \
+    ~/graphstorm/training_scripts/gsgnn_np/papers100M_nc.yaml \
     s3://$BUCKET_NAME/yaml/
 ```
 
@@ -467,7 +468,7 @@ PIPELINE_NAME="ogb-papers100M-pipeline"
 cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt/
 bash deploy_papers100M_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --execution-role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
 ```
@@ -477,8 +478,7 @@ Execute the pipeline and let it run the background.
 ```bash
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
-    --region $REGION
-    --async-execution
+    --region $REGION --async-execution
 ```
 
 >Note that your account needs to meet the required quotas for the requested instances. Here the defaults are set to four `ml.g5.48xlarge` for training jobs and one `ml.r5.24xlarge` instance for a processing job. To adjust your SageMaker service quotas you can use the [Service Quotas console UI](https://us-east-1.console.aws.amazon.com/servicequotas/home/services/sagemaker/quotas).  To run both pipelines in parallel you will need 8 x $TRAIN_GPU_INSTANCE and 2 x $GCONSTRUCT_INSTANCE.
@@ -490,15 +490,14 @@ Next, you can deploy and execute another pipeline, now with GraphBolt enabled:
 PIPELINE_NAME_GRAPHBOLT="ogb-papers100M-graphbolt-pipeline"
 bash deploy_papers100M_pipeline.sh \
     --account $ACCOUNT_ID \
-    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
+    --bucket-name $BUCKET_NAME --execution-role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 
 # Execute the GraphBolt-enabled pipeline on SageMaker
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
-    --region $REGION \
-    --async-execution
+    --region $REGION --async-execution
 ```
 
 ### Compare performance for GraphBolt-enabled training
