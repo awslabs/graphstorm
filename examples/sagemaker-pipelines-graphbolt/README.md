@@ -403,7 +403,7 @@ bash deploy_arxiv_pipeline.sh \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 
-# Execute the pipeline
+# Execute the pipeline locally
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region $REGION \
