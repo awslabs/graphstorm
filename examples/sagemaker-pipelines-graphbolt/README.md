@@ -282,8 +282,6 @@ bash deploy_arxiv_pipeline.sh \
     --bucket-name $BUCKET_NAME --execution-role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
-
-echo deploy arxiv pipeline
 ```
 
 ### Inspect pipeline
@@ -309,8 +307,6 @@ PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION \
-
-echo execute arxiv pipeline
 ```
 
 We'll use the logs later to analyze the training speed.
