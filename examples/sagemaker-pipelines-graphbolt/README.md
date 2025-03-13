@@ -106,8 +106,6 @@ This command creates an instance using the "Deep Learning OSS Nvidia Driver AMI 
 Once logged in, you can set up your Python environment to run GraphStorm
 
 ```bash
-aws sts get-caller-identity
-echo past first get caller identity
 conda init
 eval $SHELL
 # Available on the DLAMI, otherwise create a new conda env
@@ -117,7 +115,7 @@ conda activate pytorch
 pip install sagemaker[local] boto3 ogb pyarrow
 
 # Clone the GraphStorm repository to access the example code
-git clone --branch sagemaker-example-fixes https://github.com/RonaldBXu/graphstorm.git ~/graphstorm
+git clone https://github.com/awslabs/graphstorm.git ~/graphstorm
 ```
 
 ### Download and prepare datasets
@@ -166,9 +164,6 @@ aws s3 cp ~/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
     s3://$BUCKET_NAME/yaml/arxiv_nc_train.yaml
 aws s3 cp ~/graphstorm/inference_scripts/np_infer/arxiv_nc.yaml \
     s3://$BUCKET_NAME/yaml/arxiv_nc_inference.yaml
-
-aws sts get-caller-identity
-echo past s3 cp
 ```
 
 **Prepare the ogbn-papers100M dataset on SageMaker**
@@ -402,7 +397,6 @@ You can use the same pipeline creation script, but change two variables, providi
 
 
 ```bash
-analyze_training_time_0
 # Deploy the GraphBolt-enabled pipeline
 PIPELINE_NAME_GRAPHBOLT="ogbn-arxiv-gs-graphbolt-pipeline"
 bash deploy_arxiv_pipeline.sh \
@@ -411,14 +405,10 @@ bash deploy_arxiv_pipeline.sh \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 
-echo deploy graphbolt arxiv pipeline
-
 # Execute the pipeline
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region us-east-1 \
-
-echo execute graphbolt arxiv pipeline
 ```
 
 Analyzing the training logs you can see a noticeable reduction in per-epoch time:
@@ -453,7 +443,6 @@ For this job you will use large GPU instances, so you will build and push the GP
 
 
 ```bash
-analyze_training_time_0
 cd ~/graphstorm
 
 bash ./docker/build_graphstorm_image.sh --environment sagemaker --device gpu --image graphstorm-example-sagemaker-pipeline
@@ -461,8 +450,6 @@ bash ./docker/build_graphstorm_image.sh --environment sagemaker --device gpu --i
 bash docker/push_graphstorm_image.sh -e sagemaker -r $REGION -a $ACCOUNT_ID -d gpu -i graphstorm-example-sagemaker-pipeline
 # This will push an image to
 # ${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/graphstorm-example-sagemaker-pipeline:sagemaker-gpu
-
-echo past sm gpu push
 ```
 
 ### Deploy and execute pipelines for papers-100M
@@ -471,7 +458,6 @@ Before you deploy your new pipeline, upload the training YAML configuration for 
 
 
 ```bash
-analyze_training_time_0
 aws s3 cp \
     ~/graphstorm/training_scripts/gsgnn_np/papers100M_nc.yaml \
     s3://$BUCKET_NAME/yaml/
@@ -481,7 +467,6 @@ aws s3 cp \
 Now you are ready to deploy your initial pipeline for papers-100M
 
 ```bash
-analyze_training_time_0
 PIPELINE_NAME="ogb-papers100M-pipeline"
 cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt/
 bash deploy_papers100M_pipeline.sh \
@@ -494,12 +479,9 @@ bash deploy_papers100M_pipeline.sh \
 Execute the pipeline and let it run the background.
 
 ```bash
-analyze_training_time_0
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region $REGION --async-execution
-
-echo past execute sm pipeline 100m
 ```
 
 >Note that your account needs to meet the required quotas for the requested instances. Here the defaults are set to four `ml.g5.48xlarge` for training jobs and one `ml.r5.24xlarge` instance for a processing job. To adjust your SageMaker service quotas you can use the [Service Quotas console UI](https://us-east-1.console.aws.amazon.com/servicequotas/home/services/sagemaker/quotas).  To run both pipelines in parallel you will need 8 x $TRAIN_GPU_INSTANCE and 2 x $GCONSTRUCT_INSTANCE.
@@ -508,7 +490,6 @@ echo past execute sm pipeline 100m
 Next, you can deploy and execute another pipeline, now with GraphBolt enabled:
 
 ```bash
-analyze_training_time_0
 PIPELINE_NAME_GRAPHBOLT="ogb-papers100M-graphbolt-pipeline"
 bash deploy_papers100M_pipeline.sh \
     --account $ACCOUNT_ID \
@@ -520,8 +501,6 @@ bash deploy_papers100M_pipeline.sh \
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region $REGION --async-execution
-
-echo past sm pipeline 100m graphbolt
 ```
 
 ### Compare performance for GraphBolt-enabled training

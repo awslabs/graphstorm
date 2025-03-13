@@ -256,8 +256,6 @@ def main():
                 f"This execution will use a new unique output prefix, : {new_prefix}."
             )
 
-    print('INSIDE SM EXECUTE')
-    print(execution_params)
     # If no parameters are provided, use an empty dict to use all defaults
     execution = pipeline.start(
         parameters=execution_params or {},
