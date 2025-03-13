@@ -297,9 +297,9 @@ To review the pipeline, navigate to [SageMaker AI Studio](https://us-east-1.cons
 
 On the left navigation menu, select **Pipelines**. There should be a pipeline named **ogbn-arxiv-gs-pipeline**. Select that, which will take you to the **Executions** tab for the pipeline. Select **Graph** to view the pipeline steps.
 
-### Execute SageMaker pipeline for ogbn-arxiv
+### Execute SageMaker pipeline locally for ogbn-arxiv
 
-Execute the following command to start an execution of the pipeline on the ogbn-arxiv data:
+The ogbn-arxiv data are small enough that you can execute the pipeline locally. Execute the following command to start a local execution of the pipeline:
 
 
 ```bash
@@ -311,7 +311,7 @@ python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --local-execution | tee arxiv-local-logs.txt
 ```
 
-We'll use the logs later to analyze the training speed.
+Note that we save the log output to `arxiv-local-logs.txt`. We'll use that later to analyze the training speed.
 
 Once the pipeline finishes it will print a message like
 
@@ -364,7 +364,7 @@ aws s3 ls \
 
 You'll be able to see the output of each step in the pipeline. The GConstruct job created the partitioned graph, the training job created models for 10 epochs, and the inference job created embeddings for the nodes and predictions for the nodes in the test set.
 
-You can inspect the mean epoch and evaluation time using the provided `analyze_training_time.py` script and the execution name:
+You can inspect the mean epoch and evaluation time using the provided `analyze_training_time.py` script and the log file you created:
 
 
 ```bash
