@@ -69,6 +69,7 @@ class HGTLayer(nn.Module):
     def forward(self, graph, h):
         if graph.is_block:
             node_dict, edge_dict = self.node_dict, self.edge_dict
+            edge_fn = {}
             for srctype, etype, dsttype in graph.canonical_etypes:
                 # extract each relation as a sub graph
                 sub_graph = graph[srctype, etype, dsttype]
@@ -85,7 +86,7 @@ class HGTLayer(nn.Module):
                 v = v_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
                 q = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1, self.num_heads, self.d_k)
 
-                e_id = self.edge_dict[(srctype, etype, dsttype)]
+                e_id = edge_dict[(srctype, etype, dsttype)]
 
                 relation_att = self.relation_att[e_id]
                 relation_pri = self.relation_pri[e_id]
@@ -104,12 +105,8 @@ class HGTLayer(nn.Module):
 
                 sub_graph.edata['t'] = attn_score.unsqueeze(-1)
 
-            edge_fn = {}
-            for etype, e_id in edge_dict.items():
-                if etype not in graph.canonical_etypes:
-                    continue
-                else:
-                    edge_fn[etype] = (fn.u_mul_e(f'v_{e_id :d}', 't', 'm'), fn.sum('m', 't'))
+                edge_fn[etype] = (fn.u_mul_e(f'v_{e_id :d}', 't', 'm'), fn.sum('m', 't'))
+
             graph.multi_update_all(edge_fn, cross_reducer = 'mean')
 
             new_h = {}
