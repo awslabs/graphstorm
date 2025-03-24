@@ -253,7 +253,7 @@ def get_node_feat_size(g, node_feat_names):
             assert feat_name in g.nodes[ntype].data, \
                     f"Warning. The feature \"{feat_name}\" " \
                     f"does not exists for the node type \"{ntype}\"."
-            node_feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+            node_feat_size[ntype] = int(np.prod(g.nodes[ntype].data[feat_name].shape[1:]))
         else:
             def get_fsize(feat_name):
                 # We force users to know which node type has node feature
@@ -265,7 +265,7 @@ def get_node_feat_size(g, node_feat_names):
                 # Support 1D or nD when required.
                 assert len(g.nodes[ntype].data[feat_name].shape) == 2, \
                     "Input node features should be 2D tensors"
-                fsize = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+                fsize = int(np.prod(g.nodes[ntype].data[feat_name].shape[1:]))
 
                 return fsize
 

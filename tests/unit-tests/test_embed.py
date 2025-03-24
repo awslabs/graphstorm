@@ -29,6 +29,7 @@ import dgl
 from transformers import AutoTokenizer
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
+from graphstorm.config import FeatureGroup
 from graphstorm.model import (GSNodeEncoderInputLayer,
                               GSEdgeEncoderInputLayer,
                               GSLMNodeEncoderInputLayer,
@@ -319,6 +320,166 @@ def test_input_layer4(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+# In this case, we use node feature on one node type and
+# use sparse embedding on the other node type.
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_input_layer_with_feature_group(dev):
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    # single feat group
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup(["feat", "feat1"])]}
+
+    feat_size = get_node_feat_size(g, feat_field)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2)
+
+    assert len(layer.input_projs) == 1
+    assert list(layer.input_projs.keys())[0] == 'n0'
+    assert len(layer.feat_group_projs) == 1
+    assert list(layer.feat_group_projs.keys())[0] == 'n1'
+    assert len(layer.feat_group_projs["n1"]) == 1
+    layer = layer.to(dev)
+    layer.eval()
+
+    node_feat = {}
+    input_nodes = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+    nn.init.eye_(layer.input_projs['n0'])
+
+    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
+    node_feat['n1'] = [th.cat([
+        g.nodes['n1'].data['feat'][input_nodes['n1']].to(dev),
+        g.nodes['n1'].data['feat1'][input_nodes['n1']].to(dev)],
+        dim = 1)]
+
+    with th.no_grad():
+        embed = layer(node_feat, input_nodes)
+        assert len(embed) == len(input_nodes)
+        # check emb device
+        for _, emb in embed.items():
+            assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+        assert_almost_equal(embed['n0'].detach().cpu().numpy(),
+                            node_feat['n0'].detach().cpu().numpy())
+
+        relu = nn.ReLU()
+
+        embed_n1 = node_feat['n1'][0] @ layer.feat_group_projs['n1'][0][0].weight.T
+        embed_n1 = relu(embed_n1)
+        embed_n1 = embed_n1 @ layer.proj_matrix["n1"]
+        assert_almost_equal(embed['n1'].detach().cpu().numpy(),
+                            embed_n1.detach().cpu().numpy())
+
+
+    # multiple feat group
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup(["feat", "feat1"]),
+                         FeatureGroup(["feat"],)]}
+
+    feat_size = get_node_feat_size(g, feat_field)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2)
+
+    assert len(layer.input_projs) == 1
+    assert list(layer.input_projs.keys())[0] == 'n0'
+    assert len(layer.feat_group_projs) == 1
+    assert list(layer.feat_group_projs.keys())[0] == 'n1'
+    assert len(layer.feat_group_projs["n1"]) == 2
+    assert layer.proj_matrix["n1"].data.shape[0] == 4
+    layer = layer.to(dev)
+    layer.eval()
+
+    node_feat = {}
+    input_nodes = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+    nn.init.eye_(layer.input_projs['n0'])
+
+    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
+    node_feat['n1'] = [th.cat([
+        g.nodes['n1'].data['feat'][input_nodes['n1']].to(dev),
+        g.nodes['n1'].data['feat1'][input_nodes['n1']].to(dev)],
+        dim = 1), # 1st group
+        g.nodes['n1'].data['feat'][input_nodes['n1']].to(dev)] # 2nd group
+
+    with th.no_grad():
+        embed = layer(node_feat, input_nodes)
+        assert len(embed) == len(input_nodes)
+        # check emb device
+        for _, emb in embed.items():
+            assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+
+        relu = nn.ReLU()
+        embed_n1_0 = node_feat['n1'][0] @ layer.feat_group_projs['n1'][0][0].weight.T
+        embed_n1_0 = relu(embed_n1_0)
+        embed_n1_1 = node_feat['n1'][1] @ layer.feat_group_projs['n1'][1][0].weight.T
+        embed_n1_1 = relu(embed_n1_1)
+        embed_n1 = th.cat([embed_n1_0, embed_n1_1], dim=1)
+        embed_n1 = embed_n1 @ layer.proj_matrix["n1"]
+
+        assert_almost_equal(embed['n1'].detach().cpu().numpy(),
+                            embed_n1.detach().cpu().numpy())
+
+    # multiple feat group with use_node_embeddings
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup(["feat", "feat1"]),
+                         FeatureGroup(["feat"],)]}
+
+    feat_size = get_node_feat_size(g, feat_field)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2,
+                                    use_node_embeddings=True)
+
+    assert len(layer.input_projs) == 1
+    assert list(layer.input_projs.keys())[0] == 'n0'
+    assert len(layer.feat_group_projs) == 1
+    assert list(layer.feat_group_projs.keys())[0] == 'n1'
+    assert len(layer.feat_group_projs["n1"]) == 2
+    assert layer.proj_matrix["n1"].data.shape[0] == 6
+    layer = layer.to(dev)
+    layer.eval()
+
+    node_feat = {}
+    input_nodes = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+    nn.init.eye_(layer.input_projs['n0'])
+
+    node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
+    node_feat['n1'] = [th.cat([
+        g.nodes['n1'].data['feat'][input_nodes['n1']].to(dev),
+        g.nodes['n1'].data['feat1'][input_nodes['n1']].to(dev)],
+        dim = 1), # 1st group
+        g.nodes['n1'].data['feat'][input_nodes['n1']].to(dev)] # 2nd group
+
+    with th.no_grad():
+        embed = layer(node_feat, input_nodes)
+        assert len(embed) == len(input_nodes)
+        # check emb device
+        for _, emb in embed.items():
+            assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+
+        relu = nn.ReLU()
+        embed_n1_0 = node_feat['n1'][0] @ layer.feat_group_projs['n1'][0][0].weight.T
+        embed_n1_0 = relu(embed_n1_0)
+        embed_n1_1 = node_feat['n1'][1] @ layer.feat_group_projs['n1'][1][0].weight.T
+        embed_n1_1 = relu(embed_n1_1)
+        sparse_emb = layer.sparse_embeds['n1'].weight[input_nodes['n1']]
+        embed_n1 = th.cat([embed_n1_0, embed_n1_1, sparse_emb], dim=1)
+        embed_n1 = embed_n1 @ layer.proj_matrix["n1"]
+
+        assert_almost_equal(embed['n1'].detach().cpu().numpy(),
+                            embed_n1.detach().cpu().numpy())
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+
 @pytest.mark.parametrize("dev", ['cpu','cuda:0'])
 def test_compute_embed(dev):
     # initialize the torch distributed environment
@@ -521,7 +682,7 @@ def test_lm_embed(num_train):
 
 
 @pytest.mark.parametrize("num_train", [0, 10])
-def test_lm_embed(num_train):
+def test_lm_embed2(num_train):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -654,6 +815,73 @@ def test_lm_embed_warmup(dev):
     emb_2 = layer(feat, input_nodes)
     with assert_raises(AssertionError):
          assert_almost_equal(emb_0['n0'].detach().cpu().numpy(), emb_2['n0'].detach().cpu().numpy(), decimal=1)
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_lm_infer_with_feature_group(dev):
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    bert_model_name = "bert-base-uncased"
+    max_seq_length = 8
+    num_train = 10
+    lm_config = [{"lm_type": "bert",
+                  "model_name": bert_model_name,
+                  "gradient_checkpoint": True,
+                  "node_types": ["n0"]}]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    feat_field={'n0' : [FeatureGroup(["feat"]),
+                        FeatureGroup(["feat", "feat1"])]}
+    feat_size = get_node_feat_size(g, feat_field)
+    input_text = ["Hello world!"]
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    input_ids, valid_len, attention_mask, _ = \
+        create_tokens(tokenizer=tokenizer,
+                      input_text=input_text,
+                      max_seq_length=max_seq_length,
+                      num_node=g.number_of_nodes('n0'))
+
+    g.nodes['n0'].data[TOKEN_IDX] = input_ids
+    g.nodes['n0'].data[ATT_MASK_IDX] = valid_len
+
+    layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size,
+                                      2, num_train=num_train)
+    layer = layer.to(dev)
+    assert len(layer.input_projs) == 0
+    assert len(layer.feat_group_projs) == 1
+    assert list(layer.feat_group_projs.keys())[0] == 'n0'
+    assert len(layer.feat_group_projs["n0"]) == 3
+    assert layer.proj_matrix["n0"].data.shape[0] == 6
+
+    input_nodes = {"n0": th.arange(0, 10, dtype=th.int64)}
+    layer.eval()
+    feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
+    relu = nn.ReLU()
+
+    with th.no_grad():
+        lm_feats = layer._lm_models(input_nodes)["n0"]
+        embed_n0_0 = feat["n0"][0] @ layer.feat_group_projs['n0'][0][0].weight.T
+        embed_n0_0 = relu(embed_n0_0)
+        embed_n0_1 = feat["n0"][1] @ layer.feat_group_projs['n0'][1][0].weight.T
+        embed_n0_1 = relu(embed_n0_1)
+        lm_feats = lm_feats @ layer.feat_group_projs['n0'][2][0].weight.T
+        lm_feats = relu(lm_feats)
+        embed_n0 = th.cat([embed_n0_0, embed_n0_1, lm_feats], dim=1)
+
+        embed_n0 = embed_n0 @ layer.proj_matrix["n0"]
+        emb_out = layer(feat, input_nodes)
+
+        assert emb_out["n0"].shape[1] == 2
+        assert_almost_equal(emb_out['n0'].detach().cpu().numpy(),
+                            embed_n0.detach().cpu().numpy())
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -808,33 +1036,3 @@ def test_mp_wg_lm_cache(world_size):
         for p in ptrainer_list:
             p.join()
             assert p.exitcode == 0
-
-
-if __name__ == '__main__':
-    test_pytroch_emb_load_save(11)
-    test_lm_cache()
-    test_mp_lm_cache()
-    test_input_layer1(None)
-    test_input_layer1(F.relu)
-    test_input_layer2()
-    test_input_layer3('cpu')
-    test_input_layer3('cuda:0')
-
-    test_input_layer4('cpu')
-    test_input_layer4('cuda:0')
-
-    test_compute_embed('cpu')
-    test_compute_embed('cuda:0')
-
-    test_pure_lm_embed(0)
-    test_pure_lm_embed(10)
-
-    test_lm_embed(0)
-    test_lm_embed(10)
-
-    test_lm_embed_warmup('cpu')
-    test_lm_embed_warmup('cuda:0')
-    test_lm_infer()
-
-    test_wg_lm_cache()
-    test_mp_wg_lm_cache(1)

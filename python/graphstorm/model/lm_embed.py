@@ -752,7 +752,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                 else:
                     # ntype has multiple feature groups
                     # make lm model another group
-                    adjust_feat_size[ntype].append(lm_models.get_feat_size(ntype))
+                    adjust_feat_size[ntype].feature_group_sizes.append(lm_models.get_feat_size(ntype))
                     if get_rank() == 0:
                         logging.debug('Node %s adds lm %s features with size %d',
                                     ntype, lm_config["lm_type"],
@@ -867,8 +867,14 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
             lm_feat = lm_feat.to(self.device)
+
             if ntype in input_feats:
-                input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+                if ntype in self.feat_group_projs:
+                    # There are multiple feature groups.
+                    # Treat lm_feat as another feature group.
+                    input_feats[ntype].append(lm_feat)
+                else:
+                    input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
                 input_feats[ntype] = lm_feat
 

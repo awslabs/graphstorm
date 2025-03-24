@@ -419,7 +419,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     nn.init.zeros_(linear.bias)
 
                     feat_group_projs.append(
-                        nn.Sequential(linear, nn.ReLU))
+                        nn.Sequential(linear, nn.ReLU()))
                 self.feat_group_projs[ntype] = feat_group_projs
                 combine_dim = self.embed_size * len(feature_group_sizes)
 
@@ -507,7 +507,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 elif ntype in self.feat_group_projs:
                     # There are multiple feature groups.
                     feat_embs = []
-                    for in_feats, group_proj in zip(input_feats[ntype], self.feat_group_projs):
+                    for in_feats, group_proj in zip(input_feats[ntype], self.feat_group_projs[ntype]):
                         emb = group_proj(in_feats.float())
                         feat_embs.append(emb)
 
