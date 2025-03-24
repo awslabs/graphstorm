@@ -477,7 +477,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     node_lm_configs: LM config
         A list of language model configurations.
     num_train: int
-        The number of nodes with textual features used for LM model finetuning in a 
+        The number of nodes with textual features used for LM model finetuning in a
         mini-batch. Default: 0.
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static LM model. Default: 16.
@@ -560,7 +560,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
     def prepare(self, g):
         """ Preparing input layer for training or inference.
-        
+
         If the number of nodes for LM model finetuning is zero, freeze this layer.
         """
         if self.num_train == 0:
@@ -570,7 +570,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         """ Generate LM cache.
 
         The LM cache is used in the following cases:
-        
+
         1. No need to fine-tune the LM, i.e., ``num_train == 0``.
            In this case, only generate LM cache once before model training.
         2. GNN warm up when ``lm_freeze_epochs > 0`` (controlled by trainer).
@@ -585,7 +585,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
     def unfreeze(self):
         """ Disable LM caching.
-        
+
         If ``num_train > 0``, and not use LM cache, clear existing LM cache.
         """
         if self.num_train > 0:
@@ -666,8 +666,9 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         The input DGL distributed graph
     node_lm_configs: LM config
         A list of language model configurations.
-    feat_size : dict of int
+    feat_size : dict of int or dict of list of ints
         The original feat sizes of each node type in the format of {ntype: size}.
+        If a node have multiple feature groups, it is in the format of {ntype: [size, size, ...]}
     embed_size : int
         The output embedding size.
     num_train: int
@@ -742,11 +743,20 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
             lm_ntypes = lm_config["node_types"]
             # Update feature size
             for ntype in lm_ntypes:
-                adjust_feat_size[ntype] += lm_models.get_feat_size(ntype)
-                if get_rank() == 0:
-                    logging.debug('Node %s adds lm %s features %d->%d',
-                                  ntype, lm_config["lm_type"], feat_size[ntype],
-                                  adjust_feat_size[ntype])
+                if isinstance(adjust_feat_size[ntype], int):
+                    adjust_feat_size[ntype] += lm_models.get_feat_size(ntype)
+                    if get_rank() == 0:
+                        logging.debug('Node %s adds lm %s features %d->%d',
+                                    ntype, lm_config["lm_type"], feat_size[ntype],
+                                    adjust_feat_size[ntype])
+                else:
+                    # ntype has multiple feature groups
+                    # make lm model another group
+                    adjust_feat_size[ntype].append(lm_models.get_feat_size(ntype))
+                    if get_rank() == 0:
+                        logging.debug('Node %s adds lm %s features with size %d',
+                                    ntype, lm_config["lm_type"],
+                                    adjust_feat_size[ntype])
 
         self.num_train = num_train
         self.use_fp16 = use_fp16
@@ -785,7 +795,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
     def prepare(self, g):
         """ Preparing input layer for training or inference.
-        
+
         If the number of nodes for LM model fine-tuning is zero, freeze this layer.
         """
         if self.num_train == 0:
@@ -810,7 +820,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
     def unfreeze(self):
         """ Disable LM caching.
-        
+
         If ``num_train > 0``, and not use LM cache, clear existing LM cache.
         """
         if self.num_train > 0:

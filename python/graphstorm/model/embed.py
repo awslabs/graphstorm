@@ -25,6 +25,7 @@ import torch.nn.functional as F
 import dgl
 from dgl.distributed import DistEmbedding, node_split
 
+from ..config import FeatureGroupSize
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
 from ..utils import (
@@ -233,7 +234,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """ The node encoder input layer for all nodes in a heterogeneous graph.
 
     The input layer adds a linear layer on nodes with node features and the linear layer
-    projects the node features into a specified dimension. 
+    projects the node features into a specified dimension.
     It also adds learnable embeddings on nodes that do not have features. Users can add
     learnable embeddings on the nodes with node features by setting ``use_node_embeddings``
     to True. In this case, the input layer combines the node features with the learnable
@@ -244,7 +245,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     g: DistGraph
         The input DGL distributed graph.
     feat_size : dict of int
-        The original feat size of each node type in the format of {ntype: size}.
+        The original feat size of each node type in the format of {str: int}.
+        If a node have multiple feature groups, it is in the format of {str: FeatureGroupSize}
     embed_size : int
         The output embedding size.
     activation : callable
@@ -281,7 +283,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         model = GSgnnNodeModel(alpha_l2norm=0)
         feat_size = get_node_feat_size(np_data.g, "feat")
-        encoder = GSNodeEncoderInputLayer(g, feat_size, 
+        encoder = GSNodeEncoderInputLayer(g, feat_size,
                                           embed_size=4,
                                           use_node_embeddings=True)
         model.set_node_input_encoder(encoder)
@@ -337,17 +339,90 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
+        self.feat_group_projs = nn.ParameterDict()
         embed_name = "embed"
         for ntype in g.ntypes:
-            feat_dim = 0
-            if feat_size[ntype] > 0:
-                feat_dim += feat_size[ntype]
-            if feat_dim > 0:
-                if get_rank() == 0:
-                    logging.debug("Node %s has %d features.", ntype, feat_dim)
-                input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
-                nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
-                self.input_projs[ntype] = input_projs
+            if isinstance(feat_size[ntype], int):
+                feat_dim = 0
+                if feat_size[ntype] > 0:
+                    feat_dim += feat_size[ntype]
+                if feat_dim > 0:
+                    if get_rank() == 0:
+                        logging.debug("Node %s has %d features.", ntype, feat_dim)
+                    input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
+                    nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
+                    self.input_projs[ntype] = input_projs
+                    if self.use_node_embeddings:
+                        if self._use_wholegraph_sparse_emb:
+                            if get_rank() == 0:
+                                logging.debug(
+                                    "Use WholeGraph to host additional sparse embeddings on node %s",
+                                    ntype,
+                                )
+                            self._sparse_embeds[ntype] = WholeGraphDistTensor(
+                                (g.number_of_nodes(ntype), self.embed_size),
+                                th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                                embed_name + "_" + ntype,
+                                use_wg_optimizer=True,  # no memory allocation before opt available
+                            )
+                        else:
+                            if get_rank() == 0:
+                                logging.debug("Use additional sparse embeddings on node %s", ntype)
+                            part_policy = g.get_node_partition_policy(ntype)
+                            self._sparse_embeds[ntype] = DistEmbedding(
+                                g.number_of_nodes(ntype),
+                                self.embed_size,
+                                embed_name + "_" + ntype,
+                                init_emb,
+                                part_policy,
+                            )
+                        proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
+                        nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain("relu"))
+                        # nn.ParameterDict support this assignment operation if not None,
+                        # so disable the pylint error
+                        self.proj_matrix[ntype] = proj_matrix
+                elif ntype not in force_no_embeddings:
+                    if self._use_wholegraph_sparse_emb:
+                        if get_rank() == 0:
+                            logging.debug(
+                                "Use WholeGraph to host sparse embeddings on node %s:%d",
+                                ntype,
+                                g.number_of_nodes(ntype),
+                            )
+                        self._sparse_embeds[ntype] = WholeGraphDistTensor(
+                            (g.number_of_nodes(ntype), self.embed_size),
+                            th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                            embed_name + "_" + ntype,
+                            use_wg_optimizer=True,  # no memory allocation before opt available
+                        )
+                    else:
+                        if get_rank() == 0:
+                            logging.debug('Use sparse embeddings on node %s:%d',
+                                        ntype, g.number_of_nodes(ntype))
+                        part_policy = g.get_node_partition_policy(ntype)
+                        self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                        self.embed_size,
+                                        embed_name + '_' + ntype,
+                                        init_emb,
+                                        part_policy=part_policy)
+
+                    proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
+                    nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
+                    self.proj_matrix[ntype] = proj_matrix
+            elif isinstance(feat_size[ntype], FeatureGroupSize):
+                feature_group_sizes = feat_size[ntype].feature_group_sizes
+                feat_group_projs = nn.ModuleList()
+
+                for feat_group_size in feature_group_sizes:
+                    linear = nn.Linear(feat_group_size, self.embed_size)
+                    nn.init.xavier_uniform_(linear.weight, gain=nn.init.calculate_gain("relu"))
+                    nn.init.zeros_(linear.bias)
+
+                    feat_group_projs.append(
+                        nn.Sequential(linear, nn.ReLU))
+                self.feat_group_projs[ntype] = feat_group_projs
+                combine_dim = self.embed_size * len(feature_group_sizes)
+
                 if self.use_node_embeddings:
                     if self._use_wholegraph_sparse_emb:
                         if get_rank() == 0:
@@ -372,40 +447,16 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                             init_emb,
                             part_policy,
                         )
-                    proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
-                    nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain("relu"))
-                    # nn.ParameterDict support this assignment operation if not None,
-                    # so disable the pylint error
-                    self.proj_matrix[ntype] = proj_matrix
+                    combine_dim += self.embed_size
 
-            elif ntype not in force_no_embeddings:
-                if self._use_wholegraph_sparse_emb:
-                    if get_rank() == 0:
-                        logging.debug(
-                            "Use WholeGraph to host sparse embeddings on node %s:%d",
-                            ntype,
-                            g.number_of_nodes(ntype),
-                        )
-                    self._sparse_embeds[ntype] = WholeGraphDistTensor(
-                        (g.number_of_nodes(ntype), self.embed_size),
-                        th.float32,  # to consistent with distDGL's DistEmbedding dtype
-                        embed_name + "_" + ntype,
-                        use_wg_optimizer=True,  # no memory allocation before opt available
-                    )
-                else:
-                    if get_rank() == 0:
-                        logging.debug('Use sparse embeddings on node %s:%d',
-                                    ntype, g.number_of_nodes(ntype))
-                    part_policy = g.get_node_partition_policy(ntype)
-                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                    self.embed_size,
-                                    embed_name + '_' + ntype,
-                                    init_emb,
-                                    part_policy=part_policy)
-
-                proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
-                nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
+                proj_matrix = nn.Parameter(th.Tensor(combine_dim, self.embed_size))
+                nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain("relu"))
+                # nn.ParameterDict support this assignment operation if not None,
+                # so disable the pylint error
                 self.proj_matrix[ntype] = proj_matrix
+            else:
+                raise RuntimeError(f"Unknown feat_size object {type(feat_size[ntype])}."
+                                   "Expecting int or FeatureGroupSize")
 
         # ngnn
         self.num_ffn_layers_in_input = num_ffn_layers_in_input
@@ -439,21 +490,41 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 input_nodes[ntype] = th.from_numpy(input_nodes[ntype])
             emb = None
             if ntype in input_feats:
-                assert ntype in self.input_projs, \
-                    f"We need a projection for node type {ntype}"
-                # If the input data is not float, we need to convert it t float first.
-                emb = input_feats[ntype].float() @ self.input_projs[ntype]
-                if self.use_node_embeddings:
-                    assert ntype in self.sparse_embeds, \
-                        f"We need sparse embedding for node type {ntype}"
-                    # emb.device: target device to put the gathered results
-                    if self._use_wholegraph_sparse_emb:
-                        node_emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
-                        node_emb = node_emb.to(emb.device, non_blocking=True)
-                    else:
-                        node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
-                    concat_emb = th.cat((emb, node_emb), dim=1)
+                if ntype in self.input_projs:
+                    # If the input data is not float, we need to convert it t float first.
+                    emb = input_feats[ntype].float() @ self.input_projs[ntype]
+                    if self.use_node_embeddings:
+                        assert ntype in self.sparse_embeds, \
+                            f"We need sparse embedding for node type {ntype}"
+                        # emb.device: target device to put the gathered results
+                        if self._use_wholegraph_sparse_emb:
+                            node_emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
+                            node_emb = node_emb.to(emb.device, non_blocking=True)
+                        else:
+                            node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
+                        concat_emb = th.cat((emb, node_emb), dim=1)
+                        emb = concat_emb @ self.proj_matrix[ntype]
+                elif ntype in self.feat_group_projs:
+                    # There are multiple feature groups.
+                    feat_embs = []
+                    for in_feats, group_proj in zip(input_feats[ntype], self.feat_group_projs):
+                        emb = group_proj(in_feats.float())
+                        feat_embs.append(emb)
+
+                    if self.use_node_embeddings:
+                        assert ntype in self.sparse_embeds, \
+                            f"We need sparse embedding for node type {ntype}"
+                        # emb.device: target device to put the gathered results
+                        if self._use_wholegraph_sparse_emb:
+                            node_emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
+                            node_emb = node_emb.to(emb.device, non_blocking=True)
+                        else:
+                            node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
+                        feat_embs.append(node_emb)
+                    concat_emb = th.cat(feat_embs, dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
+                else:
+                    raise RuntimeError(f"We need a projection for node type {ntype}")
             elif ntype in self.sparse_embeds:  # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
@@ -580,7 +651,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
 
         model = GSgnnNodeModel(alpha_l2norm=0)
         node_feat_size = get_node_feat_size(np_data.g, "feat")
-        node_encoder = GSNodeEncoderInputLayer(g, node_feat_size, 
+        node_encoder = GSNodeEncoderInputLayer(g, node_feat_size,
                                           embed_size=4,
                                           use_node_embeddings=True)
         edge_feat_size = get_edge_feat_size(np_data.g, "feat")
@@ -624,11 +695,11 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
 
     def forward(self, block_edge_input_feats):
         """ Input layer forward computation.
-        
+
         Parameters
         -----------
         block_edge_input_feats: list of dicts
-            The input edge features of all blocks in the format of 
+            The input edge features of all blocks in the format of
             [{etype1: feats, etype2: feats, ...}, {etype1: feats, ...}, ...].
 
         Returns

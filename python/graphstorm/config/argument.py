@@ -63,7 +63,8 @@ from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 from .config import get_mttask_id
-from .config import TaskInfo
+from .config import (TaskInfo,
+                     FeatureGroup)
 
 from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 
@@ -1360,12 +1361,40 @@ class GSConfig:
     def node_feat_name(self):
         """ User provided node feature name. Default is None.
 
-        It can be in the following formats:
+        The input can be in the following formats:
 
         - ``feat_name``: global feature name for all node types, i.e., for any node, its
-          corresponding feature name is <feat_name>.
+          corresponding feature name is <feat_name>. For example,
+          if ``node_feat_name`` is set to ``feat``, GraphStorm will
+          assume every node has a ``feat`` feature.
         - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types have different
-          node features with different names.
+          node features with different names. For example if ``node_feat_name``
+          is set to ``["user:age","movie:title,genre"]``.
+          The ``user` nodes will take ``age`` as their features.
+          The ``movie`` nodes will take both ``title`` and
+          ``genre`` as their features.
+
+        .. versionchanged:: 0.5.0
+
+            Since 0.5.0, GraphStorm supports using different encoders
+            to encode different input node features of the same node.
+            For example, suppose the ``moive`` nodes have two features
+            ``title`` and ``genre``, GraphStorm can encode ``title``
+            feature with the encoder f(x) and encode ``genre`` feature
+            with the encoder g(x).
+
+            To use different encoders for different features of a
+            node type, users can take the following format for ``node_feat_name``:
+            ``"ntype0:feat0","ntype1:feat0","ntype1:feat1",...``.
+            GraphStorm will create an encoder for ``feat0`` of ``ntype1``
+            and another encoder for ``feat1`` of ``ntype1``.
+
+            It return value can be:
+
+              - None
+              - A string
+              - A dict of list of strings
+              - A dict of list of FeatureGroup
         """
         # pylint: disable=no-member
         if hasattr(self, "_node_feat_name"):
@@ -1384,13 +1413,33 @@ class GSConfig:
                         f"Unknown format of the feature name: {feat_name}, " + \
                         "must be NODE_TYPE:FEAT_NAME."
                 ntype = feat_info[0]
-                assert ntype not in fname_dict, \
-                        f"You already specify the feature names of {ntype} " \
-                        f"as {fname_dict[ntype]}"
                 assert isinstance(feat_info[1], str), \
                     f"Feature name of {ntype} should be a string not {feat_info[1]}"
                 # multiple features separated by ','
-                fname_dict[ntype] = [item.strip() for item in feat_info[1].split(",")]
+                feats = [item.strip() for item in feat_info[1].split(",")]
+                if ntype in fname_dict:
+                    # One node type may have multiple
+                    # feature groups.
+                    # Each group will be stored as a
+                    # list of strings.
+                    if isinstance(fname_dict[ntype][0], str):
+                        # The second feature group
+                        fname_dict[ntype] = FeatureGroup(
+                            feature_groups=[fname_dict[ntype], feats])
+                    else:
+                        # 3+ feature groups
+                        fname_dict[ntype].feature_groups.append(feats)
+                    logging.info("%s nodes has %d feature groups",
+                                 ntype, len(fname_dict[ntype]))
+                else:
+                    # Note(xiang): for backward compatibility,
+                    # we do not change the data format
+                    # of fname_dict when ntype has
+                    # only one feature group.
+                    fname_dict[ntype] = feats
+
+                logging.debug("%s nodes has %s features",
+                              ntype, fname_dict[ntype])
             return fname_dict
 
         # By default, return None which means there is no node feature

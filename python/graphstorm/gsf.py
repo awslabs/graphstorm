@@ -50,6 +50,8 @@ from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL,
                      BUILTIN_REGRESSION_LOSS_MSE,
                      BUILTIN_REGRESSION_LOSS_SHRINKAGE)
+from .config import (FeatureGroup,
+                     FeatureGroupSize)
 from .eval.eval_func import (
     SUPPORTED_HIT_AT_METRICS,
     SUPPORTED_LINK_PREDICTION_METRICS)
@@ -204,20 +206,29 @@ def initialize(
 def get_node_feat_size(g, node_feat_names):
     """ Get the overall feature size of each node type with feature names specified in the
     ``node_feat_names``. If a node type has multiple features, the returned feature size
-    will be the sum of the sizes of these features for that node type.
+    will be the sum of the sizes of these features for that node type. If a node type has
+    multiple groups of features, it returns the sizes of different feature groups.
+
+    .. versionchanged:: 0.5.0
+        When node_feat_names is a dict, its value(s) can be a list of str or a list
+        of FeatureGroup. The return value can be a dict of int or
+        FeatureGroupSize, respectively.
 
     Parameters
     ----------
     g : DistGraph
         A DGL distributed graph.
-    node_feat_names : str, or dict of list of str
+    node_feat_names : str, or a dict
         The node feature names. A string indicates that all nodes share the same feature name,
-        while a dictionary with a list of strings indicates that each
-        node type has different node feature names.
+        A dictionary indicates that each node type has different node feature names.
+        When the value of a key (node type) is a list of strings, it indicates that
+        the node type has only one group of features. When the value is a list
+        of FeatureGroup, it indicates that the node type has more than one group
+        of features.
 
     Returns
     -------
-    node_feat_size: dict of int
+    node_feat_size: dict of int or FeatureGroupSize
         The feature size for the node types and feature names specified in the
         ``node_feat_names``. If feature name is not specified, the feature size
         will be 0.
@@ -244,19 +255,50 @@ def get_node_feat_size(g, node_feat_names):
                     f"does not exists for the node type \"{ntype}\"."
             node_feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
         else:
-            node_feat_size[ntype] = 0
-            for fname in feat_name:
+            def get_fsize(feat_name):
                 # We force users to know which node type has node feature
                 # This helps avoid unexpected training behavior.
-                assert fname in g.nodes[ntype].data, \
-                        f"Warning. The feature \"{fname}\" " \
+                assert feat_name in g.nodes[ntype].data, \
+                        f"Warning. The feature \"{feat_name}\" " \
                         f"does not exists for the node type \"{ntype}\"."
                 # TODO: we only allow an input node feature as a 2D tensor
                 # Support 1D or nD when required.
-                assert len(g.nodes[ntype].data[fname].shape) == 2, \
+                assert len(g.nodes[ntype].data[feat_name].shape) == 2, \
                     "Input node features should be 2D tensors"
-                fsize = np.prod(g.nodes[ntype].data[fname].shape[1:])
+                fsize = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+
+                return fsize
+
+            if isinstance(feat_name, FeatureGroup):
+                feat_groups = feat_name.feature_groups
+                assert len(feat_groups) > 0, \
+                    f"The feature groups of {ntype} should not be empty"
+
+                feat_group_sizes = []
+                for fname in feat_name:
+                    # ntype has multiple feature groups
+                    fsize = 0
+                    for f_name in fname:
+                        fsize += get_fsize(f_name)
+                    feat_group_sizes.append(fsize)
+                node_feat_size[ntype] = FeatureGroupSize(
+                    feature_group_sizes=feat_group_sizes)
+            else:
+                assert isinstance(feat_name, list), \
+                    f"The feature name object of {ntype} must be either None, " \
+                    f"a string or a list, but get {type(feat_name)}"
+                assert len(feat_name) > 0, \
+                    f"The feature name object of {ntype} should not be an empty list"
+
+                fsize = 0
+                for fname in feat_name:
+                    # Note(xiang): for backward compatibility,
+                    # we do not change the data format
+                    # of node_feat_size when ntype has
+                    # only one feature group.
+                    fsize += get_fsize(fname)
                 node_feat_size[ntype] += fsize
+
     return node_feat_size
 
 def get_edge_feat_size(g, edge_feat_names):

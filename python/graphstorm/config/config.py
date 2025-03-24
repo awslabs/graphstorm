@@ -168,3 +168,34 @@ class TaskInfo:
     task_id : str
     task_config : typing.Any = None
     dataloader : typing.Any = None # dataloder
+
+@dataclasses.dataclass
+class FeatureGroup:
+    """ Feature names of groups of features.
+
+        Users can define multiple group of node features that
+        GraphStorm will use different encoders to encode them
+
+    .. versionadded:: 0.5.0
+        Since 0.5.0, GraphStorm supports using different encoders
+        to encode different input node features of the same node.
+
+    Parameters
+    feature_groups: list of strings
+        Feature groups
+    """
+    feature_groups: list[str]
+
+@dataclasses.dataclass
+class FeatureGroupSize:
+    """ Feature sizes of groups of features.
+
+    .. versionadded:: 0.5.0
+        Since 0.5.0, GraphStorm supports using different encoders
+        to encode different input node features of the same node.
+
+    Parameters
+    feature_group_sizes: list of int
+        Feature group sizes
+    """
+    feature_group_sizes: list[int]
