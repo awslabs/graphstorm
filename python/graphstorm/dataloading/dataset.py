@@ -84,12 +84,12 @@ def prepare_batch_input(g, input_nodes,
                 # as we will collect features for each feature group
                 # one by one, which is not data movement friendly.
                 # But the implementation is more transparent for debugging.
-                for feat_group in feat_name.feature_group:
+                for feat_group in feat_name:
                     gfeat = prepare_batch_input(g=g,
                         input_nodes={ntype:nid},
                         dev=dev,
-                        feat_field={ntype:feat_group})
-                    feats.append(gfeat)
+                        feat_field={ntype:feat_group.feature_group})
+                    feats.append(gfeat[ntype])
                 feat[ntype] = feats
             else:
                 # concatenate multiple features together

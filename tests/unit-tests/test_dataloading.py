@@ -1108,9 +1108,9 @@ def test_prepare_input():
             [lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))],
              lp_data.g.nodes['n1'].data['feat2'][th.arange(lp_data.g.num_nodes('n1'))]],
              dim=1)
-        lp_data.g.nodes['n1'].data['feat3'] = \
-            lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))]
         lp_data.g.nodes['n1'].data['feat4'] = \
+            lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))]
+        lp_data.g.nodes['n1'].data['feat5'] = \
             lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))] * 2
 
         g = lp_data.g
@@ -1190,7 +1190,7 @@ def test_prepare_input():
                              g.edges[("n0", "r0", "n1")].data["feat2"][
                                  input_edges[("n0", "r0", "n1")]]], dim=-1).numpy())
 
-        # test node feature group
+        # Test node feature group
         input_nodes = {
             "n0": th.randint(g.num_nodes("n0"), (10,)),
             "n1": th.randint(g.num_nodes("n1"), (20,)),
@@ -1209,6 +1209,7 @@ def test_prepare_input():
                      th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
                              g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
 
+        # Multiple feature groups
         feat_field = {"n0":["feat"],
                       "n1":[FeatureGroup(["feat", "feat2"]),
                             FeatureGroup(["feat3"]),
@@ -1219,6 +1220,7 @@ def test_prepare_input():
         assert_equal(node_feat["n0"].numpy(),
                      g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
         assert isinstance(node_feat["n1"], list)
+        # there are three feature groups in n1
         assert len(node_feat["n1"]) == 3
         assert_equal(node_feat["n1"][0].numpy(),
                      th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
@@ -2697,49 +2699,3 @@ def test_GSgnnTranData_small_val_test():
         p1.join()
         assert p0.exitcode == 0
         assert p1.exitcode == 0
-
-if __name__ == '__main__':
-    test_GSgnnTranData_small_val_test()
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnMultiTaskDataLoader()
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
-    test_edge_fixed_dst_negative_sample_gen_neg_pairs()
-    test_hard_edge_dst_negative_sample_generate_complex_case()
-    test_hard_edge_dst_negative_sample_generate()
-    test_inbatch_joint_neg_sampler(10, 20)
-
-    test_np_dataloader_len(11)
-    test_ep_dataloader_len(11)
-    test_lp_dataloader_len(11)
-
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnData()
-    test_GSgnnData2()
-    test_GSgnnData_edge_feat()
-    test_GSgnnData_edge_feat2()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
-
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
-
-    test_distill_sampler_get_file(num_files=7)
-    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
-        infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 7, True)
-
-    test_GSgnnTrainData_homogeneous()
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
-    test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
-    test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
