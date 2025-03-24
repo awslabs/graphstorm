@@ -29,6 +29,7 @@ from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholeg
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 from ..utils import get_graph_name
+from ..config import FeatureGroup
 
 from ..wholegraph import is_wholegraph_embedding
 
@@ -49,6 +50,11 @@ def prepare_batch_input(g, input_nodes,
 
     Note: The output is stored in dev.
 
+    .. versionchanged:: 0.5.0
+        When feat_field is a dict, its value(s) can be a list of str or a list
+        of FeatureGroup. The return value can be a dict of int or
+        FeatureGroupSize, respectively.
+
     Parameters
     ----------
     g: DGLGraph
@@ -57,12 +63,12 @@ def prepare_batch_input(g, input_nodes,
         Input nodes.
     dev: th.device
         Device to put output in.
-    feat_field: str or dict of list of str
+    feat_field: str or dict of list of str or or dict of list of FeatureGroup
         Fields to extract features
 
     Return:
     -------
-    Dict of tensors.
+    Dict of tensors or list of tensors
         If a node type has features, it will get node features.
     """
     feat = {}
@@ -72,30 +78,45 @@ def prepare_batch_input(g, input_nodes,
             else feat_field[ntype] if ntype in feat_field else None
 
         if feat_name is not None:
-            # concatenate multiple features together
-            feats = []
-            for fname in feat_name:
-                assert fname in g.nodes[ntype].data, \
-                    f"{fname} does not exist as a node feature of {ntype}"
-                data = g.nodes[ntype].data[fname]
-                if is_wholegraph_embedding(data):
-                    data = data.gather(nid.to(dev))
-                else:
-                    data = data[nid].to(dev)
-                feats.append(data)
-            assert len(feats) > 0, \
-                "No feature exists in the graph. " \
-                f"Expecting the graph have following node features {feat_name}."
-
-            if len(feats[0].shape) == 1:
-                # The feature is 1D. It will be features for label
-                assert len(feats) == 1, \
-                    "For 1D features, we assume they are label features." \
-                    f"Please access them 1 by 1, but get {feat_name}"
-                feat[ntype] = feats[0]
+            if isinstance(feat_name[0], FeatureGroup):
+                feats = []
+                # Note(Xiang): The implementation is less efficient,
+                # as we will collect features for each feature group
+                # one by one, which is not data movement friendly.
+                # But the implementation is more transparent for debugging.
+                for feat_group in feat_name.feature_groups:
+                    gfeat = prepare_batch_input(g=g,
+                        input_nodes={ntype:nid},
+                        dev=dev,
+                        feat_field={ntype:feat_group})
+                    feats.append(gfeat)
+                feat[ntype] = feats
             else:
-                # The feature is 2D
-                feat[ntype] = th.cat(feats, dim=1)
+                # concatenate multiple features together
+                feats = []
+                for fname in feat_name:
+                    assert fname in g.nodes[ntype].data, \
+                        f"{fname} does not exist as a node feature of {ntype}"
+                    data = g.nodes[ntype].data[fname]
+                    if is_wholegraph_embedding(data):
+                        data = data.gather(nid.to(dev))
+                    else:
+                        data = data[nid].to(dev)
+                    feats.append(data)
+
+                assert len(feats) > 0, \
+                    "No feature exists in the graph. " \
+                    f"Expecting the graph have following node features {feat_name}."
+
+                if len(feats[0].shape) == 1:
+                    # The feature is 1D. It will be features for label
+                    assert len(feats) == 1, \
+                        "For 1D features, we assume they are label features." \
+                        f"Please access them 1 by 1, but get {feat_name}"
+                    feat[ntype] = feats[0]
+                else:
+                    # The feature is 2D
+                    feat[ntype] = th.cat(feats, dim=1)
     return feat
 
 def prepare_batch_edge_input(g, input_edges,
@@ -371,12 +392,23 @@ class GSgnnData():
         """ Get the node features of the given input nodes. The feature fields are defined
         in ``nfeat_fields``.
 
+        .. versionchanged:: 0.5.0
+            When nfeat_fields is a dict, its value(s) can be a list of str or a list
+            of FeatureGroup. The return value can be a dict of int or
+            FeatureGroupSize, respectively.
+
         Parameters
         ----------
         input_nodes : Tensor or dict of Tensors
             The input node IDs.
-        nfeat_fields : str or dict of [str ...]
+        nfeat_fields : str or dict of [str ...] or dict of [FeatureGroup ...]
             The node feature fields to be extracted.
+            A string represents the feature name.
+            A dictionary indicates that each node type has different node feature names.
+            When the value of a key (node type) is a list of strings, it indicates that
+            the node type has only one group of features. When the value is a list
+            of FeatureGroup, it indicates that the node type has more than one group
+            of features.
         device : Pytorch device
             The device where the returned node features are stored.
 
