@@ -42,6 +42,7 @@ from graphstorm.config import (TaskInfo,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_LINK_PREDICTION)
+from graphstorm.config import FeatureGroup
 from graphstorm.utils import setup_device, get_device
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
@@ -456,7 +457,7 @@ def test_GSgnnData2():
 
 def test_GSgnnData_edge_feat():
     """ Test GSgnnData built-in functions.
-    
+
     Currently only test the ``get_blocks_edge_feats`` for normal test cases.
     """
     # initialize the torch distributed environment
@@ -473,7 +474,7 @@ def test_GSgnnData_edge_feat():
         # there will be three etypes:
         # ('n0', 'r1', 'n1'), ('n0', 'r0', 'n1'), ("n1", "r2", "n0")
         gdata = GSgnnData(part_config=part_config)
-        
+
         # Test 0: empty edge feature fields, should return a list with two empty dicts
         efeat_fields = {}
         target_idx = {('n0', 'r1', 'n1'): [0]}
@@ -581,7 +582,7 @@ def test_GSgnnData_edge_feat2():
         # there will be two etypes:
         # ('n0', 'r1', 'n1'), ('n1', 'r1', 'n2')
         gdata = GSgnnData(part_config=part_config)
-        
+
         # Test 1: layer 0 has edge feature, and layer 1 not, i.e., empty dict
         target_idx = {'n2': [0]}
         dataloader = GSgnnNodeDataLoader(gdata, target_idx,
@@ -1102,8 +1103,17 @@ def test_prepare_input():
             lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))] * 2
         lp_data.g.edges['r0'].data['feat2'] = \
             lp_data.g.edges['r0'].data['feat'][th.arange(lp_data.g.num_edges('r0'))] * 2
-        g = lp_data.g
+        # feat3, feat4, feat5 for testing feature group
+        lp_data.g.nodes['n1'].data['feat3'] = th.cat(\
+            [lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))],
+             lp_data.g.nodes['n1'].data['feat2'][th.arange(lp_data.g.num_nodes('n1'))]],
+             dim=1)
+        lp_data.g.nodes['n1'].data['feat3'] = \
+            lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))]
+        lp_data.g.nodes['n1'].data['feat4'] = \
+            lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))] * 2
 
+        g = lp_data.g
         # single ntype/edge, single feat
         input_nodes = {
             "n0": th.randint(g.num_nodes("n0"), (10,))
@@ -1179,6 +1189,45 @@ def test_prepare_input():
                                  input_edges[("n0", "r0", "n1")]],
                              g.edges[("n0", "r0", "n1")].data["feat2"][
                                  input_edges[("n0", "r0", "n1")]]], dim=-1).numpy())
+
+        # test node feature group
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,)),
+            "n1": th.randint(g.num_nodes("n1"), (20,)),
+        }
+        # single feature group
+        feat_field = {"n0":["feat"],
+                      "n1":[FeatureGroup(["feat", "feat2"])]}
+        node_feat = prepare_batch_input(g, input_nodes,
+                                        feat_field=feat_field)
+        assert len(node_feat) == 2
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert isinstance(node_feat["n1"], list)
+        assert len(node_feat["n1"]) == 1
+        assert_equal(node_feat["n1"][0].numpy(),
+                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
+                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
+
+        feat_field = {"n0":["feat"],
+                      "n1":[FeatureGroup(["feat", "feat2"]),
+                            FeatureGroup(["feat3"]),
+                            FeatureGroup(["feat4", "feat5"])]}
+        node_feat = prepare_batch_input(g, input_nodes,
+                                        feat_field=feat_field)
+        assert len(node_feat) == 2
+        assert_equal(node_feat["n0"].numpy(),
+                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
+        assert isinstance(node_feat["n1"], list)
+        assert len(node_feat["n1"]) == 3
+        assert_equal(node_feat["n1"][0].numpy(),
+                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
+                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
+        assert_equal(node_feat["n1"][0].numpy(),
+                     node_feat["n1"][1].numpy())
+        assert_equal(node_feat["n1"][0].numpy(),
+                     node_feat["n1"][2].numpy())
+
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
