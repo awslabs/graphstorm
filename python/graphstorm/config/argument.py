@@ -1425,10 +1425,10 @@ class GSConfig:
                     if isinstance(fname_dict[ntype][0], str):
                         # The second feature group
                         fname_dict[ntype] = FeatureGroup(
-                            feature_groups=[fname_dict[ntype], feats])
+                            feature_group=[fname_dict[ntype], feats])
                     else:
                         # 3+ feature groups
-                        fname_dict[ntype].feature_groups.append(feats)
+                        fname_dict[ntype].feature_group.append(feats)
                     logging.info("%s nodes has %d feature groups",
                                  ntype, len(fname_dict[ntype]))
                 else:

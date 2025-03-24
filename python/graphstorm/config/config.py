@@ -181,10 +181,10 @@ class FeatureGroup:
         to encode different input node features of the same node.
 
     Parameters
-    feature_groups: list of strings
-        Feature groups
+    feature_group: list of strings
+        Feature group
     """
-    feature_groups: list[str]
+    feature_group: list[str]
 
 @dataclasses.dataclass
 class FeatureGroupSize:

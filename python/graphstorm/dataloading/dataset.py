@@ -29,7 +29,7 @@ from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholeg
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 from ..utils import get_graph_name
-from ..config import FeatureGroup
+from ..config.config import FeatureGroup
 
 from ..wholegraph import is_wholegraph_embedding
 
@@ -84,7 +84,7 @@ def prepare_batch_input(g, input_nodes,
                 # as we will collect features for each feature group
                 # one by one, which is not data movement friendly.
                 # But the implementation is more transparent for debugging.
-                for feat_group in feat_name.feature_groups:
+                for feat_group in feat_name.feature_group:
                     gfeat = prepare_batch_input(g=g,
                         input_nodes={ntype:nid},
                         dev=dev,

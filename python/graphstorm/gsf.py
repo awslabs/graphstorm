@@ -269,27 +269,27 @@ def get_node_feat_size(g, node_feat_names):
 
                 return fsize
 
-            if isinstance(feat_name, FeatureGroup):
-                feat_groups = feat_name.feature_groups
-                assert len(feat_groups) > 0, \
-                    f"The feature groups of {ntype} should not be empty"
+            assert isinstance(feat_name, list), \
+                f"The feature name object of {ntype} must be either None, " \
+                f"a string or a list, but get {type(feat_name)}"
+            assert len(feat_name) > 0, \
+                f"The feature name object of {ntype} should not be an empty list"
 
+            if isinstance(feat_name[0], FeatureGroup):
                 feat_group_sizes = []
                 for fname in feat_name:
                     # ntype has multiple feature groups
+                    feat_group = fname.feature_group
+                    assert len(feat_group) > 0, \
+                        f"The feature group of {ntype} should not be empty"
+
                     fsize = 0
-                    for f_name in fname:
+                    for f_name in feat_group:
                         fsize += get_fsize(f_name)
                     feat_group_sizes.append(fsize)
                 node_feat_size[ntype] = FeatureGroupSize(
                     feature_group_sizes=feat_group_sizes)
             else:
-                assert isinstance(feat_name, list), \
-                    f"The feature name object of {ntype} must be either None, " \
-                    f"a string or a list, but get {type(feat_name)}"
-                assert len(feat_name) > 0, \
-                    f"The feature name object of {ntype} should not be an empty list"
-
                 fsize = 0
                 for fname in feat_name:
                     # Note(xiang): for backward compatibility,
@@ -297,7 +297,7 @@ def get_node_feat_size(g, node_feat_names):
                     # of node_feat_size when ntype has
                     # only one feature group.
                     fsize += get_fsize(fname)
-                node_feat_size[ntype] += fsize
+                node_feat_size[ntype] = fsize
 
     return node_feat_size
 
