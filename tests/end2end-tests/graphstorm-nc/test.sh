@@ -333,6 +333,16 @@ then
 fi
 rm -fr $GS_HOME/training_scripts/gsgnn_np/logs/
 
+echo "**************dataset: multi-feature MovieLens, RGCN layer: 1, node feat: generated feature, inference: mini-batch, multiple feat groups"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_node_feat_nc/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --num-epochs 3 --node-feat-name user:feat0 movie:title user:feat0
+
+error_and_exit $?
+
+echo "**************dataset: multi-feature MovieLens, RGCN layer: 1, node feat: generated feature, inference: full graph, multiple feat groups with learnable embeddings "
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_node_feat_nc/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --num-epochs 3 --node-feat-name user:feat0 movie:title user:feat0 --use-node-embeddings true --use-mini-batch-infer false
+
+error_and_exit $?
+
 date
 
 echo 'Done'
