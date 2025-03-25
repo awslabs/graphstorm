@@ -349,7 +349,7 @@ class GSgnnBaseEvaluator():
         metric = self.metric_list[0]
         assert metric in val_score, \
             f"{metric} is used to guide the early stop. " \
-            f"But the evaluation scores do not report {metric}." \
+            f"But the evaluation scores did not include {metric}." \
             f"Instead we get {val_score}"
         return val_score[metric]
 
@@ -1245,9 +1245,8 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         metric = self.metric_list[0]
         assert metric in val_score, \
             f"{metric} is used to guide the early stop. " \
-            f"But the evaluation scores do not report {metric}." \
+            f"But the evaluation scores did not include {metric}." \
             f"Instead we get {val_score}"
-        # call _get_major_score to get the score for early stop.
         return self._get_major_score(val_score[metric])
 
     def compute_score(self, rankings, train=True, **kwargs):
@@ -1683,9 +1682,9 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         metric = self.metric_list[0]
         assert metric in val_score, \
             f"{metric} is used to guide the early stop. " \
-            f"But the evaluation scores do not report {metric}." \
+            f"But the evaluation scores did not include {metric}." \
             f"Instead we get {val_score}"
-        return val_score[metric]
+        return self._get_major_score(val_score[metric])
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the validation score of the ``major_etype`` initialized in class
@@ -2004,9 +2003,9 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
         metric = self.metric_list[0]
         assert metric in val_score, \
             f"{metric} is used to guide the early stop. " \
-            f"But the evaluation scores do not report {metric}." \
+            f"But the evaluation scores did not include {metric}." \
             f"Instead we get {val_score}"
-        return val_score[metric]
+        return self._get_major_score(val_score[metric])
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the validation score of the ``major_etype`` initialized in class
