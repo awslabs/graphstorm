@@ -1412,15 +1412,87 @@ def test_early_stop_lp_evaluator():
                                     early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):
         # always return false
-        assert evaluator.do_early_stop({"accuracy": 0.5}) is False
+        assert evaluator.do_early_stop({"mrr": 0.5}) is False
 
     for _ in range(3):
         # no enough data point
-        assert evaluator.do_early_stop({"accuracy": 0.6}) is False
+        assert evaluator.do_early_stop({"mrr": 0.6}) is False
 
-    assert evaluator.do_early_stop({"accuracy": 0.7}) is False # better than average
-    assert evaluator.do_early_stop({"accuracy": 0.68}) is False # still better
-    assert evaluator.do_early_stop({"accuracy": 0.66})
+    assert evaluator.do_early_stop({"mrr": 0.7}) is False # better than average
+    assert evaluator.do_early_stop({"mrr": 0.68}) is False # still better
+    assert evaluator.do_early_stop({"mrr": 0.66})
+
+
+    # Evaluator with per etype
+    config = Dummy({
+            "eval_frequency": 100,
+            "use_early_stop": True,
+            "early_stop_burnin_rounds": 5,
+            "early_stop_rounds": 3,
+            "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
+        })
+    evaluator = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
+    for _ in range(5):
+        # always return false
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.4,
+                     ("src", "r1", "dst"):0.6}}) is False
+
+    for _ in range(3):
+        # no enough data point
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.5,
+                     ("src", "r1", "dst"):0.7}}) is False
+
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.6,
+                 ("src", "r1", "dst"):0.8}}) is False # better than average
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.68,
+                 ("src", "r1", "dst"):0.68}}) is False # still better
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.65,
+                 ("src", "r1", "dst"):0.67}})
+
+    # Evaluator with per etype
+    config = Dummy({
+            "eval_frequency": 100,
+            "use_early_stop": True,
+            "early_stop_burnin_rounds": 5,
+            "early_stop_rounds": 3,
+            "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
+        })
+    evaluator = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+                                    major_etype=("src", "r0", "dst"),
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
+    for _ in range(5):
+        # always return false
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.5,
+                     ("src", "r1", "dst"):0.9}}) is False
+
+    for _ in range(3):
+        # no enough data point
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.6,
+                     ("src", "r1", "dst"):0.8}}) is False
+
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.7,
+                 ("src", "r1", "dst"):0.7}}) is False # better than average
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.68,
+                 ("src", "r1", "dst"):0.6}}) is False # still better
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.66,
+                 ("src", "r1", "dst"):0.5}})
 
 def test_get_val_score_rank():
     # ------------------- test InstanceEvaluator -------------------
@@ -1654,24 +1726,3 @@ def test_multi_task_evaluator():
         assert best_iter_num["r_eval"]["rmse"] == 200
 
     check_multi_task_eval()
-
-
-if __name__ == '__main__':
-    # test evaluators
-    test_multi_task_evaluator_early_stop()
-    test_multi_task_evaluator()
-    test_mrr_per_etype_lp_evaluation()
-    test_mrr_lp_evaluator()
-    test_regression_evaluator()
-    test_early_stop_avg_increase_judge()
-    test_early_stop_cons_increase_judge()
-    test_early_stop_evaluator()
-    test_early_stop_lp_evaluator()
-    test_get_val_score_rank()
-
-    test_classification_evaluator()
-
-    test_hits_per_etype_lp_evaluation()
-    test_hits_lp_evaluator()
-    test_per_etype_lp_evaluation()
-    test_lp_evaluator()
