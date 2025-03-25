@@ -1554,7 +1554,7 @@ def test_get_val_score_rank():
             "use_early_stop": False,
         })
 
-    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+    evaluator = GSgnnLPEvaluator(config.eval_frequency,
                                  use_early_stop=config.use_early_stop)
 
     # For MRR, the bigger the better
@@ -1569,6 +1569,53 @@ def test_get_val_score_rank():
 
     val_score = {"mrr": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 3
+
+def test_per_etype_get_val_score_rank():
+    # common Dummy objects
+    config = Dummy({
+            "eval_frequency": 100,
+            "use_early_stop": False,
+        })
+
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
+                                         use_early_stop=config.use_early_stop)
+    # For MRR, the bigger the better
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                         ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.40,
+                 ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 2
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.7,
+                 ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                 ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
+                                         major_etype=("src", "r0", "dst"),
+                                         use_early_stop=config.use_early_stop)
+    # For MRR, the bigger the better
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                         ("src", "r1", "dst"):0.5}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.40,
+                 ("src", "r1", "dst"):0.8}}
+    assert evaluator.get_val_score_rank(val_score) == 2
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.7,
+                 ("src", "r1", "dst"):0.1}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                 ("src", "r1", "dst"):0.2}}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
 
 def test_multi_task_evaluator_early_stop():
     # common Dummy objects
