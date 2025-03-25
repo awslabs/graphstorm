@@ -1424,12 +1424,13 @@ class GSConfig:
                     # list of strings.
                     if isinstance(fname_dict[ntype][0], str):
                         # The second feature group
-                        fname_dict[ntype] = FeatureGroup(
-                            feature_group=[fname_dict[ntype], feats])
-                    else:
-                        # 3+ feature groups
-                        fname_dict[ntype].feature_group.append(feats)
-                    logging.info("%s nodes has %d feature groups",
+                        fname_dict[ntype] = [FeatureGroup(
+                            feature_group=fname_dict[ntype])]
+
+                    fname_dict[ntype].append(FeatureGroup(
+                        feature_group=feats
+                    ))
+                    logging.debug("%s nodes has %d feature groups",
                                  ntype, len(fname_dict[ntype]))
                 else:
                     # Note(xiang): for backward compatibility,
@@ -1437,9 +1438,8 @@ class GSConfig:
                     # of fname_dict when ntype has
                     # only one feature group.
                     fname_dict[ntype] = feats
-
-                logging.debug("%s nodes has %s features",
-                              ntype, fname_dict[ntype])
+                    logging.debug("%s nodes has %s features",
+                                ntype, fname_dict[ntype])
             return fname_dict
 
         # By default, return None which means there is no node feature

@@ -276,6 +276,7 @@ def get_node_feat_size(g, node_feat_names):
                 f"The feature name object of {ntype} should not be an empty list"
 
             if isinstance(feat_name[0], FeatureGroup):
+                # There are feature group(s)
                 feat_group_sizes = []
                 for fname in feat_name:
                     # ntype has multiple feature groups
