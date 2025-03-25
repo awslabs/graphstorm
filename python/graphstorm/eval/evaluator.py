@@ -341,6 +341,14 @@ class GSgnnBaseEvaluator():
             return True
         return False
 
+    def _get_early_stop_score(self, val_score):
+        """ By default, always get the first validation
+        score as the indicator for early stop.
+        """
+        # First metric is the key eval metric
+        metric = self.metric_list[0]
+        return val_score[metric]
+
     def do_early_stop(self, val_score):
         """ Decide whether to stop the training early.
 
@@ -361,7 +369,7 @@ class GSgnnBaseEvaluator():
         if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
             return False
 
-        val_score = list(val_score.values())[0]
+        val_score = self._get_early_stop_score(val_score)
         # Not enough validation scores to make early stop decision
         if len(self._val_perf_list) < self._early_stop_rounds:
             self._val_perf_list.append(val_score)
@@ -1654,6 +1662,13 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         else:
             major_score = score[self.major_etype]
         return major_score
+
+    def _get_early_stop_score(self, val_score):
+        """ By default, call _get_major_score
+        """
+        # First metric is the key eval metric
+        metric = self.metric_list[0]
+        return self._get_major_score(val_score[metric])
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the validation score of the ``major_etype`` initialized in class
