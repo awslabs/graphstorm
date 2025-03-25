@@ -341,12 +341,16 @@ class GSgnnBaseEvaluator():
             return True
         return False
 
-    def _get_early_stop_score(self, val_score):
+    def _get_early_stop_score(self, val_score: dict) -> float:
         """ By default, always get the first validation
         score as the indicator for early stop.
         """
         # First metric is the key eval metric
         metric = self.metric_list[0]
+        assert metric in val_score, \
+            f"{metric} is used to guide the early stop. " \
+            f"But the evaluation scores do not report {metric}." \
+            f"Instead we get {val_score}"
         return val_score[metric]
 
     def do_early_stop(self, val_score):
@@ -444,7 +448,7 @@ class GSgnnBaseEvaluator():
         rank: int
             The rank of the given validation score.
         """
-        val_score = list(val_score.values())[0]
+        val_score = self._get_early_stop_score(val_score)
 
         rank = get_val_score_rank(val_score,
                                   self._val_perf_rank_list,
@@ -1236,6 +1240,16 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             major_score = score[self.major_etype]
         return major_score
 
+    def _get_early_stop_score(self, val_score: dict[dict]) -> float:
+        # First metric is the key eval metric
+        metric = self.metric_list[0]
+        assert metric in val_score, \
+            f"{metric} is used to guide the early stop. " \
+            f"But the evaluation scores do not report {metric}." \
+            f"Instead we get {val_score}"
+        # call _get_major_score to get the score for early stop.
+        return self._get_major_score(val_score[metric])
+
     def compute_score(self, rankings, train=True, **kwargs):
         """ Compute per edge type evaluation score.
 
@@ -1317,9 +1331,7 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             class initialization. If using the default ``major_etype``, the rank will be
             computed based on the summation of validation scores for all edge types.
         """
-        val_score = list(val_score.values())[0]
-        val_score = self._get_major_score(val_score)
-
+        val_score = self._get_early_stop_score(val_score)
         rank = get_val_score_rank(val_score,
                                   self._val_perf_rank_list,
                                   self.get_metric_comparator())
@@ -1663,12 +1675,17 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             major_score = score[self.major_etype]
         return major_score
 
-    def _get_early_stop_score(self, val_score):
-        """ By default, call _get_major_score
+    def _get_early_stop_score(self, val_score: dict) -> float:
+        """ By default, always get the first validation
+        score as the indicator for early stop.
         """
         # First metric is the key eval metric
         metric = self.metric_list[0]
-        return self._get_major_score(val_score[metric])
+        assert metric in val_score, \
+            f"{metric} is used to guide the early stop. " \
+            f"But the evaluation scores do not report {metric}." \
+            f"Instead we get {val_score}"
+        return val_score[metric]
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the validation score of the ``major_etype`` initialized in class
@@ -1688,9 +1705,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             class initialization. If using the default ``major_etype``, the rank will be
             computed based on the summation of validation scores for all edge types.
         """
-        val_score = list(val_score.values())[0]
-        val_score = self._get_major_score(val_score)
-
+        val_score = self._get_early_stop_score(val_score)
         rank = get_val_score_rank(val_score,
                                   self._val_perf_rank_list,
                                   self.get_metric_comparator())
@@ -1981,6 +1996,18 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
             major_score = score[self.major_etype]
         return major_score
 
+    def _get_early_stop_score(self, val_score: dict) -> float:
+        """ By default, always get the first validation
+        score as the indicator for early stop.
+        """
+        # First metric is the key eval metric
+        metric = self.metric_list[0]
+        assert metric in val_score, \
+            f"{metric} is used to guide the early stop. " \
+            f"But the evaluation scores do not report {metric}." \
+            f"Instead we get {val_score}"
+        return val_score[metric]
+
     def get_val_score_rank(self, val_score):
         """ Get the rank of the validation score of the ``major_etype`` initialized in class
         initialization by comparing its value to the existing historical values. If using
@@ -1999,9 +2026,7 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
             class initialization. If using the default ``major_etype``, the rank will be
             computed based on the summation of validation scores for all edge types.
         """
-        val_score = list(val_score.values())[0]
-        val_score = self._get_major_score(val_score)
-
+        val_score = self._get_early_stop_score(val_score)
         rank = get_val_score_rank(val_score,
                                   self._val_perf_rank_list,
                                   self.get_metric_comparator())

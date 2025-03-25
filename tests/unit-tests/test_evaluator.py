@@ -15,6 +15,7 @@
 """
 from unittest.mock import patch, MagicMock
 import operator
+import pytest
 
 import torch as th
 import numpy as np
@@ -1361,6 +1362,17 @@ def test_early_stop_evaluator():
     assert evaluator.do_early_stop({"accuracy": 0.68}) is False # still better
     assert evaluator.do_early_stop({"accuracy": 0.66}) # early stop
 
+@pytest.fixture()
+def gen_early_stop_lp_config(early_stop_strategy: str) -> Dummy:
+    """Create a dummy early stop configuration object"""
+    return Dummy({
+            "eval_frequency": 100,
+            "use_early_stop": True,
+            "early_stop_burnin_rounds": 5,
+            "early_stop_rounds": 3,
+            "early_stop_strategy": early_stop_strategy,
+        })
+
 def test_early_stop_lp_evaluator():
     # common Dummy objects
     config = Dummy({
@@ -1373,13 +1385,7 @@ def test_early_stop_lp_evaluator():
         # always return false
         assert evaluator.do_early_stop({"mrr": 0.5}) is False
 
-    config = Dummy({
-            "eval_frequency": 100,
-            "use_early_stop": True,
-            "early_stop_burnin_rounds": 5,
-            "early_stop_rounds": 3,
-            "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
-        })
+    config = gen_early_stop_lp_config(EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY)
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     use_early_stop=config.use_early_stop,
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
@@ -1398,13 +1404,7 @@ def test_early_stop_lp_evaluator():
     assert evaluator.do_early_stop({"mrr": 0.45}) is False
     assert evaluator.do_early_stop({"mrr": 0.45}) # early stop
 
-    config = Dummy({
-            "eval_frequency": 100,
-            "use_early_stop": True,
-            "early_stop_burnin_rounds": 5,
-            "early_stop_rounds": 3,
-            "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
-        })
+    config = gen_early_stop_lp_config(EARLY_STOP_AVERAGE_INCREASE_STRATEGY)
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     use_early_stop=config.use_early_stop,
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
@@ -1422,16 +1422,10 @@ def test_early_stop_lp_evaluator():
     assert evaluator.do_early_stop({"mrr": 0.68}) is False # still better
     assert evaluator.do_early_stop({"mrr": 0.66})
 
-
+def test_early_stop_per_etype():
     # Evaluator with per etype
-    config = Dummy({
-            "eval_frequency": 100,
-            "use_early_stop": True,
-            "early_stop_burnin_rounds": 5,
-            "early_stop_rounds": 3,
-            "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
-        })
-    evaluator = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+    config = config = gen_early_stop_lp_config(EARLY_STOP_AVERAGE_INCREASE_STRATEGY)
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
                                     use_early_stop=config.use_early_stop,
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                     early_stop_rounds=config.early_stop_rounds,
@@ -1459,14 +1453,8 @@ def test_early_stop_lp_evaluator():
                  ("src", "r1", "dst"):0.67}})
 
     # Evaluator with per etype
-    config = Dummy({
-            "eval_frequency": 100,
-            "use_early_stop": True,
-            "early_stop_burnin_rounds": 5,
-            "early_stop_rounds": 3,
-            "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
-        })
-    evaluator = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+    config = gen_early_stop_lp_config(EARLY_STOP_AVERAGE_INCREASE_STRATEGY)
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
                                     major_etype=("src", "r0", "dst"),
                                     use_early_stop=config.use_early_stop,
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
