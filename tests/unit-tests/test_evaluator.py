@@ -13,9 +13,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import operator
-import pytest
 
 import torch as th
 import numpy as np
@@ -1362,7 +1361,6 @@ def test_early_stop_evaluator():
     assert evaluator.do_early_stop({"accuracy": 0.68}) is False # still better
     assert evaluator.do_early_stop({"accuracy": 0.66}) # early stop
 
-@pytest.fixture()
 def gen_early_stop_lp_config(early_stop_strategy: str) -> Dummy:
     """Create a dummy early stop configuration object"""
     return Dummy({
