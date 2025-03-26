@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import operator
 
 import torch as th
@@ -1361,6 +1361,16 @@ def test_early_stop_evaluator():
     assert evaluator.do_early_stop({"accuracy": 0.68}) is False # still better
     assert evaluator.do_early_stop({"accuracy": 0.66}) # early stop
 
+def gen_early_stop_lp_config(early_stop_strategy: str) -> Dummy:
+    """Create a dummy early stop configuration object"""
+    return Dummy({
+            "eval_frequency": 100,
+            "use_early_stop": True,
+            "early_stop_burnin_rounds": 5,
+            "early_stop_rounds": 3,
+            "early_stop_strategy": early_stop_strategy,
+        })
+
 def test_early_stop_lp_evaluator():
     # common Dummy objects
     config = Dummy({
@@ -1373,13 +1383,7 @@ def test_early_stop_lp_evaluator():
         # always return false
         assert evaluator.do_early_stop({"mrr": 0.5}) is False
 
-    config = Dummy({
-            "eval_frequency": 100,
-            "use_early_stop": True,
-            "early_stop_burnin_rounds": 5,
-            "early_stop_rounds": 3,
-            "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
-        })
+    config = gen_early_stop_lp_config(EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY)
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     use_early_stop=config.use_early_stop,
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
@@ -1398,13 +1402,7 @@ def test_early_stop_lp_evaluator():
     assert evaluator.do_early_stop({"mrr": 0.45}) is False
     assert evaluator.do_early_stop({"mrr": 0.45}) # early stop
 
-    config = Dummy({
-            "eval_frequency": 100,
-            "use_early_stop": True,
-            "early_stop_burnin_rounds": 5,
-            "early_stop_rounds": 3,
-            "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
-        })
+    config = gen_early_stop_lp_config(EARLY_STOP_AVERAGE_INCREASE_STRATEGY)
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                     use_early_stop=config.use_early_stop,
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
@@ -1412,15 +1410,81 @@ def test_early_stop_lp_evaluator():
                                     early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):
         # always return false
-        assert evaluator.do_early_stop({"accuracy": 0.5}) is False
+        assert evaluator.do_early_stop({"mrr": 0.5}) is False
 
     for _ in range(3):
         # no enough data point
-        assert evaluator.do_early_stop({"accuracy": 0.6}) is False
+        assert evaluator.do_early_stop({"mrr": 0.6}) is False
 
-    assert evaluator.do_early_stop({"accuracy": 0.7}) is False # better than average
-    assert evaluator.do_early_stop({"accuracy": 0.68}) is False # still better
-    assert evaluator.do_early_stop({"accuracy": 0.66})
+    assert evaluator.do_early_stop({"mrr": 0.7}) is False # better than average
+    assert evaluator.do_early_stop({"mrr": 0.68}) is False # still better
+    assert evaluator.do_early_stop({"mrr": 0.66})
+
+def test_early_stop_per_etype():
+    # Evaluator with per etype
+    config = config = gen_early_stop_lp_config(EARLY_STOP_AVERAGE_INCREASE_STRATEGY)
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
+    for _ in range(5):
+        # early_stop_burnin_rounds is set to 5,
+        # so even though the metrics don't change for 5 rounds,
+        # early stop shouldn't trigger
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.4,
+                     ("src", "r1", "dst"):0.6}}) is False
+
+    for _ in range(3):
+        # After the 5 burn-in rounds, because we set early_stop_rounds=3,
+        # we shouldn't trigger early stop for the first 3 rounds of non-improving metrics
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.5,
+                     ("src", "r1", "dst"):0.7}}) is False
+
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.6,
+                 ("src", "r1", "dst"):0.8}}) is False # better than average
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.68,
+                 ("src", "r1", "dst"):0.68}}) is False # still better
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.65,
+                 ("src", "r1", "dst"):0.67}})
+
+    # Evaluator with per etype
+    config = gen_early_stop_lp_config(EARLY_STOP_AVERAGE_INCREASE_STRATEGY)
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
+                                    major_etype=("src", "r0", "dst"),
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
+    for _ in range(5):
+        # early_stop_burnin_rounds is set to 5,
+        # so even though the metrics don't change for 5 rounds,
+        # early stop shouldn't trigger
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.5,
+                     ("src", "r1", "dst"):0.9}}) is False
+
+    for _ in range(3):
+        # After the 5 burn-in rounds, because we set early_stop_rounds=3,
+        # we shouldn't trigger early stop for the first 3 rounds of non-improving metrics
+        assert evaluator.do_early_stop(
+            {"mrr": {("src", "r0", "dst"):0.6,
+                     ("src", "r1", "dst"):0.8}}) is False
+
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.7,
+                 ("src", "r1", "dst"):0.7}}) is False # better than average
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.68,
+                 ("src", "r1", "dst"):0.6}}) is False # still better
+    assert evaluator.do_early_stop(
+        {"mrr": {("src", "r0", "dst"):0.66,
+                 ("src", "r1", "dst"):0.5}})
 
 def test_get_val_score_rank():
     # ------------------- test InstanceEvaluator -------------------
@@ -1494,7 +1558,7 @@ def test_get_val_score_rank():
             "use_early_stop": False,
         })
 
-    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+    evaluator = GSgnnLPEvaluator(config.eval_frequency,
                                  use_early_stop=config.use_early_stop)
 
     # For MRR, the bigger the better
@@ -1509,6 +1573,53 @@ def test_get_val_score_rank():
 
     val_score = {"mrr": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 3
+
+def test_per_etype_get_val_score_rank():
+    # common Dummy objects
+    config = Dummy({
+            "eval_frequency": 100,
+            "use_early_stop": False,
+        })
+
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
+                                         use_early_stop=config.use_early_stop)
+    # For MRR, the bigger the better
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                         ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.40,
+                 ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 2
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.7,
+                 ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                 ("src", "r1", "dst"):0.9}}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
+    evaluator = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
+                                         major_etype=("src", "r0", "dst"),
+                                         use_early_stop=config.use_early_stop)
+    # For MRR, the bigger the better
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                         ("src", "r1", "dst"):0.5}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.40,
+                 ("src", "r1", "dst"):0.8}}
+    assert evaluator.get_val_score_rank(val_score) == 2
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.7,
+                 ("src", "r1", "dst"):0.1}}
+    assert evaluator.get_val_score_rank(val_score) == 1
+
+    val_score = {"mrr": {("src", "r0", "dst"): 0.47,
+                 ("src", "r1", "dst"):0.2}}
+    assert evaluator.get_val_score_rank(val_score) == 3
+
 
 def test_multi_task_evaluator_early_stop():
     # common Dummy objects
@@ -1654,24 +1765,3 @@ def test_multi_task_evaluator():
         assert best_iter_num["r_eval"]["rmse"] == 200
 
     check_multi_task_eval()
-
-
-if __name__ == '__main__':
-    # test evaluators
-    test_multi_task_evaluator_early_stop()
-    test_multi_task_evaluator()
-    test_mrr_per_etype_lp_evaluation()
-    test_mrr_lp_evaluator()
-    test_regression_evaluator()
-    test_early_stop_avg_increase_judge()
-    test_early_stop_cons_increase_judge()
-    test_early_stop_evaluator()
-    test_early_stop_lp_evaluator()
-    test_get_val_score_rank()
-
-    test_classification_evaluator()
-
-    test_hits_per_etype_lp_evaluation()
-    test_hits_lp_evaluator()
-    test_per_etype_lp_evaluation()
-    test_lp_evaluator()
