@@ -48,7 +48,8 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         super().__init__(metadata_dict)
         self.metis_config = metis_config
 
-    def _launch_preprocess(self, num_parts, input_path, ip_list, dgl_tool_path, metadata_filename):
+    def _launch_preprocess(self, num_parts, input_path, ip_list, dgl_tool_path,
+                           metadata_filename):
         """ Launch preprocessing script
 
         Parameters
@@ -90,8 +91,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             logging.info("Failed to execute parmetis preprocess.")
             return False
 
-
-    def _launch_parmetis(self, num_parts, input_path, ip_list, graph_name):
+    def _launch_parmetis(self, num_parts, input_path, ip_list, graph_name, num_processes_parmetis):
         """ Launch parmetis script
 
         Parameters
@@ -104,12 +104,14 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             ip list
         graph_name: str
             Graph name
+        num_processes_parmetis: int
+            Number of processes for mpi run
         """
         assert os.path.exists(os.path.expanduser("~/local/bin/pm_dglpart")), \
             "pm_dglpart not found in ~/local/bin/"
         # TODO: ParMETIS also claims to support num_workers != num_parts, we can test
         # if it's possible to speed the process up by using more workers than partitions
-        command = f"mpirun -np {num_parts} --allow-run-as-root \
+        command = f"mpirun -np {num_processes_parmetis} --allow-run-as-root \
                     --hostfile {ip_list} \
                     --mca orte_base_help_aggregate 0 -mca btl_tcp_if_include eth0 \
                     -wdir {input_path} \
@@ -199,7 +201,8 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                                        self.metis_config.metadata_filename):
             raise RuntimeError("Stopping execution due to failure in preprocess")
         if not self._launch_parmetis(num_partitions, self.metis_config.input_path,
-                                       ip_file, self.metadata_dict["graph_name"]):
+                                       ip_file, self.metadata_dict["graph_name"],
+                                       self.metis_config.num_processes_parmetis):
             raise RuntimeError("Stopping execution due to failure in parmetis partition process")
         if not self._launch_postprocess(num_partitions, self.metis_config.input_path,
                                         self.metis_config.dgl_tool_path,
