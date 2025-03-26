@@ -48,8 +48,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         super().__init__(metadata_dict)
         self.metis_config = metis_config
 
-    def _launch_preprocess(self, num_parts, input_path, ip_list, dgl_tool_path,
-                           metadata_filename):
+    def _launch_preprocess(self, num_parts, input_path, ip_list, dgl_tool_path, metadata_filename):
         """ Launch preprocessing script
 
         Parameters
