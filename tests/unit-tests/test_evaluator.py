@@ -1429,13 +1429,16 @@ def test_early_stop_per_etype():
                                     early_stop_rounds=config.early_stop_rounds,
                                     early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):
-        # always return false
+        # early_stop_burnin_rounds is set to 5,
+        # so even though the metrics don't change for 5 rounds,
+        # early stop shouldn't trigger
         assert evaluator.do_early_stop(
             {"mrr": {("src", "r0", "dst"):0.4,
                      ("src", "r1", "dst"):0.6}}) is False
 
     for _ in range(3):
-        # no enough data point
+        # After the 5 burn-in rounds, because we set early_stop_rounds=3,
+        # we shouldn't trigger early stop for the first 3 rounds of non-improving metrics
         assert evaluator.do_early_stop(
             {"mrr": {("src", "r0", "dst"):0.5,
                      ("src", "r1", "dst"):0.7}}) is False
@@ -1459,13 +1462,16 @@ def test_early_stop_per_etype():
                                     early_stop_rounds=config.early_stop_rounds,
                                     early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):
-        # always return false
+        # early_stop_burnin_rounds is set to 5,
+        # so even though the metrics don't change for 5 rounds,
+        # early stop shouldn't trigger
         assert evaluator.do_early_stop(
             {"mrr": {("src", "r0", "dst"):0.5,
                      ("src", "r1", "dst"):0.9}}) is False
 
     for _ in range(3):
-        # no enough data point
+        # After the 5 burn-in rounds, because we set early_stop_rounds=3,
+        # we shouldn't trigger early stop for the first 3 rounds of non-improving metrics
         assert evaluator.do_early_stop(
             {"mrr": {("src", "r0", "dst"):0.6,
                      ("src", "r1", "dst"):0.8}}) is False
