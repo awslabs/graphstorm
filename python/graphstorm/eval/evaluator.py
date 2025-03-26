@@ -341,7 +341,7 @@ class GSgnnBaseEvaluator():
             return True
         return False
 
-    def _get_early_stop_score(self, val_score: dict) -> float:
+    def _get_early_stop_score(self, val_score: Dict) -> float:
         """ By default, always get the first validation
         score as the indicator for early stop.
         """
@@ -1240,7 +1240,7 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             major_score = score[self.major_etype]
         return major_score
 
-    def _get_early_stop_score(self, val_score: dict[dict]) -> float:
+    def _get_early_stop_score(self, val_score: Dict[Dict]) -> float:
         # First metric is the key eval metric
         metric = self.metric_list[0]
         assert metric in val_score, \
@@ -1674,7 +1674,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             major_score = score[self.major_etype]
         return major_score
 
-    def _get_early_stop_score(self, val_score: dict) -> float:
+    def _get_early_stop_score(self, val_score: Dict[Dict]) -> float:
         """ By default, always get the first validation
         score as the indicator for early stop.
         """
@@ -1995,7 +1995,7 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
             major_score = score[self.major_etype]
         return major_score
 
-    def _get_early_stop_score(self, val_score: dict) -> float:
+    def _get_early_stop_score(self, val_score: Dict[Dict]) -> float:
         """ By default, always get the first validation
         score as the indicator for early stop.
         """
