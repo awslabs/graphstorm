@@ -420,7 +420,8 @@ def test_input_layer_with_feature_group(dev):
         embed_n1_0 = relu(embed_n1_0)
         embed_n1_1 = node_feat['n1'][1] @ layer.feat_group_projs['n1'][1][0].weight.T
         embed_n1_1 = relu(embed_n1_1)
-        embed_n1 = th.cat([embed_n1_0, embed_n1_1], dim=1)
+        embed_n1 = th.cat([embed_n1_0.cpu(),
+                           embed_n1_1.cpu()], dim=1)
         embed_n1 = embed_n1 @ layer.proj_matrix["n1"]
 
         assert_almost_equal(embed['n1'].detach().cpu().numpy(),
@@ -470,7 +471,9 @@ def test_input_layer_with_feature_group(dev):
         embed_n1_1 = node_feat['n1'][1] @ layer.feat_group_projs['n1'][1][0].weight.T
         embed_n1_1 = relu(embed_n1_1)
         sparse_emb = layer.sparse_embeds['n1'].weight[input_nodes['n1']]
-        embed_n1 = th.cat([embed_n1_0, embed_n1_1, sparse_emb], dim=1)
+        embed_n1 = th.cat([embed_n1_0.cpu(),
+                           embed_n1_1.cpu(),
+                           sparse_emb.cpu()], dim=1)
         embed_n1 = embed_n1 @ layer.proj_matrix["n1"]
 
         assert_almost_equal(embed['n1'].detach().cpu().numpy(),
@@ -874,7 +877,9 @@ def test_lm_infer_with_feature_group(dev):
         embed_n0_1 = relu(embed_n0_1)
         lm_feats = lm_feats @ layer.feat_group_projs['n0'][2][0].weight.T
         lm_feats = relu(lm_feats)
-        embed_n0 = th.cat([embed_n0_0, embed_n0_1, lm_feats], dim=1)
+        embed_n0 = th.cat([embed_n0_0.to(dev),
+                           embed_n0_1.to(dev),
+                           lm_feats.to(dev)], dim=1)
 
         embed_n0 = embed_n0 @ layer.proj_matrix["n0"]
         emb_out = layer(feat, input_nodes)
