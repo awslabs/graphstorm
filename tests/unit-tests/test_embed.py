@@ -420,8 +420,8 @@ def test_input_layer_with_feature_group(dev):
         embed_n1_0 = relu(embed_n1_0)
         embed_n1_1 = node_feat['n1'][1] @ layer.feat_group_projs['n1'][1][0].weight.T
         embed_n1_1 = relu(embed_n1_1)
-        embed_n1 = th.cat([embed_n1_0.cpu(),
-                           embed_n1_1.cpu()], dim=1)
+        embed_n1 = th.cat([embed_n1_0.to(dev),
+                           embed_n1_1.to(dev)], dim=1)
         embed_n1 = embed_n1 @ layer.proj_matrix["n1"]
 
         assert_almost_equal(embed['n1'].detach().cpu().numpy(),
