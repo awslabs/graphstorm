@@ -167,8 +167,7 @@ def verify_node_feat_fields(node_feats):
             isinstance(node_feats, str) or \
             (isinstance(node_feats, dict) and \
                 isinstance(list(node_feats.values())[0], list) and \
-                (isinstance(list(node_feats.values())[0][0], str) or \
-                 isinstance(list(node_feats.values())[0][0], FeatureGroup))), \
+                isinstance(list(node_feats.values())[0][0], (str, FeatureGroup))), \
                 "Node features must be a string, " \
                 f"or a dict of list of string, but get {node_feats}."
 
