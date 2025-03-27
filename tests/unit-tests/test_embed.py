@@ -649,7 +649,7 @@ def test_lm_embed(num_train):
             create_lm_graph(tmpdirname)
 
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=num_train)
-    layer.warmup(g)
+    layer.prepare(g)
     if num_train == 0:
         assert len(layer.lm_emb_cache) > 0
     else:
@@ -657,6 +657,7 @@ def test_lm_embed(num_train):
 
     # Bert + feat for n0
     nn.init.eye_(layer.input_projs['n0'])
+    nn.init.eye_(layer.proj_matrix["n1"])
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
                                                    feat_field={'n0' : ['feat']})
     ntype = layer._lm_models.ntypes[0]
@@ -667,6 +668,9 @@ def test_lm_embed(num_train):
     out_emb = outputs.pooler_output
 
     assert len(embeds_with_lm) == len(g.ntypes)
+    # n1 does not have node features,
+    # As the proj_matrix of n1 is diagonal matrix with 1s,
+    # the output embedding will be same as the sparse embeds.
     assert_almost_equal(embeds_with_lm['n1'][0:len(embeds_with_lm['n1'])].numpy(),
             layer.sparse_embeds['n1'].weight[0:g.number_of_nodes('n1')].numpy())
 
@@ -682,7 +686,6 @@ def test_lm_embed(num_train):
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
 
 @pytest.mark.parametrize("num_train", [0, 10])
 def test_lm_embed2(num_train):

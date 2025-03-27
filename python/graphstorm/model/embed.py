@@ -459,9 +459,38 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 # nn.ParameterDict support this assignment operation if not None,
                 # so disable the pylint error
                 self.proj_matrix[ntype] = proj_matrix
+            elif ntype not in force_no_embeddings:
+                if self._use_wholegraph_sparse_emb:
+                    if get_rank() == 0:
+                        logging.debug(
+                            "Use WholeGraph to host sparse embeddings on node %s:%d",
+                            ntype,
+                            g.number_of_nodes(ntype),
+                        )
+                    self._sparse_embeds[ntype] = WholeGraphDistTensor(
+                        (g.number_of_nodes(ntype), self.embed_size),
+                        th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                        embed_name + "_" + ntype,
+                        use_wg_optimizer=True,  # no memory allocation before opt available
+                    )
+                else:
+                    if get_rank() == 0:
+                        logging.debug('Use sparse embeddings on node %s:%d',
+                                    ntype, g.number_of_nodes(ntype))
+                    part_policy = g.get_node_partition_policy(ntype)
+                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                    self.embed_size,
+                                    embed_name + '_' + ntype,
+                                    init_emb,
+                                    part_policy=part_policy)
+
+                proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
+                nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
+                self.proj_matrix[ntype] = proj_matrix
             else:
-                raise RuntimeError(f"Unknown feat_size object {type(feat_size[ntype])}."
-                                   "Expecting int or FeatureGroupSize")
+                raise RuntimeError(f"{ntype} is configured to have node features. But"
+                    f"encountered unknown feat_size object {type(feat_size[ntype])}."
+                    "Expecting int or FeatureGroupSize")
 
         # ngnn
         self.num_ffn_layers_in_input = num_ffn_layers_in_input
