@@ -341,6 +341,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.input_projs = nn.ParameterDict()
         self.feat_group_projs = nn.ParameterDict()
         embed_name = "embed"
+
+        # pylint: disable=too-many-nested-blocks
         for ntype in g.ntypes:
             if isinstance(feat_size[ntype], int):
                 feat_dim = 0
@@ -352,11 +354,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                     nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
                     self.input_projs[ntype] = input_projs
+
                     if self.use_node_embeddings:
                         if self._use_wholegraph_sparse_emb:
                             if get_rank() == 0:
                                 logging.debug(
-                                    "Use WholeGraph to host additional sparse embeddings on node %s",
+                                    "Use WholeGraph to host additional " \
+                                    "sparse embeddings on node %s",
                                     ntype,
                                 )
                             self._sparse_embeds[ntype] = WholeGraphDistTensor(
@@ -427,7 +431,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     if self._use_wholegraph_sparse_emb:
                         if get_rank() == 0:
                             logging.debug(
-                                "Use WholeGraph to host additional sparse embeddings on node %s",
+                                "Use WholeGraph to host additional " \
+                                "sparse embeddings on node %s",
                                 ntype,
                             )
                         self._sparse_embeds[ntype] = WholeGraphDistTensor(
@@ -507,7 +512,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 elif ntype in self.feat_group_projs:
                     # There are multiple feature groups.
                     feat_embs = []
-                    for in_feats, group_proj in zip(input_feats[ntype], self.feat_group_projs[ntype]):
+                    for in_feats, group_proj in zip(input_feats[ntype],
+                                                    self.feat_group_projs[ntype]):
                         emb = group_proj(in_feats.float())
                         feat_embs.append(emb)
 

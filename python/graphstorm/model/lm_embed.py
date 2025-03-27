@@ -752,7 +752,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                 else:
                     # ntype has multiple feature groups
                     # make lm model another group
-                    adjust_feat_size[ntype].feature_group_sizes.append(lm_models.get_feat_size(ntype))
+                    adjust_feat_size[ntype].feature_group_sizes.append(
+                        lm_models.get_feat_size(ntype))
                     if get_rank() == 0:
                         logging.debug('Node %s adds lm %s features with size %d',
                                     ntype, lm_config["lm_type"],
