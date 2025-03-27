@@ -255,17 +255,17 @@ def get_node_feat_size(g, node_feat_names):
                     f"does not exists for the node type \"{ntype}\"."
             node_feat_size[ntype] = int(np.prod(g.nodes[ntype].data[feat_name].shape[1:]))
         else:
-            def get_fsize(feat_name):
+            def get_fsize(feat_name, node_type):
                 # We force users to know which node type has node feature
                 # This helps avoid unexpected training behavior.
-                assert feat_name in g.nodes[ntype].data, \
+                assert feat_name in g.nodes[node_type].data, \
                         f"Warning. The feature \"{feat_name}\" " \
-                        f"does not exists for the node type \"{ntype}\"."
+                        f"does not exists for the node type \"{node_type}\"."
                 # TODO: we only allow an input node feature as a 2D tensor
                 # Support 1D or nD when required.
-                assert len(g.nodes[ntype].data[feat_name].shape) == 2, \
+                assert len(g.nodes[node_type].data[feat_name].shape) == 2, \
                     "Input node features should be 2D tensors"
-                fsize = int(np.prod(g.nodes[ntype].data[feat_name].shape[1:]))
+                fsize = int(np.prod(g.nodes[node_type].data[feat_name].shape[1:]))
 
                 return fsize
 
@@ -286,7 +286,7 @@ def get_node_feat_size(g, node_feat_names):
 
                     fsize = 0
                     for f_name in feat_group:
-                        fsize += get_fsize(f_name)
+                        fsize += get_fsize(f_name, ntype)
                     feat_group_sizes.append(fsize)
                 node_feat_size[ntype] = FeatureGroupSize(
                     feature_group_sizes=feat_group_sizes)
@@ -297,7 +297,7 @@ def get_node_feat_size(g, node_feat_names):
                     # we do not change the data format
                     # of node_feat_size when ntype has
                     # only one feature group.
-                    fsize += get_fsize(fname)
+                    fsize += get_fsize(fname, ntype)
                 node_feat_size[ntype] = fsize
 
     return node_feat_size
