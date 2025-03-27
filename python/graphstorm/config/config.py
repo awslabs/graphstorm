@@ -17,6 +17,7 @@
 """
 import dataclasses
 import typing
+from typing import List
 
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
@@ -184,7 +185,7 @@ class FeatureGroup:
     feature_group: list of strings
         Feature group
     """
-    feature_group: list[str]
+    feature_group: List[str]
 
 @dataclasses.dataclass
 class FeatureGroupSize:
@@ -198,4 +199,4 @@ class FeatureGroupSize:
     feature_group_sizes: list of int
         Feature group sizes
     """
-    feature_group_sizes: list[int]
+    feature_group_sizes: List[int]
