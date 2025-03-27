@@ -4,7 +4,7 @@ This folder contains artifacts, Python codes and shell scripts, that demonstrate
 
 This example use the Heterogeneous Graph Transformer (HGT) as GNN model and the ACM graph data, which originally implemented by the DGL team in the [HGT DGL example](https://github.com/dmlc/dgl/tree/master/examples/pytorch/hgt). In this example, we made a few changes to handle more general cases, including:
 
-- Change to use mini-batch train/inference mode. The original HGT DGL example uses a full graph train/inference mode. To scale it for extremely large graphs that the GSF is good at, we need to modify the model's forward() function to accept blocks (now called MFGs). Users can refer to the [DGL User Guide Chapter 6](https://docs.dgl.ai/en/1.0.x/guide/minibatch.html) to learn how to implement this change.
+- Change to use mini-batch train/inference mode. The original HGT DGL example uses a full graph train/inference mode. To scale it for extremely large graphs that the GSF is good at, we need to modify the model's forward() function to accept blocks (now called MFGs). Users can refer to the [DGL User Guide Chapter 6](https://www.dgl.ai/dgl_docs/en/1.0.x/guide/minibatch.html) to learn how to implement this change.
 - Change the model to handle featureless nodes. For featureless node type, this example HGT use type-specific trainable embedding, i.e., all nodes in the same node type share the same embedding.
 
 In order to plus users' own GNN models into the GraphStorm Framework, users need to perform two major modificationsas demonstrated in example. For detailed instruction of modifying your GNN models to fit into the GraphStorm Framework, please refer to [Customize GNN models for using GraphStorm Tutorial](https://github.com/awslabs/graphstorm/wiki/advanced-own-models).
@@ -28,12 +28,12 @@ In order to plus users' own GNN models into the GraphStorm Framework, users need
 *Note:* The following commands run within the GraphStorm docker environment. And there should be a folder, "/data", in the docker environment.
 
 **Step 1: Prepare the ACM dataset for using the GraphStorm**
-```shell
+```bash
 python3 /graphstorm/examples/acm_data.py --output-path /data --output-type dgl
 ```
 
 **Step 2: Partition the ACM graph into distributed format**
-```shell
+```bash
 python3 /graphstorm/tools/partition_graph.py \
         --dataset acm\
         --filepath /data \
@@ -46,14 +46,14 @@ python3 /graphstorm/tools/partition_graph.py \
 **Step 3: Run the modified HGT model**
 First, add a file, named `ip_list.txt`, in the `/data/` folder. Its contents is one line of a localhost ip: "127.0.0.1". Or you can use the folowing two commands to create this file.
 
-```shell
+```bash
 touch /data/ip_list.txt
 echo 127.0.0.1 > /data/ip_list.txt
 ```
 
 Then run the below command to train the modified HGT model with GraphStorm.
 
-```shell
+```bash
 python3 -m graphstorm.run.launch \
            --workspace /graphstorm/examples/customized_models/HGT \
            --part-config /data/acm_nc/acm.json \
