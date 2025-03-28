@@ -368,11 +368,9 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "node_id_col": "node_id",
             "features": [
                 {"feature_col": ["citation_time"], "feature_name": "feat"},
-                {"feature_col": ["str_vector"], "transform": {
-                        "name": "no-op",
-                        "separator": ";",
-                        "truncate_dim": 16
-                    }
+                {
+                    "feature_col": ["str_vector"],
+                    "transform": {"name": "no-op", "separator": ";", "truncate_dim": 16},
                 },
                 {"feature_col": ["num_citations"], "transform": {"name": "max_min_norm"}},
                 {
@@ -466,13 +464,9 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
     assert nodes_output["column"] == "node_id"
     assert nodes_output["features"] == [
         {"column": "citation_time", "transformation": {"name": "no-op"}, "name": "feat"},
-        {"column": "str_vector", "transformation": {
-            "name": "no-op",
-            "kwargs": {
-                "separator": ";",
-                "truncate_dim": 16
-            }
-        }
+        {
+            "column": "str_vector",
+            "transformation": {"name": "no-op", "kwargs": {"separator": ";", "truncate_dim": 16}},
         },
         {
             "column": "num_citations",
