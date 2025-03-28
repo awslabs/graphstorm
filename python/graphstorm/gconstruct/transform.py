@@ -1071,8 +1071,10 @@ class Noop(FeatTransform):
     """
     def __init__(self, col_name, feat_name, out_dtype=None,
                  truncate_dim=None, separator: Optional[str]=None):
+        # Ensure self.out_dtype has a value
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(Noop, self).__init__(col_name, feat_name, out_dtype)
+        assert self.out_dtype is not None
         self.truncate_dim = truncate_dim
         self.separator = separator
 
@@ -1088,28 +1090,13 @@ class Noop(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        if not self.separator:
-            assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
-                    f"The feature {self.feat_name} has to be NumPy array."
-            assert np.issubdtype(feats.dtype, np.integer) \
-                    or np.issubdtype(feats.dtype, np.floating), \
-                    f"The feature {self.feat_name} has to be integers or floats."
-
-            if validate_features():
-                assert validate_numerical_feats(feats), \
-                    f"There are NaN, Inf or missing value in the {self.feat_name} feature."
-
-        if self.truncate_dim is not None:
-            if isinstance(feats, np.ndarray):
-                feats = feats[:, :self.truncate_dim]
-            else:
-                assert isinstance(feats, ExtMemArrayWrapper)
-                # Need to convert to in-memory array to make truncation possible
-                feats = feats.to_numpy()[:, :self.truncate_dim]
 
         if self.separator is not None:
             if isinstance(feats, ExtMemArrayWrapper):
                 feats = feats.to_numpy()
+
+            # Ensure the array is string type
+            feats = np.array(feats, dtype=str)
 
             # Split every string in the input array along the specified delimiter,
             # using vectorized numpy op
@@ -1122,7 +1109,28 @@ class Noop(FeatTransform):
             feats = [[float(x) for x in sublist] for sublist in feats_list]
 
             # Convert back to numpy
-            feats = np.array(feats, dtype=object)
+            feats = np.array(feats, dtype=self.out_dtype)
+
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+                f"The feature {self.feat_name} has to be NumPy array."
+        assert np.issubdtype(feats.dtype, np.integer) \
+                or np.issubdtype(feats.dtype, np.floating), \
+                f"The feature {self.feat_name} has to be integers or floats."
+
+        if validate_features():
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
+
+
+        if self.truncate_dim is not None:
+            if isinstance(feats, np.ndarray):
+                feats = feats[:, :self.truncate_dim]
+            else:
+                assert isinstance(feats, ExtMemArrayWrapper)
+                # Need to convert to in-memory array to make truncation possible
+                feats = feats.to_numpy()[:, :self.truncate_dim]
+
 
         return {self.feat_name: feats}
 
@@ -1505,7 +1513,7 @@ def preprocess_features(data, ops: List[TwoPhaseFeatTransform]):
 
     return pre_data
 
-def process_features(data, ops, ext_mem_path=None):
+def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
