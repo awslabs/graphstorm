@@ -26,7 +26,7 @@ from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 import dgl
 import torch as th
 
-from graphstorm.config import GSConfig
+from graphstorm.config import GSConfig, FeatureGroup
 from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                       BUILTIN_CLASS_LOSS_FOCAL,
                                       BUILTIN_LP_LOSS_CROSS_ENTROPY,
@@ -1391,7 +1391,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
+        "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"],
         "edge_feat_name": ["ntype0, rel0, ntype1:feat_name", "ntype0, rel0, ntype1:feat_name"], # set feat_name twice
         "edge_feat_mp_op": "dot", # not in support ops list
         "fanout": "error", # error fanout
@@ -1537,7 +1537,6 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "node_feat_name")
         check_failure(config, "edge_feat_name")
         check_failure(config, "edge_feat_mp_op")
         check_failure(config, "fanout")
@@ -2263,19 +2262,74 @@ def test_multi_task_config():
         assert efr_config.eval_metric[0] == "rmse"
         assert efr_config.batch_size == 64
 
-if __name__ == '__main__':
-    test_multi_task_config()
-    test_id_mapping_file()
-    test_load_basic_info()
-    test_gnn_info()
-    test_load_io_info()
-    test_train_info()
-    test_rgcn_info()
-    test_rgat_info()
-    test_node_class_info()
-    test_node_regress_info()
-    test_edge_class_info()
-    test_lp_info()
+def create_fname_test_gnn_config(tmp_path, file_name):
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["link_prediction"] = {}
 
-    test_lm()
-    test_check_node_lm_config()
+    yaml_object["gsf"]["gnn"] = {
+        "node_feat_name": ["ntype0:feat_name, feat_name2 ", "ntype1:fname"],
+    }
+    with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["gnn"] = {
+        "node_feat_name": ["ntype0:feat_name, feat_name2 ", "ntype1:fname", "ntype0:feat_name3"],
+    }
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["gnn"] = {
+        "node_feat_name": ["ntype0:feat_name, feat_name2 ", "ntype1:fname,fname1", "ntype0:feat_name,feat_name3", "ntype1:fname"],
+    }
+    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+def test_node_feat_name():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        create_fname_test_gnn_config(Path(tmpdirname), 'node_feat_test')
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_feat_test1.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
+        assert 'ntype1' in config.node_feat_name
+        assert config.node_feat_name['ntype1'] == ["fname"]
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_feat_test2.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert len(config.node_feat_name['ntype0']) == 2
+        assert isinstance(config.node_feat_name['ntype0'][0], FeatureGroup)
+        assert isinstance(config.node_feat_name['ntype0'][1], FeatureGroup)
+        assert len(config.node_feat_name['ntype0'][0].feature_group) == 2
+        assert config.node_feat_name['ntype0'][0].feature_group == ["feat_name", "feat_name2"]
+        assert len(config.node_feat_name['ntype0'][1].feature_group) == 1
+        assert config.node_feat_name['ntype0'][1].feature_group == ["feat_name3"]
+        assert 'ntype1' in config.node_feat_name
+        assert config.node_feat_name['ntype1'] == ["fname"]
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_feat_test3.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert len(config.node_feat_name['ntype0']) == 2
+        assert isinstance(config.node_feat_name['ntype0'][0], FeatureGroup)
+        assert isinstance(config.node_feat_name['ntype0'][1], FeatureGroup)
+        assert len(config.node_feat_name['ntype0'][0].feature_group) == 2
+        assert config.node_feat_name['ntype0'][0].feature_group == ["feat_name", "feat_name2"]
+        assert len(config.node_feat_name['ntype0'][1].feature_group) == 2
+        assert config.node_feat_name['ntype0'][1].feature_group == ["feat_name", "feat_name3"]
+
+        assert 'ntype1' in config.node_feat_name
+        assert len(config.node_feat_name['ntype1']) == 2
+        assert isinstance(config.node_feat_name['ntype1'][0], FeatureGroup)
+        assert isinstance(config.node_feat_name['ntype1'][1], FeatureGroup)
+        assert len(config.node_feat_name['ntype1'][0].feature_group) == 2
+        assert config.node_feat_name['ntype1'][0].feature_group == ["fname", "fname1"]
+        assert len(config.node_feat_name['ntype1'][1].feature_group) == 1
+        assert config.node_feat_name['ntype1'][1].feature_group == ["fname"]
