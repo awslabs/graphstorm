@@ -187,7 +187,7 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "bucket_cnt": 2,
                   "slide_window_size": 10},
 
-* **No-op vector parsing and truncation (experimental)** This is an no-op transformation that passes data along as-is. The ``name`` field needs to be ``no-op``.
+* **No-op vector parsing and truncation (experimental)** This is a no-op transformation that passes data along as-is. The ``name`` field needs to be ``no-op``.
   Optionally it can parse vectors formatted as strings, splitting each string in a row with a user-defined separator string. For example,
   if your file contains entries like ``0.4;0.3;0.9`` you can parse this as a numerical vector by setting the ``separator`` field to ``;``.
   This operation can also truncate feature vectors to a specific length, by setting

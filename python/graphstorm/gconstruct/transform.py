@@ -1063,7 +1063,7 @@ class Noop(FeatTransform):
         When provided, will truncate the output float-vector feature to the specified dimension.
         This is useful when the feature is a multi-dimensional vector and we only need
         a subset of the dimensions, e.g. for Matryoshka Representation Learning embeddings.
-    separator: str , optional
+    separator: str, optional
         When provided will split every string in the input array along this separator
         to create an array of vectors.
 
