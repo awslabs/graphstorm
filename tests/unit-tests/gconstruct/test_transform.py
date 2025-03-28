@@ -20,6 +20,11 @@ import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from scipy.special import erfinv
 
+from graphstorm.gconstruct.transform import (
+    parse_feat_ops,
+    process_features,
+    preprocess_features
+)
 from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              NumericalMinMaxTransform,
                                              NumericalStandardTransform,
@@ -582,6 +587,17 @@ def test_noop_truncate():
 
     assert trunc_feats["test"].shape[1] == 16
 
+def test_noop_str_vector():
+    """Test conversion of delimited string array to vectors"""
+
+    transform = Noop("test", "test", separator=";")
+    # Create a numpy array with ;-delimited vector strings
+    feats = np.array(["1;2;3", "4;5;6", "7;8;9"])
+    vector_feats = transform(feats)
+
+    expected_array = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+
+    assert_equal(vector_feats["test"], expected_array)
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
