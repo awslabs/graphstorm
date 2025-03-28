@@ -229,6 +229,28 @@ def check_feat_ops_noop():
     assert res[0].feat_name == feat_op1[0]["feature_col"]
     assert isinstance(res[0], Noop)
 
+def test_noop_string():
+    text_vector_data = {
+        "test2": ["1;2;3", "4;5;6"]
+    }
+    text_vector_config = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform": {
+            "name": "no-op",
+            "separator": ";"
+        },
+    }]
+    (res, _, _, _) = parse_feat_ops(text_vector_config)
+    assert len(res) == 1
+    noop_transform = res[0]
+    assert isinstance(noop_transform, Noop)
+    assert noop_transform.separator == ";"
+
+    vector_data_processed = process_features(text_vector_data, res)
+
+    assert_equal(vector_data_processed["test3"], np.array([[1, 2, 3], [4, 5, 6]]))
+
 def check_feat_ops_tokenize():
     feat_op2 = [
         {

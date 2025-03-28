@@ -187,14 +187,22 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "bucket_cnt": 2,
                   "slide_window_size": 10},
 
-* **No-op vector truncation (experimental)** truncates feature vectors to the length requested. The ``name`` field can be empty (e.g., ``{name: }``), and an integer ``truncate_dim`` value will determine the length of the output vector. This can be useful when experimenting with input features that were trained using `Matryoshka Representation Learning <https://arxiv.org/abs/2205.13147>`_.
+* **No-op vector parsing and truncation (experimental)** This is an no-op transformation that passes data along as-is. The ``name`` field needs to be ``no-op``.
+  Optionally it can parse vectors formatted as strings, splitting each string in a row with a user-defined separator string. For example,
+  if your file contains entries like ``0.4;0.3;0.9`` you can parse this as a numerical vector by setting the ``separator`` field to ``;``.
+  This operation can also truncate feature vectors to a specific length, by setting
+  the field ``truncate_dim`` to an integer value that will determine the length of the output vector.
+  This can be useful when experimenting with input features that were trained using `Matryoshka Representation Learning <https://arxiv.org/abs/2205.13147>`_.
 
   Example:
 
   .. code:: json
 
-    "transform": {"name": ,
-                  "truncate_dim": 24},
+    "transform": {
+        "name": "no-op",
+        "separator": ";",
+        "truncate_dim": 64
+    }
 
 .. _gcon-output-format:
 

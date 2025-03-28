@@ -23,6 +23,8 @@ import sys
 import abc
 import json
 import warnings
+from abc import ABC, abstractmethod
+from numbers import Number
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -197,7 +199,7 @@ def _get_output_dtype(dtype_str):
         assert False, f"Unknown dtype {dtype_str}, only support int8, float16, float32, " + \
                        "and float64."
 
-class FeatTransform:
+class FeatTransform(ABC):
     """ The base class for feature transformation.
 
     Parameters
@@ -348,7 +350,8 @@ class TwoPhaseFeatTransform(FeatTransform):
         information collected in the first phase
     """
 
-    def pre_process(self, feats):
+    @abstractmethod
+    def pre_process(self, feats) -> Dict[str, Any]:
         """ Pre-process data
 
         Parameters
@@ -1045,7 +1048,7 @@ class Text2BERT(FeatTransform):
         return {self.feat_name: feats}
 
 class Noop(FeatTransform):
-    """ This doesn't transform the feature.
+    """ Maintains original values but can apply format transformations.
 
     Parameters
     ----------
@@ -1056,15 +1059,22 @@ class Noop(FeatTransform):
     out_dtype : str
         The dtype of the transformed feature.
         Default: None, we will not do data type casting.
-    truncate_dim : int
+    truncate_dim : int, optional
         When provided, will truncate the output float-vector feature to the specified dimension.
         This is useful when the feature is a multi-dimensional vector and we only need
         a subset of the dimensions, e.g. for Matryoshka Representation Learning embeddings.
+    separator: str , optional
+        When provided will split every string in the input array along this separator
+        to create an array of vectors.
+
+        .. versionadded:: 0.5.0
     """
-    def __init__(self, col_name, feat_name, out_dtype=None, truncate_dim=None):
+    def __init__(self, col_name, feat_name, out_dtype=None,
+                 truncate_dim=None, separator: Optional[str]=None):
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(Noop, self).__init__(col_name, feat_name, out_dtype)
         self.truncate_dim = truncate_dim
+        self.separator = separator
 
     def call(self, feats):
         """ This transforms the features.
@@ -1078,15 +1088,16 @@ class Noop(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
-        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
-                f"The feature {self.feat_name} has to be NumPy array."
-        assert np.issubdtype(feats.dtype, np.integer) \
-                or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
+        if not self.separator:
+            assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+                    f"The feature {self.feat_name} has to be NumPy array."
+            assert np.issubdtype(feats.dtype, np.integer) \
+                    or np.issubdtype(feats.dtype, np.floating), \
+                    f"The feature {self.feat_name} has to be integers or floats."
 
-        if validate_features():
-            assert validate_numerical_feats(feats), \
-                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+            if validate_features():
+                assert validate_numerical_feats(feats), \
+                    f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
         if self.truncate_dim is not None:
             if isinstance(feats, np.ndarray):
@@ -1095,6 +1106,24 @@ class Noop(FeatTransform):
                 assert isinstance(feats, ExtMemArrayWrapper)
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
+
+        if self.separator is not None:
+            if isinstance(feats, ExtMemArrayWrapper):
+                feats = feats.to_numpy()
+
+            # Split every string in the input array along the specified delimiter,
+            # using vectorized numpy op
+            feats = np.char.split(feats, sep=self.separator)
+
+            # Convert to regular Python list
+            feats_list = feats.tolist()
+
+            # Convert lists of str to lists of float, this is faster than using numpy
+            feats = [[float(x) for x in sublist] for sublist in feats_list]
+
+            # Convert back to numpy
+            feats = np.array(feats, dtype=object)
+
         return {self.feat_name: feats}
 
 class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
@@ -1306,7 +1335,8 @@ def parse_feat_ops(confs, input_data_format=None):
                 feat['feature_col'],
                 feat_name,
                 out_dtype=out_dtype,
-                truncate_dim=feat.get('truncate_dim', None)
+                truncate_dim=feat.get('truncate_dim', None),
+                separator=feat.get('separator', None),
             )
         else:
             conf = feat['transform']
@@ -1404,6 +1434,18 @@ def parse_feat_ops(confs, input_data_format=None):
                 transform = HardEdgeDstNegativeTransform(feat['feature_col'],
                                                          feat_name,
                                                          separator=separator)
+            elif conf['name'] == 'no-op':
+                if 'separator' in conf:
+                    assert isinstance(conf['separator'], str)
+                if 'truncate_dim' in conf:
+                    assert isinstance(conf['truncate_dim'], Number)
+                transform = Noop(
+                    feat['feature_col'],
+                    feat_name,
+                    out_dtype=out_dtype,
+                    truncate_dim=conf.get('truncate_dim', None),
+                    separator=conf.get('separator', None),
+                )
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
@@ -1421,7 +1463,7 @@ def parse_feat_ops(confs, input_data_format=None):
 
     return ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops
 
-def preprocess_features(data, ops):
+def preprocess_features(data, ops: List[TwoPhaseFeatTransform]):
     """ Pre-process the data with the specified operations.
 
     This function runs the input pre-process operations on the corresponding data
@@ -1432,8 +1474,8 @@ def preprocess_features(data, ops):
     ----------
     data : dict
         The data stored as a dict.
-    ops : list of FeatTransform
-        The operations that transform features.
+    ops : list of TwoPhaseFeatTransform
+        The operations that transform features that require pre-processing
 
     Returns
     -------
