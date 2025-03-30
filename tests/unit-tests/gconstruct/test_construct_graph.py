@@ -231,11 +231,12 @@ def check_feat_ops_noop():
 
 def test_noop_string():
     text_vector_data = {
-        "test2": ["1;2;3", "4;5;6"]
+        "test2": np.array(["1;2;3", "4;5;6"], dtype=object)
     }
+    feature_name = "test3"
     text_vector_config = [{
         "feature_col": "test2",
-        "feature_name": "test3",
+        "feature_name": feature_name,
         "transform": {
             "name": "no-op",
             "separator": ";"
@@ -248,8 +249,42 @@ def test_noop_string():
     assert noop_transform.separator == ";"
 
     vector_data_processed = process_features(text_vector_data, res)
+    expected_array = np.array([[1, 2, 3], [4, 5, 6]])
 
-    assert_equal(vector_data_processed["test3"], np.array([[1, 2, 3], [4, 5, 6]]))
+    assert_equal(vector_data_processed[feature_name], expected_array)
+
+    # Test providing the separator + truncate_dim
+    text_vector_config = [{
+        "feature_col": "test2",
+        "feature_name": feature_name,
+        "transform": {
+            "name": "no-op",
+            "separator": ";",
+            "truncate_dim": 2
+        },
+    }]
+    (res, _, _, _) = parse_feat_ops(text_vector_config)
+    expected_array = np.array([[1, 2], [4, 5]])
+    vector_data_processed = process_features(text_vector_data, res)
+
+    assert_equal(vector_data_processed[feature_name], expected_array)
+
+    # Test when the separator is not specified but input is strings
+    text_vector_config = [{
+        "feature_col": "test2",
+        "feature_name": feature_name,
+        "transform": {
+            "name": "no-op",
+        },
+    }]
+    (res, _, _, _) = parse_feat_ops(text_vector_config)
+
+    with pytest.raises(
+        AssertionError,
+        match=f"The feature {feature_name} has to be integers or floats, got 'object'."
+    ):
+        process_features(text_vector_data, res)
+
 
 def check_feat_ops_tokenize():
     feat_op2 = [
