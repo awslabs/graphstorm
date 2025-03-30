@@ -229,9 +229,9 @@ class GConstructConfigConverter(ConfigConverter):
                     gsp_transformation_dict["name"] = "no-op"
                     gsp_transformation_dict["kwargs"] = {}
                     if "separator" in gconstruct_transform_dict:
-                        gsp_transformation_dict["kwargs"]["separator"] = (
-                            gconstruct_transform_dict["separator"]
-                        )
+                        gsp_transformation_dict["kwargs"]["separator"] = gconstruct_transform_dict[
+                            "separator"
+                        ]
                     if "truncate_dim" in gconstruct_transform_dict:
                         gsp_transformation_dict["kwargs"]["truncate_dim"] = (
                             gconstruct_transform_dict["truncate_dim"]

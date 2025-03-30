@@ -1118,8 +1118,6 @@ class Noop(FeatTransform):
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
-
-
         if self.truncate_dim is not None:
             if isinstance(feats, np.ndarray):
                 feats = feats[:, :self.truncate_dim]
@@ -1127,7 +1125,6 @@ class Noop(FeatTransform):
                 assert isinstance(feats, ExtMemArrayWrapper)
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
-
 
         return {self.feat_name: feats}
 

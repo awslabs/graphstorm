@@ -199,7 +199,7 @@ def test_hdf5():
 
     os.remove(tmpfile)
 
-def check_feat_ops_noop():
+def test_feat_ops_noop():
     # Just get the features without transformation.
     feat_op1 = [{
         "feature_col": "test1",
@@ -222,6 +222,19 @@ def check_feat_ops_noop():
     # When the feature name is not specified.
     feat_op1 = [{
         "feature_col": "test1",
+    }]
+    (res, _, _, _) = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_col"]
+    assert isinstance(res[0], Noop)
+
+    # When the transform name is specified.
+    feat_op1 = [{
+        "feature_col": "test1",
+        "transform": {
+            "name": "no-op",
+        }
     }]
     (res, _, _, _) = parse_feat_ops(feat_op1)
     assert len(res) == 1
@@ -286,7 +299,7 @@ def test_noop_string():
         process_features(text_vector_data, res)
 
 
-def check_feat_ops_tokenize():
+def test_feat_ops_tokenize():
     feat_op2 = [
         {
             "feature_col": "test1",
@@ -328,7 +341,7 @@ def check_feat_ops_tokenize():
     assert "attention_mask" in proc_res
     assert "token_type_ids" in proc_res
 
-def check_feat_ops_bert():
+def test_feat_ops_bert():
     feat_op3 = [
         {
             "feature_col": "test3",
@@ -374,7 +387,7 @@ def check_feat_ops_bert():
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
 
-def check_feat_ops_maxmin():
+def test_feat_ops_maxmin():
     data0 = {
         "test1": np.random.rand(4, 2),
     }
@@ -469,7 +482,7 @@ def check_feat_ops_maxmin():
     assert_almost_equal(proc_res6[:,0], data_col0)
     assert_almost_equal(proc_res6[:,1], data_col1)
 
-def check_feat_ops_rank_gauss():
+def test_feat_ops_rank_gauss():
     data7_0 = {
         "test1": np.random.randn(100,2).astype(np.float32)
     }
@@ -535,7 +548,7 @@ def check_feat_ops_rank_gauss():
     num_unique_feat = np.unique(trans_feat, axis=0)
     assert len(num_unique_feat) == 2
 
-def check_feat_ops_categorical():
+def test_feat_ops_categorical():
     feat_op7 = [
         {
             "feature_col": "test1",
@@ -600,13 +613,6 @@ def check_feat_ops_categorical():
         assert multi_hot[int(str_i2)] == 1
     assert 'mapping' in feat_op8[0]["transform"]
 
-def test_feat_ops():
-    check_feat_ops_noop()
-    check_feat_ops_tokenize()
-    check_feat_ops_bert()
-    check_feat_ops_maxmin()
-    check_feat_ops_categorical()
-    check_feat_ops_rank_gauss()
 
 def test_process_features_fp16():
     np.random.seed(1)
