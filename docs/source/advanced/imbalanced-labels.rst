@@ -34,7 +34,7 @@ in a binary classification. This function has two hyperparameters, :math:`\alpha
 corresponding to the ``alpha`` and ``gamma`` configuration in GraphStorm. Larger values of ``gamma`` will help
 update models on harder cases so as to detect more positive samples if the positive to negative ratio is small.
 There is no clear guideline for values of ``alpha``. You can use its default value(``0.25``) first, and then
-search for optimal values. Below is an example about how to set the `focal loss funciton` in a YAML configuration file.
+search for optimal values. Below is an example about how to set the `focal loss function` in a YAML configuration file.
 
   .. code-block:: yaml
 
