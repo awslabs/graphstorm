@@ -792,6 +792,12 @@ def process_graph(args):
 
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
+    if process_confs["version"] == "gsprocessing":
+        logging.warning("Need to convert to GConstruct Config")
+    elif process_confs["version"] == "gconstruct":
+        logging.info("Parsing config file as GConstruct config")
+    else:
+        logging.warning("Unrecognized configuration file version name: %s", process_confs["version"])
 
     sys_tracker.set_rank(0)
     num_processes_for_nodes = args.num_processes_for_nodes \
