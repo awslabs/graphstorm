@@ -476,28 +476,34 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
     dropout = config.dropout if train_task else 0
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
         if not isinstance(config.num_classes, dict):
-            decoder = EntityClassifier(decoder_input_dim,
-                                       config.num_classes,
-                                       config.multilabel,
-                                       dropout=dropout,
-                                       norm=config.decoder_norm,
-                                       use_bias=config.decoder_bias)
+
+            decoder_output_dim = config.num_classes
             if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
                 loss_func = ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
                                              config.imbalance_class_weights)
             elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                assert config.num_classes == 1, \
+                assert config.num_classes in [1, 2], \
                     "Focal loss only works with binary classification." \
-                    "num_classes should be set to 1."
+                    "num_classes should be set to 2."
                 # set default value of alpha to 0.25 for focal loss
                 # set default value of gamma to 2. for focal loss
                 alpha = config.alpha if config.alpha is not None else 0.25
                 gamma = config.gamma if config.gamma is not None else 2.
                 loss_func = FocalLossFunc(alpha, gamma)
+                # Focal loss expects 1-dimensional output
+                decoder_output_dim = 1
             else:
                 raise RuntimeError(
                     f"Unknown classification loss {config.class_loss_func}")
+
+
+            decoder = EntityClassifier(decoder_input_dim,
+                                       decoder_output_dim,
+                                       config.multilabel,
+                                       dropout=dropout,
+                                       norm=config.decoder_norm,
+                                       use_bias=config.decoder_bias)
         else:
             decoder = {}
             loss_func = {}
@@ -617,8 +623,21 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
     loss_func: The loss function(s)
     """
     dropout = config.dropout if train_task else 0
+
+
     if config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
         num_classes = config.num_classes
+
+        # Focal loss expects 1-dimensional output
+        if config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+            assert num_classes in [1, 2], (
+                "Focal loss only works with binary classification. "
+                "num_classes should be set to 2."
+            )
+            decoder_output_dim = 1
+        else:
+            decoder_output_dim = num_classes
+
         decoder_type = config.decoder_type
         # TODO(zhengda) we should support multiple target etypes
         target_etype = config.target_etype[0]
@@ -628,7 +647,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 "DenseBiDecoder does not support adding extra feedforward neural network layers" \
                 "You can increases num_basis to increase the parameter size."
             decoder = DenseBiDecoder(in_units=decoder_input_dim,
-                                     num_classes=num_classes,
+                                     num_classes=decoder_output_dim,
                                      multilabel=config.multilabel,
                                      num_basis=num_decoder_basis,
                                      dropout_rate=dropout,
@@ -638,7 +657,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      use_bias=config.decoder_bias)
         elif decoder_type == "MLPDecoder":
             decoder = MLPEdgeDecoder(decoder_input_dim,
-                                     num_classes,
+                                     out_dim=decoder_output_dim,
                                      multilabel=config.multilabel,
                                      target_etype=target_etype,
                                      num_ffn_layers=config.num_ffn_layers_in_decoder,
@@ -662,7 +681,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             decoder = MLPEFeatEdgeDecoder(
                 h_dim=decoder_input_dim,
                 feat_dim=feat_dim,
-                out_dim=num_classes,
+                out_dim=decoder_output_dim,
                 multilabel=config.multilabel,
                 target_etype=target_etype,
                 dropout=config.dropout,
