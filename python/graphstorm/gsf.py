@@ -483,6 +483,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                              config.multilabel_weights,
                                              config.imbalance_class_weights)
             elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                # For backward compatibility, we allow the num_classes to be 1.
+                # Users should set it to 2.
                 assert config.num_classes in [1, 2], \
                     "Focal loss only works with binary classification." \
                     "num_classes should be set to 2."
@@ -626,10 +628,13 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
 
 
     if config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
+
         num_classes = config.num_classes
 
         # Focal loss expects 1-dimensional output
         if config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+            # For backward compatibility, we allow the num_classes to be 1.
+            # Users should set it to 2.
             assert num_classes in [1, 2], (
                 "Focal loss only works with binary classification. "
                 "num_classes should be set to 2."
