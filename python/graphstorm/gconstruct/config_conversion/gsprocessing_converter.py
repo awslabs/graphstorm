@@ -247,36 +247,30 @@ class GSProcessingConfigConverter(ConfigConverter):
         res = []
         for n in nodes_entries:
             # type, column id
-            node_type, node_col = n["node_type"], n["node_id_col"]
+            node_type, node_col = n["type"], n["column"]
             # format
-            node_format = n["format"]["name"]
-            assert (
-                node_format in SUPPORTED_FILE_TYPES
-            ), "GSProcessing only supports parquet files and csv files."
-            if "separator" not in n["format"]:
+            # Assume the format is already valid in GSProcessing
+            node_format = n["data"]["format"]
+            if "separator" not in n["data"]:
                 node_separator = None
             else:
-                node_separator = n["format"]["separator"]
+                node_separator = n["data"]["separator"]
 
             # files
-            node_files = n["files"] if isinstance(n["files"], list) else [n["files"]]
-            for file_name in node_files:
-                if "*" in file_name or "?" in file_name:
-                    raise ValueError(
-                        f"We do not currently support wildcards in node file names got: {file_name}"
-                    )
+            # Do we support S3 in GConstruct?
+            node_files = n["data"]["files"] if isinstance(n["data"]["files"], list) else [n["data"]["files"]]
 
             # features
             if "features" not in n:
                 features = None
             else:
-                features = GConstructConfigConverter._convert_feature(n["features"])
+                features = GSProcessingConfigConverter._convert_feature(n["features"])
 
             # labels
             if "labels" not in n:
                 labels = None
             else:
-                labels = GConstructConfigConverter._convert_label(n["labels"])
+                labels = GSProcessingConfigConverter._convert_label(n["labels"])
 
             cur_node_config = NodeConfig(
                 node_type, node_format, node_files, node_col, node_separator, features, labels
@@ -289,38 +283,36 @@ class GSProcessingConfigConverter(ConfigConverter):
         res = []
         for e in edges_entries:
             # column name
-            source_col, dest_col = e["source_id_col"], e["dest_id_col"]
+            source_col, dest_col = e["source"]["column"], e["dest"]["column"]
 
             # relation
-            source_type, relation, dest_type = e["relation"][0], e["relation"][1], e["relation"][2]
+            source_type, relation, dest_type = e["source"]["type"], e["relation"], e["dest"]["type"]
 
             # files
-            edge_files = e["files"] if isinstance(e["files"], list) else [e["files"]]
-            for file_name in edge_files:
-                if "*" in file_name or "?" in file_name:
-                    raise ValueError("Not Support for wildcard in edge file name")
+            edge_files = e["data"]["files"] if isinstance(e["data"]["files"], list) else [e["data"]["files"]]
 
             # format
-            edge_format = e["format"]["name"]
+            # Do we support S3 in GConstruct?
+            edge_format = e["data"]["format"]
             assert (
                 edge_format in SUPPORTED_FILE_TYPES
             ), "GSProcessing only supports parquet files and csv files."
-            if "separator" not in e["format"]:
+            if "separator" not in e["data"]:
                 edge_separator = None
             else:
-                edge_separator = e["format"]["separator"]
+                edge_separator = e["data"]["separator"]
 
             # features
             if "features" not in e:
                 features = None
             else:
-                features = GConstructConfigConverter._convert_feature(e["features"])
+                features = GSProcessingConfigConverter._convert_feature(e["features"])
 
             # labels
             if "labels" not in e:
                 labels = None
             else:
-                labels = GConstructConfigConverter._convert_label(e["labels"])
+                labels = GSProcessingConfigConverter._convert_label(e["labels"])
 
             cur_edge_config = EdgeConfig(
                 source_col,
