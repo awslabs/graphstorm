@@ -131,7 +131,8 @@ def main():
         partitioner = RandomPartitionAlgorithm(metadata_dict)
     elif args.partition_algorithm == "parmetis":
         partition_config = ParMETISConfig(args.ip_config, args.input_path,
-                                          args.dgl_tool_path, args.metadata_filename)
+                                          args.dgl_tool_path, args.metadata_filename,
+                                          args.num_processes_parmetis)
         partitioner = ParMetisPartitionAlgorithm(metadata_dict, partition_config)
     else:
         raise RuntimeError(f"Unknown partition algorithm {args.part_algorithm}")
@@ -244,6 +245,8 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--process-group-timeout", type=int, default=1800,
                            help="Timeout[seconds] for operations executed "
                                 "against the process group.")
+    argparser.add_argument("--num-processes-parmetis", type=int, default=1,
+                           help="Number of processes for parmetis run only")
 
     return argparser.parse_args()
 
