@@ -653,3 +653,11 @@ def broadcast_data(rank, world_size, data_tensor):
 
     data_tensor = th.cat(gather_list, dim=0)
     return data_tensor
+
+def is_float(val_str):
+    digit_str = val_str.replace('.', '')
+    period_cnt = val_str.count('.')
+    if digit_str.isnumeric() and period_cnt <= 1:
+        return True
+    else:
+        return False

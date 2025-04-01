@@ -24,16 +24,32 @@ from functools import partial
 import numpy as np
 import torch as th
 from sklearn.metrics import roc_auc_score
-from sklearn.metrics import precision_recall_curve, auc, classification_report
+from sklearn.metrics import (precision_recall_curve,
+                             auc,
+                             classification_report,
+                             precision_recall_fscore_support)
+from .utils import is_float
 
+
+SUPPORTED_FSCORE_AT_METRICS = 'fscore_at'
 SUPPORTED_HIT_AT_METRICS = 'hit_at'
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
-    'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', SUPPORTED_HIT_AT_METRICS}
+    'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', 'precision', 'recall', \
+    SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
 SUPPORTED_LINK_PREDICTION_METRICS = {"mrr", SUPPORTED_HIT_AT_METRICS, "amri"}
 
 class ClassificationMetrics:
     """ object that compute metrics for classification tasks.
+    
+    Note(Jian): In order to let users to implement their own metrics, we need to:
+    1) refactorize this Metrics class to expose the comparator, function, and eval_function
+       interfaces to let users to set and get these objects.
+    2) define a new MetricInterface class, and define two abs methods, i.e.,
+        - assert_supported_metric;
+        - init_best_metric.
+    3) further discuss if we can set all metrics (Classsification, Regression, and LP) in the same
+       architecture.
     """
     def __init__(self, eval_metric_list, multilabel):
         self.supported_metrics = SUPPORTED_CLASSIFICATION_METRICS
@@ -47,6 +63,8 @@ class ClassificationMetrics:
         self.metric_comparator["f1_score"] = operator.le
         self.metric_comparator["per_class_f1_score"] = comparator_per_class_f1_score
         self.metric_comparator["per_class_roc_auc"] = comparator_per_class_roc_auc
+        self.metric_comparator["precision"] = operator.le
+        self.metric_comparator["recall"] = operator.le
 
         # This is the operator used to measure each metric performance in training
         self.metric_function = {}
@@ -56,6 +74,8 @@ class ClassificationMetrics:
         self.metric_function["f1_score"] = compute_f1_score
         self.metric_function["per_class_f1_score"] = compute_f1_score
         self.metric_function["per_class_roc_auc"] = compute_roc_auc
+        self.metric_function["precision"] = compute_precision
+        self.metric_function["recall"] = compute_recall
 
         # This is the operator used to measure each metric performance in evaluation
         self.metric_eval_function = {}
@@ -65,6 +85,8 @@ class ClassificationMetrics:
         self.metric_eval_function["f1_score"] = compute_f1_score
         self.metric_eval_function["per_class_f1_score"] = compute_per_class_f1_score
         self.metric_eval_function["per_class_roc_auc"] = compute_per_class_roc_auc
+        self.metric_eval_function["precision"] = compute_precision
+        self.metric_eval_function["recall"] = compute_recall
 
         for eval_metric in eval_metric_list:
             if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
@@ -75,6 +97,12 @@ class ClassificationMetrics:
                 self.metric_eval_function[eval_metric] = \
                     partial(compute_hit_at_classification, k=k)
 
+            if eval_metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+                beta = float(eval_metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:].strip())
+                self.metric_comparator[eval_metric] = operator.le
+                self.metric_function[eval_metric] = partial(compute_fscore, beta=beta)
+                self.metric_eval_function[eval_metric] = partial(compute_fscore, beta=beta)
+
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
@@ -82,6 +110,10 @@ class ClassificationMetrics:
             assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                             "hit_at_k evaluation metric for classification " \
                             f"must end with an integer, but get {metric}"
+        elif metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+            assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
+                            "fscore_at_beta evaluation metric for classification " \
+                            f"must end with an integer or float, but get {metric}"
         else:
             assert metric in self.supported_metrics, \
                 f"Metric {metric} not supported for classification"
@@ -581,6 +613,7 @@ class PRKeys(str, Enum):
     PRECISION = "precision"
     RECALL = "recall"
     THRESHOLD = "threshold"
+    FSCORE = "fscore"
 
 
 def compute_precision_recall_auc(y_preds, y_targets, weights=None):
@@ -624,6 +657,86 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         raise
 
     return auc_score
+
+def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
+    """ Compute Precision, Recall, and Fscore
+    
+    In order to provide a sigle value evaluation, for binary case, will return a 'binary' value.
+    For multiple classes, will return a `macro` average value.
+    For multi-label cases, will return a list of values for each labels. It is caller who decide
+    how to handle the multi-label values.
+
+    Details can be found in
+    https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_fscore_support.html
+
+    Parameters
+    ----------
+    pred : tensor
+        a 1-D tensor for single-label classification and 2-D tensor for multi-label classification.
+        For 2-D tensor, the number of column is the number of labels.
+    labels : tensor
+        a 1-D tensor for single-label classification and 2-D tensor for multi-label classification.
+        For 2-D tensor, the number of column is the number of labels.
+    beta : float
+        The beta value for computing fscore. Default is 2.0.
+
+    Returns
+    -------
+    precision: A float value, or list of values of precision for multi-label.
+    recall: A float value, or list of values of recall for multi-label.
+    fscore: A float value, or list of values of fscore for multi-label.
+    """
+    # check prediction values. Must be integers, not float logits.
+    assert not (th.is_floating_point(y_preds) or th.is_complex(y_preds)), 'The predictions ' + \
+                                            f'should be integer values, but got {y_preds.dtype}.'
+
+    y_true = y_targets.cpu().numpy()
+    y_pred = y_preds.cpu().numpy()
+
+    if len(y_pred.shape) == 1:   # 1-D tensor for single-label classification, using macro avg
+        assert len(y_true.shape) == 1, 'The provided labels should be 1D while predictions are' + \
+                                       '1D values.'
+        if y_pred.max() == 1 and y_true.max() == 1:     # 1-D binary tensor, using binary
+            precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
+                                                                           y_true=y_pred,
+                                                                           beta=beta,
+                                                                           average='binary')
+        else:
+            precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
+                                                                           y_true=y_pred,
+                                                                           beta=beta,
+                                                                           average='macro')
+    elif len(y_pred.shape) == 2:   # 2-D tensor for multi-label classification, returning per class
+        assert len(y_true.shape) == 2, 'The provided labels should be 2D while predictions are' + \
+                                       '2D values.'
+        precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
+                                                                   y_true=y_pred,
+                                                                   beta=beta)
+    else:
+        raise NotImplementedError('Not support >2D predictions, but got {len(y_pred.shape)}')
+    
+    return precision, recall, fscore
+
+def compute_precision(y_preds, y_targets):
+    """ Compute precision for classification tasks
+    """
+    precision, _, _ = compute_precision_recall_fscore(y_preds, y_targets)
+
+    return precision
+
+def compute_recall(y_preds, y_targets):
+    """ Compute recall for classification tasks
+    """
+    _, recall, _ = compute_precision_recall_fscore(y_preds, y_targets)
+
+    return recall
+
+def compute_fscore(y_preds, y_targets, beta):
+    """ Compute fscore for classification tasks
+    """
+    _, _, fscore = compute_precision_recall_fscore(y_preds, y_targets, beta)
+
+    return fscore
 
 def compute_acc(pred, labels, multilabel):
     '''Compute accuracy.

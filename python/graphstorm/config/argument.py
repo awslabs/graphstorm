@@ -70,7 +70,8 @@ from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
 from ..eval import SUPPORTED_LINK_PREDICTION_METRICS
-from ..eval import SUPPORTED_HIT_AT_METRICS
+from ..eval import SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS
+from ..eval import is_float
 
 from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -2976,6 +2977,10 @@ class GSConfig:
                         assert eval_metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                             "hit_at_k evaluation metric for classification " \
                             f"must end with an integer, but get {eval_metric}"
+                    elif eval_metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+                        assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
+                            'fscore_at_beta evaluation metric for classification ' \
+                            f'must end with an integer or float, but get {eval_metric}.'
                     else:
                         assert eval_metric in SUPPORTED_CLASSIFICATION_METRICS, \
                             f"Classification evaluation metric should be " \
@@ -2989,12 +2994,16 @@ class GSConfig:
                         if metric.startswith(SUPPORTED_HIT_AT_METRICS):
                             assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                                 "hit_at_k evaluation metric for classification " \
-                                f"must end with an integer, but get {eval_metric}"
+                                f"must end with an integer, but get {eval_metric}."
+                        elif metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+                            assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
+                                'fscore_at_beta evaluation metric for classification ' \
+                                f'must end with an integer or float, but get {eval_metric}.'
                         else:
                             assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
                                 f"Classification evaluation metric should be " \
                                 f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                                f"but get {self._eval_metric}"
+                                f"but get {self._eval_metric}."
                         eval_metric.append(metric)
                 else:
                     assert False, "Classification evaluation metric " \
