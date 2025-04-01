@@ -24,7 +24,7 @@ import abc
 import json
 import warnings
 from abc import ABC, abstractmethod
-from numbers import Number
+from numbers import Integral
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -1070,7 +1070,7 @@ class Noop(FeatTransform):
         .. versionadded:: 0.5.0
     """
     def __init__(self, col_name, feat_name, out_dtype=None,
-                 truncate_dim=None, separator: Optional[str]=None):
+                 truncate_dim: Optional[int]=None, separator: Optional[str]=None):
         # Ensure self.out_dtype has a value
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(Noop, self).__init__(col_name, feat_name, out_dtype)
@@ -1102,11 +1102,8 @@ class Noop(FeatTransform):
             # using vectorized numpy op
             feats = np.char.split(feats, sep=self.separator)
 
-            # Convert to regular Python list
-            feats_list = feats.tolist()
-
-            # Convert lists of str to lists of float, this is faster than using numpy
-            feats = [[float(x) for x in sublist] for sublist in feats_list]
+            # Convert array of str to lists of float, this is faster than using numpy
+            feats = [[float(x) for x in sublist] for sublist in feats]
 
             # Convert back to numpy
             feats = np.array(feats, dtype=self.out_dtype)
@@ -1115,13 +1112,11 @@ class Noop(FeatTransform):
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
+                f"The feature {self.feat_name} has to be integers or floats, got '{feats.dtype}'."
 
         if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
-
-
 
         if self.truncate_dim is not None:
             if isinstance(feats, np.ndarray):
@@ -1130,7 +1125,6 @@ class Noop(FeatTransform):
                 assert isinstance(feats, ExtMemArrayWrapper)
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
-
 
         return {self.feat_name: feats}
 
@@ -1444,9 +1438,13 @@ def parse_feat_ops(confs, input_data_format=None):
                                                          separator=separator)
             elif conf['name'] == 'no-op':
                 if 'separator' in conf:
-                    assert isinstance(conf['separator'], str)
+                    assert isinstance(conf['separator'], str), \
+                        f"no-op 'separator' needs to be a string got {type(conf['separator'])}"
                 if 'truncate_dim' in conf:
-                    assert isinstance(conf['truncate_dim'], Number)
+                    assert isinstance(conf['truncate_dim'], Integral), (
+                        f"no-op 'truncate_dim' needs to be an integer, "
+                        f"got {type(conf['truncate_dim'])}"
+                    )
                 transform = Noop(
                     feat['feature_col'],
                     feat_name,
