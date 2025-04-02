@@ -49,6 +49,8 @@ from .utils import (multiprocessing_data_read,
                     stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
+from .config_conversion import GSProcessingConfigConverter
+
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -794,6 +796,8 @@ def process_graph(args):
         process_confs = json.load(json_file)
     if process_confs["version"].startswith("gsprocessing"):
         logging.warning("Need to convert to GConstruct Config")
+        gsp_converter = GSProcessingConfigConverter()
+        process_confs = gsp_converter.convert_to_gconstruct(process_confs)
     elif process_confs["version"].startswith("gconstruct"):
         logging.info("Parsing config file as GConstruct config")
     else:

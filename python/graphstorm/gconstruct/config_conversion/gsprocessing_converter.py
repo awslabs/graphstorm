@@ -50,9 +50,9 @@ class GSProcessingConfigConverter(ConfigConverter):
             return []
         for label in labels:  # pylint: disable=too-many-nested-blocks
             try:
-                label_column = label["label_col"] if "label_col" in label else ""
-                label_type = label["task_type"]
-                label_dict = {"column": label_column, "type": label_type}
+                label_column = label["column"]
+                label_type = label["type"]
+                label_dict = {"label_col": label_column, "task_type": label_type}
                 if "custom_split_filenames" not in label:
                     if "split_pct" in label:
                         label_splitrate = label["split_pct"]
@@ -122,125 +122,81 @@ class GSProcessingConfigConverter(ConfigConverter):
         list[dict]
             The feature information in the GConstruct format
         """
-        gsp_feats_list = []
+        gconstruct_feats_list = []
         if feats in [[], [{}]]:
             return []
-        for gconstruct_feat_dict in feats:
-            gsp_feat_dict = {}
-            if isinstance(gconstruct_feat_dict["feature_col"], str):
-                gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"]
-            elif isinstance(gconstruct_feat_dict["feature_col"], list):
-                gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"][0]
-                if len(gconstruct_feat_dict["feature_col"]) >= 2:
-                    assert "feature_name" in gconstruct_feat_dict, (
-                        "feature_name should be in the gconstruct "
-                        "feature field when feature_col is a list"
-                    )
-            if "feature_name" in gconstruct_feat_dict:
-                gsp_feat_dict["name"] = gconstruct_feat_dict["feature_name"]
+        for gsp_feat_dict in feats:
+            gconstruct_feat_dict = {}
+            gconstruct_feat_dict["feature_col"] = gsp_feat_dict["column"]
+            if "name" in gsp_feat_dict:
+                gconstruct_feat_dict["feature_name"] = gsp_feat_dict["name"]
 
-            gsp_transformation_dict: dict[str, Any] = {}
-            if "transform" in gconstruct_feat_dict:
-                gconstruct_transform_dict = gconstruct_feat_dict["transform"]
+            gconstruct_transformation_dict: dict[str, Any] = {}
+            if "transform" in gsp_feat_dict:
+                gsp_transformation_dict = gsp_feat_dict["transform"]
 
                 ### START TRANSFORMATION ALTERNATIVES ###
-                if gconstruct_transform_dict["name"] == "max_min_norm":
-                    gsp_transformation_dict["name"] = "numerical"
-                    gsp_transformation_dict["kwargs"] = {
-                        "normalizer": "min-max",
-                        "imputer": "mean",
-                    }
-                    if gconstruct_transform_dict.get("out_dtype") in VALID_OUTDTYPE:
-                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
-                            "out_dtype"
-                        ]
-                elif gconstruct_transform_dict["name"] == "standard":
-                    gsp_transformation_dict["name"] = "numerical"
-                    gsp_transformation_dict["kwargs"] = {
-                        "normalizer": "standard",
-                        "imputer": "mean",
-                    }
-
-                    if gconstruct_transform_dict.get("out_dtype") in VALID_OUTDTYPE:
-                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
-                            "out_dtype"
-                        ]
-                elif gconstruct_transform_dict["name"] == "bucket_numerical":
-                    gsp_transformation_dict["name"] = "bucket-numerical"
+                if gsp_transformation_dict["name"] == "numerical":
+                    if gsp_transformation_dict["kwargs"]["normalizer"] == "min-max":
+                        gconstruct_transformation_dict["name"] = "max_min_norm"
+                    elif gsp_transformation_dict["kwargs"]["normalizer"] == "standard":
+                        gconstruct_transformation_dict["name"] = "standard"
+                    elif gsp_transformation_dict["kwargs"]["normalizer"] == "rank-gauss":
+                        gconstruct_transformation_dict["name"] = "rank_gauss"
+                        if "epsilon" in gconstruct_transform_dict:
+                            gconstruct_transformation_dict["epsilon"] = gsp_transformation_dict["kwargs"]["epsilon"]
+                    else:
+                        raise ValueError(f"Unexpected numerical transformation "
+                                         f"{gsp_transformation_dict['kwargs']['normalizer']}")
+                    gconstruct_transformation_dict["out_dtype"] = gsp_transformation_dict["kwargs"]["out_dtype"]
+                elif gsp_transformation_dict["name"] == "bucket_numerical":
                     assert (
-                        "bucket_cnt" in gconstruct_transform_dict
+                        "bucket_cnt" in gsp_transformation_dict["kwargs"]
                     ), "bucket_cnt should be in the gconstruct bucket feature transform field"
                     assert (
-                        "range" in gconstruct_transform_dict
+                        "range" in gsp_transformation_dict["kwargs"]
                     ), "range should be in the gconstruct bucket feature transform field"
-                    gsp_transformation_dict["kwargs"] = {
-                        "bucket_cnt": gconstruct_transform_dict["bucket_cnt"],
-                        "range": gconstruct_transform_dict["range"],
-                        "slide_window_size": gconstruct_transform_dict["slide_window_size"],
-                        "imputer": "mean",
+                    gconstruct_transformation_dict = {
+                        "name": "bucket-numerical",
+                        "bucket_cnt": gsp_transformation_dict["kwargs"]["bucket_cnt"],
+                        "range": gsp_transformation_dict["kwargs"]["range"],
+                        "slide_window_size": gsp_transformation_dict["kwargs"]["slide_window_size"]
                     }
-                elif gconstruct_transform_dict["name"] == "rank_gauss":
-                    gsp_transformation_dict["name"] = "numerical"
-                    gsp_transformation_dict["kwargs"] = {
-                        "normalizer": "rank-gauss",
-                        "imputer": "mean",
+                elif gsp_transformation_dict["name"] == "categorical":
+                    gconstruct_transformation_dict["name"] = "to_categorical"
+                elif gsp_transformation_dict["name"] == "multi-categorical":
+                    gconstruct_transformation_dict["name"] = "to_categorical"
+                    gconstruct_transformation_dict["separator"] = gsp_transformation_dict["kwargs"]["separator"]
+                elif gsp_transformation_dict["name"] == "huggingface":
+                    gconstruct_transformation_dict["name"] = {
+                        "name": gsp_transformation_dict["kwargs"]["action"],
+                        "bert_model": gsp_transformation_dict["kwargs"]["hf_model"],
+                        "max_seq_length": gsp_transformation_dict["kwargs"]["max_seq_length"]
                     }
-
-                    if "epsilon" in gconstruct_transform_dict:
-                        gsp_transformation_dict["kwargs"]["epsilon"] = gconstruct_transform_dict[
-                            "epsilon"
-                        ]
-                    if gconstruct_transform_dict.get("out_dtype") in ["float32", "float64"]:
-                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
-                            "out_dtype"
-                        ]
-                elif gconstruct_transform_dict["name"] == "to_categorical":
-                    if "separator" in gconstruct_transform_dict:
-                        gsp_transformation_dict["name"] = "multi-categorical"
-                        gsp_transformation_dict["kwargs"] = {
-                            "separator": gconstruct_transform_dict["separator"]
-                        }
-                    else:
-                        gsp_transformation_dict["name"] = "categorical"
-                        gsp_transformation_dict["kwargs"] = {}
-                elif gconstruct_transform_dict["name"] == "tokenize_hf":
-                    gsp_transformation_dict["name"] = "huggingface"
-                    gsp_transformation_dict["kwargs"] = {
-                        "action": "tokenize_hf",
-                        "hf_model": gconstruct_transform_dict["bert_model"],
-                        "max_seq_length": gconstruct_transform_dict["max_seq_length"],
-                    }
-                elif gconstruct_transform_dict["name"] == "bert_hf":
-                    gsp_transformation_dict["name"] = "huggingface"
-                    gsp_transformation_dict["kwargs"] = {
-                        "action": "embedding_hf",
-                        "hf_model": gconstruct_transform_dict["bert_model"],
-                        "max_seq_length": gconstruct_transform_dict["max_seq_length"],
-                    }
-                elif gconstruct_transform_dict["name"] == "edge_dst_hard_negative":
-                    gsp_transformation_dict["name"] = "edge_dst_hard_negative"
-                    if "separator" in gconstruct_transform_dict:
-                        gsp_transformation_dict["kwargs"] = {
-                            "separator": gconstruct_transform_dict["separator"],
+                elif gsp_transformation_dict["name"] == "edge_dst_hard_negative":
+                    gconstruct_transformation_dict["name"] = "edge_dst_hard_negative"
+                    if "separator" in gsp_transformation_dict["kwargs"]:
+                        gconstruct_transform_dict["separator"] = {
+                            "separator": gsp_transformation_dict["kwargs"]["separator"]
                         }
                 else:
                     raise ValueError(
-                        "Unsupported GConstruct transformation name: "
-                        f"{gconstruct_transform_dict['name']}"
+                        "Unsupported GSProcessing transformation name: "
+                        f"{gsp_transformation_dict['name']}"
                     )
                 ### END TRANSFORMATION ALTERNATIVES ###
             else:
-                gsp_transformation_dict["name"] = "no-op"
+                gconstruct_transformation_dict["name"] = "no-op"
 
             if "out_dtype" in gconstruct_feat_dict:
                 assert (
                     gconstruct_feat_dict["out_dtype"] in VALID_OUTDTYPE
                 ), "GSProcessing currently only supports float32 or float64 features"
 
-            gsp_feat_dict["transformation"] = gsp_transformation_dict
-            gsp_feats_list.append(gsp_feat_dict)
+            gconstruct_feat_dict["transform"] = gconstruct_transformation_dict
+            gconstruct_feats_list.append(gconstruct_feat_dict)
 
-        return gsp_feats_list
+        return gconstruct_feats_list
 
     @staticmethod
     def convert_nodes(nodes_entries) -> list[NodeConfig]:
