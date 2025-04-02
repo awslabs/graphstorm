@@ -25,6 +25,7 @@ import copy
 import traceback
 import shutil
 import uuid
+from abc import ABC, abstractmethod
 
 
 import numpy as np
@@ -482,11 +483,12 @@ def _get_arrs_out_dtype(arrs):
     """
     return arrs[0][0].dtype
 
-class ExtMemArrayWrapper:
+class ExtMemArrayWrapper(ABC):
     """ An array wrapper for external-memory array.
     """
 
-    def to_numpy(self):
+    @abstractmethod
+    def to_numpy(self) -> np.ndarray:
         """ Convert the array to Numpy array.
         """
 

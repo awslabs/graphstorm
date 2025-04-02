@@ -15,7 +15,17 @@
 
     Graphstorm package.
 """
+# pylint: disable=wrong-import-position
 __version__ = "0.4.1"
+import warnings
+
+# Don't print torchdata warnings
+warnings.filterwarnings(
+    "ignore",
+    message=".*The 'datapipes', 'dataloader2' modules are deprecated.*")
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning, module="torchdata.datapipes")
 
 from . import gsf
 from . import utils
