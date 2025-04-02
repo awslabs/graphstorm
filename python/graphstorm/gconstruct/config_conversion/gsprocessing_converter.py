@@ -58,18 +58,26 @@ class GSProcessingConfigConverter(ConfigConverter):
                         label_splitrate = label["split_rate"]
                         # check if split_pct is valid
                         assert (
-                            math.fsum([label_splitrate["train"],
-                                      label_splitrate["val"],
-                                      label_splitrate["test"]]) == 1.0
+                            math.fsum(
+                                [
+                                    label_splitrate["train"],
+                                    label_splitrate["val"],
+                                    label_splitrate["test"],
+                                ]
+                            )
+                            == 1.0
                         ), f"sum of the label split rate should be == 1.0, got {label_splitrate}"
                         label_dict["split_pct"] = [
-                            label_splitrate["train"], label_splitrate["val"], label_splitrate["test"]
+                            label_splitrate["train"],
+                            label_splitrate["val"],
+                            label_splitrate["test"],
                         ]
                 else:
                     label_custom_split_filenames = label["custom_split_filenames"]
                     # Ensure at least one of ["train", "valid", "test"] is in the keys
                     assert any(
-                        x in label_custom_split_filenames.keys() for x in ["train", "valid", "test"]
+                        x in label_custom_split_filenames.keys()
+                        for x in ["train", "valid", "test"]
                     ), (
                         "At least one of ['train', 'valid', 'test'] "
                         "needs to exist in custom split configs."
@@ -106,7 +114,9 @@ class GSProcessingConfigConverter(ConfigConverter):
 
                 labels_list.append(label_dict)
             except KeyError as exc:
-                raise KeyError(f"A required key was missing from label input {label}") from exc
+                raise KeyError(
+                    f"A required key was missing from label input {label}"
+                ) from exc
         return labels_list
 
     @staticmethod
@@ -141,15 +151,23 @@ class GSProcessingConfigConverter(ConfigConverter):
                         gconstruct_transformation_dict["name"] = "max_min_norm"
                     elif gsp_transformation_dict["kwargs"]["normalizer"] == "standard":
                         gconstruct_transformation_dict["name"] = "standard"
-                    elif gsp_transformation_dict["kwargs"]["normalizer"] == "rank-gauss":
+                    elif (
+                        gsp_transformation_dict["kwargs"]["normalizer"] == "rank-gauss"
+                    ):
                         gconstruct_transformation_dict["name"] = "rank_gauss"
-                        if gsp_transformation_dict.get('kwargs').get("epsilon"):
-                            gconstruct_transformation_dict["epsilon"] = gsp_transformation_dict["kwargs"]["epsilon"]
+                        if gsp_transformation_dict.get("kwargs").get("epsilon"):
+                            gconstruct_transformation_dict["epsilon"] = (
+                                gsp_transformation_dict["kwargs"]["epsilon"]
+                            )
                     else:
-                        raise ValueError(f"Unexpected numerical transformation "
-                                         f"{gsp_transformation_dict['kwargs']['normalizer']}")
+                        raise ValueError(
+                            f"Unexpected numerical transformation "
+                            f"{gsp_transformation_dict['kwargs']['normalizer']}"
+                        )
                     if "out_dtype" in gsp_transformation_dict["kwargs"]:
-                        gconstruct_transformation_dict["out_dtype"] = gsp_transformation_dict["kwargs"]["out_dtype"]
+                        gconstruct_transformation_dict["out_dtype"] = (
+                            gsp_transformation_dict["kwargs"]["out_dtype"]
+                        )
                 elif gsp_transformation_dict["name"] == "bucket_numerical":
                     assert (
                         "bucket_cnt" in gsp_transformation_dict["kwargs"]
@@ -161,23 +179,31 @@ class GSProcessingConfigConverter(ConfigConverter):
                         "name": "bucket_numerical",
                         "bucket_cnt": gsp_transformation_dict["kwargs"]["bucket_cnt"],
                         "range": gsp_transformation_dict["kwargs"]["range"],
-                        "slide_window_size": gsp_transformation_dict["kwargs"]["slide_window_size"]
+                        "slide_window_size": gsp_transformation_dict["kwargs"][
+                            "slide_window_size"
+                        ],
                     }
                 elif gsp_transformation_dict["name"] == "categorical":
                     gconstruct_transformation_dict["name"] = "to_categorical"
                 elif gsp_transformation_dict["name"] == "multi-categorical":
                     gconstruct_transformation_dict["name"] = "to_categorical"
-                    gconstruct_transformation_dict["separator"] = gsp_transformation_dict["kwargs"]["separator"]
+                    gconstruct_transformation_dict["separator"] = (
+                        gsp_transformation_dict["kwargs"]["separator"]
+                    )
                 elif gsp_transformation_dict["name"] == "huggingface":
                     gconstruct_transformation_dict = {
                         "name": gsp_transformation_dict["kwargs"]["action"],
                         "bert_model": gsp_transformation_dict["kwargs"]["hf_model"],
-                        "max_seq_length": gsp_transformation_dict["kwargs"]["max_seq_length"]
+                        "max_seq_length": gsp_transformation_dict["kwargs"][
+                            "max_seq_length"
+                        ],
                     }
                 elif gsp_transformation_dict["name"] == "edge_dst_hard_negative":
                     gconstruct_transformation_dict["name"] = "edge_dst_hard_negative"
                     if "separator" in gsp_transformation_dict["kwargs"]:
-                        gconstruct_transformation_dict["separator"] = gsp_transformation_dict["kwargs"]["separator"]
+                        gconstruct_transformation_dict["separator"] = (
+                            gsp_transformation_dict["kwargs"]["separator"]
+                        )
                 else:
                     raise ValueError(
                         "Unsupported GSProcessing transformation name: "
@@ -208,7 +234,11 @@ class GSProcessingConfigConverter(ConfigConverter):
 
             # files
             # Do we support S3 in GConstruct?
-            node_files = n["data"]["files"] if isinstance(n["data"]["files"], list) else [n["data"]["files"]]
+            node_files = (
+                n["data"]["files"]
+                if isinstance(n["data"]["files"], list)
+                else [n["data"]["files"]]
+            )
 
             # features
             if "features" not in n:
@@ -223,7 +253,13 @@ class GSProcessingConfigConverter(ConfigConverter):
                 labels = GSProcessingConfigConverter._convert_label(n["labels"])
 
             cur_node_config = NodeConfig(
-                node_type, node_format, node_files, node_col, node_separator, features, labels
+                node_type,
+                node_format,
+                node_files,
+                node_col,
+                node_separator,
+                features,
+                labels,
             )
             res.append(cur_node_config)
         return res
@@ -236,10 +272,18 @@ class GSProcessingConfigConverter(ConfigConverter):
             source_col, dest_col = e["source"]["column"], e["dest"]["column"]
 
             # relation
-            source_type, relation, dest_type = e["source"]["type"], e["relation"]["type"], e["dest"]["type"]
+            source_type, relation, dest_type = (
+                e["source"]["type"],
+                e["relation"]["type"],
+                e["dest"]["type"],
+            )
 
             # files
-            edge_files = e["data"]["files"] if isinstance(e["data"]["files"], list) else [e["data"]["files"]]
+            edge_files = (
+                e["data"]["files"]
+                if isinstance(e["data"]["files"], list)
+                else [e["data"]["files"]]
+            )
 
             # format
             # Do we support S3 in GConstruct?

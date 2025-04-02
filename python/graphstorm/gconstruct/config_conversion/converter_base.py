@@ -127,7 +127,11 @@ class ConfigConverter(abc.ABC):
             tmp_edge["source"] = {}
             tmp_edge["source_id_col"] = edge_conf.source_col
             tmp_edge["dest_id_col"] = edge_conf.dest_col
-            tmp_edge["relation"] = [edge_conf.source_type, edge_conf.relation, edge_conf.dest_type]
+            tmp_edge["relation"] = [
+                edge_conf.source_type,
+                edge_conf.relation,
+                edge_conf.dest_type,
+            ]
 
             # features
             if edge_conf.features is not None:

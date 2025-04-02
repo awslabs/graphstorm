@@ -801,7 +801,8 @@ def process_graph(args):
     elif process_confs["version"].startswith("gconstruct"):
         logging.info("Parsing config file as GConstruct config")
     else:
-        logging.warning("Unrecognized configuration file version name: %s", process_confs["version"])
+        logging.warning("Unrecognized configuration file version name: %s",
+                        process_confs["version"])
 
     sys_tracker.set_rank(0)
     num_processes_for_nodes = args.num_processes_for_nodes \
