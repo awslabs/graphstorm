@@ -54,17 +54,17 @@ class GSProcessingConfigConverter(ConfigConverter):
                 label_type = label["type"]
                 label_dict = {"label_col": label_column, "task_type": label_type}
                 if "custom_split_filenames" not in label:
-                    if "split_pct" in label:
-                        label_splitrate = label["split_pct"]
+                    if "split_rate" in label:
+                        label_splitrate = label["split_rate"]
                         # check if split_pct is valid
                         assert (
-                            math.fsum(label_splitrate) == 1.0
+                            math.fsum([label_splitrate["train"],
+                                      label_splitrate["val"],
+                                      label_splitrate["test"]]) == 1.0
                         ), f"sum of the label split rate should be == 1.0, got {label_splitrate}"
-                        label_dict["split_rate"] = {
-                            "train": label_splitrate[0],
-                            "val": label_splitrate[1],
-                            "test": label_splitrate[2],
-                        }
+                        label_dict["split_pct"] = [
+                            label_splitrate["train"], label_splitrate["val"], label_splitrate["test"]
+                        ]
                 else:
                     label_custom_split_filenames = label["custom_split_filenames"]
                     # Ensure at least one of ["train", "valid", "test"] is in the keys
@@ -132,8 +132,8 @@ class GSProcessingConfigConverter(ConfigConverter):
                 gconstruct_feat_dict["feature_name"] = gsp_feat_dict["name"]
 
             gconstruct_transformation_dict: dict[str, Any] = {}
-            if "transform" in gsp_feat_dict:
-                gsp_transformation_dict = gsp_feat_dict["transform"]
+            if "transformation" in gsp_feat_dict:
+                gsp_transformation_dict = gsp_feat_dict["transformation"]
 
                 ### START TRANSFORMATION ALTERNATIVES ###
                 if gsp_transformation_dict["name"] == "numerical":
@@ -143,12 +143,13 @@ class GSProcessingConfigConverter(ConfigConverter):
                         gconstruct_transformation_dict["name"] = "standard"
                     elif gsp_transformation_dict["kwargs"]["normalizer"] == "rank-gauss":
                         gconstruct_transformation_dict["name"] = "rank_gauss"
-                        if "epsilon" in gconstruct_transform_dict:
+                        if gsp_transformation_dict.get('kwargs').get("epsilon"):
                             gconstruct_transformation_dict["epsilon"] = gsp_transformation_dict["kwargs"]["epsilon"]
                     else:
                         raise ValueError(f"Unexpected numerical transformation "
                                          f"{gsp_transformation_dict['kwargs']['normalizer']}")
-                    gconstruct_transformation_dict["out_dtype"] = gsp_transformation_dict["kwargs"]["out_dtype"]
+                    if "out_dtype" in gsp_transformation_dict["kwargs"]:
+                        gconstruct_transformation_dict["out_dtype"] = gsp_transformation_dict["kwargs"]["out_dtype"]
                 elif gsp_transformation_dict["name"] == "bucket_numerical":
                     assert (
                         "bucket_cnt" in gsp_transformation_dict["kwargs"]
@@ -157,7 +158,7 @@ class GSProcessingConfigConverter(ConfigConverter):
                         "range" in gsp_transformation_dict["kwargs"]
                     ), "range should be in the gconstruct bucket feature transform field"
                     gconstruct_transformation_dict = {
-                        "name": "bucket-numerical",
+                        "name": "bucket_numerical",
                         "bucket_cnt": gsp_transformation_dict["kwargs"]["bucket_cnt"],
                         "range": gsp_transformation_dict["kwargs"]["range"],
                         "slide_window_size": gsp_transformation_dict["kwargs"]["slide_window_size"]
@@ -168,7 +169,7 @@ class GSProcessingConfigConverter(ConfigConverter):
                     gconstruct_transformation_dict["name"] = "to_categorical"
                     gconstruct_transformation_dict["separator"] = gsp_transformation_dict["kwargs"]["separator"]
                 elif gsp_transformation_dict["name"] == "huggingface":
-                    gconstruct_transformation_dict["name"] = {
+                    gconstruct_transformation_dict = {
                         "name": gsp_transformation_dict["kwargs"]["action"],
                         "bert_model": gsp_transformation_dict["kwargs"]["hf_model"],
                         "max_seq_length": gsp_transformation_dict["kwargs"]["max_seq_length"]
@@ -176,9 +177,7 @@ class GSProcessingConfigConverter(ConfigConverter):
                 elif gsp_transformation_dict["name"] == "edge_dst_hard_negative":
                     gconstruct_transformation_dict["name"] = "edge_dst_hard_negative"
                     if "separator" in gsp_transformation_dict["kwargs"]:
-                        gconstruct_transform_dict["separator"] = {
-                            "separator": gsp_transformation_dict["kwargs"]["separator"]
-                        }
+                        gconstruct_transformation_dict["separator"] = gsp_transformation_dict["kwargs"]["separator"]
                 else:
                     raise ValueError(
                         "Unsupported GSProcessing transformation name: "
@@ -187,11 +186,6 @@ class GSProcessingConfigConverter(ConfigConverter):
                 ### END TRANSFORMATION ALTERNATIVES ###
             else:
                 gconstruct_transformation_dict["name"] = "no-op"
-
-            if "out_dtype" in gconstruct_feat_dict:
-                assert (
-                    gconstruct_feat_dict["out_dtype"] in VALID_OUTDTYPE
-                ), "GSProcessing currently only supports float32 or float64 features"
 
             gconstruct_feat_dict["transform"] = gconstruct_transformation_dict
             gconstruct_feats_list.append(gconstruct_feat_dict)
@@ -242,7 +236,7 @@ class GSProcessingConfigConverter(ConfigConverter):
             source_col, dest_col = e["source"]["column"], e["dest"]["column"]
 
             # relation
-            source_type, relation, dest_type = e["source"]["type"], e["relation"], e["dest"]["type"]
+            source_type, relation, dest_type = e["source"]["type"], e["relation"]["type"], e["dest"]["type"]
 
             # files
             edge_files = e["data"]["files"] if isinstance(e["data"]["files"], list) else [e["data"]["files"]]
@@ -250,9 +244,6 @@ class GSProcessingConfigConverter(ConfigConverter):
             # format
             # Do we support S3 in GConstruct?
             edge_format = e["data"]["format"]
-            assert (
-                edge_format in SUPPORTED_FILE_TYPES
-            ), "GSProcessing only supports parquet files and csv files."
             if "separator" not in e["data"]:
                 edge_separator = None
             else:

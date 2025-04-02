@@ -97,20 +97,13 @@ class ConfigConverter(abc.ABC):
         gconstruct_dict["graph"]["nodes"] = []
         for node_conf in node_configs:
             tmp_node: dict[str, Any] = {}
-            # data
-            tmp_node["data"] = {}
-            tmp_node["data"]["format"] = node_conf.file_format
-            tmp_node["data"]["files"] = node_conf.files
+            # file attribute
+            tmp_node["format"] = {"name": node_conf.file_format}
+            tmp_node["files"] = node_conf.files
 
-            # separator
-            if node_conf.separator is not None:
-                tmp_node["data"]["separator"] = node_conf.separator
-
-            # node type
-            tmp_node["type"] = node_conf.node_type
-
-            # column
-            tmp_node["column"] = node_conf.column
+            # node attribute
+            tmp_node["node_type"] = node_conf.node_type
+            tmp_node["node_id_col"] = node_conf.column
 
             # features
             if node_conf.features is not None:
@@ -126,31 +119,15 @@ class ConfigConverter(abc.ABC):
         gconstruct_dict["graph"]["edges"] = []
         for edge_conf in edge_configs:
             tmp_edge: dict[str, Any] = {}
-            # data
-            tmp_edge["data"] = {}
-            tmp_edge["data"]["format"] = edge_conf.file_format
-            tmp_edge["data"]["files"] = edge_conf.files
+            # file attribute
+            tmp_edge["format"] = {"name": edge_conf.file_format}
+            tmp_edge["files"] = edge_conf.files
 
-            # separator
-            if edge_conf.separator is not None:
-                tmp_edge["data"]["separator"] = edge_conf.separator
-
-            # source
+            # edge attribute
             tmp_edge["source"] = {}
-            tmp_edge["source"]["column"], tmp_edge["source"]["type"] = (
-                edge_conf.source_col,
-                edge_conf.source_type,
-            )
-
-            # dest
-            tmp_edge["dest"] = {}
-            tmp_edge["dest"]["column"], tmp_edge["dest"]["type"] = (
-                edge_conf.dest_col,
-                edge_conf.dest_type,
-            )
-
-            # edge relation
-            tmp_edge["relation"] = {"type": edge_conf.relation}
+            tmp_edge["source_id_col"] = edge_conf.source_col
+            tmp_edge["dest_id_col"] = edge_conf.dest_col
+            tmp_edge["relation"] = [edge_conf.source_type, edge_conf.relation, edge_conf.dest_type]
 
             # features
             if edge_conf.features is not None:
