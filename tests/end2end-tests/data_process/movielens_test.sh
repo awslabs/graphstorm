@@ -32,6 +32,11 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2
 
 error_and_exit $?
 
+echo "********* Test the GSProcessing Config Input ********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_gsp.json --num-processes 1 --output-dir /tmp/movielens_gsp --graph-name ml-gsp
+
+error_and_exit $?
+
 # check node_id mapping is saved
 if test -f /tmp/movielens_bert_emb/node_mapping.pt -ne 0
 then
