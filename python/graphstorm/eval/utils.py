@@ -655,9 +655,10 @@ def broadcast_data(rank, world_size, data_tensor):
     return data_tensor
 
 def is_float(val_str):
+    """ Check if the given string is a valid float number.
+    
+    The required string format should be all digits with at most 1 period.
+    """
     digit_str = val_str.replace('.', '')
     period_cnt = val_str.count('.')
-    if digit_str.isnumeric() and period_cnt <= 1:
-        return True
-    else:
-        return False
+    return digit_str.isnumeric() and period_cnt <= 1

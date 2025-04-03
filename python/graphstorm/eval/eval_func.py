@@ -716,7 +716,7 @@ def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
                                                                    beta=beta)
     else:
         raise NotImplementedError(f'Not support >2D predictions, but got shape: {y_pred.shape}')
-    
+
     return precision, recall, fscore
 
 def compute_precision(y_preds, y_targets):
