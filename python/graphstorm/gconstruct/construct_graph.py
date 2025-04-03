@@ -794,6 +794,8 @@ def process_graph(args):
 
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
+    if "version" not in process_confs:
+        process_confs["version"] = "gconstruct-v0.1"
     if process_confs["version"].startswith("gsprocessing"):
         logging.warning("Need to convert to GConstruct Config")
         gsp_converter = GSProcessingConfigConverter()
