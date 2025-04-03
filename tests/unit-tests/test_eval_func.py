@@ -776,10 +776,3 @@ def test_compute_fscore(beta):
     expected_fscore = (1 + beta**2) * precision * recall / (beta**2 * precision + recall)
 
     assert_almost_equal(fscore, expected_fscore, decimal=4)
-
-
-if __name__ == '__main__':
-    # test_compute_precision_recall_fscore()
-    test_compute_precision()
-    test_compute_recall()
-    test_compute_fscore(10)
