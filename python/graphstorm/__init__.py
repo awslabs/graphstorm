@@ -15,6 +15,17 @@
 
     Graphstorm package.
 """
+__version__ = "0.4.1"
+import warnings
+
+# Don't print torchdata warnings
+warnings.filterwarnings(
+    "ignore",
+    message=".*The 'datapipes', 'dataloader2' modules are deprecated.*")
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning, module="torchdata.datapipes")
+
 from . import gsf
 from . import utils
 from .utils import get_rank, get_world_size
@@ -37,14 +48,3 @@ from .gsf import (create_builtin_node_decoder,
                   create_builtin_reconstruct_efeat_decoder)
 from .gsf import (get_builtin_lp_train_dataloader_class,
                   get_builtin_lp_eval_dataloader_class)
-
-__version__ = "0.4.1"
-import warnings
-
-# Don't print torchdata warnings
-warnings.filterwarnings(
-    "ignore",
-    message=".*The 'datapipes', 'dataloader2' modules are deprecated.*")
-warnings.filterwarnings(
-    "ignore",
-    category=UserWarning, module="torchdata.datapipes")
