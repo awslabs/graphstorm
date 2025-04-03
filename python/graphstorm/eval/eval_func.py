@@ -695,25 +695,27 @@ def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
 
     if len(y_pred.shape) == 1:   # 1-D tensor for single-label classification, using macro avg
         assert len(y_true.shape) == 1, 'The provided labels should be 1D while predictions are' + \
-                                       '1D values.'
+                                       ' 1D values.'
         if y_pred.max() == 1 and y_true.max() == 1:     # 1-D binary tensor, using binary
             precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
                                                                            y_true=y_pred,
                                                                            beta=beta,
-                                                                           average='binary')
+                                                                           average='binary'
+                                                                           )
         else:
             precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
                                                                            y_true=y_pred,
                                                                            beta=beta,
-                                                                           average='macro')
+                                                                           average='macro'
+                                                                           )
     elif len(y_pred.shape) == 2:   # 2-D tensor for multi-label classification, returning per class
         assert len(y_true.shape) == 2, 'The provided labels should be 2D while predictions are' + \
-                                       '2D values.'
+                                       f' 2D values, but got label shape: {y_true.shape}'
         precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
                                                                    y_true=y_pred,
                                                                    beta=beta)
     else:
-        raise NotImplementedError('Not support >2D predictions, but got {len(y_pred.shape)}')
+        raise NotImplementedError(f'Not support >2D predictions, but got shape: {y_pred.shape}')
     
     return precision, recall, fscore
 
