@@ -193,8 +193,11 @@ class GSProcessingConfigConverter(ConfigConverter):
                 elif gsp_transformation_dict["name"] == "huggingface":
                     if gsp_transformation_dict["kwargs"]["action"] == "embedding_hf":
                         action_name = "bert_hf"
-                    else:
+                    elif gsp_transformation_dict["kwargs"]["action"] == "tokenize_hf":
                         action_name = "tokenize_hf"
+                    else:
+                        raise ValueError("Unexpected huggingface action {}"
+                                         .format(gsp_transformation_dict["kwargs"]["action"]))
                     gconstruct_transformation_dict = {
                         "name": action_name,
                         "bert_model": gsp_transformation_dict["kwargs"]["hf_model"],
