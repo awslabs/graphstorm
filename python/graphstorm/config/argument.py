@@ -2978,7 +2978,7 @@ class GSConfig:
                             "hit_at_k evaluation metric for classification " \
                             f"must end with an integer, but get {eval_metric}"
                     elif eval_metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
-                        assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
+                        assert is_float(eval_metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
                             'fscore_at_beta evaluation metric for classification ' \
                             f'must end with an integer or float, but get {eval_metric}.'
                     else:
