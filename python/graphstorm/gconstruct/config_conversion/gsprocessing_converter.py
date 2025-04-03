@@ -191,8 +191,12 @@ class GSProcessingConfigConverter(ConfigConverter):
                         gsp_transformation_dict["kwargs"]["separator"]
                     )
                 elif gsp_transformation_dict["name"] == "huggingface":
+                    if gsp_transformation_dict["kwargs"]["action"] == "embedding_hf":
+                        action_name = "bert_hf"
+                    else:
+                        action_name = "tokenize_hf"
                     gconstruct_transformation_dict = {
-                        "name": gsp_transformation_dict["kwargs"]["action"],
+                        "name": action_name,
                         "bert_model": gsp_transformation_dict["kwargs"]["hf_model"],
                         "max_seq_length": gsp_transformation_dict["kwargs"][
                             "max_seq_length"

@@ -365,7 +365,7 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
                     "transformation": {
                         "name": "huggingface",
                         "kwargs": {
-                            "action": "bert_hf",
+                            "action": "embedding_hf",
                             "hf_model": "bert",
                             "max_seq_length": 64
                         }
