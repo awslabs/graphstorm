@@ -294,11 +294,14 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
     # test empty
     assert converter.convert_to_gconstruct({}) == {
         "version": "gconstruct-v0.1",
-        "graph": {"nodes": [], "edges": []},
+        "nodes": [],
+        "edges": [],
     }
 
     gsp_conf = {}
-    gsp_conf["nodes"] = [
+    gsp_conf["version"] = "gsprocessing-v0.4.1"
+    gsp_conf["graph"] = {}
+    gsp_conf["graph"]["nodes"] = [
         {
             "data": {
                 "format": "parquet",
@@ -374,7 +377,7 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
             ],
         }
     ]
-    gsp_conf["edges"] = [
+    gsp_conf["graph"]["edges"] = [
         {
             "data": {
                 "format": "parquet",
@@ -428,8 +431,8 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
         }
     ]
 
-    assert len(converter.convert_to_gconstruct(gsp_conf)["graph"]["nodes"]) == 1
-    nodes_output = converter.convert_to_gconstruct(gsp_conf)["graph"]["nodes"][0]
+    assert len(converter.convert_to_gconstruct(gsp_conf["graph"])["nodes"]) == 1
+    nodes_output = converter.convert_to_gconstruct(gsp_conf["graph"])["nodes"][0]
     assert nodes_output["format"] == {"name": "parquet"}
     assert nodes_output["files"] == ["/tmp/acm_raw/nodes/paper.parquet"]
     assert nodes_output["node_type"] == "paper"
@@ -485,8 +488,8 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
         {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
     ]
 
-    assert len(converter.convert_to_gconstruct(gsp_conf)["graph"]["edges"]) == 1
-    edges_output = converter.convert_to_gconstruct(gsp_conf)["graph"]["edges"][0]
+    assert len(converter.convert_to_gconstruct(gsp_conf["graph"])["edges"]) == 1
+    edges_output = converter.convert_to_gconstruct(gsp_conf["graph"])["edges"][0]
     assert edges_output["format"] == {"name": "parquet"}
     assert edges_output["files"] == ["/tmp/acm_raw/edges/author_writing_paper.parquet"]
     assert edges_output["relation"] == ["author", "writing", "paper"]

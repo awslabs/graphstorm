@@ -4,16 +4,6 @@
             {
                     "node_id_col":  "id",
                     "node_type":    "user",
-                    "format":       {"name": "hdf5"},
-                    "files":        "/data/ml-100k/user.hdf5",
-                    "features":     [
-                           {
-                                   "feature_col":  "feat"
-                           }
-                    ]
-            },
-            {
-                    "node_type":    "user",
                     "format":       {"name": "parquet"},
                     "files":        "/data/ml-100k/users.parquet",
                     "labels":	[
@@ -59,7 +49,7 @@
                         {
                             "label_col":	"rate",
                             "task_type":	"classification",
-                            "split_pct":	[0.1, 0.1, 0.1]
+                            "split_pct":	[0.8, 0.1, 0.1]
                         }
                     ]
             }

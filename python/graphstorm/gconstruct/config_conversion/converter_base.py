@@ -80,8 +80,7 @@ class ConfigConverter(abc.ABC):
         """
         # deal with corner case
         if input_dictionary == {}:
-            return {"version": "gconstruct-v0.1", "graph": {"nodes": [], "edges": []}}
-
+            return {"version": "gconstruct-v0.1", "nodes": [], "edges": []}
         nodes_entries: list[dict] = input_dictionary["nodes"]
         edges_entries: list[dict] = input_dictionary["edges"]
 
@@ -91,10 +90,9 @@ class ConfigConverter(abc.ABC):
         gconstruct_dict: dict[str, Any] = {}
 
         gconstruct_dict["version"] = "gconstruct-v0.1"
-        gconstruct_dict["graph"] = {}
 
         # deal with nodes
-        gconstruct_dict["graph"]["nodes"] = []
+        gconstruct_dict["nodes"] = []
         for node_conf in node_configs:
             tmp_node: dict[str, Any] = {}
             # file attribute
@@ -113,10 +111,10 @@ class ConfigConverter(abc.ABC):
             if node_conf.labels is not None:
                 tmp_node["labels"] = node_conf.labels
 
-            gconstruct_dict["graph"]["nodes"].append(tmp_node)
+            gconstruct_dict["nodes"].append(tmp_node)
 
         # deal with edges
-        gconstruct_dict["graph"]["edges"] = []
+        gconstruct_dict["edges"] = []
         for edge_conf in edge_configs:
             tmp_edge: dict[str, Any] = {}
             # file attribute
@@ -141,6 +139,6 @@ class ConfigConverter(abc.ABC):
             if edge_conf.labels is not None:
                 tmp_edge["labels"] = edge_conf.labels
 
-            gconstruct_dict["graph"]["edges"].append(tmp_edge)
+            gconstruct_dict["edges"].append(tmp_edge)
 
         return gconstruct_dict

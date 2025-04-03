@@ -799,7 +799,7 @@ def process_graph(args):
     if process_confs["version"].startswith("gsprocessing"):
         logging.warning("Need to convert to GConstruct Config")
         gsp_converter = GSProcessingConfigConverter()
-        process_confs = gsp_converter.convert_to_gconstruct(process_confs)
+        process_confs = gsp_converter.convert_to_gconstruct(process_confs["graph"])
     elif process_confs["version"].startswith("gconstruct"):
         logging.info("Parsing config file as GConstruct config")
     else:
