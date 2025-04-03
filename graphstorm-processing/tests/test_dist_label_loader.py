@@ -27,9 +27,9 @@ from graphstorm_processing.constants import NODE_MAPPING_INT
 
 def test_dist_classification_label(spark: SparkSession, check_df_schema):
     """Test classification label generation"""
-    label_col = "name"
+    label_col = "name:Int"
     classification_config = {
-        "column": "name",
+        "column": label_col,
         "type": "classification",
         "split_rate": {"train": 0.8, "val": 0.2, "test": 0.0},
     }
