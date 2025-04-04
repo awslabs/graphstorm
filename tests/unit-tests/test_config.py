@@ -565,7 +565,8 @@ def create_node_class_config(tmp_path, file_name):
     # test eval metric
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
-        "eval_metric": ["F1_score", "precision_recall", "ROC_AUC", "hit_at_10"],
+        "eval_metric": ["F1_score", "precision_recall", "ROC_AUC", "hit_at_10", \
+                        "precision", "recall", "fscore_at_2.5"],
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
     }
     with open(os.path.join(tmp_path, file_name+"_metric2.yaml"), "w") as f:
@@ -607,6 +608,24 @@ def create_node_class_config(tmp_path, file_name):
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail_metric3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric fscore_at_ten is an error. Should be fscore_at_10
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "eval_metric": "fscore_at_ten"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_metric4.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric fscore_at_2.0. is an error. Should be fscore_at_2.0
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "eval_metric": "fscore_at_2.0."
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_metric5.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
@@ -737,7 +756,7 @@ def test_node_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert len(config.eval_metric) == 4
+        assert len(config.eval_metric) == 7
         assert config.eval_metric[0] == "f1_score"
         assert config.eval_metric[1] == "precision_recall"
         assert config.eval_metric[2] == "roc_auc"
@@ -762,6 +781,16 @@ def test_node_class_info():
         check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric3.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 20
+        check_failure(config, "eval_metric")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric4.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 20
+        check_failure(config, "eval_metric")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric5.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "eval_metric")
