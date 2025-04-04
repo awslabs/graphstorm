@@ -45,18 +45,39 @@ class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
         num_nodes_per_type = self.metadata_dict["num_nodes_per_type"]
         ntypes = self.metadata_dict["node_type"]
-        # Note: This assumes that the order of node_type is the same as the order num_nodes_per_type
+        assert len(num_nodes_per_type) == len(ntypes), \
+            "Number of nodes per type does not match number of node types"
+        assert num_partitions > 0, "Number of partitions must be greater than 0"
+
         for ntype, num_nodes_for_type in zip(ntypes, num_nodes_per_type):
             logging.info("Generating random partition for node type %s", ntype)
             ntype_output = os.path.join(partition_dir, f"{ntype}.txt")
 
-            partition_dtype = np.uint8 if num_partitions <= 256 else np.uint16
+            assert num_partitions < 2**16, \
+                f"Number of partitions must be smaller than 65536, got {num_partitions}"
+            partition_dtype = np.uint8 if num_partitions < 256 else np.uint16
 
-            partition_assignment = np.random.randint(
+            if num_nodes_for_type < num_partitions:
+                # If we have fewer nodes than partitions, raise an error
+                raise RuntimeError(
+                    f"Number of nodes for node type {ntype} ({num_nodes_for_type}) "
+                    f"is less than the number of partitions ({num_partitions})"
+                )
+
+            # Ensure at least one node per partition
+            partition_assignment = np.empty(num_nodes_for_type, dtype=partition_dtype)
+            # Assign first num_partitions nodes to each one of the partitions and shuffle
+            all_parts = np.arange(num_partitions)
+            np.random.shuffle(all_parts)
+            partition_assignment[:num_partitions] = all_parts
+
+            # Then randomly assign the remaining nodes
+            partition_assignment[num_partitions:] = np.random.randint(
                 0,
                 num_partitions,
-                (num_nodes_for_type,),
-                dtype=partition_dtype)
+                (num_nodes_for_type - num_partitions,),
+                dtype=partition_dtype
+            )
 
             arrow_partitions = pa.Table.from_arrays(
                 [pa.array(partition_assignment)],
