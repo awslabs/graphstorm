@@ -62,11 +62,12 @@ class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
                 raise RuntimeError(
                     f"Number of nodes for node type {ntype} ({num_nodes_for_type}) "
                     f"is less than the number of partitions ({num_partitions})"
+                    f"To fix the error, reduce the number of partitions or drop the '{ntype}' nodes"
                 )
 
             # Ensure at least one node per partition
             partition_assignment = np.empty(num_nodes_for_type, dtype=partition_dtype)
-            # Assign first num_partitions nodes to each one of the partitions and shuffle
+            # Assign first num_partitions nodes to each one of the partitions
             all_parts = np.arange(num_partitions)
             np.random.shuffle(all_parts)
             partition_assignment[:num_partitions] = all_parts
