@@ -661,10 +661,10 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
 def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
     """ Compute Precision, Recall, and Fscore
     
-    In order to provide a sigle-value evaluation, for binary classification, it will return a binary value.
-    For multi-class classification, it will return a macro-averaged value.
-    For multi-label cases, it will return a list of values, one for each label. It is up to the caller to decide
-    how to handle the multi-label values.
+    In order to provide a sigle-value evaluation, for binary classification, it will return a
+    binary value. For multi-class classification, it will return a macro-averaged value.
+    For multi-label cases, it will return a list of values, one for each label. It is up to the
+    caller to decide how to handle the multi-label values.
 
     Details can be found in
     https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_fscore_support.html
@@ -709,8 +709,8 @@ def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
                                                                            average='macro'
                                                                            )
     elif len(y_pred.shape) == 2:   # 2-D tensor for multi-label classification, returning per class
-        assert len(y_true.shape) == 2, 'The provided labels should be 2D' + \
-                                       f' for multi-label classification, but got label shape: {y_true.shape}'
+        assert len(y_true.shape) == 2, 'The provided labels should be 2D for multi-label ' + \
+                                       f'classification, but got label shape: {y_true.shape}'
         precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
                                                                    y_true=y_pred,
                                                                    beta=beta)
