@@ -18,6 +18,7 @@ import json
 from typing import Dict, Sequence
 
 from pyspark.sql import DataFrame, functions as F, SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 from pyspark.ml.feature import StringIndexer
 
 from .base_dist_transformation import DistributedTransformation
@@ -75,10 +76,18 @@ class DistSingleLabelTransformation(DistributedTransformation):
             *original_cols,
         )
 
+        # Create schema for label_df
+        label_schema = StructType(
+            [
+                StructField("idx", IntegerType(), nullable=False),
+                StructField(self.label_column, StringType(), nullable=True),
+            ]
+        )
+
         # Get a mapping from original label to encoded value
         label_df = self.spark.createDataFrame(
-            list(enumerate(str_indexer_model.labelsArray[0])),  # type: ignore
-            f"idx: int, {self.label_column}: string",
+            list(enumerate(str_indexer_model.labelsArray[0])),
+            label_schema,
         )
         label_mapping = str_indexer_model.transform(label_df).select(
             [F.col(self.label_column), F.col(processed_col_name).cast("long")]
