@@ -663,7 +663,7 @@ def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
     
     In order to provide a sigle-value evaluation, for binary classification, it will return a binary value.
     For multi-class classification, it will return a macro-averaged value.
-    For multi-label cases, will return a list of values for each labels. It is caller who decide
+    For multi-label cases, it will return a list of values, one for each label. It is up to the caller to decide
     how to handle the multi-label values.
 
     Details can be found in
