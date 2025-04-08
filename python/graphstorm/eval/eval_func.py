@@ -694,7 +694,7 @@ def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
     y_pred = y_preds.cpu().numpy()
 
     if len(y_pred.shape) == 1:   # 1-D tensor for single-label classification, using macro avg
-        assert len(y_true.shape) == 1, 'The provided labels should be 1D while predictions are' + \
+        assert len(y_true.shape) == 1, 'The provided labels should be 1D' + \ 
                                        ' 1D values.'
         if y_pred.max() == 1 and y_true.max() == 1:     # 1-D binary tensor, using binary
             precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
