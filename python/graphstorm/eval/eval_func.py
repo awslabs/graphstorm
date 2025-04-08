@@ -710,7 +710,7 @@ def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
                                                                            )
     elif len(y_pred.shape) == 2:   # 2-D tensor for multi-label classification, returning per class
         assert len(y_true.shape) == 2, 'The provided labels should be 2D' + \
-                                       f' 2D values, but got label shape: {y_true.shape}'
+                                       f' for multi-label classification, but got label shape: {y_true.shape}'
         precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
                                                                    y_true=y_pred,
                                                                    beta=beta)
