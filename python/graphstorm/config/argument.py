@@ -1373,10 +1373,13 @@ class GSConfig:
           The ``user` nodes will take ``age`` as their features.
           The ``movie`` nodes will take both ``title`` and
           ``genre`` as their features.
+          By default, for nodes of the same type, their features are
+          first concatenated into a unified tensor, which is then
+          transformed through an MLP layer.
 
         .. versionchanged:: 0.5.0
 
-            Since 0.5.0, GraphStorm supports using different encoders
+            Since 0.5.0, GraphStorm supports using different encoders, i.e., MLP layers,
             to encode different input node features of the same node.
             For example, suppose the ``moive`` nodes have two features
             ``title`` and ``genre``, GraphStorm can encode ``title``
@@ -1386,10 +1389,10 @@ class GSConfig:
             To use different encoders for different features of a
             node type, users can take the following format for ``node_feat_name``:
             ``"ntype0:feat0","ntype1:feat0","ntype1:feat1",...``.
-            GraphStorm will create an encoder for ``feat0`` of ``ntype1``
-            and another encoder for ``feat1`` of ``ntype1``.
+            GraphStorm will create an MLP encoder for ``feat0`` of ``ntype1``
+            and another MLP encoder for ``feat1`` of ``ntype1``.
 
-            It return value can be:
+            The return value can be:
 
               - None
               - A string
