@@ -1,0 +1,188 @@
+{
+    "graph": {
+        "nodes": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "/tmp/acm_raw/nodes/paper.parquet"
+                    ],
+                    "separator": ","
+                },
+                "type": "paper",
+                "column": "node_id",
+                "features": [
+                    {
+                        "column": "citation_time",
+                        "name": "feat"
+                    },
+                    {
+                        "column": "num_citations",
+                        "transformation": {
+                            "name": "numerical",
+                            "kwargs": {
+                                "normalizer": "min-max",
+                                "imputer": "mean"
+                            }
+                        }
+                    },
+                    {
+                        "column": "num_citations",
+                        "transformation": {
+                            "name": "bucket_numerical",
+                            "kwargs": {
+                                "bucket_cnt": 9,
+                                "range": [
+                                    10,
+                                    100
+                                ],
+                                "slide_window_size": 5,
+                                "imputer": "mean"
+                            }
+                        }
+                    },
+                    {
+                        "column": "num_citations",
+                        "name": "rank_gauss1",
+                        "transformation": {
+                            "name": "numerical",
+                            "kwargs": {
+                                "normalizer": "rank-gauss",
+                                "imputer": "mean"
+                            }
+                        }
+                    },
+                    {
+                        "column": "num_citations",
+                        "name": "rank_gauss2",
+                        "transformation": {
+                            "name": "numerical",
+                            "kwargs": {
+                                "normalizer": "rank-gauss",
+                                "epsilon": 0.1,
+                                "imputer": "mean"
+                            }
+                        }
+                    },
+                    {
+                        "column": "num_citations",
+                        "transformation": {
+                            "name": "categorical",
+                            "kwargs": {}
+                        }
+                    },
+                    {
+                        "column": "num_citations",
+                        "transformation": {
+                            "name": "multi-categorical",
+                            "kwargs": {
+                                "separator": ","
+                            }
+                        }
+                    },
+                    {
+                        "column": "citation_name",
+                        "transformation": {
+                            "name": "huggingface",
+                            "kwargs": {
+                                "action": "tokenize_hf",
+                                "hf_model": "bert",
+                                "max_seq_length": 64
+                            }
+                        }
+                    },
+                    {
+                        "column": "citation_name",
+                        "transformation": {
+                            "name": "huggingface",
+                            "kwargs": {
+                                "action": "embedding_hf",
+                                "hf_model": "bert",
+                                "max_seq_length": 64
+                            }
+                        }
+                    }
+                ],
+                "labels": [
+                    {
+                        "column": "label",
+                        "type": "classification",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.1,
+                            "test": 0.1
+                        }
+                    }
+                ]
+            }
+        ],
+        "edges": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "/tmp/acm_raw/edges/author_writing_paper.parquet"
+                    ]
+                },
+                "source": {
+                    "column": "~from",
+                    "type": "author"
+                },
+                "dest": {
+                    "column": "~to",
+                    "type": "paper"
+                },
+                "relation": {
+                    "type": "writing"
+                },
+                "features": [
+                    {
+                        "column": "author",
+                        "name": "feat"
+                    },
+                    {
+                        "column": "author",
+                        "name": "hard_negative",
+                        "transformation": {
+                            "name": "edge_dst_hard_negative",
+                            "kwargs": {
+                                "separator": ";"
+                            }
+                        }
+                    },
+                    {
+                        "column": "num_feature",
+                        "transformation": {
+                            "name": "numerical",
+                            "kwargs": {
+                                "normalizer": "standard",
+                                "imputer": "mean"
+                            }
+                        }
+                    }
+                ],
+                "labels": [
+                    {
+                        "column": "edge_col",
+                        "type": "classification",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.2,
+                            "test": 0.0
+                        }
+                    },
+                    {
+                        "column": "edge_col2",
+                        "type": "classification",
+                        "split_rate": {
+                            "train": 0.9,
+                            "val": 0.1,
+                            "test": 0.0
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "version": "gsprocessing-v0.4.1"
+}

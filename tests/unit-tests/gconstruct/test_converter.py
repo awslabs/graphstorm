@@ -15,6 +15,7 @@
 """
 
 import pytest
+import json
 
 from graphstorm.gconstruct.config_conversion import (
     GSProcessingConfigConverter,
@@ -54,7 +55,7 @@ def test_try_read_unsupported_feature(converter: GSProcessingConfigConverter, no
     ]
 
     with pytest.raises(ValueError):
-        _ = converter.convert_nodes(node_dict["nodes"])
+        converter.convert_nodes(node_dict["nodes"])
 
 
 def test_custom_split_config_conversion(converter: GSProcessingConfigConverter):
@@ -81,8 +82,7 @@ def test_custom_split_config_conversion(converter: GSProcessingConfigConverter):
     assert gconstruct_label_dict["custom_split_filenames"]["train"] == ["fake_file"]
 
 
-@pytest.mark.parametrize("col_name", ["citation_time"])
-def test_read_node_gsprocessing(converter: GSProcessingConfigConverter, node_dict: dict, col_name: str):
+def test_read_node_gsprocessing(converter: GSProcessingConfigConverter, node_dict: dict):
     """Multiple test cases for GSProcessing node conversion"""
     # test case with only necessary components
     node_config = converter.convert_nodes(node_dict["nodes"])[0]
@@ -103,7 +103,7 @@ def test_read_node_gsprocessing(converter: GSProcessingConfigConverter, node_dic
             },
             "type": "paper",
             "column": "node_id",
-            "features": [{"column": col_name, "name": "feat"}],
+            "features": [{"column": "citation_time", "name": "feat"}],
             "labels": [
                 {"column": "label", "type": "classification",
                  "split_rate": {
@@ -182,8 +182,7 @@ def test_read_node_gsprocessing(converter: GSProcessingConfigConverter, node_dic
     ]
 
 
-@pytest.mark.parametrize("col_name", ["author"])
-def test_read_edge_gconstruct(converter: GSProcessingConfigConverter, col_name):
+def test_read_edge_gconstruct(converter: GSProcessingConfigConverter):
     """Multiple test cases for GConstruct edges conversion"""
     text_input: dict[str, list[dict]] = {"edges": [{}]}
     # nodes only with required elements
@@ -238,7 +237,7 @@ def test_read_edge_gconstruct(converter: GSProcessingConfigConverter, col_name):
             "relation": {
                 "type": "writing"
             },
-            "features": [{"column": col_name, "name": "feat"}],
+            "features": [{"column": "author", "name": "feat"}],
             "labels": [
                 {
                     "column": "edge_col",
@@ -298,141 +297,12 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
         "edges": [],
     }
 
-    gsp_conf = {}
-    gsp_conf["version"] = "gsprocessing-v0.4.1"
-    gsp_conf["graph"] = {}
-    gsp_conf["graph"]["nodes"] = [
-        {
-            "data": {
-                "format": "parquet",
-                "files": ["/tmp/acm_raw/nodes/paper.parquet"],
-                "separator": ","
-            },
-            "type": "paper",
-            "column": "node_id",
-            "features": [
-                {"column": "citation_time", "name": "feat"},
-                {"column": "num_citations",
-                 "transformation": {"name": "numerical", "kwargs": {"normalizer": "min-max", "imputer": "mean"}}},
-                {
-                    "column": "num_citations",
-                    "transformation": {
-                        "name": "bucket_numerical",
-                        "kwargs":{
-                            "bucket_cnt": 9,
-                            "range": [10, 100],
-                            "slide_window_size": 5,
-                            "imputer": "mean"
-                        }
-                    },
-                },
-                {
-                    "column": "num_citations",
-                    "name": "rank_gauss1",
-                    "transformation": {"name": "numerical", "kwargs":
-                        {"normalizer": "rank-gauss", "imputer": "mean"}
-                    },
-                },
-                {
-                    "column": "num_citations",
-                    "name": "rank_gauss2",
-                    "transformation": {"name": "numerical", "kwargs":
-                        {"normalizer": "rank-gauss", "epsilon": 0.1,
-                         "imputer": "mean"}
-                    },
-                },
-                {
-                    "column": "num_citations",
-                    "transformation": {"name": "categorical", "kwargs": {}},
-                },
-                {
-                    "column": "num_citations",
-                    "transformation": {"name": "multi-categorical", "kwargs": {"separator": ","}},
-                },
-                {
-                    "column": "citation_name",
-                    "transformation": {
-                        "name": "huggingface",
-                        "kwargs": {
-                            "action": "tokenize_hf",
-                            "hf_model": "bert",
-                            "max_seq_length": 64
-                        }
-                    },
-                },
-                {
-                    "column": "citation_name",
-                    "transformation": {
-                        "name": "huggingface",
-                        "kwargs": {
-                            "action": "embedding_hf",
-                            "hf_model": "bert",
-                            "max_seq_length": 64
-                        }
-                    },
-                },
-            ],
-            "labels": [
-                {"column": "label", "type": "classification", "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1}}
-            ],
-        }
-    ]
-    gsp_conf["graph"]["edges"] = [
-        {
-            "data": {
-                "format": "parquet",
-                "files": ["/tmp/acm_raw/edges/author_writing_paper.parquet"]
-            },
-            "source": {
-                "column": "~from",
-                "type": "author"
-            },
-            "dest": {
-                "column": "~to",
-                "type": "paper"
-            },
-            "relation": {
-                "type": "writing"
-            },
-            "features": [
-                {"column": "author", "name": "feat"},
-                {
-                    "column": "author",
-                    "name": "hard_negative",
-                    "transformation": {"name": "edge_dst_hard_negative",
-                                       "kwargs": {"separator": ";"}},
-                },
-                {
-                    "column": "num_feature",
-                    "transformation": {"name": "numerical",
-                                       "kwargs": {"normalizer": "standard", "imputer": "mean"}},
-                },
-            ],
-            "labels": [
-                {
-                    "column": "edge_col",
-                    "type": "classification",
-                    "split_rate": {
-                        "train": 0.8,
-                        "val": 0.2,
-                        "test": 0.0
-                    },
-                },
-                {
-                    "column": "edge_col2",
-                    "type": "classification",
-                    "split_rate": {
-                        "train": 0.9,
-                        "val": 0.1,
-                        "test": 0.0
-                    },
-                },
-            ],
-        }
-    ]
+    with open('./config/gsp_config.json', 'r') as f:
+        gsp_conf = json.load(f)
 
-    assert len(converter.convert_to_gconstruct(gsp_conf["graph"])["nodes"]) == 1
-    nodes_output = converter.convert_to_gconstruct(gsp_conf["graph"])["nodes"][0]
+    gconstruct_config = converter.convert_to_gconstruct(gsp_conf["graph"])
+    assert len(gconstruct_config["nodes"]) == 1
+    nodes_output = gconstruct_config["nodes"][0]
     assert nodes_output["format"] == {"name": "parquet"}
     assert nodes_output["files"] == ["/tmp/acm_raw/nodes/paper.parquet"]
     assert nodes_output["node_type"] == "paper"
@@ -488,8 +358,8 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
         {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
     ]
 
-    assert len(converter.convert_to_gconstruct(gsp_conf["graph"])["edges"]) == 1
-    edges_output = converter.convert_to_gconstruct(gsp_conf["graph"])["edges"][0]
+    assert len(gconstruct_config["edges"]) == 1
+    edges_output = gconstruct_config["edges"][0]
     assert edges_output["format"] == {"name": "parquet"}
     assert edges_output["files"] == ["/tmp/acm_raw/edges/author_writing_paper.parquet"]
     assert edges_output["relation"] == ["author", "writing", "paper"]
