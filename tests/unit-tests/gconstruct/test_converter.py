@@ -313,6 +313,15 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
     assert nodes_output["node_id_col"] == "node_id"
     assert nodes_output["features"] == [
         {"feature_col": "citation_time", "transform": {"name": "no-op"}, "feature_name": "feat"},
+        {
+            "feature_col": "citation_time",
+            "feature_name": "feat_truncate",
+            "transform": {
+                "name": "no-op",
+                "separator": ",",
+                "truncate_dim": 64
+            }
+        },
         {"feature_col": "num_citations", "transform": {"name": "max_min_norm"}},
         {
             "feature_col": "num_citations",

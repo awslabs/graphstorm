@@ -17,6 +17,17 @@
                         "name": "feat"
                     },
                     {
+                        "column": "citation_time",
+                        "name": "feat_truncate",
+                        "transformation": {
+                            "name": "no-op",
+                            "kwargs": {
+                                "separator": ",",
+                                "truncate_dim": 64
+                            }
+                        }
+                    },
+                    {
                         "column": "num_citations",
                         "transformation": {
                             "name": "numerical",

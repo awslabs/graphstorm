@@ -211,6 +211,15 @@ class GSProcessingConfigConverter(ConfigConverter):
                         gconstruct_transformation_dict["separator"] = (
                             gsp_transformation_dict["kwargs"]["separator"]
                         )
+                elif gsp_transformation_dict["name"] == "no-op":
+                    gconstruct_transformation_dict["name"] = "no-op"
+                    kwargs = gsp_transformation_dict.get("kwargs", {})
+                    
+                    if "truncate_dim" in kwargs:
+                        gconstruct_transformation_dict["truncate_dim"] = kwargs["truncate_dim"]
+
+                    if "separator" in kwargs:
+                        gconstruct_transformation_dict["separator"] = kwargs["separator"]
                 else:
                     raise ValueError(
                         "Unsupported GSProcessing transformation name: "
