@@ -6,7 +6,7 @@
                 "data": {
                     "format": "parquet",
                     "files": [
-                        "/data/ml-100k/users.parquet"
+                        "../../../data/ml-100k/users.parquet"
                     ]
                 },
                 "type": "user",
@@ -27,7 +27,7 @@
                 "data": {
                     "format": "parquet",
                     "files": [
-                        "/data/ml-100k/movie.parquet"
+                        "../../../data/ml-100k/movie.parquet"
                     ]
                 },
                 "type": "movie",
@@ -63,7 +63,7 @@
                 "data": {
                     "format": "parquet",
                     "files": [
-                        "/data/ml-100k/edges.parquet"
+                        "../../../data/ml-100k/edges.parquet"
                     ]
                 },
                 "source": {
