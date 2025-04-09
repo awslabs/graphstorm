@@ -63,12 +63,12 @@ def prepare_batch_input(g, input_nodes,
         Input nodes.
     dev: th.device
         Device to put output in.
-    feat_field: str or dict of list of str or or dict of list of FeatureGroup
-        Fields to extract features
+    feat_field: str or dict of list of str or dict of list of FeatureGroup
+        Fields to extract features.
 
     Return:
     -------
-    Dict of tensors or list of tensors
+    Dict of tensors or list of tensors.
         If a node type has features, it will get node features.
     """
     feat = {}

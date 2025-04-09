@@ -70,7 +70,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Yaml: ``model_encoder_type: rgcn``
     - Argument: ``--model-encoder-type rgcn``
     - Default value: This parameter must be provided by user.
-- **node_feat_name**: User defined feature name. It accepts two formats like: a) `fname`, if all node types have the same node feature name, the corresponding feature name will be `fname`; b) `ntype0:feat0 ntype1:featA ...`, if different node types have different node feature name(s). In the below example, `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`. By default, for nodes of the same type, their features are first concatenated into a unified tensor, which is then transformed through an MLP layer. For instance, suppose `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`. GraphStorm will encode `feat0` of `ntype0` with an MLP layer as `MLP(feat0)` and encode `featA` and `featB` of `ntype1` with another MLP layer as `MLP(featA|featB), where | is concatenation`.
+- **node_feat_name**: User defined feature name. It accepts two formats like: a) `fname`, if all node types have the same node feature name, the corresponding feature name will be `fname`; b) `ntype0:feat0 ntype1:featA ...`, if different node types have different node feature name(s). In the below example, `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`. By default, for nodes of the same type, their features are first concatenated into a unified tensor, which is then transformed through an MLP layer. For instance, suppose `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`. GraphStorm will encode `feat0` of `ntype0` with an MLP layer as `MLP(feat0)` and encode `featA` and `featB` of `ntype1` with another MLP layer as `MLP(featA|featB)`, where `|` represents a concatenation operation.
 
     - Yaml: ``node_feat_name:``
                 | ``- "ntype0:feat0"``
@@ -78,7 +78,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA,featB"``
     - Default value: If not provided, there will be no node features used by GraphStorm even graphs have node features attached.
 
-    Since 0.5.0, GraphStorm supports using different encoders, i.e., MLP layers, to encode different input node features of the same node. For example, suppose the `ntype1` has three features `featA`, `featB` and `featC`, GraphStorm can encode `featA` and `featB` with an MLP encoder as `MLP(featA|featB)` and encode `featC` feature with another MLP encoder `MLP(featC)`. Here is an example:
+    Since 0.5.0, GraphStorm supports using different MLP layers to encode different input node features of the same node. For example, suppose the `ntype1` has three features `featA`, `featB` and `featC`, GraphStorm can encode `featA` and `featB` with an MLP encoder as `MLP(featA|featB)` and encode `featC` feature with another MLP encoder `MLP(featC)`. Here is an example:
 
     - Yaml: ``node_feat_name:``
                 | ``- "ntype0:feat0"``

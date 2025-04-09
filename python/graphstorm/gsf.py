@@ -211,7 +211,7 @@ def get_node_feat_size(g, node_feat_names):
 
     .. versionchanged:: 0.5.0
         When node_feat_names is a dict, its value(s) can be a list of str or a list
-        of FeatureGroup. The return value can be a dict of int or
+        of FeatureGroups. The return value can be a dict of int or
         FeatureGroupSize, respectively.
 
     Parameters
@@ -219,12 +219,12 @@ def get_node_feat_size(g, node_feat_names):
     g : DistGraph
         A DGL distributed graph.
     node_feat_names : str, or a dict
-        The node feature names. A string indicates that all nodes share the same feature name,
+        The node feature names. A string indicates that all nodes share the same feature name.
         A dictionary indicates that each node type has different node feature names.
         When the value of a key (node type) is a list of strings, it indicates that
         the node type has only one group of features. When the value is a list
-        of FeatureGroup, it indicates that the node type has more than one group
-        of features.
+        of FeatureGroups, it indicates that the node type has more than one group
+        of features, which will be encoded separately.
 
     Returns
     -------

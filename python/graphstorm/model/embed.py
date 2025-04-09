@@ -244,9 +244,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     ----------
     g: DistGraph
         The input DGL distributed graph.
-    feat_size : dict of int
+    feat_size : dict of int or dict of FeatureGroupSize
         The original feat size of each node type in the format of {str: int}.
-        If a node have multiple feature groups, it is in the format of {str: FeatureGroupSize}
+        If a node has multiple feature groups, it is in the format of {str: FeatureGroupSize}
     embed_size : int
         The output embedding size.
     activation : callable
@@ -340,9 +340,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
         self.feat_group_projs = nn.ParameterDict()
-        embed_name = "embed"
 
-        # pylint: disable=too-many-nested-blocks
         for ntype in g.ntypes:
             if isinstance(feat_size[ntype], int):
                 feat_dim = 0
@@ -351,64 +349,24 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 if feat_dim > 0:
                     if get_rank() == 0:
                         logging.debug("Node %s has %d features.", ntype, feat_dim)
+
                     input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                     nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
                     self.input_projs[ntype] = input_projs
 
                     if self.use_node_embeddings:
-                        if self._use_wholegraph_sparse_emb:
-                            if get_rank() == 0:
-                                logging.debug(
-                                    "Use WholeGraph to host additional " \
-                                    "sparse embeddings on node %s",
-                                    ntype,
-                                )
-                            self._sparse_embeds[ntype] = WholeGraphDistTensor(
-                                (g.number_of_nodes(ntype), self.embed_size),
-                                th.float32,  # to consistent with distDGL's DistEmbedding dtype
-                                embed_name + "_" + ntype,
-                                use_wg_optimizer=True,  # no memory allocation before opt available
-                            )
-                        else:
-                            if get_rank() == 0:
-                                logging.debug("Use additional sparse embeddings on node %s", ntype)
-                            part_policy = g.get_node_partition_policy(ntype)
-                            self._sparse_embeds[ntype] = DistEmbedding(
-                                g.number_of_nodes(ntype),
-                                self.embed_size,
-                                embed_name + "_" + ntype,
-                                init_emb,
-                                part_policy,
-                            )
+                        self._sparse_embeds[ntype] = \
+                            self._init_node_embeddings(ntype, self.embed_size)
+
                         proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
                         nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain("relu"))
                         # nn.ParameterDict support this assignment operation if not None,
                         # so disable the pylint error
                         self.proj_matrix[ntype] = proj_matrix
                 elif ntype not in force_no_embeddings:
-                    if self._use_wholegraph_sparse_emb:
-                        if get_rank() == 0:
-                            logging.debug(
-                                "Use WholeGraph to host sparse embeddings on node %s:%d",
-                                ntype,
-                                g.number_of_nodes(ntype),
-                            )
-                        self._sparse_embeds[ntype] = WholeGraphDistTensor(
-                            (g.number_of_nodes(ntype), self.embed_size),
-                            th.float32,  # to consistent with distDGL's DistEmbedding dtype
-                            embed_name + "_" + ntype,
-                            use_wg_optimizer=True,  # no memory allocation before opt available
-                        )
-                    else:
-                        if get_rank() == 0:
-                            logging.debug('Use sparse embeddings on node %s:%d',
-                                        ntype, g.number_of_nodes(ntype))
-                        part_policy = g.get_node_partition_policy(ntype)
-                        self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                        self.embed_size,
-                                        embed_name + '_' + ntype,
-                                        init_emb,
-                                        part_policy=part_policy)
+                    # There is no node feature, use sparse embedding.
+                    self._sparse_embeds[ntype] = \
+                            self._init_node_embeddings(ntype, self.embed_size)
 
                     proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                     nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
@@ -428,30 +386,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 combine_dim = self.embed_size * len(feature_group_sizes)
 
                 if self.use_node_embeddings:
-                    if self._use_wholegraph_sparse_emb:
-                        if get_rank() == 0:
-                            logging.debug(
-                                "Use WholeGraph to host additional " \
-                                "sparse embeddings on node %s",
-                                ntype,
-                            )
-                        self._sparse_embeds[ntype] = WholeGraphDistTensor(
-                            (g.number_of_nodes(ntype), self.embed_size),
-                            th.float32,  # to consistent with distDGL's DistEmbedding dtype
-                            embed_name + "_" + ntype,
-                            use_wg_optimizer=True,  # no memory allocation before opt available
-                        )
-                    else:
-                        if get_rank() == 0:
-                            logging.debug("Use additional sparse embeddings on node %s", ntype)
-                        part_policy = g.get_node_partition_policy(ntype)
-                        self._sparse_embeds[ntype] = DistEmbedding(
-                            g.number_of_nodes(ntype),
-                            self.embed_size,
-                            embed_name + "_" + ntype,
-                            init_emb,
-                            part_policy,
-                        )
+                    self._sparse_embeds[ntype] = \
+                            self._init_node_embeddings(ntype, self.embed_size)
                     combine_dim += self.embed_size
 
                 proj_matrix = nn.Parameter(th.Tensor(combine_dim, self.embed_size))
@@ -459,35 +395,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 # nn.ParameterDict support this assignment operation if not None,
                 # so disable the pylint error
                 self.proj_matrix[ntype] = proj_matrix
-            elif ntype not in force_no_embeddings:
-                if self._use_wholegraph_sparse_emb:
-                    if get_rank() == 0:
-                        logging.debug(
-                            "Use WholeGraph to host sparse embeddings on node %s:%d",
-                            ntype,
-                            g.number_of_nodes(ntype),
-                        )
-                    self._sparse_embeds[ntype] = WholeGraphDistTensor(
-                        (g.number_of_nodes(ntype), self.embed_size),
-                        th.float32,  # to consistent with distDGL's DistEmbedding dtype
-                        embed_name + "_" + ntype,
-                        use_wg_optimizer=True,  # no memory allocation before opt available
-                    )
-                else:
-                    if get_rank() == 0:
-                        logging.debug('Use sparse embeddings on node %s:%d',
-                                    ntype, g.number_of_nodes(ntype))
-                    part_policy = g.get_node_partition_policy(ntype)
-                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                    self.embed_size,
-                                    embed_name + '_' + ntype,
-                                    init_emb,
-                                    part_policy=part_policy)
-
-                proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
-                nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
-                self.proj_matrix[ntype] = proj_matrix
             else:
+                # feat_size of ntype must be an integer or
+                # a FeatureGroupSize object.
                 raise RuntimeError(f"{ntype} is configured to have node features. But"
                     f"encountered unknown feat_size object {type(feat_size[ntype])}."
                     "Expecting int or FeatureGroupSize")
@@ -498,6 +408,35 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         for ntype in g.ntypes:
             self.ngnn_mlp[ntype] = NGNNMLP(embed_size, embed_size,
                             num_ffn_layers_in_input, ffn_activation, dropout)
+
+    def _init_node_embeddings(self, ntype, embed_size):
+        embed_name = "embed"
+
+        if self._use_wholegraph_sparse_emb:
+            if get_rank() == 0:
+                logging.debug(
+                    "Use WholeGraph to host additional " \
+                    "sparse embeddings on node %s",
+                    ntype,
+                )
+            sparse_embed = WholeGraphDistTensor(
+                (g.number_of_nodes(ntype), embed_size),
+                th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                embed_name + "_" + ntype,
+                use_wg_optimizer=True,  # no memory allocation before opt available
+            )
+        else:
+            if get_rank() == 0:
+                logging.debug("Use additional sparse embeddings on node %s", ntype)
+            part_policy = g.get_node_partition_policy(ntype)
+            sparse_embed = DistEmbedding(
+                g.number_of_nodes(ntype),
+                embed_size,
+                embed_name + "_" + ntype,
+                init_emb,
+                part_policy,
+            )
+        return sparse_embed
 
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation.

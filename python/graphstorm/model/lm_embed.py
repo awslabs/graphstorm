@@ -668,7 +668,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         A list of language model configurations.
     feat_size : dict of int or dict of list of ints
         The original feat sizes of each node type in the format of {ntype: size}.
-        If a node have multiple feature groups, it is in the format of {ntype: [size, size, ...]}
+        If a node have multiple feature groups, it is in the format of {ntype: [size, size, ...]}.
     embed_size : int
         The output embedding size.
     num_train: int

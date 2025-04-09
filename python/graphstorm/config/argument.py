@@ -1379,14 +1379,14 @@ class GSConfig:
 
         .. versionchanged:: 0.5.0
 
-            Since 0.5.0, GraphStorm supports using different encoders, i.e., MLP layers,
+            Since 0.5.0, GraphStorm supports using different MLPs,
             to encode different input node features of the same node.
             For example, suppose the ``moive`` nodes have two features
             ``title`` and ``genre``, GraphStorm can encode ``title``
             feature with the encoder f(x) and encode ``genre`` feature
             with the encoder g(x).
 
-            To use different encoders for different features of a
+            To use different MLPs for different features of one
             node type, users can take the following format for ``node_feat_name``:
             ``"ntype0:feat0","ntype1:feat0","ntype1:feat1",...``.
             GraphStorm will create an MLP encoder for ``feat0`` of ``ntype1``
