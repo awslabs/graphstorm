@@ -308,7 +308,7 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
     assert len(gconstruct_config["nodes"]) == 1
     nodes_output = gconstruct_config["nodes"][0]
     assert nodes_output["format"] == {"name": "parquet"}
-    assert nodes_output["files"] == ["/tmp/acm_raw/nodes/paper.parquet"]
+    assert nodes_output["files"] == ["tmp/acm_raw/nodes/paper.parquet"]
     assert nodes_output["node_type"] == "paper"
     assert nodes_output["node_id_col"] == "node_id"
     assert nodes_output["features"] == [
@@ -374,7 +374,7 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
     assert len(gconstruct_config["edges"]) == 1
     edges_output = gconstruct_config["edges"][0]
     assert edges_output["format"] == {"name": "parquet"}
-    assert edges_output["files"] == ["/tmp/acm_raw/edges/author_writing_paper.parquet"]
+    assert edges_output["files"] == ["tmp/acm_raw/edges/author_writing_paper.parquet"]
     assert edges_output["relation"] == ["author", "writing", "paper"]
     assert edges_output["source_id_col"] == "~from"
     assert edges_output["dest_id_col"] == "~to"
