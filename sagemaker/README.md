@@ -47,7 +47,7 @@ Before launching the task, you need to upload the raw acm dataset (i.e., /tmp/ac
 aws s3 cp --recursive ~/graphstorm/examples/acm_raw s3://PATH_TO/acm/acm_raw/
 ```
 
-Then, you can use the following command to launch a SageMaker graph construction task.
+Then, you can use the following command to launch a SageMaker graph construction task. For `graph-config-file`, we also accept configurations designed for distributed processing.
 
 ```bash
 python3 launch/launch_gconstruct.py \
