@@ -5,7 +5,7 @@
                 "data": {
                     "format": "parquet",
                     "files": [
-                        "/tmp/acm_raw/nodes/paper.parquet"
+                        "tmp/acm_raw/nodes/paper.parquet"
                     ],
                     "separator": ","
                 },
@@ -132,7 +132,7 @@
                 "data": {
                     "format": "parquet",
                     "files": [
-                        "/tmp/acm_raw/edges/author_writing_paper.parquet"
+                        "tmp/acm_raw/edges/author_writing_paper.parquet"
                     ]
                 },
                 "source": {
