@@ -16,10 +16,13 @@
 
 import pytest
 import json
+import os
 
 from graphstorm.gconstruct.config_conversion import (
     GSProcessingConfigConverter,
 )
+
+_ROOT = os.path.abspath(os.path.dirname(__file__))
 
 
 @pytest.fixture(name="converter")
@@ -297,7 +300,8 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
         "edges": [],
     }
 
-    with open('./config/gsp_config.json', 'r') as f:
+    gsp_conf_path = os.path.join(_ROOT, "config/gsp_config.json")
+    with open(gsp_conf_path, 'r') as f:
         gsp_conf = json.load(f)
 
     gconstruct_config = converter.convert_to_gconstruct(gsp_conf["graph"])
