@@ -214,7 +214,7 @@ class GSProcessingConfigConverter(ConfigConverter):
                 elif gsp_transformation_dict["name"] == "no-op":
                     gconstruct_transformation_dict["name"] = "no-op"
                     kwargs = gsp_transformation_dict.get("kwargs", {})
-                    
+
                     if "truncate_dim" in kwargs:
                         gconstruct_transformation_dict["truncate_dim"] = kwargs["truncate_dim"]
 
@@ -249,7 +249,6 @@ class GSProcessingConfigConverter(ConfigConverter):
                 node_separator = n["data"]["separator"]
 
             # files
-            # Do we support S3 in GConstruct?
             node_files = (
                 n["data"]["files"]
                 if isinstance(n["data"]["files"], list)
@@ -302,7 +301,6 @@ class GSProcessingConfigConverter(ConfigConverter):
             )
 
             # format
-            # Do we support S3 in GConstruct?
             edge_format = e["data"]["format"]
             if "separator" not in e["data"]:
                 edge_separator = None
