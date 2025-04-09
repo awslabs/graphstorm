@@ -374,7 +374,7 @@ def test_convert_gsprocessing_config(converter: GSProcessingConfigConverter):
     assert len(gconstruct_config["edges"]) == 1
     edges_output = gconstruct_config["edges"][0]
     assert edges_output["format"] == {"name": "parquet"}
-    assert edges_output["files"] == ["tmp/acm_raw/edges/author_writing_paper.parquet"]
+    assert edges_output["files"] == ["/tmp/acm_raw/edges/author_writing_paper.parquet"]
     assert edges_output["relation"] == ["author", "writing", "paper"]
     assert edges_output["source_id_col"] == "~from"
     assert edges_output["dest_id_col"] == "~to"
