@@ -409,7 +409,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             self.ngnn_mlp[ntype] = NGNNMLP(embed_size, embed_size,
                             num_ffn_layers_in_input, ffn_activation, dropout)
 
-    def _init_node_embeddings(g, ntype, embed_size):
+    def _init_node_embeddings(self, g, ntype, embed_size):
         embed_name = "embed"
 
         if self._use_wholegraph_sparse_emb:
