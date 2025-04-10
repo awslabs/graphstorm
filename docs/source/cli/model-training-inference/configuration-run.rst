@@ -381,12 +381,12 @@ General Configurations
   choose the best trained model and for early stopping. Each learning task supports different evaluation metrics:
 
   - The supported evaluation metrics of classification tasks include ``accuracy``,
-    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``. Note that
-    ``hit_at_k`` only works with binary classification tasks.
+    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``, and ``fscore_at_beta``. 
 
     - The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or
       ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k``
-      predictions with the highest confidence scores.
+      predictions with the highest confidence scores. Note that ``hit_at_k`` only works with binary classification tasks.
+    - The ``beta`` of ``fscore_at_beta`` can be any positive integer or float numbers, for example ``fscore_at_2`` or ``fscore_at_0.5``. Please make sure that the ``beta`` string can be converted to a float number by Python's `float()` method.
   - The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``.
   - The supported evaluation metrics of link prediction tasks include ``mrr``, ``amri`` and
     ``hit_at_k``. MRR refers to the Mean Reciprocal Rank with values between and 0 (worst) and 1
@@ -398,7 +398,8 @@ General Configurations
         | ``- accuracy``
         | ``- precision_recall``
         | ``- hit_at_10``
-    - Argument: ``--eval-metric accuracy precision_recall hit_at_10``
+        | ``- fscore_at_0.5``
+    - Argument: ``--eval-metric accuracy precision_recall hit_at_10 fscore_at_0.5``
     - Default value:
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.
@@ -441,7 +442,7 @@ Classification and Regression Task
     - Yaml: ``imbalance_class_weights: 0.1,0.2,0.3``
     - Argument: ``--imbalance-class-weights 0.1,0.2,0.3``
     - Default value: ``None``
-- **return_proba**: For classification task, this configuration determines whether to return probability estimates for each class or the maximum probable class. Set true to return probability estimates and false to return the maximum probable class.
+- **return_proba**: In classification inference, this parameter determines whether the output files will contain probability estimates for each class or the maximum probable class in the output predicitons. Set true to return probability estimates and false to return the maximum probable class.
 
     - Yaml: ``return_proba: true``
     - Argument: ``--return-proba true``
