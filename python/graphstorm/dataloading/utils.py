@@ -160,7 +160,7 @@ def verify_node_feat_fields(node_feats):
         node_feats: str, or dist of list of str
             str: All the nodes have the same feature name.
             list of string: All the nodes have the same list of features.
-            dist of list of string: Each node type have different set of node features.
+            dict of list of string: Each node type have different set of node features.
             dict of list of FeatureGroup: Each node type have different set of feature groups.
     """
     assert node_feats is None or \
