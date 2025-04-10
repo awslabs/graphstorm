@@ -50,9 +50,8 @@ from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL,
                      BUILTIN_REGRESSION_LOSS_MSE,
                      BUILTIN_REGRESSION_LOSS_SHRINKAGE)
-from .eval.eval_func import (
-    SUPPORTED_HIT_AT_METRICS,
-    SUPPORTED_LINK_PREDICTION_METRICS)
+from .eval.eval_func import (SUPPORTED_HIT_AT_METRICS,
+                             SUPPORTED_LINK_PREDICTION_METRICS)
 from .model.embed import GSNodeEncoderInputLayer, GSEdgeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
