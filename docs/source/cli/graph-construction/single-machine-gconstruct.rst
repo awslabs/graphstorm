@@ -60,7 +60,7 @@ In the highest level, the JSON object contains three fields: ``version``, ``node
 
 ``version`` (**Optional**)
 ..........................
-``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-v0.1``.
+``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-v0.1``. It also accepts gsprocessing version config. If no version specified, it will treat the config as a gconstruct config.
 
 ``nodes`` (**Required**)
 ........................
