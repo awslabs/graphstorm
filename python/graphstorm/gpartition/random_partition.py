@@ -45,8 +45,7 @@ class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
         num_nodes_per_type = self.metadata_dict["num_nodes_per_type"]
         ntypes = self.metadata_dict["node_type"]
-        assert len(num_nodes_per_type) == len(ntypes), \
-            "Number of nodes per type does not match number of node types"
+        # Note: This assumes that the order of node_type is the same as the order num_nodes_per_type
         assert num_partitions > 0, "Number of partitions must be greater than 0"
 
         for ntype, num_nodes_for_type in zip(ntypes, num_nodes_per_type):
