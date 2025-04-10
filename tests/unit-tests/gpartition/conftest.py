@@ -18,22 +18,18 @@ import json
 from tempfile import TemporaryDirectory
 from typing import Dict
 
+import numpy as np
 import pytest
 
 from graphstorm.gpartition import LocalPartitionAlgorithm
 
-@pytest.fixture(scope="module", name="chunked_metadata_dict")
-def metadata_dict_fixture() -> Dict:
-    return {
-        "num_nodes_per_type": [10, 20],
-        "node_type": ["a", "b"],
-    }
-
 def simple_test_partition(
     partition_algorithm: LocalPartitionAlgorithm,
     algorithm_name: str,
+    num_parts: int,
     chunked_metadata_dict: Dict):
     """Ensures that the provided algorithm will create the correct number of partitions,
+    that the output contains at least one node per partition,
     and that the partition assignment and metadata files are correctly created.
 
     Parameters
@@ -42,19 +38,18 @@ def simple_test_partition(
         An implementation of the LocalPartitionAlgorithm base class.
     algorithm_name : str
         The expected name for the partition algorithm in the metadata
+    num_parts: int
+        Number of partitions to assign nodes to.
     chunked_metadata_dict : Dict
         The metadata dictionary that was passed to the algorithm.
     """
 
     with TemporaryDirectory() as tmpdir:
-        num_parts = 4
-        # This test function is designed to be used with the config
-        # provided by metadata_dict_fixture()
         assert partition_algorithm.metadata_dict == chunked_metadata_dict
         partition_algorithm.create_partitions(num_parts, tmpdir)
 
-        assert os.path.exists(os.path.join(tmpdir, "a.txt"))
-        assert os.path.exists(os.path.join(tmpdir, "b.txt"))
+        for ntype in chunked_metadata_dict["node_type"]:
+            assert os.path.exists(os.path.join(tmpdir, f"{ntype}.txt"))
         assert os.path.exists(os.path.join(tmpdir, "partition_meta.json"))
 
         # Ensure contents of partition_meta.json are correct
@@ -67,6 +62,9 @@ def simple_test_partition(
         for i, node_type in enumerate(chunked_metadata_dict["node_type"]):
             with open(os.path.join(tmpdir, f"{node_type}.txt"), "r", encoding="utf-8") as f:
                 node_partitions = f.read().splitlines()
+                partition_array = np.array(node_partitions)
+                assert len(np.unique(partition_array)) == num_parts, \
+                    "Every partition needs to contain at least one node"
                 assert len(node_partitions) == chunked_metadata_dict["num_nodes_per_type"][i]
                 for part_id in node_partitions:
                     assert part_id.isdigit()
