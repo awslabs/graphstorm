@@ -32,8 +32,11 @@ class ParMETISConfig:
         Path to the dgl tool added in the PYTHONPATH
     metadata_filename: str
         schema file name defined in the parmetis step
+    num_processes_parmetis: int
+        number of processes in the parmetis step
     """
     ip_list: str
     input_path: str
     dgl_tool_path: str
     metadata_filename: str
+    num_processes_parmetis: int
