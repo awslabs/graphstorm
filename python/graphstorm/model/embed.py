@@ -356,7 +356,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
                     if self.use_node_embeddings:
                         self._sparse_embeds[ntype] = \
-                            self._init_node_embeddings(ntype, self.embed_size)
+                            self._init_node_embeddings(g, ntype, self.embed_size)
 
                         proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
                         nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain("relu"))
@@ -366,7 +366,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 elif ntype not in force_no_embeddings:
                     # There is no node feature, use sparse embedding.
                     self._sparse_embeds[ntype] = \
-                            self._init_node_embeddings(ntype, self.embed_size)
+                            self._init_node_embeddings(g, ntype, self.embed_size)
 
                     proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                     nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
@@ -387,7 +387,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
                 if self.use_node_embeddings:
                     self._sparse_embeds[ntype] = \
-                            self._init_node_embeddings(ntype, self.embed_size)
+                            self._init_node_embeddings(g, ntype, self.embed_size)
                     combine_dim += self.embed_size
 
                 proj_matrix = nn.Parameter(th.Tensor(combine_dim, self.embed_size))
@@ -409,7 +409,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             self.ngnn_mlp[ntype] = NGNNMLP(embed_size, embed_size,
                             num_ffn_layers_in_input, ffn_activation, dropout)
 
-    def _init_node_embeddings(self, ntype, embed_size):
+    def _init_node_embeddings(g, ntype, embed_size):
         embed_name = "embed"
 
         if self._use_wholegraph_sparse_emb:
