@@ -64,3 +64,5 @@ from .config import (GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
                      GRAPHSTORM_TENSORBOARD_TASK_TRACKER)
 
 from .config import TaskInfo
+from .config import (FeatureGroup,
+                     FeatureGroupSize)
