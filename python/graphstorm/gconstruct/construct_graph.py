@@ -76,7 +76,7 @@ def prepare_node_data(in_file, feat_ops, read_file):
 
     return feat_info
 
-def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_mem=None):
+def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_mem=None, node_feat_conf=None):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -97,13 +97,15 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_me
         The function to read the node file
     ext_mem: str or None
         The path of external memory for multi-column feature
+    node_feat_conf: dict or None
+        The feature config
 
     Returns
     -------
     tuple : node ID array and a dict of node feature tensors.
     """
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops, ext_mem) if feat_ops is not None else {}
+    feat_data = process_features(data, feat_ops, ext_mem, node_feat_conf) if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -324,7 +326,6 @@ def process_node_data(process_confs, arr_merger, remap_id,
                 if 'features' in process_conf else (None, [], {}, [])
         label_ops = parse_label_ops(process_conf, is_node=True) \
                 if 'labels' in process_conf else None
-
         # If it requires multiprocessing, we need to read data to memory.
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
         multiprocessing = do_multiprocess_transform(process_conf,
@@ -339,7 +340,8 @@ def process_node_data(process_confs, arr_merger, remap_id,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
                               read_file=read_file,
-                              ext_mem=ext_mem_workspace)
+                              ext_mem=ext_mem_workspace,
+                              node_feat_conf=process_conf['features'])
 
         ext_mem_workspace_type = os.path.join(ext_mem_workspace, node_type) \
                 if ext_mem_workspace is not None else None
@@ -350,6 +352,9 @@ def process_node_data(process_confs, arr_merger, remap_id,
                                     num_proc,
                                     f"node {node_type}",
                                     ext_mem_workspace_type)
+        print(feat_ops[0].feat_dim)
+        print(process_conf[0])
+        exit(-1)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():

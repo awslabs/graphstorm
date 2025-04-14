@@ -24,7 +24,7 @@ import abc
 import json
 import warnings
 from abc import ABC, abstractmethod
-from numbers import Number
+from numbers import Integral
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -216,6 +216,7 @@ class FeatTransform(ABC):
         self._col_name = col_name
         self._feat_name = feat_name
         self._out_dtype = out_dtype
+        self._feat_dim = None
 
     @property
     def col_name(self):
@@ -234,6 +235,20 @@ class FeatTransform(ABC):
         """ Output feature dtype
         """
         return self._out_dtype
+
+    @property
+    def feat_dim(self):
+        """ Output feature dimension
+        """
+        return self._feat_dim
+
+    @feat_dim.setter
+    def feat_dim(self, new_feat_dim):
+        """ Set the feature dimension
+        """
+        if not isinstance(new_feat_dim, int) or new_feat_dim <= 0:
+            raise ValueError("Feature dimension must be a positive integer.")
+        self._feat_dim = new_feat_dim
 
     def __call__(self, feats):
         """ This transforms the features.
@@ -1070,7 +1085,7 @@ class Noop(FeatTransform):
         .. versionadded:: 0.5.0
     """
     def __init__(self, col_name, feat_name, out_dtype=None,
-                 truncate_dim=None, separator: Optional[str]=None):
+                 truncate_dim: Optional[int]=None, separator: Optional[str]=None):
         # Ensure self.out_dtype has a value
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(Noop, self).__init__(col_name, feat_name, out_dtype)
@@ -1102,11 +1117,8 @@ class Noop(FeatTransform):
             # using vectorized numpy op
             feats = np.char.split(feats, sep=self.separator)
 
-            # Convert to regular Python list
-            feats_list = feats.tolist()
-
-            # Convert lists of str to lists of float, this is faster than using numpy
-            feats = [[float(x) for x in sublist] for sublist in feats_list]
+            # Convert array of str to lists of float, this is faster than using numpy
+            feats = [[float(x) for x in sublist] for sublist in feats]
 
             # Convert back to numpy
             feats = np.array(feats, dtype=self.out_dtype)
@@ -1115,13 +1127,11 @@ class Noop(FeatTransform):
                 f"The feature {self.feat_name} has to be NumPy array."
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
+                f"The feature {self.feat_name} has to be integers or floats, got '{feats.dtype}'."
 
         if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
-
-
 
         if self.truncate_dim is not None:
             if isinstance(feats, np.ndarray):
@@ -1130,8 +1140,7 @@ class Noop(FeatTransform):
                 assert isinstance(feats, ExtMemArrayWrapper)
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
-
-
+        self.feat_dim = len(feats)
         return {self.feat_name: feats}
 
 class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
@@ -1444,9 +1453,13 @@ def parse_feat_ops(confs, input_data_format=None):
                                                          separator=separator)
             elif conf['name'] == 'no-op':
                 if 'separator' in conf:
-                    assert isinstance(conf['separator'], str)
+                    assert isinstance(conf['separator'], str), \
+                        f"no-op 'separator' needs to be a string got {type(conf['separator'])}"
                 if 'truncate_dim' in conf:
-                    assert isinstance(conf['truncate_dim'], Number)
+                    assert isinstance(conf['truncate_dim'], Integral), (
+                        f"no-op 'truncate_dim' needs to be an integer, "
+                        f"got {type(conf['truncate_dim'])}"
+                    )
                 transform = Noop(
                     feat['feature_col'],
                     feat_name,
@@ -1513,7 +1526,7 @@ def preprocess_features(data, ops: List[TwoPhaseFeatTransform]):
 
     return pre_data
 
-def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
+def process_features(data, ops: List[FeatTransform], ext_mem_path=None, feat_conf_list=None):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -1527,13 +1540,15 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
         The operations that transform features.
     ext_mem_path: str or None
         The path of external memory
+    feat_conf_list: dict
+        Processed feat config list for one node type.
 
     Returns
     -------
     dict : the key is the data name, the value is the processed data.
     """
     new_data = {}
-    for op in ops:
+    for i, op in enumerate(ops):
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
         else:
@@ -1575,6 +1590,14 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
                     val = np.column_stack((new_data[key], val)) \
                         if key in new_data else val
                     new_data[key] = val
+
+        # Write feature dimension back to the feature config
+        print(op)
+        print(feat_conf_list)
+        print("------------------------------------------")
+        if not feat_conf_list:
+            feat_conf = feat_conf_list[i]
+            feat_conf["feature_dim"] = op.feat_dim
 
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()
