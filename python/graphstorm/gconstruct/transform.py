@@ -1592,7 +1592,7 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None, feat_con
                     new_data[key] = val
 
         # Write feature dimension back to the feature config
-        if not feat_conf_list:
+        if feat_conf_list:
             feat_conf = feat_conf_list[i]
             feat_conf["feature_dim"] = op.feat_dim
 
