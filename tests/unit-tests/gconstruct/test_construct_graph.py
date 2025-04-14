@@ -2053,7 +2053,10 @@ def test_parse_edge_data():
         conf = {
             "source_id_col": "src_id",
             "dest_id_col": "dst_id",
-            "relation": ("src", "rel", "dst")
+            "relation": ("src", "rel", "dst"),
+            "features": [
+                {"feature_col": "feat", "feature_name": "feat"}
+            ]
         }
         keys = ["src_id", "dst_id", "feat"]
         src_ids, dst_ids, feat_data = \
