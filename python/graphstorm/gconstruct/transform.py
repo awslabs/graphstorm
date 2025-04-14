@@ -1140,7 +1140,6 @@ class Noop(FeatTransform):
                 assert isinstance(feats, ExtMemArrayWrapper)
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
-                
         self.feat_dim = len(feats)
         return {self.feat_name: feats}
 
