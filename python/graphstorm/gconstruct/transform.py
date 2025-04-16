@@ -1155,7 +1155,7 @@ class Noop(FeatTransform):
                 feats = feats.to_numpy()[:, :self.truncate_dim]
         # The first dimension should be the number of the nodes,
         # the second dimension should be the feature dimension
-        self.feat_dim = feats.shape[1]
+        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
         return {self.feat_name: feats}
 
 class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
@@ -1316,7 +1316,8 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             # When len(raw_ids) < self._max_dim (max negatives
             # per edge), GraphStorm fills the rest with -1.
             neg_ids[i][:nids.shape[0]] = nids
-
+            
+        self.feat_dim = self._max_dim
         return {self.feat_name: neg_ids}
 
 class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):

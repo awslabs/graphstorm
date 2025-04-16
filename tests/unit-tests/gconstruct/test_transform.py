@@ -339,6 +339,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
 
     feats = np.random.randn(100, 1).astype(input_dtype)
     norm_feats = transform(feats)["test"]
+    assert transform.feat_dim == 1
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
     else:
@@ -356,6 +357,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     transform._min_val = min_val
     feats = np.random.randn(10, 3).astype(input_dtype)
     norm_feats = transform(feats)["test"]
+    assert transform.feat_dim == 1
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
     else:
@@ -401,6 +403,7 @@ def test_categorize_transform():
     assert len(transform_conf["mapping"]) == 10
     feat = np.array([None, None]) # transform numpy array with None value.
     cat_feat = transform(feat)
+    assert transform.feat_dim == len(transform_conf["mapping"])
     assert "test" in cat_feat
     assert np.all(cat_feat["test"][0] == 0)
     assert np.all(cat_feat["test"][1] == 0)
@@ -411,6 +414,7 @@ def test_categorize_transform():
     feat = np.array(feat)
     feat_with_unknown = np.array(feat_with_unknown)
     cat_feat = transform(feat)
+    assert transform.feat_dim == len(transform_conf["mapping"])
     assert "test" in cat_feat
     for i, (feat, str_i) in enumerate(zip(cat_feat["test"], feat)):
         if i == 0:
@@ -444,6 +448,7 @@ def test_categorize_transform():
     transform.update_info(info)
     feat = np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, 100)])
     cat_feat = transform(feat)
+    assert transform.feat_dim == len(transform_conf["mapping"])
     assert "test" in cat_feat
     for feat, str_feat in zip(cat_feat["test"], feat):
         # make sure two elements are 1
@@ -462,6 +467,7 @@ def test_categorize_transform():
     feat = np.array(feat)
     feat_with_unknown = np.array(feat_with_unknown)
     cat_feat = transform(feat_with_unknown)
+    assert transform.feat_dim == len(transform_conf["mapping"])
     assert "test" in cat_feat
     for feat, str_feat in zip(cat_feat["test"], feat):
         # make sure two elements are 1
@@ -483,6 +489,7 @@ def test_categorize_transform():
     transform.update_info([])
     feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
     cat_feat = transform(feat)
+    assert transform.feat_dim == len(transform_conf["mapping"])
     assert "test" in cat_feat
     for feat, str_i in zip(cat_feat["test"], feat):
         # make sure one value is 1
@@ -533,6 +540,7 @@ def test_categorize_transform():
             np.array([i for i in range(4, 10)])]
     transform.update_info(info)
     cat_feat = transform(feat)
+    assert transform.feat_dim == len(transform_conf["mapping"])
     assert "test" in cat_feat
     for feat, str_i in zip(cat_feat["test"], feat):
         # make sure one value is 1
@@ -551,6 +559,7 @@ def test_categorize_transform():
     transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     assert len(transform_conf["mapping"]) == 10
     cat_feat = transform(feat)
+    assert transform.feat_dim == len(transform_conf["mapping"])
     assert "test" in cat_feat
     for feat, str_i in zip(cat_feat["test"], feat):
         # make sure one value is 1
@@ -571,6 +580,7 @@ def test_noop_transform(out_dtype):
     else:
         assert norm_feats["test"].dtype == np.float32
 
+    assert transform.feat_dim == 1
     # invalid input
     feats[0] = np.nan
     with assert_raises(AssertionError):
