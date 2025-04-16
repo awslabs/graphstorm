@@ -467,6 +467,7 @@ class BucketTransform(FeatTransform):
             if f <= min_val:
                 encoding[i][0] = 1.0
 
+        self.feat_dim = feats.shape[1]
         return {self.feat_name: encoding}
 
 class CategoricalTransform(TwoPhaseFeatTransform):
@@ -562,6 +563,8 @@ class CategoricalTransform(TwoPhaseFeatTransform):
                 idx = [self._val_dict[val] for val in feat.split(self._separator) \
                        if val in self._val_dict]
                 encoding[i, idx] = 1
+
+        self.feat_dim = encoding.shape[1]
         return {self.feat_name: encoding}
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
@@ -707,6 +710,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
 
+        self.feat_dim = feats.shape[1]
         return {self.feat_name: feats}
 
 class NumericalStandardTransform(TwoPhaseFeatTransform):
@@ -827,6 +831,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
         feats = self.feat2numerical(feats)
         feats = feats / self._summation
 
+        self.feat_dim = feats.shape[1]
         return {self.feat_name: feats}
 
 class RankGaussTransform(GlobalProcessFeatTransform):
@@ -905,6 +910,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
             feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
             feats = erfinv(feats)
 
+        self.feat_dim = feats.shape[1]
         return self.as_out_dtype(feats)
 
 class Tokenizer(FeatTransform):
@@ -926,6 +932,7 @@ class Tokenizer(FeatTransform):
     def __init__(self, col_name, feat_name, bert_model, max_seq_length):
         super(Tokenizer, self).__init__(col_name, feat_name)
         self.tokenizer = AutoTokenizer.from_pretrained(bert_model)
+        self.config = AutoConfig.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
     def call(self, feats):
@@ -958,6 +965,9 @@ class Tokenizer(FeatTransform):
         token_id_name = 'input_ids'
         atten_mask_name = 'attention_mask'
         token_type_id_name = 'token_type_ids'
+        # The first dimension should be the number of the nodes,
+        # the second dimension should be the feature dimension
+        self.feat_dim = self.config.hidden_size
         return {token_id_name: th.cat(tokens, dim=0).numpy(),
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
@@ -1060,6 +1070,9 @@ class Text2BERT(FeatTransform):
         else:
             feats = out_embs[0]
 
+        # The first dimension should be the number of the nodes,
+        # the second dimension should be the feature dimension
+        self.feat_dim = feats.shape[1]
         return {self.feat_name: feats}
 
 class Noop(FeatTransform):
@@ -1140,7 +1153,9 @@ class Noop(FeatTransform):
                 assert isinstance(feats, ExtMemArrayWrapper)
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
-        self.feat_dim = len(feats)
+        # The first dimension should be the number of the nodes,
+        # the second dimension should be the feature dimension
+        self.feat_dim = feats.shape[1]
         return {self.feat_name: feats}
 
 class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
