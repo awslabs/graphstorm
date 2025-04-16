@@ -1316,7 +1316,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             # When len(raw_ids) < self._max_dim (max negatives
             # per edge), GraphStorm fills the rest with -1.
             neg_ids[i][:nids.shape[0]] = nids
-            
+
         self.feat_dim = self._max_dim
         return {self.feat_name: neg_ids}
 
