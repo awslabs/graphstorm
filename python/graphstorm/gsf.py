@@ -521,15 +521,21 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
 
             decoder_output_dim = config.num_classes
             if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+                assert config.num_classes > 1, (
+                    f"When using {BUILTIN_CLASS_LOSS_CROSS_ENTROPY} loss "
+                    "function, please make sure the num_classes is set "
+                    "to 2 or greater."
+                )
                 loss_func = ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
                                              config.imbalance_class_weights)
             elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
                 # For backward compatibility, we allow the num_classes to be 1.
                 # Users should set it to 2.
-                assert config.num_classes in [1, 2], \
-                    "Focal loss only works with binary classification." \
+                assert config.num_classes in [1, 2], (
+                    "Focal loss only works with binary classification."
                     "num_classes should be set to 2."
+                )
                 # set default value of alpha to 0.25 for focal loss
                 # set default value of gamma to 2. for focal loss
                 alpha = config.alpha if config.alpha is not None else 0.25
@@ -552,26 +558,42 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
             decoder = {}
             loss_func = {}
             for ntype in config.target_ntype:
-                decoder[ntype] = EntityClassifier(decoder_input_dim,
-                                                  config.num_classes[ntype],
-                                                  config.multilabel[ntype],
-                                                  dropout=dropout,
-                                                  norm=config.decoder_norm,
-                                                  use_bias=config.decoder_bias)
+                decoder_output_dim = config.num_classes[ntype]
 
                 if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+                    assert config.num_classes[ntype] > 1, (
+                        f"When using {BUILTIN_CLASS_LOSS_CROSS_ENTROPY} loss "
+                        f"function for {ntype} nodes, please make sure the "
+                        f"num_classes of {ntype} is set to 2 or greater."
+                    )
+
                     loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
                                                         config.multilabel_weights[ntype],
                                                         config.imbalance_class_weights[ntype])
                 elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                    # For backward compatibility, we allow the num_classes to be 1.
+                    # Users should set it to 2.
+                    assert config.num_classes[ntype] in [1, 2], (
+                        "Focal loss only works with binary classification." \
+                        f"num_classes of {ntype} should be set to 2."
+                    )
                     # set default value of alpha to 0.25 for focal loss
                     # set default value of gamma to 2. for focal loss
                     alpha = config.alpha if config.alpha is not None else 0.25
                     gamma = config.gamma if config.gamma is not None else 2.
                     loss_func[ntype] =  FocalLossFunc(alpha, gamma)
+                    decoder_output_dim = 1
                 else:
                     raise RuntimeError(
                         f"Unknown classification loss {config.class_loss_func}")
+
+                decoder[ntype] = EntityClassifier(decoder_input_dim,
+                                                  decoder_output_dim,
+                                                  config.multilabel[ntype],
+                                                  dropout=dropout,
+                                                  norm=config.decoder_norm,
+                                                  use_bias=config.decoder_bias)
+
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         decoder  = EntityRegression(decoder_input_dim,
                                     dropout=dropout,
@@ -739,6 +761,11 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             assert False, f"decoder {decoder_type} is not supported."
 
         if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+            assert num_classes > 1, (
+                f"When using {BUILTIN_CLASS_LOSS_CROSS_ENTROPY} loss "
+                "function, please make sure the num_classes is set "
+                "to 2 or greater."
+            )
             loss_func = ClassifyLossFunc(config.multilabel,
                                          config.multilabel_weights,
                                          config.imbalance_class_weights)
