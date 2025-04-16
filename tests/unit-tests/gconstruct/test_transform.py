@@ -1378,5 +1378,8 @@ def test_standard_transform(input_dtype):
     info = [summation, summation, summation]
     transform.update_info(info)
     out = transform(feats0)["test"]
-    assert transform.feat_dim == 1
+    assert transform.feat_dim == 3
     assert_almost_equal(out, feats0/summation/3)
+
+def test_hf_tokenizer(bert_model="bert-base-uncased"):
+    transform = Tokenizer("test", "test", bert_model, max_seq_length=16)
