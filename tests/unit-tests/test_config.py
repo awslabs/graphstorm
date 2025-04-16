@@ -580,6 +580,40 @@ def create_node_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 1,
+        "class_loss_func": "focal"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_focal.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": {
+            "n1": 1,
+            "n2": 2,
+        },
+        "class_loss_func": "focal"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_focal2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 1,
+        "class_loss_func": "cross_entropy"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": {
+            "n1": 1,
+            "n2": 2,
+        },
+        "class_loss_func": "cross_entropy"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_fail2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
     # test eval metric and multi-label
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
@@ -768,6 +802,28 @@ def test_node_class_info():
         check_failure(config, "num_classes")
         check_failure(config, "eval_metric")
         check_failure(config, "class_loss_func")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_focal.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 1
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_focal2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert len(config.num_classes) == 2
+        assert config.num_classes["n1"] == 1
+        assert config.num_classes["n2"] == 2
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_fail.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
+        check_failure(config, "num_classes")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_fail2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
+        check_failure(config, "num_classes")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric1.yaml'), local_rank=0)
         config = GSConfig(args)

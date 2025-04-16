@@ -2201,14 +2201,14 @@ class GSConfig:
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
                 if num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                    logging.warning("Allowing num_classes=1 with %s is deprecated ",
+                    logging.warning("Allowing num_classes=1 with %s loss is deprecated "
                                     "and will be removed in future versions.", BUILTIN_CLASS_LOSS_FOCAL)
                 else:
                     assert num_classes > 1, \
                         "num_classes for classification tasks must be 2 or greater."
         else:
             if self._num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                logging.warning("Allowing num_classes=1 with %s is deprecated ",
+                logging.warning("Allowing num_classes=1 with %s loss is deprecated "
                                 "and will be removed in future versions.", BUILTIN_CLASS_LOSS_FOCAL)
             else:
                 assert self._num_classes > 1, \
