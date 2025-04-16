@@ -19,7 +19,7 @@ import tempfile
 import pytest
 import multiprocessing as mp
 import h5py
-
+import shutil
 import torch as th
 import numpy as np
 import dgl
@@ -44,6 +44,8 @@ from graphstorm.eval.utils import gen_mrr_score
 from graphstorm.utils import setup_device, get_graph_name
 
 from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5, read_data_hdf5
+
+from graphstorm.inference import wrap_model_artifacts
 
 from dgl import NTYPE
 
@@ -1237,36 +1239,73 @@ def test_get_graph_name():
         assert graph_name == 'dummy'
 
 
+def create_dummy_file(file_path):
+    """ Create an empty dummy file for testing
+    """
+    if os.path.exists(file_path):
+        return
+
+    with open(file_path, 'w') as f:
+        f.close()
+
+def test_wrap_model_artifacts():
+    """
+    """
+    # with tempfile.TemporaryDirectory() as tmpdirname:
+    tmpdirname = '/tmp/wrap_model_artifacts/'
+    os.makedirs(tmpdirname, exist_ok=True)
+    entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
+    model_path = os.path.join(tmpdirname, 'model.bin')
+    yaml_path = os.path.join(tmpdirname, 'test.yaml')
+    json_path = os.path.join(tmpdirname, 'test.json')
+
+    create_dummy_file(entry_path)
+    create_dummy_file(model_path)
+    create_dummy_file(yaml_path)
+    create_dummy_file(json_path)
+
+    output_path = '/tmp/output_folder/'
+    os.makedirs(output_path, exist_ok=True)
+    output_file = wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
+                                       wrap_name='model', output_path=output_path)
+    assert os.path.exists(os.path.join(output_file)
+
+    shutil.rmtree(tmpdirname)
+    shutil.rmtree(output_path)
+
+
 if __name__ == '__main__':
-    test_shuffle_nids_dist_part()
-    test_distribute_nid_map(backend='gloo', map_pattern='distdgl')
-    test_distribute_nid_map(backend='nccl', map_pattern='gconstruct')
-    test_shuffle_emb_with_shuffle_nids("distdgl")
-    test_shuffle_emb_with_shuffle_nids("gconstruct")
-    test_normalize_node_embs(10000)
-    test_full_node_embeddings()
+    # test_shuffle_nids_dist_part()
+    # test_distribute_nid_map(backend='gloo', map_pattern='distdgl')
+    # test_distribute_nid_map(backend='nccl', map_pattern='gconstruct')
+    # test_shuffle_emb_with_shuffle_nids("distdgl")
+    # test_shuffle_emb_with_shuffle_nids("gconstruct")
+    # test_normalize_node_embs(10000)
+    # test_full_node_embeddings()
 
-    test_shuffle_nids()
-    test_save_node_prediction_results()
-    test_save_edge_prediction_results()
-    test_save_shuffled_node_embeddings()
+    # test_shuffle_nids()
+    # test_save_node_prediction_results()
+    # test_save_edge_prediction_results()
+    # test_save_shuffled_node_embeddings()
 
-    test_shuffle_predict(num_embs=16, backend='gloo')
-    test_shuffle_predict(num_embs=17, backend='nccl')
+    # test_shuffle_predict(num_embs=16, backend='gloo')
+    # test_shuffle_predict(num_embs=17, backend='nccl')
 
-    test_get_data_range()
-    test_exchange_node_id_mapping(100, backend='gloo')
-    test_exchange_node_id_mapping(101, backend='nccl')
-    test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
-    test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
+    # test_get_data_range()
+    # test_exchange_node_id_mapping(100, backend='gloo')
+    # test_exchange_node_id_mapping(101, backend='nccl')
+    # test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
+    # test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
 
-    test_get_node_feat_size()
-    test_save_embeddings()
-    test_remove_saved_models()
-    test_topklist()
-    test_gen_mrr_score()
+    # test_get_node_feat_size()
+    # test_save_embeddings()
+    # test_remove_saved_models()
+    # test_topklist()
+    # test_gen_mrr_score()
 
-    test_stream_dist_tensors_to_hdf5()
-    test_prepare_for_wholegraph()
+    # test_stream_dist_tensors_to_hdf5()
+    # test_prepare_for_wholegraph()
 
-    test_get_graph_name()
+    # test_get_graph_name()
+
+    test_wrap_model_artifacts()
