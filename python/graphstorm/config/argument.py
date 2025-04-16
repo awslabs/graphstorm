@@ -2202,7 +2202,8 @@ class GSConfig:
             for num_classes in self._num_classes.values():
                 if num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
                     logging.warning("Allowing num_classes=1 with %s loss is deprecated "
-                                    "and will be removed in future versions.", BUILTIN_CLASS_LOSS_FOCAL)
+                                    "and will be removed in future versions.",
+                                    BUILTIN_CLASS_LOSS_FOCAL)
                 else:
                     assert num_classes > 1, \
                         "num_classes for classification tasks must be 2 or greater."
