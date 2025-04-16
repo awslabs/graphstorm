@@ -83,7 +83,6 @@ def get_metric_definitions(
     """
     base_metric_name = f"{eval_mask.lower()}_{metric_name.lower()}"
 
-
     if strategy == "Hyperband":
         # For Hyperband, capture intermediate metrics during training
         test_set_string = "Validation" if eval_mask.lower() == "val" else "Test"
@@ -326,7 +325,7 @@ def get_hpo_parser():
         choices=["Bayesian", "Random", "Hyperband", "Grid"],
         help="Optimization strategy. Default: 'Bayesian'.",
     )
-    # Add new Hyperband-specific arguments
+    # Hyperband-specific arguments
     hpo_group.add_argument(
         "--hb-min-epochs",
         type=int,
