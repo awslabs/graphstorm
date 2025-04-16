@@ -467,7 +467,7 @@ class BucketTransform(FeatTransform):
             if f <= min_val:
                 encoding[i][0] = 1.0
 
-        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
+        self.feat_dim = encoding.shape[1]
         return {self.feat_name: encoding}
 
 class CategoricalTransform(TwoPhaseFeatTransform):
@@ -875,6 +875,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
 
+        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
         feats = self.feat2numerical(feats)
         if validate_features():
             assert validate_numerical_feats(feats), \
@@ -910,7 +911,6 @@ class RankGaussTransform(GlobalProcessFeatTransform):
             feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
             feats = erfinv(feats)
 
-        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
         return self.as_out_dtype(feats)
 
 class Tokenizer(FeatTransform):

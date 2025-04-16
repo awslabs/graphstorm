@@ -32,7 +32,8 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              RankGaussTransform,
                                              CategoricalTransform,
                                              BucketTransform,
-                                             HardEdgeDstNegativeTransform)
+                                             HardEdgeDstNegativeTransform,
+                                             Tokenizer)
 from graphstorm.gconstruct.transform import (_check_label_stats_type,
                                              collect_label_stats,
                                              CustomLabelProcessor,
@@ -268,6 +269,7 @@ def test_fp_transform(input_dtype):
     assert_equal(np.array(transform_conf['min_val']),
                  np.array([-1.,-1.,-1.]))
     result = transform(feats)
+    assert transform.feat_dim == 3
     true_result = (feats - min_val) / (max_val - min_val)
     true_result[true_result > 1] = 1
     true_result[true_result < 0] = 0
@@ -290,6 +292,7 @@ def test_fp_transform(input_dtype):
     assert_equal(np.array(transform_conf['min_val']),
                  np.array([-1.,-1.,-1.]))
     result = transform(feats)
+    assert transform.feat_dim == 3
     true_result = (feats - min_val) / (max_val - min_val)
     true_result[true_result > 1] = 1
     true_result[true_result < 0] = 0
@@ -312,6 +315,7 @@ def test_fp_transform(input_dtype):
     assert_equal(np.array(transform_conf['min_val']),
                  min_val)
     result = transform(feats)
+    assert transform.feat_dim == 3
     true_result = (feats - min_val) / (max_val - min_val)
     true_result[true_result > 1] = 1
     true_result[true_result < 0] = 0
@@ -327,6 +331,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     transform._min_val = min_val
     feats = np.random.randn(100).astype(input_dtype)
     norm_feats = transform(feats)["test"]
+    assert transform.feat_dim == 1
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
     else:
@@ -357,7 +362,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     transform._min_val = min_val
     feats = np.random.randn(10, 3).astype(input_dtype)
     norm_feats = transform(feats)["test"]
-    assert transform.feat_dim == 1
+    assert transform.feat_dim == 3
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
     else:
@@ -605,6 +610,7 @@ def test_noop_str_vector():
     feats = np.array(["1;2;3", "4;5;6", "7;8;9"])
     vector_feats = transform(feats)
 
+    assert transform.feat_dim == 3
     expected_array = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
 
     assert_equal(vector_feats["test"], expected_array)
@@ -616,8 +622,10 @@ def test_rank_gauss_transform(input_dtype, out_dtype):
     transform = RankGaussTransform("test", "test", out_dtype=out_dtype, epsilon=eps)
     feat_0 = np.random.randn(100,2).astype(input_dtype)
     feat_trans_0 = transform(feat_0)['test']
+    assert transform.feat_dim == 2
     feat_1 = np.random.randn(100,2).astype(input_dtype)
     feat_trans_1 = transform(feat_1)['test']
+    assert transform.feat_dim == 2
     assert feat_trans_0.dtype == np.float32
     assert feat_trans_1.dtype == np.float32
     def rank_gauss(feat):
@@ -1007,6 +1015,7 @@ def test_bucket_transform(out_dtype):
                  bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
     feats = np.array([1, 11, 21, 31])
     bucket_feats = transform(feats)
+    assert transform.feat_dim == 2
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1021,6 +1030,7 @@ def test_bucket_transform(out_dtype):
     transform = BucketTransform("test", "test", 2,
                  bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
     bucket_feats = transform(feats)
+    assert transform.feat_dim == 2
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1035,6 +1045,7 @@ def test_bucket_transform(out_dtype):
                  bucket_range=bucket_range, slide_window_size=10, out_dtype=out_dtype)
     feats = np.array([1, 11, 21, 31])
     bucket_feats = transform(feats)
+    assert transform.feat_dim == 2
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1049,6 +1060,7 @@ def test_bucket_transform(out_dtype):
                                 bucket_range=bucket_range, out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
     bucket_feats = transform(feats)
+    assert transform.feat_dim == 2
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1064,6 +1076,7 @@ def test_bucket_transform(out_dtype):
                                 out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
     bucket_feats = transform(feats)
+    assert transform.feat_dim == 3
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1079,6 +1092,7 @@ def test_bucket_transform(out_dtype):
                                 out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
     bucket_feats = transform(feats)
+    assert transform.feat_dim == 2
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1141,9 +1155,11 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 20
 
     neg0 = hard_neg_trasnform(input_id_feats0)
+    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
     assert_equal(neg0["hard_neg"][:,:10], 99-input_feats0)
     assert_equal(neg0["hard_neg"][:,10:], np.full((20, 10), -1, dtype=np.int64))
     neg1 = hard_neg_trasnform(input_id_feats1)
+    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
     assert_equal(neg1["hard_neg"], 99-input_feats1)
 
     hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg", separator=",")
@@ -1168,11 +1184,13 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 20
 
     neg0 = hard_neg_trasnform(input_id_feats0)
+    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
     assert_equal(neg0["hard_neg"][:20,:10], 99-input_feats0)
     assert_equal(neg0["hard_neg"][:20,10:], np.full((20, 10), -1, dtype=np.int64))
     assert_equal(neg0["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
     assert_equal(neg0["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
     neg1 = hard_neg_trasnform(input_id_feats1)
+    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
     assert_equal(neg1["hard_neg"][:20], 99-input_feats1)
     assert_equal(neg1["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
     assert_equal(neg1["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
@@ -1192,6 +1210,7 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 10
 
     neg = hard_neg_trasnform(input_id_feats)
+    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
     assert_equal(neg["hard_neg"], 99-input_feats)
 
     hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg", separator=",")
@@ -1229,6 +1248,7 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 10
 
     neg = hard_neg_trasnform(input_id_feats)
+    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
     ground_truth = 99-input_feats
     ground_truth[0][-1] = -1
     ground_truth[1][-1] = -1
@@ -1337,11 +1357,13 @@ def test_standard_transform(input_dtype):
     summation = np.sum(feats0, keepdims=True)
     transform._summation = summation.reshape((-1,))
     out = transform(feats0)["test"]
+    assert transform.feat_dim == 1
     assert_almost_equal(out, feats0/summation)
 
     # given sum
     transform = NumericalStandardTransform("test", "test", 20.2)
     out = transform(feats0)["test"]
+    assert transform.feat_dim == 1
     assert_almost_equal(out, feats0/20.2)
 
 
@@ -1356,38 +1378,5 @@ def test_standard_transform(input_dtype):
     info = [summation, summation, summation]
     transform.update_info(info)
     out = transform(feats0)["test"]
+    assert transform.feat_dim == 1
     assert_almost_equal(out, feats0/summation/3)
-
-if __name__ == '__main__':
-    test_standard_pre_process(np.float32)
-    test_standard_transform(np.float32)
-    test_hard_edge_dst_negative_transform(str)
-    test_hard_edge_dst_negative_transform(np.int64)
-
-    test_categorize_transform()
-    test_get_output_dtype()
-    test_fp_transform(np.cfloat)
-    test_fp_transform(np.float32)
-    test_fp_min_max_bound(np.cfloat)
-    test_fp_min_max_bound(np.float32)
-    test_fp_min_max_bound(np.float16)
-    test_fp_min_max_transform(np.cfloat, None)
-    test_fp_min_max_transform(np.cfloat, np.float16)
-    test_fp_min_max_transform(np.float32, None)
-    test_fp_min_max_transform(np.float32, np.float16)
-    test_noop_transform(None)
-    test_noop_transform(np.float16)
-    test_noop_transform(np.float64)
-    test_noop_truncate()
-    test_bucket_transform(None)
-    test_bucket_transform(np.float16)
-
-    test_rank_gauss_transform(np.cfloat, None)
-    test_rank_gauss_transform(np.cfloat, np.float16)
-    test_rank_gauss_transform(np.float32, None)
-    test_rank_gauss_transform(np.float32, np.float16)
-
-    test_check_label_stats_type()
-    test_collect_label_stats()
-    test_custom_node_label_processor()
-    test_classification_processor()
