@@ -191,7 +191,9 @@ def run_hyperparameter_tuning_job(args, image, unknownargs):
 
     # Add strategy-specific parameters
     if args.strategy == "Hyperband":
-        # Hyperband should control max epochs and early stopping
+        # Hyperband must control max epochs and early stopping
+        # Set num-epochs of GraphStorm to hyperband max epoch
+        # Disable early-stop of GraphStorm
         params.update(
             {
                 "num-epochs": args.hb_max_epochs,
