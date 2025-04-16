@@ -467,7 +467,7 @@ class BucketTransform(FeatTransform):
             if f <= min_val:
                 encoding[i][0] = 1.0
 
-        self.feat_dim = feats.shape[1]
+        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
         return {self.feat_name: encoding}
 
 class CategoricalTransform(TwoPhaseFeatTransform):
@@ -710,7 +710,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
 
-        self.feat_dim = feats.shape[1]
+        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
         return {self.feat_name: feats}
 
 class NumericalStandardTransform(TwoPhaseFeatTransform):
@@ -831,7 +831,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
         feats = self.feat2numerical(feats)
         feats = feats / self._summation
 
-        self.feat_dim = feats.shape[1]
+        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
         return {self.feat_name: feats}
 
 class RankGaussTransform(GlobalProcessFeatTransform):
@@ -910,7 +910,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
             feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
             feats = erfinv(feats)
 
-        self.feat_dim = feats.shape[1]
+        self.feat_dim = feats.shape[1] if len(feats.shape) > 1 else 1
         return self.as_out_dtype(feats)
 
 class Tokenizer(FeatTransform):
