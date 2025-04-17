@@ -328,6 +328,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
                 if 'features' in process_conf else (None, [], {}, [])
         label_ops = parse_label_ops(process_conf, is_node=True) \
                 if 'labels' in process_conf else None
+        
         # If it requires multiprocessing, we need to read data to memory.
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
         multiprocessing = do_multiprocess_transform(process_conf,
