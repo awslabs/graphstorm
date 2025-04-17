@@ -29,7 +29,7 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     `model.bin`, the `**.yaml`, the `**.json` file, and the `code` sub-folder into a tar package
     with the name specified by the wrap_name argument, and save it to the `output_path`.
 
-    This function will check if given files exist. Non-existance will trigger an error raising.
+    This function will check if given files exist. Non-existance will raise an error.
     
     Parameters
     ----------
