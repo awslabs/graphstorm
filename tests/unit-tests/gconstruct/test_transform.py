@@ -17,8 +17,10 @@ import pytest
 import inspect
 
 import numpy as np
+import torch as th
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from scipy.special import erfinv
+from transformers import AutoTokenizer, AutoModel, AutoConfig
 
 from graphstorm.gconstruct.transform import (
     parse_feat_ops,
@@ -33,7 +35,8 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              CategoricalTransform,
                                              BucketTransform,
                                              HardEdgeDstNegativeTransform,
-                                             Tokenizer)
+                                             Tokenizer,
+                                             Text2BERT)
 from graphstorm.gconstruct.transform import (_check_label_stats_type,
                                              collect_label_stats,
                                              CustomLabelProcessor,
@@ -1366,7 +1369,6 @@ def test_standard_transform(input_dtype):
     assert transform.feat_dim == 1
     assert_almost_equal(out, feats0/20.2)
 
-
     # there are multiple columns of values
     feats0 = np.random.randn(100,3).astype(input_dtype)
     feats0 = feats0 + 1
@@ -1381,5 +1383,68 @@ def test_standard_transform(input_dtype):
     assert transform.feat_dim == 3
     assert_almost_equal(out, feats0/summation/3)
 
+
 def test_hf_tokenizer(bert_model="bert-base-uncased"):
-    transform = Tokenizer("test", "test", bert_model, max_seq_length=16)
+    max_seq_length = 16
+    transform = Tokenizer("test", "test", bert_model, max_seq_length=max_seq_length)
+    input_texts = "A Graph neural network (GNN) is a class of artificial neural networks for processing data that can be represented as graphs."
+    tokenizer_result = transform(input_texts)
+    assert transform.feat_dim == 768
+
+    # Expected token
+    tokens = []
+    att_mask_list = []
+    token_type_ids = []
+    for text in input_texts:
+        tokenizer = AutoTokenizer.from_pretrained(bert_model)
+        t = tokenizer(text, max_length=max_seq_length,
+                        truncation=True, padding='max_length', return_tensors='pt')
+        tokens.append(t['input_ids'])
+        att_mask_list.append(t['attention_mask'].to(th.int8))
+        token_type_ids.append(t.get('token_type_ids', th.zeros_like(t['input_ids'])).to(th.int8))
+    tokens = th.cat(tokens, dim=0).numpy()
+    att_mask_list = th.cat(att_mask_list, dim=0).numpy()
+    token_type_ids = th.cat(token_type_ids, dim=0).numpy()
+    assert_equal(tokenizer_result["input_ids"], tokens)
+    assert_equal(tokenizer_result["attention_mask"], att_mask_list)
+    assert_equal(tokenizer_result["token_type_ids"], token_type_ids)
+
+
+def test_hf_embedding(bert_model="bert-base-uncased"):
+    max_seq_length = 16
+    input_texts = "A Graph neural network (GNN) is a class of artificial neural networks for processing data that can be represented as graphs."
+    transform = Text2BERT("test", "test",
+              Tokenizer("test", "test", bert_model, max_seq_length),
+              bert_model)
+    hf_emb = transform(input_texts)['test']
+    assert transform.feat_dim == 768
+
+    # Tokenize the original text data for validation
+    tokenizer = Tokenizer("test", "test", bert_model, max_seq_length)
+    config = AutoConfig.from_pretrained(bert_model)
+    lm_model = AutoModel.from_pretrained(bert_model, config)
+    lm_model.eval()
+    lm_model = lm_model.to("cpu")
+
+    outputs = tokenizer(input_texts)
+    tokens_list = [th.tensor(outputs['input_ids'])]
+    att_masks_list = [th.tensor(outputs['attention_mask'])]
+    token_types_list = [th.tensor(outputs['token_type_ids'])]
+    with th.no_grad():
+        out_embs = []
+        for tokens, att_masks, token_types in zip(tokens_list, att_masks_list,
+                                                  token_types_list):
+            outputs = lm_model(tokens,
+                                attention_mask=att_masks.long(),
+                                token_type_ids=token_types.long())
+            out_embs.append(outputs.pooler_output.cpu().numpy())
+    if len(out_embs) > 1:
+        feats = np.concatenate(out_embs)
+    else:
+        feats = out_embs[0]
+
+    expected_output = feats
+    for idx, _ in enumerate(hf_emb):
+        np.testing.assert_almost_equal(
+            hf_emb[idx], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
+        )
