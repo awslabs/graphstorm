@@ -60,9 +60,9 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Package GraphStorm model artifacts.')
     parser.add_argument('--model-file-path', type=str, required=True,
-                        help='The file path of trained GraphStorm model. By default, ' + \
-                             'GraphStorm saves model parameters into a binary file, named ' + \
-                             '\'model.bin\' file.')
+                        help=('The file path of trained GraphStorm model. By default, '
+                             'GraphStorm saves model parameters into a binary file, named '
+                             '\'model.bin\' file.'))
     parser.add_argument('--model-config-yaml-path', type=str, required=True,
                         help='The file path of model configuration YAML file. By default, ' + \
                              'GraphStorm generates a new YAML file that stores all model ' + \
