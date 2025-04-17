@@ -76,7 +76,7 @@ def prepare_node_data(in_file, feat_ops, read_file):
 
     return feat_info
 
-def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_mem=None):
+def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_mem=None, conf=None):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -97,13 +97,16 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_me
         The function to read the node file
     ext_mem: str or None
         The path of external memory for multi-column feature
+    conf: dict or None
+        The configuration for parsing node data.
 
     Returns
     -------
     tuple : node ID array and a dict of node feature tensors.
     """
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops, ext_mem) if feat_ops is not None else {}
+    feat_data = process_features(data, feat_ops, ext_mem, conf["features"]) \
+        if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -184,7 +187,8 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
         # the in_file is empty
         return None
 
-    feat_data = process_features(data, feat_ops, ext_mem) if feat_ops is not None else {}
+    feat_data = process_features(data, feat_ops, ext_mem, conf["features"]) \
+        if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -339,7 +343,8 @@ def process_node_data(process_confs, arr_merger, remap_id,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
                               read_file=read_file,
-                              ext_mem=ext_mem_workspace)
+                              ext_mem=ext_mem_workspace,
+                              conf=process_conf)
 
         ext_mem_workspace_type = os.path.join(ext_mem_workspace, node_type) \
                 if ext_mem_workspace is not None else None
