@@ -21,6 +21,7 @@ import sys
 import argparse
 import math
 import logging
+import warnings
 
 import yaml
 import torch as th
@@ -195,6 +196,8 @@ class GSConfig:
             logging.basicConfig(level=log_level, force=True)
         else:
             logging.basicConfig(filename=log_file, level=log_level, force=True)
+        # enable DeprecationWarning
+        warnings.simplefilter('always', DeprecationWarning)
 
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
@@ -2201,16 +2204,19 @@ class GSConfig:
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
                 if num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                    logging.warning("Allowing num_classes=1 with %s loss is deprecated "
-                                    "and will be removed in future versions.",
-                                    BUILTIN_CLASS_LOSS_FOCAL)
+                    warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                                  "loss is deprecated and will be removed "
+                                  "in future versions.",
+                                  DeprecationWarning)
                 else:
                     assert num_classes > 1, \
                         "num_classes for classification tasks must be 2 or greater."
         else:
             if self._num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                logging.warning("Allowing num_classes=1 with %s loss is deprecated "
-                                "and will be removed in future versions.", BUILTIN_CLASS_LOSS_FOCAL)
+                warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                              "loss is deprecated and will be removed "
+                              "in future versions.",
+                              DeprecationWarning)
             else:
                 assert self._num_classes > 1, \
                     "num_classes for classification tasks must be 2 or greater."

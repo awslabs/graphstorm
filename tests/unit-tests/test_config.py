@@ -20,6 +20,7 @@ import json
 import yaml
 import math
 import tempfile
+import pytest
 from argparse import Namespace
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
@@ -805,15 +806,27 @@ def test_node_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_focal.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert config.num_classes == 1
-        assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
+        with pytest.warns(DeprecationWarning) as record:
+            assert config.num_classes == 1
+            assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
+
+        # Verify that the warning was raised
+        assert len(record) == 1
+        # Verify the warning message
+        assert "Allowing num_classes=1 with focal loss is deprecated" in str(record[0].message)
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_focal2.yaml'), local_rank=0)
         config = GSConfig(args)
         assert len(config.num_classes) == 2
-        assert config.num_classes["n1"] == 1
         assert config.num_classes["n2"] == 2
         assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
+        with pytest.warns(DeprecationWarning) as record:
+            assert config.num_classes["n1"] == 1
+
+        # Verify that the warning was raised
+        assert len(record) == 1
+        # Verify the warning message
+        assert "Allowing num_classes=1 with focal loss is deprecated" in str(record[0].message)
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_fail.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -891,6 +904,8 @@ def test_node_class_info():
         config = GSConfig(args)
         assert config.num_classes == 20
         check_failure(config, "imbalance_class_weights")
+
+test_node_class_info()
 
 def create_node_regress_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()

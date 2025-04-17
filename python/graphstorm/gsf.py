@@ -533,7 +533,7 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                 # For backward compatibility, we allow the num_classes to be 1.
                 # Users should set it to 2.
                 assert config.num_classes in [1, 2], (
-                    "Focal loss only works with binary classification."
+                    "Focal loss only works with binary classification. "
                     "num_classes should be set to 2."
                 )
                 # set default value of alpha to 0.25 for focal loss
@@ -574,7 +574,7 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                     # For backward compatibility, we allow the num_classes to be 1.
                     # Users should set it to 2.
                     assert config.num_classes[ntype] in [1, 2], (
-                        "Focal loss only works with binary classification." \
+                        "Focal loss only works with binary classification. "
                         f"num_classes of {ntype} should be set to 2."
                     )
                     # set default value of alpha to 0.25 for focal loss

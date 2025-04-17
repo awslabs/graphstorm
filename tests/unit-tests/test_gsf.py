@@ -13,7 +13,6 @@
     Unit tests for gsf.py
 """
 import pytest
-from numpy.testing import assert_raises
 
 from graphstorm.gsf import (get_edge_feat_size,
                             create_builtin_node_decoder,
@@ -154,7 +153,7 @@ def test_create_builtin_node_decoder():
             "decoder_bias": False
         }
     )
-    with assert_raises(AssertionError):
+    with pytest.raises(AssertionError):
         decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
 
     # node classification + cross entropy loss for multiple node types
@@ -291,7 +290,7 @@ def test_create_builtin_node_decoder():
             "decoder_bias": False,
         }
     )
-    with assert_raises(AssertionError):
+    with pytest.raises(AssertionError):
         decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
 
     # node regression
@@ -322,6 +321,8 @@ def test_create_builtin_node_decoder():
     assert isinstance(loss_func, ShrinkageLossFunc)
     assert loss_func.alpha == 10
     assert loss_func.gamma == 0.2
+
+test_create_builtin_node_decoder()
 
 def test_create_builtin_edge_decoder():
     g = None
