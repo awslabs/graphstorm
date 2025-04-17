@@ -1267,7 +1267,7 @@ def test_wrap_model_artifacts():
     output_path = '/tmp/output_folder/'
     os.makedirs(output_path, exist_ok=True)
     output_file = wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                       wrap_name='model', output_path=output_path)
+                                       output_package_name='model', output_path=output_path)
     assert os.path.exists(os.path.join(output_file))
 
     shutil.rmtree(tmpdirname)

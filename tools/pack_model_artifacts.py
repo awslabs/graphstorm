@@ -52,7 +52,7 @@ def main(args):
     output_file = wrap_model_artifacts(args.model_file_path,
                                         args.model_config_yaml_paath,
                                         args.graph_metadata_json_path,
-                                        path_to_entry, wrap_name='model',
+                                        path_to_entry, output_package_name='model',
                                         output_path=args.output_folder)
     print(f'Successfully pack GraphStorm model artifacts into {output_file}.')
 

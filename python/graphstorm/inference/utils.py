@@ -22,10 +22,12 @@ import tarfile
 
 
 def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entry,
-                         wrap_name='model', output_path=None):
+                         output_package_name='model', output_path=None):
     """ A utility function to zip model artifacts into a tar package
 
-    This function will put the entry point file into a sub-folder,named `code`, and then zip the
+    According to SageMaker's specification of the `Model Directory Structure
+    https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure`_,
+    this function will put the entry point file into a sub-folder,named `code`, and then zip the
     `model.bin`, the `**.yaml`, the `**.json` file, and the `code` sub-folder into a tar package
     with the name specified by the wrap_name argument, and save it to the `output_path`.
 
@@ -42,7 +44,7 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     path_to_entry: str
         The path of the entry point file for a specific task. The file will be put into a
         sub-folder, named 'code'.
-    wrap_name: str
+    output_package_name: str
         The name of the tar package. Default is `model`.
     output_path: str
         The folder where the output tar package will be saved. If not provided, will
@@ -82,7 +84,7 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     if output_path != os.path.dirname(path_to_json):
         shutil.copy(path_to_json, os.path.join(output_path, os.path.basename(path_to_json)))
 
-    output_file = os.path.join(output_path, wrap_name + '.tar.gz')
+    output_file = os.path.join(output_path, output_package_name + '.tar.gz')
     with tarfile.open(output_file, 'w:gz') as tar:
         tar.add(output_path, arcname=os.path.basename(output_path))
 
