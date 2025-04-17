@@ -73,7 +73,7 @@ if __name__ == '__main__':
                              'metadata during a graph construction.')
     parser.add_argument('--graphstorm-home-folder', type=str, required=True,
                         help='The home folder path of GraphStorm source code.')
-    parser.add_argument('--gml-task', type=str, choices=SUPPORTED_TASKS, required=True,
+    parser.add_argument('--gml-task-type', type=str, choices=SUPPORTED_TASKS, required=True,
                         help='The GML task that a GraphStorm model was trained for. Options ' + \
                              f'include {SUPPORTED_TASKS}.')
     parser.add_argument('--output-folder', type=str, required=True,
