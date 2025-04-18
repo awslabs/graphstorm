@@ -44,7 +44,7 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     path_to_entry: str
         The path of the entry point file for a specific task. The file will be put into a
         sub-folder, named 'code'.
-    output_package_name: str
+    output_tarfile_name: str
         The name of the tar package. Default is `model`.
     output_path: str
         The folder where the output tar package will be saved. If not provided, will
