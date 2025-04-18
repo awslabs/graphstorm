@@ -26,6 +26,11 @@ warnings.filterwarnings(
 warnings.filterwarnings(
     "ignore",
     category=UserWarning, module="torchdata.datapipes")
+warnings.filterwarnings(
+    "ignore",
+    message=".*torch.utils._pytree._register_pytree_node is deprecated.*",
+    category=UserWarning,
+    module="transformers.utils.generic")
 
 from . import gsf
 from . import utils

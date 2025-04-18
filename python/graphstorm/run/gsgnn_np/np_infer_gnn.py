@@ -60,19 +60,30 @@ def main(config_args):
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnNodePredictionInferrer(model)
     infer.setup_device(device=get_device())
-    if not config.no_validation:
-        infer_idxs = infer_data.get_node_test_set(config.target_ntype)
+    # If the user requested no evaluation, ensure there's no test mask
+    if config.no_validation:
+        infer_idxs = infer_data.get_node_infer_set(config.target_ntype)
+        assert len(infer_idxs) > 0, \
+            f"To do inference on '{config.target_ntype}' without doing evaluation, " \
+            "you should not define test_mask as a node feature. " \
+            "GraphStorm will do inference on the whole node set. "
+    else:
+        if config.infer_all_targets:
+            # Set the mask name to the empty string, this ensures
+            # the mask doesn't exist, and get_node_infer_set
+            # will return the entire node set
+            requested_mask = ""
+        else:
+            requested_mask = "test_mask"
+        infer_idxs = infer_data.get_node_infer_set(
+            config.target_ntype,
+            mask=requested_mask
+        )
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
         assert len(infer_idxs) > 0, \
             "There is not test data for evaluation. " \
             "You can use --no-validation true to avoid do testing"
-    else:
-        infer_idxs = infer_data.get_node_infer_set(config.target_ntype)
-        assert len(infer_idxs) > 0, \
-            f"To do inference on {config.target_ntype} without doing evaluation, " \
-            "you should not define test_mask as its node feature. " \
-            "GraphStorm will do inference on the whole node set. "
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
@@ -84,6 +95,7 @@ def main(config_args):
                                      label_field=config.label_field,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)
+    logging.info("Start inference for node type(s) '%s'", config.target_ntype)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,

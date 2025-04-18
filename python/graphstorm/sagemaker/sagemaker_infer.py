@@ -93,7 +93,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     elif task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
         cmd = "graphstorm.run.gs_node_classification"
     elif task_type == BUILTIN_TASK_NODE_REGRESSION:
-        cmd = "graphstorm.run.gs_node_classification"
+        cmd = "graphstorm.run.gs_node_regression"
     elif task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
         cmd = "graphstorm.run.gs_edge_classification"
     elif task_type == BUILTIN_TASK_EDGE_REGRESSION:
