@@ -191,6 +191,3 @@ def test_wrap_model_artifacts():
         with pytest.raises(AssertionError, match='graph metadata JSON file, .* got a folder'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                  output_path=output_path, output_tarfile_name='model')
-
-if __name__ == '__main__':
-    test_wrap_model_artifacts()
