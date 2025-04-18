@@ -22,7 +22,7 @@ import tarfile
 
 
 def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entry,
-                         output_package_name='model', output_path=None):
+                         output_tarfile_name='model', output_path=None):
     """ A utility function to zip model artifacts into a tar package
 
     According to SageMaker's specification of the `Model Directory Structure
@@ -84,7 +84,7 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     if output_path != os.path.dirname(path_to_json):
         shutil.copy(path_to_json, os.path.join(output_path, os.path.basename(path_to_json)))
 
-    output_file = os.path.join(output_path, output_package_name + '.tar.gz')
+    output_file = os.path.join(output_path, output_tarfile_name + '.tar.gz')
     with tarfile.open(output_file, 'w:gz') as tar:
         tar.add(output_path, arcname='')
 

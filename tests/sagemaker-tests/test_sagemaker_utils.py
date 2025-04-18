@@ -48,20 +48,19 @@ def test_wrap_model_artifacts():
         output_path = os.path.join(tmpdirname, 'output_folder')
         os.makedirs(output_path, exist_ok=True)
         output_file = wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model', output_path=output_path)
+                                        output_tarfile_name='model', output_path=output_path)
         assert os.path.exists(output_file)
     
-        tar_object = tarfile.open(output_file)
-        contents = tar_object.getmembers()
-        results = {content.name: content.isfile() for content in contents}
+        with tarfile.open(output_file) as tar_object:
+            contents = tar_object.getmembers()
+            results = {content.name: content.isfile() for content in contents}
 
-        assert 'code' in results        
-        assert 'code/nc_infer_entry.py' in results and \
-               results['code/nc_infer_entry.py'] == True
-        assert 'model.bin' in results and results['model.bin'] == True
-        assert 'test.yaml' in results and results['test.yaml'] == True
-        assert 'test.json' in results and results['test.json'] == True
-        tar_object.close()
+            assert 'code' in results        
+            assert 'code/nc_infer_entry.py' in results and \
+                results['code/nc_infer_entry.py'] == True
+            assert 'model.bin' in results and results['model.bin'] == True
+            assert 'test.yaml' in results and results['test.yaml'] == True
+            assert 'test.json' in results and results['test.json'] == True
 
     # test case 2: abnormal cases
     #     2.1: missing one of the four files
@@ -81,7 +80,7 @@ def test_wrap_model_artifacts():
         create_dummy_file(json_path)
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model', output_path=output_path)
+                                        output_tarfile_name='model', output_path=output_path)
 
         os.remove(model_path)
         create_dummy_file(entry_path)
@@ -90,7 +89,7 @@ def test_wrap_model_artifacts():
         create_dummy_file(json_path)
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model', output_path=output_path)
+                                        output_tarfile_name='model', output_path=output_path)
 
         os.remove(yaml_path)
         create_dummy_file(entry_path)
@@ -99,7 +98,7 @@ def test_wrap_model_artifacts():
         create_dummy_file(json_path)
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model', output_path=output_path)
+                                        output_tarfile_name='model', output_path=output_path)
 
         os.remove(json_path)
         create_dummy_file(entry_path)
@@ -108,7 +107,7 @@ def test_wrap_model_artifacts():
         # not create the test.json file.
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model', output_path=output_path)
+                                        output_tarfile_name='model', output_path=output_path)
 
     #     2.2: missing output folder
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -125,7 +124,7 @@ def test_wrap_model_artifacts():
 
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model')
+                                        output_tarfile_name='model')
 
     #     2.3: given folders instead of files
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -143,7 +142,7 @@ def test_wrap_model_artifacts():
 
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model')
+                                        output_tarfile_name='model')
 
         create_dummy_file(entry_path)
         # create a model file as a folder
@@ -154,7 +153,7 @@ def test_wrap_model_artifacts():
 
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model')
+                                        output_tarfile_name='model')
 
         create_dummy_file(entry_path)
         create_dummy_file(model_path)
@@ -165,7 +164,7 @@ def test_wrap_model_artifacts():
 
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model')
+                                        output_tarfile_name='model')
 
         create_dummy_file(entry_path)
         create_dummy_file(model_path)
@@ -176,4 +175,7 @@ def test_wrap_model_artifacts():
 
         with assert_raises(AssertionError):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
-                                        output_package_name='model')
+                                        output_tarfile_name='model')
+
+if __name__ == '__main__':
+    test_wrap_model_artifacts()
