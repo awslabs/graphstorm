@@ -86,6 +86,6 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
 
     output_file = os.path.join(output_path, output_package_name + '.tar.gz')
     with tarfile.open(output_file, 'w:gz') as tar:
-        tar.add(output_path, arcname=os.path.basename(output_path))
+        tar.add(output_path, arcname='')
 
     return output_file
