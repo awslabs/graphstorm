@@ -46,8 +46,6 @@ from graphstorm.utils import setup_device, get_graph_name
 
 from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5, read_data_hdf5
 
-from graphstorm.inference import wrap_model_artifacts
-
 from dgl import NTYPE
 
 def gen_embedding_with_nid_mapping(num_embs):
