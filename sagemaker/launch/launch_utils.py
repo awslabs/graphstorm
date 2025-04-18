@@ -22,7 +22,7 @@ import tarfile
 
 
 def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entry,
-                         output_tarfile_name='model', output_path=None):
+                         output_path, output_tarfile_name='model'):
     """ A utility function to zip model artifacts into a tar package
 
     According to SageMaker's specification of the `Model Directory Structure
@@ -44,11 +44,11 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     path_to_entry: str
         The path of the entry point file for a specific task. The file will be put into a
         sub-folder, named 'code'.
-    output_tarfile_name: str
-        The name of the tar package. Default is `model`.
     output_path: str
         The folder where the output tar package will be saved. If not provided, will
-        raise an error. Default is None, meaning not provided.
+        raise an error.
+    output_tarfile_name: str
+        The name of the tar package. Default is `model`.
 
     """
     # check if files exist
@@ -69,7 +69,6 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
                                            should be a file path, but got a folder.'
 
     # create the output folder if not exist.
-    assert output_path is not None, 'Output path is not provided.'
     assert os.path.isdir(output_path), 'Output path should be a folder name, but got a ' + \
                                        f'file {output_path}.'
     os.makedirs(output_path, exist_ok=True)
