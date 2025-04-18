@@ -24,6 +24,7 @@ import json
 import argparse
 import gc
 import logging
+from typing import Dict, List, Tuple, Callable
 
 import numpy as np
 import torch as th
@@ -143,6 +144,53 @@ def prepare_edge_data(in_file, feat_ops, read_file):
 
     return feat_info
 
+def parse_edge_nid_data(in_file: str,
+                        parse_src: bool,
+                        parse_dst: bool,
+                        conf: Dict,
+                        read_file: Callable) -> Tuple:
+    """ Parse edge data to get node ids.
+
+    Parameters
+    ----------
+    in_file : str
+        The path of the input edge file.
+    parse_src: bool
+        Whether to collect source node ids.
+    parse_dst: bool
+        Whether to collect destination node ids.
+    conf: dict
+        The configuration for parsing edge data.
+    read_file: callable
+        The function to read the node file.
+
+    Returns
+    -------
+    a tuple : source ID vector, destination ID vector.
+    """
+    src_id_col = conf['source_id_col'] if 'source_id_col' in conf else None
+    dst_id_col = conf['dest_id_col'] if 'dest_id_col' in conf else None
+
+    if src_id_col is None and dst_id_col is None:
+        # Both src_id_col and dst_id_col is None
+        # The edge files are used to store edge features
+        # Skip processing it.
+        return None
+
+    assert (src_id_col is not None) and (dst_id_col is not None), \
+        f"{in_file} should either have both source_id_col and dest_id_col" \
+        "or have none."
+
+    data = read_file(in_file)
+    if data is None:
+        # the in_file is empty
+        return (None, None)
+
+    src_ids = data[src_id_col] if parse_src else None
+    dst_ids = data[dst_id_col] if parse_dst else None
+
+    return (src_ids, dst_ids)
+
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                     conf, skip_nonexist_edges, ext_mem=None):
     """ Parse edge data.
@@ -253,6 +301,196 @@ def _process_data(user_pre_parser, user_parser,
                     task_info, dur)
     return return_dict
 
+def process_featless_ntype(node_confs: List[Dict],
+                           edge_confs: List[Dict],
+                           remap_id: bool,
+                           num_processes: int=1) -> Dict:
+    """ Handle the cases when users do not provide node files for
+        feature less node type(s),
+
+    The node config of a node type is defined as follows:
+    {
+        "node_id_col":  "<column name>",
+        "node_type":    "<node type>",
+        ...
+    }
+    The edge config of an edge type is defined as follows:
+    {
+        "source_id_col":    "<column name>",
+        "dest_id_col":      "<column name>",
+        "relation":         "<src type, relation type, dest type>",
+        ...
+    }
+
+    By checking the node_types from node configs and relations from
+    edge configs we can get the node type(s) that are missing from
+    node configs.
+
+    Parameters
+    ----------
+    node_confs: list of dicts
+        The configurations of node data.
+    edge_confs: list of dicts
+        The configurations of edge data.
+    remap_id: bool
+        Whether or not to remap node IDs
+    num_processes: int
+        The number of processes to process the input files.
+
+    Return
+    ------
+    node_id_map: dict
+        Node ID map.
+    """
+    node_types = set()
+    node_ids = {}
+    node_id_map = {}
+    for node_conf in node_confs:
+        # each iteration is to process a node type.
+        assert 'node_type' in node_conf, \
+                "'node_type' must be defined for a node type"
+        node_type = node_conf['node_type']
+
+    for edge_conf in edge_confs:
+        assert 'relation' in edge_conf, \
+            "'relation' is not defined for an edge type."
+        edge_type = edge_conf['relation']
+        assert 'files' in edge_conf, \
+                "'files' is not defined for an edge type."
+        in_files = get_in_files(edge_conf['files'])
+        assert 'format' in edge_conf, \
+                "'format' is not defined for an edge type."
+
+        src_ntype = edge_type[0]
+        dst_ntype = edge_type[2]
+
+        multiprocessing = do_multiprocess_transform(edge_conf,
+                                                    feat_ops=None,
+                                                    label_ops=None,
+                                                    in_files=in_files)
+        # If it requires multiprocessing, we need to read data to memory.
+        read_file = parse_edge_file_format(edge_conf, in_mem=multiprocessing)
+        num_proc = num_processes if multiprocessing else 0
+
+        if src_ntype not in node_types and dst_ntype not in node_types:
+            # Both src and dst node types do not appear in node_confs
+            logging.info("Both source and destination nodes"
+                         "from <%s> edges do not have node files."
+                         "Will create node id mapping from edges.",
+                         edge_type)
+
+            user_parser = partial(parse_edge_nid_data,
+                                  parse_src=True,
+                                  parse_dst=True,
+                                  conf=edge_conf,
+                                  read_file=read_file)
+
+            return_dict = _process_data(user_pre_parser=None,
+                          user_parser=user_parser,
+                          two_phase_feat_ops=[],
+                          in_files=in_files,
+                          num_proc=num_proc,
+                          task_info=f"edge {edge_type}")
+            src_nids = []
+            dst_nids = []
+            for i, (src_node_ids, dst_node_ids) in return_dict.items():
+                src_nids.append(src_node_ids)
+                dst_nids.append(dst_node_ids)
+
+            src_nids = np.concatenate(src_node_ids)
+            dst_nids = np.concatenate(dst_node_ids)
+            src_nids = np.unique(src_nids)
+            dst_nids = np.unique(dst_nids)
+
+            if src_ntype not in node_ids:
+                node_ids[src_ntype] = src_nids
+            else:
+                node_ids[src_ntype].append(src_nids)
+            if dst_ntype not in node_ids:
+                node_ids[dst_ntype] = dst_nids
+            else:
+                node_ids[dst_ntype].append(dst_nids)
+        elif src_ntype not in node_types:
+            # only src_ntype do not appear in node_confs
+            logging.info("Source nodes from <%s> edges do not have node files."
+                         "Will create node id mapping from edges.",
+                         edge_type)
+            user_parser = partial(parse_edge_nid_data,
+                                  parse_src=True,
+                                  parse_dst=False,
+                                  conf=edge_conf,
+                                  read_file=read_file)
+
+            return_dict = _process_data(user_pre_parser=None,
+                          user_parser=user_parser,
+                          two_phase_feat_ops=[],
+                          in_files=in_files,
+                          num_proc=num_proc,
+                          task_info=f"edge {edge_type}")
+
+            src_nids = []
+            for i, (src_node_ids, _) in return_dict.items():
+                src_nids.append(src_node_ids)
+            src_nids = np.concatenate(src_node_ids)
+            src_nids = np.unique(src_nids)
+
+            if src_ntype not in node_ids:
+                node_ids[src_ntype] = src_nids
+            else:
+                node_ids[src_ntype].append(src_nids)
+        elif dst_ntype not in node_types:
+            # only dst_ntype do not appear in node_confs
+            logging.info("Destination nodes from <%s> edges do not have node files."
+                         "Will create node id mapping from edges.",
+                         edge_type)
+            user_parser = partial(parse_edge_nid_data,
+                                  parse_src=True,
+                                  parse_dst=False,
+                                  conf=edge_conf,
+                                  read_file=read_file)
+
+            return_dict = _process_data(user_pre_parser=None,
+                          user_parser=user_parser,
+                          two_phase_feat_ops=[],
+                          in_files=in_files,
+                          num_proc=num_proc,
+                          task_info=f"edge {edge_type}")
+            dst_nids = []
+            for i, (_, dst_node_ids) in return_dict.items():
+                dst_nids.append(dst_node_ids)
+            dst_nids = np.concatenate(dst_node_ids)
+            dst_nids = np.unique(dst_nids)
+
+            if dst_ntype not in node_ids:
+                node_ids[dst_ntype] = dst_nids
+            else:
+                node_ids[dst_ntype].append(dst_nids)
+
+        else:
+            logging.debug("Both source and destination nodes"
+                          "from <%s> edges have corresponding node files.",
+                          edge_type)
+
+    for ntype, nids in node_ids.itmes():
+        nids = np.concatenate(nids)
+        nids = np.unique(nids)
+
+        # We don't need to create ID map if the node IDs are integers,
+        # all node Ids are in sequence start from 0 and
+        # the user doesn't force to remap node IDs.
+        if np.issubdtype(nids.dtype, np.integer):
+            np.sort(nids)
+            if np.all(nids == np.arange(len(nids))) and not remap_id:
+                type_node_id_map = NoopMap(len(nids))
+            else:
+                type_node_id_map = IdMap(nids)
+                sys_tracker.check(f'Create node ID map of {node_type}')
+        else:
+            type_node_id_map = IdMap(nids)
+            sys_tracker.check(f'Create node ID map of {node_type}')
+        node_id_map[node_type] = type_node_id_map
+
+    return node_id_map
 
 def process_node_data(process_confs, arr_merger, remap_id,
                       ext_mem_workspace=None, num_processes=1):
@@ -821,6 +1059,14 @@ def process_graph(args):
     ext_mem_workspace = args.ext_mem_workspace \
         if len(output_format) == 1 and output_format[0] == "DistDGL" else None
     convert2ext_mem = ExtMemArrayMerger(ext_mem_workspace, args.ext_mem_feat_size)
+
+    # For feature less node type(s),
+    # users may not provide node files.
+    raw_node_id_maps = \
+        process_featless_ntype(process_confs['nodes'],
+                               process_confs['edges'],
+                               args.remap_node_id,
+                               num_processes=num_processes_for_nodes)
 
     raw_node_id_maps, node_data, node_label_stats, node_label_masks = \
         process_node_data(process_confs['nodes'], convert2ext_mem,
