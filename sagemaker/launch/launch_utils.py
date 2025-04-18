@@ -53,20 +53,20 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     """
     # check if files exist
     assert os.path.exists(path_to_model), f'The model file, {path_to_model}, does not exist.'
-    assert os.path.isfile(path_to_model), f'The {path_to_model} should be a file path, \
-                                            but got a folder.'
+    assert os.path.isfile(path_to_model), f'The model file, {path_to_model}, should be a file \
+                                            path, but got a folder.'
     assert os.path.exists(path_to_yaml), f'The model configuration YAML file, {path_to_yaml}, \
                                            does not exist.'
-    assert os.path.isfile(path_to_yaml), f'The {path_to_yaml} should be a file path, \
-                                           but got a folder.'
+    assert os.path.isfile(path_to_yaml), f'The model configuration YAML file, {path_to_yaml}, \
+                                           should be a file path, but got a folder.'
     assert os.path.exists(path_to_json), f'The graph metadata JSON file, {path_to_json}, does \
                                            not exist.'
-    assert os.path.isfile(path_to_json), f'The {path_to_json} should be a file path, \
-                                           but got a folder.'
+    assert os.path.isfile(path_to_json), f'The graph metadata JSON file, {path_to_json}, should \
+                                           be a file path, but got a folder.'
     assert os.path.exists(path_to_entry), f'The SageMaker entry point file, {path_to_entry}, does \
                                            not exist.'
-    assert os.path.isfile(path_to_entry), f'The {path_to_entry} should be a file path, \
-                                            but got a folder.'
+    assert os.path.isfile(path_to_entry), f'The SageMaker entry point file, {path_to_entry}, \
+                                           should be a file path, but got a folder.'
 
     # create the output folder if not exist.
     assert output_path is not None, 'Output path is not provided.'

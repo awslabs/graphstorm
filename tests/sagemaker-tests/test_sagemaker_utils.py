@@ -16,8 +16,8 @@
 import os
 import tempfile
 import tarfile
+import pytest
 from launch_utils import wrap_model_artifacts
-from numpy.testing import assert_raises
 
 
 def create_dummy_file(file_path):
@@ -34,7 +34,6 @@ def test_wrap_model_artifacts():
     """
     # test case 1: normal case, everything is given and the tar file created.
     with tempfile.TemporaryDirectory() as tmpdirname:
-        os.makedirs(tmpdirname, exist_ok=True)
         entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
         model_path = os.path.join(tmpdirname, 'model.bin')
         yaml_path = os.path.join(tmpdirname, 'test.yaml')
@@ -65,7 +64,6 @@ def test_wrap_model_artifacts():
     # test case 2: abnormal cases
     #     2.1: missing one of the four files
     with tempfile.TemporaryDirectory() as tmpdirname:
-        os.makedirs(tmpdirname, exist_ok=True)
         entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
         model_path = os.path.join(tmpdirname, 'model.bin')
         yaml_path = os.path.join(tmpdirname, 'test.yaml')
@@ -78,7 +76,7 @@ def test_wrap_model_artifacts():
         create_dummy_file(model_path)
         create_dummy_file(yaml_path)
         create_dummy_file(json_path)
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='SageMaker entry point .* not exist'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model', output_path=output_path)
 
@@ -87,7 +85,7 @@ def test_wrap_model_artifacts():
         # not create the model.bin file.
         create_dummy_file(yaml_path)
         create_dummy_file(json_path)
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='model file, .* not exist'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model', output_path=output_path)
 
@@ -96,7 +94,7 @@ def test_wrap_model_artifacts():
         create_dummy_file(model_path)
         # not create the test.yaml file.
         create_dummy_file(json_path)
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='YAML .* not exist'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model', output_path=output_path)
 
@@ -105,13 +103,12 @@ def test_wrap_model_artifacts():
         create_dummy_file(model_path)
         create_dummy_file(yaml_path)
         # not create the test.json file.
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='JSON .* not exist'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model', output_path=output_path)
 
     #     2.2: missing output folder
     with tempfile.TemporaryDirectory() as tmpdirname:
-        os.makedirs(tmpdirname, exist_ok=True)
         entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
         model_path = os.path.join(tmpdirname, 'model.bin')
         yaml_path = os.path.join(tmpdirname, 'test.yaml')
@@ -121,14 +118,30 @@ def test_wrap_model_artifacts():
         create_dummy_file(model_path)
         create_dummy_file(yaml_path)
         create_dummy_file(json_path)
-
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='Output path .* not provided.'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model')
 
-    #     2.3: given folders instead of files
+    #     2.3: output is not a folder
     with tempfile.TemporaryDirectory() as tmpdirname:
-        os.makedirs(tmpdirname, exist_ok=True)
+        entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
+        model_path = os.path.join(tmpdirname, 'model.bin')
+        yaml_path = os.path.join(tmpdirname, 'test.yaml')
+        json_path = os.path.join(tmpdirname, 'test.json')
+
+        create_dummy_file(entry_path)
+        create_dummy_file(model_path)
+        create_dummy_file(yaml_path)
+        create_dummy_file(json_path)
+        output_path = os.path.join(tmpdirname, 'output_folder')
+        create_dummy_file(output_path)        
+        with pytest.raises(AssertionError, match='Output path should be a folder name, but got'):
+            wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
+                                        output_tarfile_name='model', output_path=output_path)
+    
+
+    #     2.4: given folders instead of files
+    with tempfile.TemporaryDirectory() as tmpdirname:
         entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
         model_path = os.path.join(tmpdirname, 'model.bin')
         yaml_path = os.path.join(tmpdirname, 'test.yaml')
@@ -139,10 +152,10 @@ def test_wrap_model_artifacts():
         create_dummy_file(model_path)
         create_dummy_file(yaml_path)
         create_dummy_file(json_path)
-
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='SageMaker entry point file, .* got a folder'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model')
+        os.rmdir(entry_path)
 
         create_dummy_file(entry_path)
         # create a model file as a folder
@@ -150,10 +163,10 @@ def test_wrap_model_artifacts():
         os.makedirs(model_path)
         create_dummy_file(yaml_path)
         create_dummy_file(json_path)
-
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='model file, .* got a folder'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model')
+        os.rmdir(model_path)
 
         create_dummy_file(entry_path)
         create_dummy_file(model_path)
@@ -161,10 +174,10 @@ def test_wrap_model_artifacts():
         os.remove(yaml_path)
         os.makedirs(yaml_path)
         create_dummy_file(json_path)
-
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='model configuration YAML file, .* got a folder'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model')
+        os.rmdir(yaml_path)
 
         create_dummy_file(entry_path)
         create_dummy_file(model_path)
@@ -172,8 +185,7 @@ def test_wrap_model_artifacts():
         # create a json file as a folder
         os.remove(json_path)
         os.makedirs(json_path)
-
-        with assert_raises(AssertionError):
+        with pytest.raises(AssertionError, match='graph metadata JSON file, .* got a folder'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                         output_tarfile_name='model')
 
