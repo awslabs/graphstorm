@@ -949,10 +949,14 @@ def verify_confs(confs):
         assert len(etype) == 3, \
                 "The edge type must be (source node type, relation type, dest node type)."
         src_type, _, dst_type = etype
-        assert src_type in ntypes, \
-                f"source node type {src_type} does not exist. Please check your input data."
-        assert dst_type in ntypes, \
-                f"dest node type {dst_type} does not exist. Please check your input data."
+        if src_type not in ntypes:
+            logging.warning("source node type %s does not have corresponding node files. "
+                            "Will treat it as a feature less node type",
+                            src_type)
+        if dst_type not in ntypes:
+            logging.warning("dest node type %s does not have corresponding node files. "
+                            "Will treat it as a feature less node type",
+                            dst_type)
     # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
     if is_homogeneous(confs):
         logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
