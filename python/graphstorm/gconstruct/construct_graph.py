@@ -184,7 +184,7 @@ def parse_edge_nid_data(in_file: str,
     data = read_file(in_file)
     if data is None:
         # the in_file is empty
-        return (None, None)
+        return None
 
     src_ids = data[src_id_col] if parse_src else None
     dst_ids = data[dst_id_col] if parse_dst else None
@@ -393,25 +393,31 @@ def process_featless_ntype(node_confs: List[Dict],
                           num_proc=num_proc,
                           task_info=f"edge {edge_type}",
                           ext_mem_workspace=None)
+
             src_nids = []
             dst_nids = []
-            for i, (src_node_ids, dst_node_ids) in return_dict.items():
+            for i, return_data in return_dict.items():
+                if return_data is None:
+                    continue
+                (src_node_ids, dst_node_ids) = return_data
                 src_nids.append(src_node_ids)
                 dst_nids.append(dst_node_ids)
 
-            src_nids = np.concatenate(src_nids)
-            dst_nids = np.concatenate(dst_nids)
-            src_nids = np.unique(src_nids)
-            dst_nids = np.unique(dst_nids)
+            if len(src_nids) > 0:
+                src_nids = np.concatenate(src_nids)
+                src_nids = np.unique(src_nids)
+                if src_ntype not in node_ids:
+                    node_ids[src_ntype] = [src_nids]
+                else:
+                    node_ids[src_ntype].append(src_nids)
 
-            if src_ntype not in node_ids:
-                node_ids[src_ntype] = [src_nids]
-            else:
-                node_ids[src_ntype].append(src_nids)
-            if dst_ntype not in node_ids:
-                node_ids[dst_ntype] = [dst_nids]
-            else:
-                node_ids[dst_ntype].append(dst_nids)
+            if len(dst_nids) > 0:
+                dst_nids = np.concatenate(dst_nids)
+                dst_nids = np.unique(dst_nids)
+                if dst_ntype not in node_ids:
+                    node_ids[dst_ntype] = [dst_nids]
+                else:
+                    node_ids[dst_ntype].append(dst_nids)
         elif src_ntype not in node_types:
             # only src_ntype do not appear in node_confs
             logging.info("Source nodes from <%s> edges do not have node files."
@@ -432,23 +438,27 @@ def process_featless_ntype(node_confs: List[Dict],
                           ext_mem_workspace=None)
 
             src_nids = []
-            for i, (src_node_ids, _) in return_dict.items():
+            for i, return_data in return_dict.items():
+                if return_data is None:
+                    continue
+                src_node_ids, _ = return_data
                 src_nids.append(src_node_ids)
-            src_nids = np.concatenate(src_nids)
-            src_nids = np.unique(src_nids)
 
-            if src_ntype not in node_ids:
-                node_ids[src_ntype] = src_nids
-            else:
-                node_ids[src_ntype].append(src_nids)
+            if len(src_nids) > 0:
+                src_nids = np.concatenate(src_nids)
+                src_nids = np.unique(src_nids)
+                if src_ntype not in node_ids:
+                    node_ids[src_ntype] = [src_nids]
+                else:
+                    node_ids[src_ntype].append(src_nids)
         elif dst_ntype not in node_types:
             # only dst_ntype do not appear in node_confs
             logging.info("Destination nodes from <%s> edges do not have node files."
                          "Will create node id mapping from edges.",
                          edge_type)
             user_parser = partial(parse_edge_nid_data,
-                                  parse_src=True,
-                                  parse_dst=False,
+                                  parse_src=False,
+                                  parse_dst=True,
                                   conf=edge_conf,
                                   read_file=read_file)
 
@@ -460,15 +470,19 @@ def process_featless_ntype(node_confs: List[Dict],
                           task_info=f"edge {edge_type}",
                           ext_mem_workspace=None)
             dst_nids = []
-            for i, (_, dst_node_ids) in return_dict.items():
+            for i, return_data in return_dict.items():
+                if return_data is None:
+                    continue
+                _, dst_node_ids = return_data
                 dst_nids.append(dst_node_ids)
-            dst_nids = np.concatenate(dst_nids)
-            dst_nids = np.unique(dst_nids)
 
-            if dst_ntype not in node_ids:
-                node_ids[dst_ntype] = dst_nids
-            else:
-                node_ids[dst_ntype].append(dst_nids)
+            if len(dst_nids) > 0:
+                dst_nids = np.concatenate(dst_nids)
+                dst_nids = np.unique(dst_nids)
+                if dst_ntype not in node_ids:
+                    node_ids[dst_ntype] = [dst_nids]
+                else:
+                    node_ids[dst_ntype].append(dst_nids)
         else:
             logging.debug("Both source and destination nodes"
                           "from <%s> edges have corresponding node files.",
