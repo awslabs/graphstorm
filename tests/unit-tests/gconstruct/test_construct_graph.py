@@ -30,6 +30,7 @@ from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.construct_graph import (parse_edge_data,
                                                    prepare_edge_data,
+                                                   process_featless_ntype,
                                                    verify_confs,
                                                    is_homogeneous,
                                                    _collect_parsed_edge_data)
@@ -41,7 +42,7 @@ from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
-from graphstorm.gconstruct.id_map import IdMap, IdReverseMap, map_node_ids
+from graphstorm.gconstruct.id_map import IdMap, IdReverseMap, map_node_ids, NoopMap
 from graphstorm.gconstruct.transform import (BucketTransform, RankGaussTransform,
                                              Text2BERT, NumericalMinMaxTransform)
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
@@ -2725,3 +2726,139 @@ def test_collect_parsed_edge_data():
 
     test_two_none(0, 4)
     test_two_none(4, 10)
+
+def create_featless_data(graph_dir):
+    edge_dir = os.path.join(graph_dir, "edges")
+    os.mkdir(edge_dir)
+
+    data0 = {
+        "src": np.random.randint(0, 5, size=10),
+        "dst": np.random.randint(0, 5, size=10),
+    }
+
+    data1 = {
+        "src": np.random.randint(6, 30, size=10),
+        "dst": np.random.randint(6, 30, size=10),
+    }
+
+    data2 = {
+        "src": np.random.randint(0, 10, size=20),
+        "dst": np.random.randint(20, 40, size=20),
+    }
+
+    data3 = {
+        "src": np.arange(20),
+        "dst": np.arange(20),
+    }
+
+    os.mkdir(os.path.join(edge_dir, "r0"))
+    os.mkdir(os.path.join(edge_dir, "r1"))
+    os.mkdir(os.path.join(edge_dir, "r2"))
+    write_data_csv(data0, os.path.join(os.path.join(edge_dir, "r0"), 'data0.csv'))
+    write_data_csv(data1, os.path.join(os.path.join(edge_dir, "r0"), 'data1.csv'))
+    write_data_csv(data2, os.path.join(os.path.join(edge_dir, "r1"), 'data0.csv'))
+    write_data_csv(data3, os.path.join(os.path.join(edge_dir, "r2"), 'data0.csv'))
+
+    data0_str = {
+        "src": data0["src"].astype(str),
+        "dst": data0["dst"].astype(str),
+    }
+    data1_str = {
+        "src": data1["src"].astype(str),
+        "dst": data1["dst"].astype(str),
+    }
+    data2_str = {
+        "src": data2["src"].astype(str),
+        "dst": data2["dst"].astype(str),
+    }
+    data3_str = {
+        "src": data3["src"].astype(str),
+        "dst": data3["dst"].astype(str),
+    }
+
+    os.mkdir(os.path.join(edge_dir, "r0_str"))
+    os.mkdir(os.path.join(edge_dir, "r1_str"))
+    os.mkdir(os.path.join(edge_dir, "r2_str"))
+    write_data_parquet(data0_str, os.path.join(os.path.join(edge_dir, "r0_str"), 'data0.parquet'))
+    write_data_parquet(data1_str, os.path.join(os.path.join(edge_dir, "r0_str"), 'data1.parquet'))
+    write_data_parquet(data2_str, os.path.join(os.path.join(edge_dir, "r1_str"), 'data0.parquet'))
+    write_data_parquet(data3_str, os.path.join(os.path.join(edge_dir, "r2_str"), 'data0.parquet'))
+
+    return data0, data1, data2, data3, edge_dir
+
+
+def test_process_featless_ntype():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data0, data1, data2, data3, edge_dir = create_featless_data(tmpdirname)
+        node_confs = [
+        ]
+
+        edge_confs = [
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n1","r0","n2"],
+                "files": os.path.join(edge_dir, "r0/*"),
+                "format": {"name": "csv"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n3","r1","n3"],
+                "files": os.path.join(edge_dir, "r1/*"),
+                "format": {"name": "csv"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n4","r2","n5"],
+                "files": os.path.join(edge_dir, "r2/*"),
+                "format": {"name": "csv"},
+            }
+        ]
+
+        n1_nids = np.concatenate([data0["src"], data1["src"]])
+        n2_nids = np.concatenate([data0["dst"], data1["dst"]])
+        n3_nids = np.concatenate([data2["src"], data2["dst"]])
+        n4_nids = data3["src"]
+        n5_nids = data3["dst"]
+
+        n1_nids = np.unique(n1_nids)
+        n2_nids = np.unique(n2_nids)
+        n3_nids = np.unique(n3_nids)
+
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 5
+        n1_map = raw_node_id_maps["n1"]
+        n2_map = raw_node_id_maps["n2"]
+        n3_map = raw_node_id_maps["n3"]
+        n4_map = raw_node_id_maps["n4"]
+        n5_map = raw_node_id_maps["n5"]
+
+        assert isinstance(n1_map, IdMap)
+        assert isinstance(n2_map, IdMap)
+        assert isinstance(n3_map, IdMap)
+        assert isinstance(n4_map, NoopMap)
+        assert isinstance(n5_map, NoopMap)
+
+        assert len(n1_map) == len(n1_nids)
+        assert len(n2_map) == len(n2_nids)
+        assert len(n3_map) == len(n3_nids)
+        assert len(n4_map) == len(data3["src"])
+        assert len(n5_map) == len(data3["dst"])
+
+        keys = set(n1_map._ids.keys())
+        assert keys == set(n1_nids.tolist())
+        keys = set(n2_map._ids.keys())
+        assert keys == set(n2_nids.tolist())
+        keys = set(n3_map._ids.keys())
+        assert keys == set(n3_nids.tolist())
+
+        maped_id, _ = n4_map.map_id(n4_nids)
+        assert_equal(n4_nids, maped_id)
+        maped_id, _ = n4_map.map_id(n5_nids)
+        assert_equal(n5_nids, maped_id)
+
+
+test_process_featless_ntype()

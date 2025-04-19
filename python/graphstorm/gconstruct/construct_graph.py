@@ -350,6 +350,7 @@ def process_featless_ntype(node_confs: List[Dict],
         assert 'node_type' in node_conf, \
                 "'node_type' must be defined for a node type"
         node_type = node_conf['node_type']
+        node_types.add(node_type)
 
     for edge_conf in edge_confs:
         assert 'relation' in edge_conf, \
@@ -390,24 +391,25 @@ def process_featless_ntype(node_confs: List[Dict],
                           two_phase_feat_ops=[],
                           in_files=in_files,
                           num_proc=num_proc,
-                          task_info=f"edge {edge_type}")
+                          task_info=f"edge {edge_type}",
+                          ext_mem_workspace=None)
             src_nids = []
             dst_nids = []
             for i, (src_node_ids, dst_node_ids) in return_dict.items():
                 src_nids.append(src_node_ids)
                 dst_nids.append(dst_node_ids)
 
-            src_nids = np.concatenate(src_node_ids)
-            dst_nids = np.concatenate(dst_node_ids)
+            src_nids = np.concatenate(src_nids)
+            dst_nids = np.concatenate(dst_nids)
             src_nids = np.unique(src_nids)
             dst_nids = np.unique(dst_nids)
 
             if src_ntype not in node_ids:
-                node_ids[src_ntype] = src_nids
+                node_ids[src_ntype] = [src_nids]
             else:
                 node_ids[src_ntype].append(src_nids)
             if dst_ntype not in node_ids:
-                node_ids[dst_ntype] = dst_nids
+                node_ids[dst_ntype] = [dst_nids]
             else:
                 node_ids[dst_ntype].append(dst_nids)
         elif src_ntype not in node_types:
@@ -426,12 +428,13 @@ def process_featless_ntype(node_confs: List[Dict],
                           two_phase_feat_ops=[],
                           in_files=in_files,
                           num_proc=num_proc,
-                          task_info=f"edge {edge_type}")
+                          task_info=f"edge {edge_type}",
+                          ext_mem_workspace=None)
 
             src_nids = []
             for i, (src_node_ids, _) in return_dict.items():
                 src_nids.append(src_node_ids)
-            src_nids = np.concatenate(src_node_ids)
+            src_nids = np.concatenate(src_nids)
             src_nids = np.unique(src_nids)
 
             if src_ntype not in node_ids:
@@ -454,24 +457,24 @@ def process_featless_ntype(node_confs: List[Dict],
                           two_phase_feat_ops=[],
                           in_files=in_files,
                           num_proc=num_proc,
-                          task_info=f"edge {edge_type}")
+                          task_info=f"edge {edge_type}",
+                          ext_mem_workspace=None)
             dst_nids = []
             for i, (_, dst_node_ids) in return_dict.items():
                 dst_nids.append(dst_node_ids)
-            dst_nids = np.concatenate(dst_node_ids)
+            dst_nids = np.concatenate(dst_nids)
             dst_nids = np.unique(dst_nids)
 
             if dst_ntype not in node_ids:
                 node_ids[dst_ntype] = dst_nids
             else:
                 node_ids[dst_ntype].append(dst_nids)
-
         else:
             logging.debug("Both source and destination nodes"
                           "from <%s> edges have corresponding node files.",
                           edge_type)
 
-    for ntype, nids in node_ids.itmes():
+    for ntype, nids in node_ids.items():
         nids = np.concatenate(nids)
         nids = np.unique(nids)
 
@@ -484,11 +487,11 @@ def process_featless_ntype(node_confs: List[Dict],
                 type_node_id_map = NoopMap(len(nids))
             else:
                 type_node_id_map = IdMap(nids)
-                sys_tracker.check(f'Create node ID map of {node_type}')
+                sys_tracker.check(f'Create node ID map of {ntype}')
         else:
             type_node_id_map = IdMap(nids)
-            sys_tracker.check(f'Create node ID map of {node_type}')
-        node_id_map[node_type] = type_node_id_map
+            sys_tracker.check(f'Create node ID map of {ntype}')
+        node_id_map[ntype] = type_node_id_map
 
     return node_id_map
 
@@ -1062,7 +1065,7 @@ def process_graph(args):
 
     # For feature less node type(s),
     # users may not provide node files.
-    raw_node_id_maps = \
+    featless_node_id_maps = \
         process_featless_ntype(process_confs['nodes'],
                                process_confs['edges'],
                                args.remap_node_id,
@@ -1072,6 +1075,7 @@ def process_graph(args):
         process_node_data(process_confs['nodes'], convert2ext_mem,
                           args.remap_node_id, ext_mem_workspace,
                           num_processes=num_processes_for_nodes)
+    raw_node_id_maps.update(featless_node_id_maps)
     sys_tracker.check('Process the node data')
     edges, edge_data, edge_label_stats, edge_label_masks, hard_edge_neg_ops = \
         process_edge_data(process_confs['edges'], raw_node_id_maps,
