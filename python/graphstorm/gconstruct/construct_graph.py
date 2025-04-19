@@ -396,7 +396,7 @@ def process_featless_ntype(node_confs: List[Dict],
 
             src_nids = []
             dst_nids = []
-            for i, return_data in return_dict.items():
+            for _, return_data in return_dict.items():
                 if return_data is None:
                     continue
                 (src_node_ids, dst_node_ids) = return_data
@@ -438,7 +438,7 @@ def process_featless_ntype(node_confs: List[Dict],
                           ext_mem_workspace=None)
 
             src_nids = []
-            for i, return_data in return_dict.items():
+            for _, return_data in return_dict.items():
                 if return_data is None:
                     continue
                 src_node_ids, _ = return_data
@@ -470,7 +470,7 @@ def process_featless_ntype(node_confs: List[Dict],
                           task_info=f"edge {edge_type}",
                           ext_mem_workspace=None)
             dst_nids = []
-            for i, return_data in return_dict.items():
+            for _, return_data in return_dict.items():
                 if return_data is None:
                     continue
                 _, dst_node_ids = return_data
