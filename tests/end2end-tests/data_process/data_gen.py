@@ -451,6 +451,13 @@ edge_conf = [
         ],
     },
     {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
+        "relation":         ("node2", "relation3", "node_fl"), # feature less dst node
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "edge_data3_000.parquet"),
+    },
+    {
         "relation":         ("node2", "relation3", "node3"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "ng_edge_data3.parquet"),
