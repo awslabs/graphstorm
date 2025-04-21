@@ -888,12 +888,10 @@ class GSConfig:
 
         # For inference tasks in particular
         if self.task_type == [
-            BUILTIN_TASK_EDGE_CLASSIFICATION,
-            BUILTIN_TASK_EDGE_REGRESSION,
             BUILTIN_TASK_NODE_CLASSIFICATION,
             BUILTIN_TASK_NODE_REGRESSION,
         ]:
-            _ = self.infer_all_targets
+            _ = self.infer_all_target_nodes
 
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
@@ -2363,14 +2361,15 @@ class GSConfig:
         return self.save_embed_path
 
     @property
-    def infer_all_targets(self):
-        """ Whether to force inference to run on all the nodes/edges in the graph. Default is False.
+    def infer_all_target_nodes(self):
+        """ Whether to force inference to run on all nodes for types specified
+        by target-ntypes, ignoring any mask. Default is False.
         """
         # pylint: disable=no-member
-        if hasattr(self, "_infer_all_targets"):
-            assert self._infer_all_targets in [True, False], \
-                "infer_all_target_nodes/infer_all_target_edges should be in [True, False]"
-            return self._infer_all_targets
+        if hasattr(self, "_infer_all_target_nodes"):
+            assert self._infer_all_target_nodes in [True, False], \
+                "infer_all_target_nodes/infer_all_target_edges should be in [True, False] (bool)"
+            return self._infer_all_target_nodes
 
         # By default, do not force inference on all nodes/edges
         return False
@@ -3714,13 +3713,11 @@ def _add_inference_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group(title="infer")
     group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
-    # Both infer-all-target-nodes and infer-all-target-edges passed
-    # will set the value infer_all_targets
     group.add_argument(
-        "--infer-all-target-nodes", "--infer-all-target-edges",
+        "--infer-all-target-nodes",
         type=lambda x: (str(x).lower() in ['true', '1']),
-        default=argparse.SUPPRESS, dest="infer_all_targets",
-        help="When set to 'true', will force inference to run on all target node/edge types.")
+        default=argparse.SUPPRESS,
+        help="When set to 'true', will force inference to run on all target node types.")
     return parser
 
 def _add_distill_args(parser):
