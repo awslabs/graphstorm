@@ -62,7 +62,7 @@ def test_wrap_model_artifacts():
             assert 'test.yaml' in results and results['test.yaml'] == True
             assert 'test.json' in results and results['test.json'] == True
 
-    #       1.2: all are given, but not create output folder
+    #       1.2: all are given, but not create output folder. Should be created by wrap func.
     with tempfile.TemporaryDirectory() as tmpdirname:
         entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
         model_path = os.path.join(tmpdirname, 'model.bin')

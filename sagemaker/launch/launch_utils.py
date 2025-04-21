@@ -65,6 +65,9 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
                                            not exist.'
     assert os.path.isfile(path_to_json), f'The graph metadata JSON file, {path_to_json}, should \
                                            be a file path, but got a folder.'
+    # TODO(JianZhang): If entry point file requires modules out of GraphStorm, we need to check
+    #                  and support a list of strings (multiple files) and a folder (multiple files
+    #                  in a folder).
     assert os.path.exists(path_to_entry), f'The SageMaker entry point file, {path_to_entry}, does \
                                            not exist.'
     assert os.path.isfile(path_to_entry), f'The SageMaker entry point file, {path_to_entry}, \
