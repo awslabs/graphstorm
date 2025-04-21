@@ -905,8 +905,6 @@ def test_node_class_info():
         assert config.num_classes == 20
         check_failure(config, "imbalance_class_weights")
 
-test_node_class_info()
-
 def create_node_regress_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["node_regression"] = {
