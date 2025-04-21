@@ -322,8 +322,6 @@ def test_create_builtin_node_decoder():
     assert loss_func.alpha == 10
     assert loss_func.gamma == 0.2
 
-test_create_builtin_node_decoder()
-
 def test_create_builtin_edge_decoder():
     g = None
     decoder_input_dim = 64
