@@ -704,6 +704,10 @@ def verify_confs(confs):
             node['node_type'] = DEFAULT_NTYPE
         for edge in confs['edges']:
             edge['relation'] = list(DEFAULT_ETYPE)
+        confs["is_homogeneous"] = True
+    else:
+        confs["is_homogeneous"] = False
+
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
                      node_label_masks, edge_label_masks):

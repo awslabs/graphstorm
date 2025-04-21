@@ -2581,14 +2581,15 @@ def test_homogeneous():
     }
     assert is_homogeneous(conf)
     verify_confs(conf)
+    assert conf["is_homogeneous"]
     assert conf['nodes'][0]["node_type"] == "_N"
     assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
     conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
     conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
     conf["nodes"][0]["node_type"] = "movie"
     conf["nodes"][1]["node_type"] = "movie_fake"
+    assert not conf["is_homogeneous"]
     assert not is_homogeneous(conf)
-
 
     # multiple node types and edge types input
     conf = {
