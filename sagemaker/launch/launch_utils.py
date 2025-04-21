@@ -28,7 +28,7 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     According to SageMaker's specification of the `Model Directory Structure
     https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure`_,
     this function will put the entry point file into a sub-folder, named `code`, and then zip the
-    `model.bin`, the `**.yaml`, the `**.json` file, and the `code` sub-folder into a tar package
+    `model.bin`, the `**.yaml`, the `**.json` files, and the `code` sub-folder into a tar package
     with the name specified by the wrap_name argument, and save it to the `output_path`.
 
     This function will check if given files exist. Non-existance will raise an error.
