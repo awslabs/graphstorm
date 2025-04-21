@@ -33,6 +33,7 @@ def test_wrap_model_artifacts():
     """
     """
     # test case 1: normal case, everything is given and the tar file created.
+    #       1.1: all are given, including output folder
     with tempfile.TemporaryDirectory() as tmpdirname:
         entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
         model_path = os.path.join(tmpdirname, 'model.bin')
@@ -46,6 +47,34 @@ def test_wrap_model_artifacts():
 
         output_path = os.path.join(tmpdirname, 'output_folder')
         os.makedirs(output_path, exist_ok=True)
+        output_file = wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
+                                 output_path=output_path, output_tarfile_name='model')
+        assert os.path.exists(output_file)
+    
+        with tarfile.open(output_file) as tar_object:
+            contents = tar_object.getmembers()
+            results = {content.name: content.isfile() for content in contents}
+
+            assert 'code' in results        
+            assert 'code/nc_infer_entry.py' in results and \
+                results['code/nc_infer_entry.py'] == True
+            assert 'model.bin' in results and results['model.bin'] == True
+            assert 'test.yaml' in results and results['test.yaml'] == True
+            assert 'test.json' in results and results['test.json'] == True
+
+    #       1.2: all are given, but not create output folder
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        entry_path = os.path.join(tmpdirname, 'nc_infer_entry.py')
+        model_path = os.path.join(tmpdirname, 'model.bin')
+        yaml_path = os.path.join(tmpdirname, 'test.yaml')
+        json_path = os.path.join(tmpdirname, 'test.json')
+
+        create_dummy_file(entry_path)
+        create_dummy_file(model_path)
+        create_dummy_file(yaml_path)
+        create_dummy_file(json_path)
+
+        output_path = os.path.join(tmpdirname, 'output_folder')
         output_file = wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                  output_path=output_path, output_tarfile_name='model')
         assert os.path.exists(output_file)
@@ -191,3 +220,6 @@ def test_wrap_model_artifacts():
         with pytest.raises(AssertionError, match='graph metadata JSON file, .* got a folder'):
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                  output_path=output_path, output_tarfile_name='model')
+
+if __name__ == '__main__':
+    test_wrap_model_artifacts()
