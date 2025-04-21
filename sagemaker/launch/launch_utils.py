@@ -74,9 +74,11 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
                                            should be a file path, but got a folder.'
 
     # create the output folder if not exist.
-    assert os.path.isdir(output_path), 'Output path should be a folder name, but got a ' + \
-                                       f'file {output_path}.'
-    os.makedirs(output_path, exist_ok=True)
+    if os.path.exists(output_path):
+        assert os.path.isdir(output_path), 'Output path should be a folder name, but got a ' + \
+                                           f'file {output_path}.'
+    else:
+        os.makedirs(output_path, exist_ok=True)
     os.makedirs(os.path.join(output_path, 'code'), exist_ok=True)
 
     # copy the artifacts files to output_path
