@@ -2591,6 +2591,7 @@ def test_homogeneous():
     assert not conf["is_homogeneous"]
     assert not is_homogeneous(conf)
 
+
     # multiple node types and edge types input
     conf = {
         "version": "gconstruct-v0.1", "nodes": [
