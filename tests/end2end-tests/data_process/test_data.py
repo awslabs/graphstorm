@@ -43,6 +43,8 @@ out_dir = args.graph_dir
 with open(args.conf_file, 'r') as f:
     conf = json.load(f)
 
+assert not conf["is_homogeneous"]
+
 if args.graph_format == "DGL":
     g = dgl.load_graphs(os.path.join(out_dir, "test.dgl"))[0][0]
 elif args.graph_format == "DistDGL":
