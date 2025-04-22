@@ -2588,6 +2588,7 @@ def test_homogeneous():
     conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
     conf["nodes"][0]["node_type"] = "movie"
     conf["nodes"][1]["node_type"] = "movie_fake"
+    verify_confs(conf)
     assert not conf["is_homogeneous"]
     assert not is_homogeneous(conf)
 
