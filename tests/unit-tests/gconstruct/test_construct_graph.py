@@ -242,6 +242,19 @@ def test_feat_ops_noop():
     assert res[0].feat_name == feat_op1[0]["feature_col"]
     assert isinstance(res[0], Noop)
 
+    # When the feature_dim is specified.
+    # GConstruct will not load feature_dim from config,
+    # so do not check the value of the feature_dim
+    feat_op1 = [{
+        "feature_col": "test1",
+        "feature_dim": [2]
+    }]
+    (res, _, _, _) = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_col"]
+    assert isinstance(res[0], Noop)
+
 def test_noop_string():
     text_vector_data = {
         "test2": np.array(["1;2;3", "4;5;6"], dtype=object)
@@ -2010,7 +2023,7 @@ def test_parse_edge_data():
             "dest_id_col": "dst_id",
             "relation": ("src", "rel", "dst"),
             "features": [
-                {"feature_col": "feat", "feature_name": "feat"}
+                {"feature_col": "feat", "feature_name": "feat", "feature_dim": [10]}
             ]
         }
         keys = ["src_id", "dst_id", "feat"]

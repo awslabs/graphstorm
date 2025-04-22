@@ -710,8 +710,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
 
-        # If feats is a 1-D array,
-        # following process_features will convert the 1-D array into 2-D array
         self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
         return {self.feat_name: feats}
 
@@ -1153,6 +1151,7 @@ class Noop(FeatTransform):
                 assert isinstance(feats, ExtMemArrayWrapper)
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
+
         # The first dimension should be the number of the nodes,
         # the second dimension should be the feature dimension
         # If feats is a 1-D array,
@@ -1558,7 +1557,7 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None, feat_con
         The operations that transform features.
     ext_mem_path: str or None
         The path of external memory
-    feat_conf_list: dict
+    feat_conf_list: list of dict
         Processed feat config list for one node type.
 
     Returns
