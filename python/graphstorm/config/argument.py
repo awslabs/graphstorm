@@ -21,6 +21,7 @@ import sys
 import argparse
 import math
 import logging
+import warnings
 
 import yaml
 import torch as th
@@ -36,6 +37,7 @@ from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FUNCTION,
+                     BUILTIN_CLASS_LOSS_FOCAL,
                      BUILTIN_REGRESSION_LOSS_MSE,
                      BUILTIN_REGRESSION_LOSS_FUNCTION)
 
@@ -194,6 +196,8 @@ class GSConfig:
             logging.basicConfig(level=log_level, force=True)
         else:
             logging.basicConfig(filename=log_file, level=log_level, force=True)
+        # enable DeprecationWarning
+        warnings.simplefilter('always', DeprecationWarning)
 
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
@@ -2199,14 +2203,23 @@ class GSConfig:
             "Must provide the number possible labels through num_classes"
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
-                assert num_classes > 0
+                if num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                    warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                                  "loss is deprecated and will be removed "
+                                  "in future versions.",
+                                  DeprecationWarning)
+                else:
+                    assert num_classes > 1, \
+                        "num_classes for classification tasks must be 2 or greater."
         else:
-            # We need num_classes=1 for binary classification because when we use precision-recall
-            # as evaluation metric, this precision-recall is computed on the positive score.
-            # If we switch to num_classes=2, we also need changes in the evaluation part:
-            # (1) evaluation code need to first recognize whether it is binary classification
-            # (2) then evaluation code select the positive score column from the 2-d prediction.
-            assert self._num_classes > 0
+            if self._num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                              "loss is deprecated and will be removed "
+                              "in future versions.",
+                              DeprecationWarning)
+            else:
+                assert self._num_classes > 1, \
+                    "num_classes for classification tasks must be 2 or greater."
         return self._num_classes
 
     @property
