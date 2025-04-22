@@ -272,7 +272,7 @@ def test_fp_transform(input_dtype):
     assert_equal(np.array(transform_conf['min_val']),
                  np.array([-1.,-1.,-1.]))
     result = transform(feats)
-    assert transform.feat_dim == 3
+    assert transform.feat_dim == (3,)
     true_result = (feats - min_val) / (max_val - min_val)
     true_result[true_result > 1] = 1
     true_result[true_result < 0] = 0
@@ -295,7 +295,7 @@ def test_fp_transform(input_dtype):
     assert_equal(np.array(transform_conf['min_val']),
                  np.array([-1.,-1.,-1.]))
     result = transform(feats)
-    assert transform.feat_dim == 3
+    assert transform.feat_dim == (3,)
     true_result = (feats - min_val) / (max_val - min_val)
     true_result[true_result > 1] = 1
     true_result[true_result < 0] = 0
@@ -318,7 +318,7 @@ def test_fp_transform(input_dtype):
     assert_equal(np.array(transform_conf['min_val']),
                  min_val)
     result = transform(feats)
-    assert transform.feat_dim == 3
+    assert transform.feat_dim == (3,)
     true_result = (feats - min_val) / (max_val - min_val)
     true_result[true_result > 1] = 1
     true_result[true_result < 0] = 0
@@ -334,7 +334,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     transform._min_val = min_val
     feats = np.random.randn(100).astype(input_dtype)
     norm_feats = transform(feats)["test"]
-    assert transform.feat_dim == 1
+    assert transform.feat_dim == (1,)
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
     else:
@@ -347,7 +347,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
 
     feats = np.random.randn(100, 1).astype(input_dtype)
     norm_feats = transform(feats)["test"]
-    assert transform.feat_dim == 1
+    assert transform.feat_dim == (1,)
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
     else:
@@ -365,7 +365,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     transform._min_val = min_val
     feats = np.random.randn(10, 3).astype(input_dtype)
     norm_feats = transform(feats)["test"]
-    assert transform.feat_dim == 3
+    assert transform.feat_dim == (3,)
     if out_dtype is not None:
         assert norm_feats.dtype == np.float16
     else:
@@ -411,7 +411,7 @@ def test_categorize_transform():
     assert len(transform_conf["mapping"]) == 10
     feat = np.array([None, None]) # transform numpy array with None value.
     cat_feat = transform(feat)
-    assert transform.feat_dim == len(transform_conf["mapping"])
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     assert np.all(cat_feat["test"][0] == 0)
     assert np.all(cat_feat["test"][1] == 0)
@@ -422,7 +422,7 @@ def test_categorize_transform():
     feat = np.array(feat)
     feat_with_unknown = np.array(feat_with_unknown)
     cat_feat = transform(feat)
-    assert transform.feat_dim == len(transform_conf["mapping"])
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     for i, (feat, str_i) in enumerate(zip(cat_feat["test"], feat)):
         if i == 0:
@@ -456,7 +456,7 @@ def test_categorize_transform():
     transform.update_info(info)
     feat = np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, 100)])
     cat_feat = transform(feat)
-    assert transform.feat_dim == len(transform_conf["mapping"])
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     for feat, str_feat in zip(cat_feat["test"], feat):
         # make sure two elements are 1
@@ -475,7 +475,7 @@ def test_categorize_transform():
     feat = np.array(feat)
     feat_with_unknown = np.array(feat_with_unknown)
     cat_feat = transform(feat_with_unknown)
-    assert transform.feat_dim == len(transform_conf["mapping"])
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     for feat, str_feat in zip(cat_feat["test"], feat):
         # make sure two elements are 1
@@ -497,7 +497,7 @@ def test_categorize_transform():
     transform.update_info([])
     feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
     cat_feat = transform(feat)
-    assert transform.feat_dim == len(transform_conf["mapping"])
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     for feat, str_i in zip(cat_feat["test"], feat):
         # make sure one value is 1
@@ -529,6 +529,7 @@ def test_categorize_transform():
     feat = np.array([str(i) for i in np.random.randint(0, 10, 100)])
     feat[0] = int(feat[0])
     cat_feat = transform(feat)
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     for feat, str_i in zip(cat_feat["test"], feat):
         # make sure one value is 1
@@ -548,7 +549,7 @@ def test_categorize_transform():
             np.array([i for i in range(4, 10)])]
     transform.update_info(info)
     cat_feat = transform(feat)
-    assert transform.feat_dim == len(transform_conf["mapping"])
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     for feat, str_i in zip(cat_feat["test"], feat):
         # make sure one value is 1
@@ -567,7 +568,7 @@ def test_categorize_transform():
     transform = CategoricalTransform("test1", "test", transform_conf=transform_conf)
     assert len(transform_conf["mapping"]) == 10
     cat_feat = transform(feat)
-    assert transform.feat_dim == len(transform_conf["mapping"])
+    assert transform.feat_dim == (len(transform_conf["mapping"]),)
     assert "test" in cat_feat
     for feat, str_i in zip(cat_feat["test"], feat):
         # make sure one value is 1
@@ -588,7 +589,7 @@ def test_noop_transform(out_dtype):
     else:
         assert norm_feats["test"].dtype == np.float32
 
-    assert transform.feat_dim == 1
+    assert transform.feat_dim == (1,)
     # invalid input
     feats[0] = np.nan
     with assert_raises(AssertionError):
@@ -613,7 +614,7 @@ def test_noop_str_vector():
     feats = np.array(["1;2;3", "4;5;6", "7;8;9"])
     vector_feats = transform(feats)
 
-    assert transform.feat_dim == 3
+    assert transform.feat_dim == (3,)
     expected_array = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
 
     assert_equal(vector_feats["test"], expected_array)
@@ -625,10 +626,10 @@ def test_rank_gauss_transform(input_dtype, out_dtype):
     transform = RankGaussTransform("test", "test", out_dtype=out_dtype, epsilon=eps)
     feat_0 = np.random.randn(100,2).astype(input_dtype)
     feat_trans_0 = transform(feat_0)['test']
-    assert transform.feat_dim == 2
+    assert transform.feat_dim == (2,)
     feat_1 = np.random.randn(100,2).astype(input_dtype)
     feat_trans_1 = transform(feat_1)['test']
-    assert transform.feat_dim == 2
+    assert transform.feat_dim == (2,)
     assert feat_trans_0.dtype == np.float32
     assert feat_trans_1.dtype == np.float32
     def rank_gauss(feat):
@@ -1018,7 +1019,7 @@ def test_bucket_transform(out_dtype):
                  bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
     feats = np.array([1, 11, 21, 31])
     bucket_feats = transform(feats)
-    assert transform.feat_dim == 2
+    assert transform.feat_dim == (2,)
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1033,7 +1034,7 @@ def test_bucket_transform(out_dtype):
     transform = BucketTransform("test", "test", 2,
                  bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
     bucket_feats = transform(feats)
-    assert transform.feat_dim == 2
+    assert transform.feat_dim == (2,)
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1048,7 +1049,7 @@ def test_bucket_transform(out_dtype):
                  bucket_range=bucket_range, slide_window_size=10, out_dtype=out_dtype)
     feats = np.array([1, 11, 21, 31])
     bucket_feats = transform(feats)
-    assert transform.feat_dim == 2
+    assert transform.feat_dim == (2,)
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1063,7 +1064,7 @@ def test_bucket_transform(out_dtype):
                                 bucket_range=bucket_range, out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
     bucket_feats = transform(feats)
-    assert transform.feat_dim == 2
+    assert transform.feat_dim == (2,)
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1079,7 +1080,7 @@ def test_bucket_transform(out_dtype):
                                 out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
     bucket_feats = transform(feats)
-    assert transform.feat_dim == 3
+    assert transform.feat_dim == (3,)
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1095,7 +1096,7 @@ def test_bucket_transform(out_dtype):
                                 out_dtype=out_dtype)
     feats = np.array([1, 10, 20, 30])
     bucket_feats = transform(feats)
-    assert transform.feat_dim == 2
+    assert transform.feat_dim == (2,)
     if out_dtype is not None:
         assert bucket_feats['test'].dtype == np.float16
     else:
@@ -1158,11 +1159,11 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 20
 
     neg0 = hard_neg_trasnform(input_id_feats0)
-    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
+    assert hard_neg_trasnform.feat_dim == (hard_neg_trasnform._max_dim,)
     assert_equal(neg0["hard_neg"][:,:10], 99-input_feats0)
     assert_equal(neg0["hard_neg"][:,10:], np.full((20, 10), -1, dtype=np.int64))
     neg1 = hard_neg_trasnform(input_id_feats1)
-    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
+    assert hard_neg_trasnform.feat_dim == (hard_neg_trasnform._max_dim,)
     assert_equal(neg1["hard_neg"], 99-input_feats1)
 
     hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg", separator=",")
@@ -1187,13 +1188,13 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 20
 
     neg0 = hard_neg_trasnform(input_id_feats0)
-    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
+    assert hard_neg_trasnform.feat_dim == (hard_neg_trasnform._max_dim,)
     assert_equal(neg0["hard_neg"][:20,:10], 99-input_feats0)
     assert_equal(neg0["hard_neg"][:20,10:], np.full((20, 10), -1, dtype=np.int64))
     assert_equal(neg0["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
     assert_equal(neg0["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
     neg1 = hard_neg_trasnform(input_id_feats1)
-    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
+    assert hard_neg_trasnform.feat_dim == (hard_neg_trasnform._max_dim,)
     assert_equal(neg1["hard_neg"][:20], 99-input_feats1)
     assert_equal(neg1["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
     assert_equal(neg1["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
@@ -1213,7 +1214,7 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 10
 
     neg = hard_neg_trasnform(input_id_feats)
-    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
+    assert hard_neg_trasnform.feat_dim == (hard_neg_trasnform._max_dim,)
     assert_equal(neg["hard_neg"], 99-input_feats)
 
     hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg", separator=",")
@@ -1251,7 +1252,7 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     assert hard_neg_trasnform._max_dim == 10
 
     neg = hard_neg_trasnform(input_id_feats)
-    assert hard_neg_trasnform.feat_dim == hard_neg_trasnform._max_dim
+    assert hard_neg_trasnform.feat_dim == (hard_neg_trasnform._max_dim,)
     ground_truth = 99-input_feats
     ground_truth[0][-1] = -1
     ground_truth[1][-1] = -1
@@ -1360,13 +1361,13 @@ def test_standard_transform(input_dtype):
     summation = np.sum(feats0, keepdims=True)
     transform._summation = summation.reshape((-1,))
     out = transform(feats0)["test"]
-    assert transform.feat_dim == 1
+    assert transform.feat_dim == (1,)
     assert_almost_equal(out, feats0/summation)
 
     # given sum
     transform = NumericalStandardTransform("test", "test", 20.2)
     out = transform(feats0)["test"]
-    assert transform.feat_dim == 1
+    assert transform.feat_dim == (1,)
     assert_almost_equal(out, feats0/20.2)
 
     # there are multiple columns of values
@@ -1380,7 +1381,7 @@ def test_standard_transform(input_dtype):
     info = [summation, summation, summation]
     transform.update_info(info)
     out = transform(feats0)["test"]
-    assert transform.feat_dim == 3
+    assert transform.feat_dim == (3,)
     assert_almost_equal(out, feats0/summation/3)
 
 
@@ -1389,7 +1390,7 @@ def test_hf_tokenizer(bert_model="bert-base-uncased"):
     transform = Tokenizer("test", "test", bert_model, max_seq_length=max_seq_length)
     input_texts = "A Graph neural network (GNN) is a class of artificial neural networks for processing data that can be represented as graphs."
     tokenizer_result = transform(input_texts)
-    assert transform.feat_dim == 768
+    assert transform.feat_dim == (768,)
 
     # Expected token
     tokens = []
@@ -1417,7 +1418,7 @@ def test_hf_embedding(bert_model="bert-base-uncased"):
               Tokenizer("test", "test", bert_model, max_seq_length),
               bert_model)
     hf_emb = transform(input_texts)['test']
-    assert transform.feat_dim == 768
+    assert transform.feat_dim == (768,)
 
     # Tokenize the original text data for validation
     tokenizer = Tokenizer("test", "test", bert_model, max_seq_length)
