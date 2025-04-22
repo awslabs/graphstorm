@@ -965,8 +965,7 @@ class Tokenizer(FeatTransform):
         token_id_name = 'input_ids'
         atten_mask_name = 'attention_mask'
         token_type_id_name = 'token_type_ids'
-        # The first dimension should be the number of the nodes,
-        # the second dimension should be the feature dimension
+        
         self.feat_dim = (self.config.hidden_size,)
         return {token_id_name: th.cat(tokens, dim=0).numpy(),
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
@@ -1152,10 +1151,6 @@ class Noop(FeatTransform):
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
 
-        # The first dimension should be the number of the nodes,
-        # the second dimension should be the feature dimension
-        # If feats is a 1-D array,
-        # following process_features will convert the 1-D array into 2-D array
         self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
         return {self.feat_name: feats}
 
@@ -1558,7 +1553,16 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None, feat_con
     ext_mem_path: str or None
         The path of external memory
     feat_conf_list: list of dict
-        Processed feat config list for one node type.
+        Processed feat config list for one node type
+        The feature config list can be:
+        [
+            {
+                "feature_col":  ["<column name>", ...],
+                "feature_name": "<feature name>",
+                "feature_dim":  [int],
+                "transform":    {"name": "<operator name>", ...}
+            }
+        ]
 
     Returns
     -------
