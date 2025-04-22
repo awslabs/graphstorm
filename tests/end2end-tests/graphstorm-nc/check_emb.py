@@ -19,6 +19,7 @@ import logging
 import os
 
 import numpy as np
+import pyarrow.parquet as pq
 import torch as th
 
 if __name__ == '__main__':
@@ -57,7 +58,6 @@ if __name__ == '__main__':
         ntype_files = os.listdir(os.path.join(args.emb_path, ntype))
 
         if args.file_format == "parquet":
-            import pyarrow.parquet as pq
             feats = pq.read_table(
                 [
                     os.path.join(
