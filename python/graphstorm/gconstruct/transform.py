@@ -965,7 +965,7 @@ class Tokenizer(FeatTransform):
         token_id_name = 'input_ids'
         atten_mask_name = 'attention_mask'
         token_type_id_name = 'token_type_ids'
-        
+
         self.feat_dim = (self.config.hidden_size,)
         return {token_id_name: th.cat(tokens, dim=0).numpy(),
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
