@@ -73,7 +73,7 @@ def main(config_args):
                 ("Cannot run evaluation during all-nodes inference as that would "
                 "include training data. To run evaluation, ensure you have a 'test_mask' set up "
                 "and run with  infer_all_target_nodes=False. For all-nodes predictions, "
-                "'--no-validation' to skip evaluation and only produce embeddings/predictions.")
+                "use '--no-validation' to skip evaluation and only produce embeddings/predictions.")
             )
         # Set the mask name to an empty string, this implicitly ensures
         # the mask will be ignored, and get_node_infer_set

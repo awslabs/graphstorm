@@ -2368,7 +2368,7 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_infer_all_target_nodes"):
             assert self._infer_all_target_nodes in [True, False], \
-                "infer_all_target_nodes/infer_all_target_edges should be in [True, False] (bool)"
+                "infer_all_target_nodes should be in [True, False] (bool)"
             return self._infer_all_target_nodes
 
         # By default, do not force inference on all nodes/edges
