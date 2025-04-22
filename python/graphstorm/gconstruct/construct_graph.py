@@ -373,19 +373,18 @@ def process_featless_ntype(node_confs: List[Dict],
         read_file = parse_edge_file_format(edge_conf, in_mem=multiprocessing)
         num_proc = num_processes if multiprocessing else 0
 
+        user_parser = partial(parse_edge_nid_data,
+                              parse_src=(src_ntype not in node_types),
+                              parse_dst=(dst_ntype not in node_types),
+                              conf=edge_conf,
+                              read_file=read_file)
+
         if src_ntype not in node_types and dst_ntype not in node_types:
             # Both src and dst node types do not appear in node_confs
             logging.info("Both source and destination nodes"
                          "from <%s> edges do not have node files."
                          "Will create node id mapping from edges.",
                          edge_type)
-
-            user_parser = partial(parse_edge_nid_data,
-                                  parse_src=True,
-                                  parse_dst=True,
-                                  conf=edge_conf,
-                                  read_file=read_file)
-
             return_dict = _process_data(user_pre_parser=None,
                           user_parser=user_parser,
                           two_phase_feat_ops=[],
@@ -423,12 +422,6 @@ def process_featless_ntype(node_confs: List[Dict],
             logging.info("Source nodes from <%s> edges do not have node files."
                          "Will create node id mapping from edges.",
                          edge_type)
-            user_parser = partial(parse_edge_nid_data,
-                                  parse_src=True,
-                                  parse_dst=False,
-                                  conf=edge_conf,
-                                  read_file=read_file)
-
             return_dict = _process_data(user_pre_parser=None,
                           user_parser=user_parser,
                           two_phase_feat_ops=[],
@@ -456,12 +449,6 @@ def process_featless_ntype(node_confs: List[Dict],
             logging.info("Destination nodes from <%s> edges do not have node files."
                          "Will create node id mapping from edges.",
                          edge_type)
-            user_parser = partial(parse_edge_nid_data,
-                                  parse_src=False,
-                                  parse_dst=True,
-                                  conf=edge_conf,
-                                  read_file=read_file)
-
             return_dict = _process_data(user_pre_parser=None,
                           user_parser=user_parser,
                           two_phase_feat_ops=[],
@@ -950,12 +937,14 @@ def verify_confs(confs):
                 "The edge type must be (source node type, relation type, dest node type)."
         src_type, _, dst_type = etype
         if src_type not in ntypes:
-            logging.warning("source node type %s does not have corresponding node files. "
-                            "Will treat it as a feature less node type",
+            logging.warning("Source node type %s does not have corresponding node files. "
+                            "The nodes of this node type are feature less nodes"
+                            "Will collect node ids from edge files.",
                             src_type)
         if dst_type not in ntypes:
             logging.warning("dest node type %s does not have corresponding node files. "
-                            "Will treat it as a feature less node type",
+                            "The nodes of this node type are feature less nodes"
+                            "Will collect node ids from edge files.",
                             dst_type)
     # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
     if is_homogeneous(confs):
