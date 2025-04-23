@@ -107,3 +107,6 @@ SPARK_HADOOP_VERSIONS = {
 
 ########## Precomputed transformations ################
 TRANSFORMATIONS_FILENAME = "precomputed_transformations.json"
+
+########## Homogeneous Graph Optimization ################
+HOMOGENEOUS_FLAG = "is_homogeneous"

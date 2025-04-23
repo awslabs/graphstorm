@@ -19,6 +19,7 @@ import logging
 import math
 import numbers
 import os
+from audioop import reverse
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -55,11 +56,13 @@ from graphstorm_processing.constants import (
     HUGGINGFACE_TRANFORM,
     HUGGINGFACE_TOKENIZE,
     TRANSFORMATIONS_FILENAME,
+    HOMOGENEOUS_FLAG,
 )
 from graphstorm_processing.config.config_parser import (
     EdgeConfig,
     NodeConfig,
     StructureConfig,
+    is_homogeneous,
 )
 from graphstorm_processing.config.label_config_base import LabelConfig
 from graphstorm_processing.config.feature_config_base import FeatureConfig
@@ -88,6 +91,8 @@ class HeterogeneousLoaderConfig:
     """
     Configuration object for the loader.
 
+    is_homogeneous: bool
+        Whether the graph is a homogeneous graph.
     add_reverse_edges : bool
         Whether to add reverse edges to the graph.
     data_configs : Dict[str, Sequence[StructureConfig]]
@@ -114,6 +119,7 @@ class HeterogeneousLoaderConfig:
         of the graph.
     """
 
+    is_homogeneous: bool
     add_reverse_edges: bool
     data_configs: Mapping[str, Sequence[StructureConfig]]
     enable_assertions: bool
@@ -175,6 +181,7 @@ class DistHeterogeneousGraphLoader(object):
     ):
         self.local_meta_output_path = loader_config.local_metadata_output_path
         self._data_configs = loader_config.data_configs
+        self.is_homogeneous = loader_config.is_homogeneous
         self.feature_configs: list[FeatureConfig] = []
 
         # TODO: Pass as an argument?
@@ -305,6 +312,7 @@ class DistHeterogeneousGraphLoader(object):
 
         if "nodes" in data_configs:
             node_configs: Sequence[NodeConfig] = data_configs["nodes"]
+
             missing_node_types = self._get_missing_node_types(edge_configs, node_configs)
             if len(missing_node_types) > 0:
                 logging.info(
@@ -446,7 +454,7 @@ class DistHeterogeneousGraphLoader(object):
 
             # Add original and reverse edge types
             edge_types.append(f"{src_type}:{rel_type}:{dst_type}")
-            if self.add_reverse_edges:
+            if self.add_reverse_edges and not self.is_homogeneous:
                 edge_types.append(f"{dst_type}:{rel_type}-rev:{src_type}")
 
         metadata_dict["edge_type"] = edge_types
@@ -1585,19 +1593,30 @@ class DistHeterogeneousGraphLoader(object):
         edge_structure_path = os.path.join(
             self.output_prefix, f"edges/{edge_type.replace(':', '_')}"
         )
-        logging.info("Writing edge structure for edge type %s...", edge_type)
         if self.add_reverse_edges:
             edge_df_with_only_int_ids.cache()
-        path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
 
-        if self.add_reverse_edges:
+        if self.add_reverse_edges and not self.is_homogeneous:
+            logging.info("Writing edge structure for edge type %s...", edge_type)
+            path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
             reversed_edges = edge_df_with_only_int_ids.select("dst_int_id", "src_int_id")
             reversed_edge_structure_path = os.path.join(
                 self.output_prefix, f"edges/{rev_edge_type.replace(':', '_')}"
             )
             logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
             reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
+        elif self.add_reverse_edges and self.is_homogeneous:
+            reversed_edges = edge_df_with_only_int_ids.select(
+                col("dst_int_id").alias("src_int_id"),
+                col("src_int_id").alias("dst_int_id")
+            )
+            edge_df_with_int_ids = edge_df_with_only_int_ids.union(reversed_edges).distinct()
+            logging.info("Writing edge structure for edge type %s with reverse edge...", edge_type)
+            path_list = self._write_df(edge_df_with_int_ids, edge_structure_path)
+            reverse_path_list = []
         else:
+            logging.info("Writing edge structure for edge type %s...", edge_type)
+            path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
             reverse_path_list = []
 
         # Verify counts

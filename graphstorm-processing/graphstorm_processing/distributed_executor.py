@@ -79,7 +79,7 @@ from graphstorm_processing.repartition_files import (
     ParquetRepartitioner,
 )
 from graphstorm_processing.graph_loaders.row_count_utils import verify_metadata_match
-from graphstorm_processing.constants import ExecutionEnv, FilesystemType
+from graphstorm_processing.constants import ExecutionEnv, FilesystemType, HOMOGENEOUS_FLAG
 
 
 @dataclasses.dataclass
@@ -253,6 +253,7 @@ class DistributedExecutor:
         # Initialize the graph loader
         data_configs = create_config_objects(self.gsp_config_dict)
         loader_config = HeterogeneousLoaderConfig(
+            is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
             add_reverse_edges=self.add_reverse_edges,
             data_configs=data_configs,
             enable_assertions=False,
