@@ -21,6 +21,7 @@ from graphstorm_processing.config.config_parser import (
     EdgeConfig,
     create_config_objects,
     parse_feat_config,
+    is_homogeneous,
 )
 from graphstorm_processing.config.numerical_configs import (
     NumericalFeatureConfig,
@@ -159,3 +160,22 @@ def test_unsupported_transformation():
         match="Unknown transformation name: 'unsupported_transform'",
     ):
         parse_feat_config(feature_dict)
+
+
+def test_homogeneous():
+    """Test homogeneous flag"""
+    # Case 1: 
+    graph_config = {
+        "edges": [
+            {
+                "source": {"column": "~from", "type": "genre"},
+                "relation": {"type": "relation"},
+                "dest": {"column": "~to", "type": "genre"},
+            }
+        ],
+        "nodes": [
+            {
+                "type": "genre",
+            }
+        ],
+    }
