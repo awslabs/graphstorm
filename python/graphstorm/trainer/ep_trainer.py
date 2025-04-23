@@ -360,9 +360,6 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                          but {need_label_pred} requires return_proba==False."
         if len(need_proba) > 0 and return_proba is False:
             return_proba = True
-            logging.warning("%s requires return_proba==True. \
-                Set return_proba to True.", need_proba)
-
 
         model.eval()
         if use_mini_batch_infer:

@@ -101,7 +101,8 @@ class FocalLossFunc(GSLayer):
     See more details on https://pytorch.org/vision/main/_modules/torchvision/ops/focal_loss.html.
 
     To use focal loss, the classification task must be
-    a binary classification task.
+    a binary classification task, i.e. ``num_classes``
+    should be set to 2.
 
     Parameters
     ----------

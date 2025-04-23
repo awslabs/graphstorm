@@ -291,6 +291,12 @@ from one of "Bayesian", "Random", "Hyperband", "Grid". See the
 `SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-how-it-works.html>`_
 for more details on each strategy.
 
+To use the Hyperband strategy you should provide the ``--hb-max-epochs`` and ``--hb-min-epochs`` to the launch script
+to determine the maximum and minimum resource allocation (in terms of number of epochs) per job. See the
+`SageMaker HPO user guide <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-how-it-works.html#automatic-tuning-hyperband>`_
+and `Hyperband configuration docs <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_HyperbandStrategyConfig.html>`_
+for details.
+
 Example HPO call:
 
 .. code:: bash

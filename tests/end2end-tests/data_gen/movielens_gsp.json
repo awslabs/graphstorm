@@ -1,0 +1,94 @@
+{
+    "version": "gsprocessing-v1.0",
+    "graph": {
+        "nodes": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "../../../data/ml-100k/users.parquet"
+                    ]
+                },
+                "type": "user",
+                "column": "id",
+                "labels": [
+                    {
+                        "column": "age",
+                        "type": "regression",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.1,
+                            "test": 0.1
+                        }
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "../../../data/ml-100k/movie.parquet"
+                    ]
+                },
+                "type": "movie",
+                "column": "id",
+                "features": [
+                    {
+                        "column": "title",
+                        "transformation": {
+                            "name": "huggingface",
+                            "kwargs": {
+                                "action": "embedding_hf",
+                                "hf_model": "bert-base-uncased",
+                                "max_seq_length": 16
+                            }
+                        }
+                    }
+                ],
+                "labels": [
+                    {
+                        "column": "label",
+                        "type": "classification",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.1,
+                            "test": 0.1
+                        }
+                    }
+                ]
+            }
+        ],
+        "edges": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "../../../data/ml-100k/edges.parquet"
+                    ]
+                },
+                "source": {
+                    "column": "src_id",
+                    "type": "user"
+                },
+                "dest": {
+                    "column": "dst_id",
+                    "type": "movie"
+                },
+                "relation": {
+                    "type": "rating"
+                },
+                "labels": [
+                    {
+                        "column": "rate",
+                        "type": "classification",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.1,
+                            "test": 0.1
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
