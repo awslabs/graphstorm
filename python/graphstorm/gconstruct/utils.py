@@ -231,6 +231,10 @@ def merge_feat_transformation_conf(conf, updated_conf):
     assert len(conf) == len(updated_conf), \
         "Configuration after feature transformation should have same number."
     for i, feat_conf in enumerate(conf):
+        assert feat_conf["feature_col"] == updated_conf[i]["feature_col"], \
+            "Configuration after feature transformation should have same feature column"
+        assert "feature_dim" in updated_conf[i], \
+            "feature_dim column should always be in the config after feature transformation"
         if "feature_dim" not in feat_conf and "feature_dim" in updated_conf[i]:
             feat_conf["feature_dim"] = updated_conf[i]["feature_dim"]
         elif "feature_dim" in feat_conf and "feature_dim" in updated_conf[i] \

@@ -454,7 +454,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data, label_stats, label_masks)
 
-def _collect_parsed_edge_data(data_dict, process_conf):
+def _collect_parsed_edge_data(data_dict, process_conf={}):
     """ Collect edge data parsed by parse_edge_data
 
     Parameters

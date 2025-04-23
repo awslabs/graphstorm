@@ -2027,7 +2027,7 @@ def test_parse_edge_data():
             ]
         }
         keys = ["src_id", "dst_id", "feat"]
-        src_ids, dst_ids, feat_data = \
+        src_ids, dst_ids, feat_data, _ = \
             parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
                             partial(read_data_parquet, data_fields=keys),
                             conf, skip_nonexist_edges=True)
@@ -2072,7 +2072,7 @@ def test_parse_edge_data():
             ]
         }
         keys = ["src_id", "dst_id", "feat"]
-        src_ids, dst_ids, feat_data = \
+        src_ids, dst_ids, feat_data, _ = \
             parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
                             partial(read_data_parquet, data_fields=keys),
                             conf, skip_nonexist_edges=True)
@@ -2658,7 +2658,11 @@ def test_collect_parsed_edge_data():
                       {
                           "feat0": data["feat0"][file_ids[i]],
                           "feat1": data["feat1"][file_ids[i]]
-                      }) \
+                      },
+                      [
+                          {"feature_col": "feat0", "feature_dim": [1]},
+                          {"feature_col": "feat1", "feature_dim": [2]}
+                      ]) \
         for i in range(len(file_ids))
     }
 

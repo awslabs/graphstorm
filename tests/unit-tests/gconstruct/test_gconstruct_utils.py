@@ -38,7 +38,8 @@ from graphstorm.gconstruct.utils import (save_maps,
                                          shuffle_hard_nids,
                                          validate_features,
                                          stop_validate_features,
-                                         validate_numerical_feats)
+                                         validate_numerical_feats,
+                                         merge_feat_transformation_conf)
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
@@ -525,18 +526,84 @@ def test_validate_numerical_feats():
                       [1,2,np.nan]])
     assert validate_numerical_feats(array) is False
 
-if __name__ == '__main__':
-    test_validate_numerical_feats()
-    test_validate_features()
-    test_shuffle_hard_nids()
-    test_save_load_maps()
-    test_get_hard_edge_negs_feats()
-    test_get_in_files()
-    test_read_empty_parquet()
-    test_read_empty_json()
-    test_read_empty_csv()
-    test_estimate_sizeof()
-    test_object_conversion()
-    test_ext_mem_array()
-    test_multiprocessing_read()
-    test_read_index()
+def test_merge_feat_transformation_config():
+    # Case 1: only necessary configurations
+    process_conf = [
+        {
+            "feature_col": "test_col",
+            "feature_name": "test_name"
+        }
+    ]
+    update_conf = [
+        {
+            "feature_col": "test_col",
+            "feature_name": "test_name",
+            "feature_dim": [1]
+        }
+    ]
+    merge_feat_transformation_conf(process_conf, update_conf)
+    assert process_conf[0]["feature_dim"] == update_conf[0]["feature_dim"]
+
+    # Case 2: Need to update feature_dim
+    process_conf = [
+        {
+            "feature_col": "test_col",
+            "feature_name": "test_name",
+            "feature_dim": [2]
+        }
+    ]
+    update_conf = [
+        {
+            "feature_col": "test_col",
+            "feature_name": "test_name",
+            "feature_dim": [1]
+        }
+    ]
+    merge_feat_transformation_conf(process_conf, update_conf)
+    assert process_conf[0]["feature_dim"] == update_conf[0]["feature_dim"]
+
+    # Case 3: Multiple configs
+    process_conf = [
+        {
+            "feature_col": "test_col",
+            "feature_name": "test_name",
+        },
+        {
+            "feature_col": "test_col_transform",
+            "feature_name": "test_name_transform",
+            "transformation":{
+                "name": "max_min_norm"
+            }
+        }
+    ]
+    update_conf = [
+        {
+            "feature_col": "test_col",
+            "feature_name": "test_name",
+            "feature_dim": [1]
+        },
+        {
+            "feature_col": "test_col_transform",
+            "feature_name": "test_name_transform",
+            "feature_dim": [100, 100],
+            "transformation": {
+                "name": "max_min_norm"
+            }
+        }
+    ]
+    merge_feat_transformation_conf(process_conf, update_conf)
+    assert process_conf[0]["feature_dim"] == update_conf[0]["feature_dim"]
+    assert process_conf[1]["feature_dim"] == update_conf[1]["feature_dim"]
+
+    # Case 4: Missing feature_dim in update_conf:
+    update_conf[1] = {
+        "feature_col": "test_col_transform",
+        "feature_name": "test_name_transform",
+    }
+    with pytest.raises(AssertionError):
+        merge_feat_transformation_conf(process_conf, update_conf)
+
+    # Case 5: Missing configuration
+    update_conf = [update_conf[0]]
+    with pytest.raises(AssertionError):
+        merge_feat_transformation_conf(process_conf, update_conf)
