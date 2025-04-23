@@ -1603,8 +1603,7 @@ class DistHeterogeneousGraphLoader(object):
             reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
         elif self.add_reverse_edges and self.is_homogeneous:
             reversed_edges = edge_df_with_only_int_ids.select(
-                col("dst_int_id").alias("src_int_id"),
-                col("src_int_id").alias("dst_int_id")
+                col("dst_int_id").alias("src_int_id"), col("src_int_id").alias("dst_int_id")
             )
             edge_df_with_int_ids = edge_df_with_only_int_ids.union(reversed_edges).distinct()
             logging.info("Writing edge structure for edge type %s with reverse edge...", edge_type)
