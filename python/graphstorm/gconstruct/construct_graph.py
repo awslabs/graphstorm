@@ -43,6 +43,7 @@ from .transform import (print_node_label_stats,
                         save_edge_label_stats)
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
+                    merge_feat_transformation_conf,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
                     partition_graph,
                     ExtMemArrayWrapper,
@@ -213,7 +214,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                     f"Expecting the edge feature {key} has the same length" \
                     f"as num existing edges {len(src_ids)}, but get {len(feat)}"
 
-    return (src_ids, dst_ids, feat_data)
+    return (src_ids, dst_ids, feat_data, conf)
 
 def _process_data(user_pre_parser, user_parser,
                   two_phase_feat_ops,
@@ -357,12 +358,11 @@ def process_node_data(process_confs, arr_merger, remap_id,
                                     f"node {node_type}",
                                     ext_mem_workspace_type)
 
-        for i, (node_ids, data, conf) in return_dict.items():
-            print(conf)
-        exit(-1)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
-        for i, (node_ids, data) in return_dict.items():
+        for i, (node_ids, data, conf) in return_dict.items():
+            if "features" in process_conf:
+                merge_feat_transformation_conf(process_conf["features"], conf["features"])
             for feat_name in data:
                 if feat_name not in type_node_data:
                     type_node_data[feat_name] = [None] * len(return_dict)
@@ -454,13 +454,15 @@ def process_node_data(process_confs, arr_merger, remap_id,
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data, label_stats, label_masks)
 
-def _collect_parsed_edge_data(data_dict):
+def _collect_parsed_edge_data(data_dict, process_conf):
     """ Collect edge data parsed by parse_edge_data
 
     Parameters
     ----------
     data_dict: dict
         The edge data
+    process_conf: dict
+        The processed edge configuration
     """
     # Order the return data first
     return_data = [None] * len(data_dict)
@@ -470,14 +472,15 @@ def _collect_parsed_edge_data(data_dict):
             continue
         # Order the data according to the file ID (i)
         return_data[i] = ret_data
-
     type_src_ids = []
     type_dst_ids = []
     type_edge_data = {}
     for ret_data in return_data:
         if ret_data is None:
             continue
-        src_ids, dst_ids, part_data = ret_data
+        src_ids, dst_ids, part_data, conf = ret_data
+        if "features" in process_conf:
+            merge_feat_transformation_conf(process_conf["features"], conf["features"])
         type_src_ids.append(src_ids)
         type_dst_ids.append(dst_ids)
         for feat_name in part_data:
@@ -603,7 +606,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                                     ext_mem_workspace_type)
 
         type_src_ids, type_dst_ids, type_edge_data = \
-            _collect_parsed_edge_data(return_dict)
+            _collect_parsed_edge_data(return_dict, process_conf)
 
         edge_type = tuple(edge_type)
         if edge_type not in label_stats:

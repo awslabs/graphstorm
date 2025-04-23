@@ -219,8 +219,23 @@ def generate_hash():
     random_uuid = uuid.uuid4()
     return str(random_uuid)
 
-def merge_conf(conf, updated_conf):
-    return None
+def merge_feat_transformation_conf(conf, updated_conf):
+    """ Merge the original configuration with the
+
+    Parameters:
+    conf: dict
+        Original feature configuration
+    updated_conf:
+        Updated feature configuration after feature transformation
+    """
+    assert len(conf) == len(updated_conf), \
+        "Configuration after feature transformation should have same number."
+    for i, feat_conf in enumerate(conf):
+        if "feature_dim" not in feat_conf and "feature_dim" in updated_conf[i]:
+            feat_conf["feature_dim"] = updated_conf[i]["feature_dim"]
+        elif "feature_dim" in feat_conf and "feature_dim" in updated_conf[i] \
+            and feat_conf["feature_dim"] != updated_conf[i]["feature_dim"]:
+            feat_conf["feature_dim"] = updated_conf[i]["feature_dim"]
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool
