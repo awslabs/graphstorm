@@ -219,6 +219,9 @@ def generate_hash():
     random_uuid = uuid.uuid4()
     return str(random_uuid)
 
+def merge_conf(conf, updated_conf):
+    return None
+
 def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool
 

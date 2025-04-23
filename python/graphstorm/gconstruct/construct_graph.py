@@ -112,7 +112,8 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_me
         for key, val in label_data.items():
             feat_data[key] = val
     node_ids = data[node_id_col] if node_id_col in data else None
-    return (node_ids, feat_data)
+
+    return (node_ids, feat_data, conf)
 
 def prepare_edge_data(in_file, feat_ops, read_file):
     """ Prepare edge data information for data transformation.
@@ -355,6 +356,10 @@ def process_node_data(process_confs, arr_merger, remap_id,
                                     num_proc,
                                     f"node {node_type}",
                                     ext_mem_workspace_type)
+
+        for i, (node_ids, data, conf) in return_dict.items():
+            print(conf)
+        exit(-1)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
