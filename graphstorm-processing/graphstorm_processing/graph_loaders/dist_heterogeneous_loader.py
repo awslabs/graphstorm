@@ -19,7 +19,6 @@ import logging
 import math
 import numbers
 import os
-from audioop import reverse
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -312,7 +311,6 @@ class DistHeterogeneousGraphLoader(object):
 
         if "nodes" in data_configs:
             node_configs: Sequence[NodeConfig] = data_configs["nodes"]
-
             missing_node_types = self._get_missing_node_types(edge_configs, node_configs)
             if len(missing_node_types) > 0:
                 logging.info(
@@ -1751,7 +1749,7 @@ class DistHeterogeneousGraphLoader(object):
         }
         edge_structure_dict[edge_type] = edges_metadata_dict
 
-        if self.add_reverse_edges:
+        if self.add_reverse_edges and not self.is_homogeneous:
             reverse_edges_metadata_dict = {
                 "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
                 "data": reverse_edge_path_list,
@@ -1805,7 +1803,7 @@ class DistHeterogeneousGraphLoader(object):
                             edge_config.label_configs[0].label_column
                         )
 
-                    if self.add_reverse_edges:
+                    if self.add_reverse_edges and not self.is_homogeneous:
                         # For reverse edges only the label metadata
                         # (labels + split masks) are relevant.
                         edge_data_dict[reverse_edge_type] = label_metadata_dicts
