@@ -224,9 +224,20 @@ def merge_feat_transformation_conf(conf, updated_conf):
 
     Parameters:
     conf: dict
-        Original feature configuration
+        Original feature configuration.
+        [{
+            "feature_col":  ["<column name>", ...],
+            "feature_name": "<feature name>",
+            "transform":    {"name": "<operator name>", ...}
+        }]
     updated_conf:
         Updated feature configuration after feature transformation
+        [{
+            "feature_col":  ["<column name>", ...],
+            "feature_name": "<feature name>",
+            "feature_dim":  [int],
+            "transform":    {"name": "<operator name>", ...}
+        }]
     """
     assert len(conf) == len(updated_conf), \
         "Configuration after feature transformation should have same number."

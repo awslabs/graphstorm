@@ -113,7 +113,6 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_me
         for key, val in label_data.items():
             feat_data[key] = val
     node_ids = data[node_id_col] if node_id_col in data else None
-
     return (node_ids, feat_data, conf)
 
 def prepare_edge_data(in_file, feat_ops, read_file):
@@ -472,6 +471,7 @@ def _collect_parsed_edge_data(data_dict, process_conf=None):
             continue
         # Order the data according to the file ID (i)
         return_data[i] = ret_data
+        
     type_src_ids = []
     type_dst_ids = []
     type_edge_data = {}
