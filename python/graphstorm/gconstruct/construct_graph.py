@@ -471,7 +471,7 @@ def _collect_parsed_edge_data(data_dict, process_conf=None):
             continue
         # Order the data according to the file ID (i)
         return_data[i] = ret_data
-        
+
     type_src_ids = []
     type_dst_ids = []
     type_edge_data = {}
