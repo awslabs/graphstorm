@@ -55,13 +55,11 @@ from graphstorm_processing.constants import (
     HUGGINGFACE_TRANFORM,
     HUGGINGFACE_TOKENIZE,
     TRANSFORMATIONS_FILENAME,
-    HOMOGENEOUS_FLAG,
 )
 from graphstorm_processing.config.config_parser import (
     EdgeConfig,
     NodeConfig,
     StructureConfig,
-    is_homogeneous,
 )
 from graphstorm_processing.config.label_config_base import LabelConfig
 from graphstorm_processing.config.feature_config_base import FeatureConfig
