@@ -361,7 +361,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data, conf) in return_dict.items():
-            if "features" in process_conf:
+            if process_conf and "features" in process_conf:
                 merge_feat_transformation_conf(process_conf["features"], conf["features"])
             for feat_name in data:
                 if feat_name not in type_node_data:
@@ -454,7 +454,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data, label_stats, label_masks)
 
-def _collect_parsed_edge_data(data_dict, process_conf={}):
+def _collect_parsed_edge_data(data_dict, process_conf=None):
     """ Collect edge data parsed by parse_edge_data
 
     Parameters
@@ -479,7 +479,7 @@ def _collect_parsed_edge_data(data_dict, process_conf={}):
         if ret_data is None:
             continue
         src_ids, dst_ids, part_data, conf = ret_data
-        if "features" in process_conf:
+        if process_conf and "features" in process_conf:
             merge_feat_transformation_conf(process_conf["features"], conf["features"])
         type_src_ids.append(src_ids)
         type_dst_ids.append(dst_ids)
