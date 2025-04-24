@@ -360,7 +360,7 @@ class NodeConfig(StructureConfig):
         return self._node_col
 
 
-def is_homogeneous(graph_config: Dict[str, Any]):
+def update_dict_if_homogeneous(graph_config: Dict[str, Any]):
     """Parses a GSProcessing JSON configuration dictionary and modify the input if it is
     a homogeneous graph to fit the DGL requirement.
 
@@ -369,12 +369,33 @@ def is_homogeneous(graph_config: Dict[str, Any]):
     graph_config : Dict[str, Any]
         A dictionary with a specific structure, describing stored graph data.
     """
-    ntype = {n["type"] for n in graph_config["nodes"]}
+    if graph_config["nodes"] != [{}]:
+        ntype = {n["type"] for n in graph_config["nodes"]}
+    else:
+        ntype = set()
     etype = {e["relation"]["type"] for e in graph_config["edges"]}
     for e in graph_config["edges"]:
         ntype.update({e["source"]["type"]})
         ntype.update({e["dest"]["type"]})
-    return len(ntype) == 1 and len(etype) == 1
+
+    is_homogeneous = (len(ntype) == 1) and (len(etype) == 1)
+    # We will modify the original GSProcessing configuration as well to
+    # save to the <config-name>_with_transformation.json
+    if is_homogeneous:
+        # Assume node type can be defined in multiple dict
+        # in the original configuration
+        graph_config["is_homogeneous"] = True
+        if graph_config["nodes"] and graph_config["nodes"] != [{}]:
+            for n_config in graph_config["nodes"]:
+                n_config["type"] = "_N"
+        for e_config in graph_config["edges"]:
+            e_config["source"]["type"] = "_N"
+            e_config["dest"]["type"] = "_N"
+            e_config["relation"]["type"] = "_E"
+    else:
+        graph_config["is_homogeneous"] = False
+
+    return graph_config
 
 
 def create_config_objects(graph_config: Dict[str, Any]) -> Dict[str, Sequence[StructureConfig]]:
@@ -424,20 +445,7 @@ def create_config_objects(graph_config: Dict[str, Any]) -> Dict[str, Sequence[St
     data_configs: Dict[str, Sequence[StructureConfig]] = {}
     edge_configs: List[EdgeConfig] = []
     node_configs: List[NodeConfig] = []
-    # We will modify the original GSProcessing configuration as well to
-    # save to the <config-name>_with_transformation.json
-    if is_homogeneous(graph_config):
-        # Assume node type can be defined in multiple dict
-        # in the original configuration
-        graph_config["is_homogeneous"] = True
-        for n_config in graph_config["nodes"]:
-            n_config["type"] = "_N"
-        for e_config in graph_config["edges"]:
-            e_config["source"]["type"] = "_N"
-            e_config["dest"]["type"] = "_N"
-            e_config["relation"]["type"] = "_E"
-    else:
-        graph_config["is_homogeneous"] = False
+
     # parse edges
     for edge_conf in graph_config["edges"]:
         edge_configs.append(EdgeConfig(edge_conf, edge_conf["data"]))

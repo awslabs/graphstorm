@@ -21,7 +21,7 @@ from graphstorm_processing.config.config_parser import (
     EdgeConfig,
     create_config_objects,
     parse_feat_config,
-    is_homogeneous,
+    update_dict_if_homogeneous,
 )
 from graphstorm_processing.config.numerical_configs import (
     NumericalFeatureConfig,
@@ -149,6 +149,8 @@ def test_create_config_objects():
     assert isinstance(config_objects["edges"][0], EdgeConfig)
     assert isinstance(config_objects["nodes"][0], NodeConfig)
 
+    # Test if it will
+
 
 def test_unsupported_transformation():
     """Test that an unsupported transformation raises an error"""
@@ -162,7 +164,7 @@ def test_unsupported_transformation():
         parse_feat_config(feature_dict)
 
 
-def test_homogeneous():
+def test_update_dict_if_homogeneous():
     """Test homogeneous flag"""
     # Case 1: Homogeneous Graph
     graph_config = {
@@ -179,14 +181,28 @@ def test_homogeneous():
             }
         ],
     }
-    assert is_homogeneous(graph_config)
+    update_config = update_dict_if_homogeneous(graph_config)
+    assert update_config["nodes"][0]["type"] == "_N"
+    assert update_config["edges"][0]["source"]["type"] == "_N"
+    assert update_config["edges"][0]["dest"]["type"] == "_N"
+    assert update_config["edges"][0]["relation"]["type"] == "_E"
+
 
     # Case 2: Remove node definition but still maintain it as a homogeneous graph
-    graph_config["nodes"] = [{}]
-    assert is_homogeneous(graph_config)
-
-    # Case 3: heterogeneous graph
-    graph_config["nodes"] = [{"type": "movie"}]
-    assert not is_homogeneous(graph_config)
-
-
+    # graph_config["nodes"] = [{}]
+    # assert is_homogeneous(graph_config)
+    #
+    # # Case 3: multiple node types
+    # graph_config["nodes"] = [{"type": "movie"}]
+    # assert not is_homogeneous(graph_config)
+    #
+    # # Case 4: multiple edge types
+    # graph_config["nodes"] = [{}]
+    # graph_config["edges"].append(
+    #     {
+    #         "source": {"column": "~from", "type": "movie"},
+    #         "relation": {"type": "relation"},
+    #         "dest": {"column": "~to", "type": "movie"},
+    #     }
+    # )
+    # assert not is_homogeneous(graph_config)

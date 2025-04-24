@@ -69,7 +69,7 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     HeterogeneousLoaderConfig,
     ProcessedGraphRepresentation,
 )
-from graphstorm_processing.config.config_parser import create_config_objects
+from graphstorm_processing.config.config_parser import create_config_objects, update_dict_if_homogeneous
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
 from graphstorm_processing.constants import TRANSFORMATIONS_FILENAME
 from graphstorm_processing.data_transformations import spark_utils, s3_utils
@@ -251,6 +251,7 @@ class DistributedExecutor:
         self.spark = spark_utils.create_spark_session(self.execution_env, self.filesystem_type)
 
         # Initialize the graph loader
+        self.gsp_config_dict = update_dict_if_homogeneous(self.gsp_config_dict)
         data_configs = create_config_objects(self.gsp_config_dict)
         loader_config = HeterogeneousLoaderConfig(
             is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
