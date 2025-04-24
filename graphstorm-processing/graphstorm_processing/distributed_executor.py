@@ -69,7 +69,10 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     HeterogeneousLoaderConfig,
     ProcessedGraphRepresentation,
 )
-from graphstorm_processing.config.config_parser import create_config_objects, update_dict_if_homogeneous
+from graphstorm_processing.config.config_parser import (
+    create_config_objects,
+    update_dict_if_homogeneous,
+)
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
 from graphstorm_processing.constants import TRANSFORMATIONS_FILENAME
 from graphstorm_processing.data_transformations import spark_utils, s3_utils
