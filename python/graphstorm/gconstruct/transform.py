@@ -1607,6 +1607,7 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
 
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()
+            
     return new_data, feat_dim_list
 
 def get_valid_label_index(label):
