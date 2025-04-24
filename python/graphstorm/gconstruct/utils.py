@@ -238,7 +238,8 @@ def update_feat_transformation_conf(conf, feat_dim_list):
     assert len(conf) == len(feat_dim_list), \
         "Length of the configuration and feature dimension list should be the same."
     for feat_conf in conf:
-        feat_name = feat_conf['feature_name'] if 'feature_name' in feat_conf else feat_conf['feature_col']
+        feat_name = feat_conf['feature_name'] if 'feature_name' in feat_conf \
+            else feat_conf['feature_col']
         if "feature_dim" in feat_conf:
             assert feat_conf["feature_dim"] == feat_dim_list[feat_name], \
                 "Feature dimension for one feature transformation should keep the same"

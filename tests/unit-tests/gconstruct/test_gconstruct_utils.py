@@ -39,7 +39,7 @@ from graphstorm.gconstruct.utils import (save_maps,
                                          validate_features,
                                          stop_validate_features,
                                          validate_numerical_feats,
-                                         merge_feat_transformation_conf)
+                                         update_feat_transformation_conf)
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
@@ -526,43 +526,19 @@ def test_validate_numerical_feats():
                       [1,2,np.nan]])
     assert validate_numerical_feats(array) is False
 
-def test_merge_feat_transformation_config():
-    # Case 1: only necessary configurations
+def test_update_feat_transformation_config():
+    # Case 1: Single feat_op with feat_dim_list
     process_conf = [
         {
             "feature_col": "test_col",
             "feature_name": "test_name"
         }
     ]
-    update_conf = [
-        {
-            "feature_col": "test_col",
-            "feature_name": "test_name",
-            "feature_dim": [1]
-        }
-    ]
-    merge_feat_transformation_conf(process_conf, update_conf)
-    assert process_conf[0]["feature_dim"] == update_conf[0]["feature_dim"]
+    feat_dim_list = {"test_name": (1, )}
+    update_feat_transformation_conf(process_conf, feat_dim_list)
+    assert process_conf[0]["feature_dim"] == feat_dim_list["test_name"]
 
-    # Case 2: Need to update feature_dim
-    process_conf = [
-        {
-            "feature_col": "test_col",
-            "feature_name": "test_name",
-            "feature_dim": [2]
-        }
-    ]
-    update_conf = [
-        {
-            "feature_col": "test_col",
-            "feature_name": "test_name",
-            "feature_dim": [1]
-        }
-    ]
-    merge_feat_transformation_conf(process_conf, update_conf)
-    assert process_conf[0]["feature_dim"] == update_conf[0]["feature_dim"]
-
-    # Case 3: Multiple configs
+    # Case 2: Multiple configs
     process_conf = [
         {
             "feature_col": "test_col",
@@ -570,40 +546,22 @@ def test_merge_feat_transformation_config():
         },
         {
             "feature_col": "test_col_transform",
-            "feature_name": "test_name_transform",
             "transformation":{
                 "name": "max_min_norm"
             }
         }
     ]
-    update_conf = [
-        {
-            "feature_col": "test_col",
-            "feature_name": "test_name",
-            "feature_dim": [1]
-        },
-        {
-            "feature_col": "test_col_transform",
-            "feature_name": "test_name_transform",
-            "feature_dim": [100, 100],
-            "transformation": {
-                "name": "max_min_norm"
-            }
-        }
-    ]
-    merge_feat_transformation_conf(process_conf, update_conf)
-    assert process_conf[0]["feature_dim"] == update_conf[0]["feature_dim"]
-    assert process_conf[1]["feature_dim"] == update_conf[1]["feature_dim"]
+    feat_dim_list = {"test_name": (1, ), "test_col_transform": (2, 3, 1,)}
+    update_feat_transformation_conf(process_conf, feat_dim_list)
+    assert process_conf[0]["feature_dim"] == feat_dim_list["test_name"]
+    assert process_conf[1]["feature_dim"] == feat_dim_list["test_col_transform"]
 
-    # Case 4: Missing feature_dim in update_conf:
-    update_conf[1] = {
-        "feature_col": "test_col_transform",
-        "feature_name": "test_name_transform",
-    }
+    # Case 3: Missing configuration
+    feat_dim_list = {"test_name": (1, )}
     with pytest.raises(AssertionError):
-        merge_feat_transformation_conf(process_conf, update_conf)
+        update_feat_transformation_conf(process_conf, feat_dim_list)
 
-    # Case 5: Missing configuration
-    update_conf = [update_conf[0]]
+    # Case 4: Mismatch feature dimension
+    feat_dim_list = {"test_name": (1,), "test_col_transform": (2, 3, 1000,)}
     with pytest.raises(AssertionError):
-        merge_feat_transformation_conf(process_conf, update_conf)
+        update_feat_transformation_conf(process_conf, feat_dim_list)
