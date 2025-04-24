@@ -179,3 +179,4 @@ def test_homogeneous():
             }
         ],
     }
+    flag = is_homogeneous(graph_config)
