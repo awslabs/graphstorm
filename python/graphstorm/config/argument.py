@@ -890,6 +890,13 @@ class GSConfig:
             _ = self.model_select_etype
             _ = self.lp_embed_normalizer
 
+        # For inference tasks in particular
+        if self.task_type in [
+            BUILTIN_TASK_NODE_CLASSIFICATION,
+            BUILTIN_TASK_NODE_REGRESSION,
+        ]:
+            _ = self.infer_all_target_nodes
+
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
         """
@@ -2366,6 +2373,20 @@ class GSConfig:
         # use save_embed_path
         return self.save_embed_path
 
+    @property
+    def infer_all_target_nodes(self):
+        """ Whether to force inference to run on all nodes for types specified
+        by target-ntypes, ignoring any mask. Default is False.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_infer_all_target_nodes"):
+            assert self._infer_all_target_nodes in [True, False], \
+                "infer_all_target_nodes should be in [True, False] (bool)"
+            return self._infer_all_target_nodes
+
+        # By default, do not force inference on all nodes/edges
+        return False
+
     ### Node related task variables ###
     @property
     def target_ntype(self):
@@ -3690,16 +3711,26 @@ def _add_task_general_args(parser):
                 "the evaluation metric used. Supported metrics are accuracy,"
                 "precision_recall, or roc_auc multiple metrics"
                 "can be specified e.g. --eval-metric accuracy precision_recall")
-    group.add_argument('--report-eval-per-type', type=bool, default=argparse.SUPPRESS,
-            help="Whether report evaluation metrics per node type or edge type."
-                 "If True, report evaluation results for each node type/edge type."
-                 "If False, report an average evaluation result.")
+    group.add_argument(
+        '--report-eval-per-type', type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help=(
+            "Whether to report evaluation metrics per node type or edge type. "
+            "If set to 'True', report evaluation results for each node type/edge type. "
+            "Otherwise, report an average evaluation result."
+        )
+    )
     return parser
 
-def _add_inference_args(parser):
+def _add_inference_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group(title="infer")
     group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
+    group.add_argument(
+        "--infer-all-target-nodes",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="When set to 'true', will force inference to run on all target node types.")
     return parser
 
 def _add_distill_args(parser):

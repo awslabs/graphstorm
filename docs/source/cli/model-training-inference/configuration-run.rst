@@ -381,7 +381,7 @@ General Configurations
   choose the best trained model and for early stopping. Each learning task supports different evaluation metrics:
 
   - The supported evaluation metrics of classification tasks include ``accuracy``,
-    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``, and ``fscore_at_beta``. 
+    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``, and ``fscore_at_beta``.
 
     - The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or
       ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k``
@@ -470,6 +470,12 @@ Node Classification/Regression Specific
     - Yaml: ``target_ntype: movie``
     - Argument: ``--target-ntype movie``
     - Default value: For heterogeneous input graph, this parameter must be provided by the user. If not provided, GraphStorm will assume the input graph is a homogeneous graph and set ``target_ntype`` to "_N".
+- **infer_all_target_nodes**: When set to `True`, run inference on all nodes in the target node type(s) as defined by **target_ntype**. **NEEDS TO RUN WITH no_validation=True**.
+  We require all-node inference to run without evaluation, to avoid biased evaluation that includes nodes in the train set.
+
+    - Yaml: ``infer_all_target_nodes: True``
+    - Argument: ``--infer-all-target-nodes True``
+    - Default value: False, inference will run only on the node subset specified by the test mask.
 
 Edge Classification/Regression Specific
 `````````````````````````````````````````
