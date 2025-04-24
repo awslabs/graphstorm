@@ -241,9 +241,10 @@ def update_feat_transformation_conf(conf, feat_dim_list):
         feat_name = feat_conf['feature_name'] if 'feature_name' in feat_conf \
             else feat_conf['feature_col']
         if "feature_dim" in feat_conf:
-            assert feat_conf["feature_dim"] == feat_dim_list[feat_name], \
+            # JSON will write tuple into list 
+            assert feat_conf["feature_dim"] == list(feat_dim_list[feat_name]), \
                 "Feature dimension for one feature transformation should keep the same"
-        feat_conf["feature_dim"] = feat_dim_list[feat_name]
+        feat_conf["feature_dim"] = list(feat_dim_list[feat_name])
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool
