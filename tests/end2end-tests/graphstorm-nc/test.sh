@@ -5,7 +5,7 @@ service ssh restart
 GS_HOME=$(pwd)
 NUM_TRAINERS=1
 export PYTHONPATH=$GS_HOME/python/
-cd $GS_HOME/training_scripts/gsgnn_np || exit
+cd $GS_HOME/training_scripts/gsgnn_np || exit 1
 
 echo "127.0.0.1" > ip_list.txt
 

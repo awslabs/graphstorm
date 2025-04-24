@@ -470,7 +470,7 @@ Node Classification/Regression Specific
     - Yaml: ``target_ntype: movie``
     - Argument: ``--target-ntype movie``
     - Default value: For heterogeneous input graph, this parameter must be provided by the user. If not provided, GraphStorm will assume the input graph is a homogeneous graph and set ``target_ntype`` to "_N".
-- **infer_all_target_nodes**: When set to `True`, run inference on all nodes in the target type(s) as defined by **target_ntype**. **NEEDS TO RUN WITH no_validation=True**.
+- **infer_all_target_nodes**: When set to `True`, run inference on all nodes in the target node type(s) as defined by **target_ntype**. **NEEDS TO RUN WITH no_validation=True**.
   We require all-node inference to run without evaluation, to avoid biased evaluation that includes nodes in the train set.
 
     - Yaml: ``infer_all_target_nodes: True``

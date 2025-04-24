@@ -887,7 +887,7 @@ class GSConfig:
             _ = self.lp_embed_normalizer
 
         # For inference tasks in particular
-        if self.task_type == [
+        if self.task_type in [
             BUILTIN_TASK_NODE_CLASSIFICATION,
             BUILTIN_TASK_NODE_REGRESSION,
         ]:
