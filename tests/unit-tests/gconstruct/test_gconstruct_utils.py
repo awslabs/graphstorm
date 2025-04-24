@@ -534,7 +534,7 @@ def test_update_feat_transformation_config():
             "feature_name": "test_name"
         }
     ]
-    feat_dim_list = {"test_name": (1, )}
+    feat_dim_list = {"test_name": [1]}
     update_feat_transformation_conf(process_conf, feat_dim_list)
     assert process_conf[0]["feature_dim"] == feat_dim_list["test_name"]
 
@@ -551,17 +551,17 @@ def test_update_feat_transformation_config():
             }
         }
     ]
-    feat_dim_list = {"test_name": (1, ), "test_col_transform": (2, 3, 1,)}
+    feat_dim_list = {"test_name": [1], "test_col_transform": [2, 3, 1]}
     update_feat_transformation_conf(process_conf, feat_dim_list)
     assert process_conf[0]["feature_dim"] == feat_dim_list["test_name"]
     assert process_conf[1]["feature_dim"] == feat_dim_list["test_col_transform"]
 
     # Case 3: Missing configuration
-    feat_dim_list = {"test_name": (1, )}
+    feat_dim_list = {"test_name": [1]}
     with pytest.raises(AssertionError):
         update_feat_transformation_conf(process_conf, feat_dim_list)
 
     # Case 4: Mismatch feature dimension
-    feat_dim_list = {"test_name": (1,), "test_col_transform": (2, 3, 1000,)}
+    feat_dim_list = {"test_name": [1], "test_col_transform": [2, 3, 1000]}
     with pytest.raises(AssertionError):
         update_feat_transformation_conf(process_conf, feat_dim_list)
