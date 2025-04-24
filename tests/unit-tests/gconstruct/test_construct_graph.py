@@ -2733,6 +2733,9 @@ def create_featless_data(graph_dir):
     edge_dir = os.path.join(graph_dir, "edges")
     os.mkdir(edge_dir)
 
+    # Create edges with src and dst ids as integers
+    # For consequtive integer IDs, there is no need
+    # to build ID mapping.
     data0 = {
         "src": np.random.randint(0, 5, size=10),
         "dst": np.random.randint(0, 5, size=10),
@@ -2761,6 +2764,7 @@ def create_featless_data(graph_dir):
     write_data_csv(data2, os.path.join(os.path.join(edge_dir, "r1"), 'data0.csv'))
     write_data_csv(data3, os.path.join(os.path.join(edge_dir, "r2"), 'data0.csv'))
 
+    # Create edges with src and dst ids as strings
     data0_str = {
         "src": data0["src"].astype(str),
         "dst": data0["dst"].astype(str),

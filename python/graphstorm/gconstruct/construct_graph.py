@@ -306,7 +306,7 @@ def process_featless_ntype(node_confs: List[Dict],
                            remap_id: bool,
                            num_processes: int=1) -> Dict:
     """ Handle the cases when users do not provide node files for
-        feature less node type(s),
+        feature less node type(s).
 
     The node config of a node type is defined as follows:
     {
@@ -322,7 +322,7 @@ def process_featless_ntype(node_confs: List[Dict],
         ...
     }
 
-    By checking the node_types from node configs and relations from
+    By checking the node types from node configs and relations from
     edge configs we can get the node type(s) that are missing from
     node configs.
 
