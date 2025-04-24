@@ -1602,6 +1602,8 @@ class DistHeterogeneousGraphLoader(object):
             logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
             reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
         elif self.add_reverse_edges and self.is_homogeneous:
+            # Homogeneous graph will only add reverse edges to the same edge type
+            # instead of creating a {relation_type}-rev edge type.
             reversed_edges = edge_df_with_only_int_ids.select(
                 col("dst_int_id").alias("src_int_id"), col("src_int_id").alias("dst_int_id")
             )

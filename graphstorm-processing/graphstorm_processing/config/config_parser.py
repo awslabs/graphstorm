@@ -445,7 +445,6 @@ def create_config_objects(graph_config: Dict[str, Any]) -> Dict[str, Sequence[St
     data_configs: Dict[str, Sequence[StructureConfig]] = {}
     edge_configs: List[EdgeConfig] = []
     node_configs: List[NodeConfig] = []
-
     # parse edges
     for edge_conf in graph_config["edges"]:
         edge_configs.append(EdgeConfig(edge_conf, edge_conf["data"]))
