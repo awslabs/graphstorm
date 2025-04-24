@@ -1559,7 +1559,7 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
     """
     new_data = {}
     feat_dim_list = {}
-    for i, op in enumerate(ops):
+    for op in ops:
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
         else:
