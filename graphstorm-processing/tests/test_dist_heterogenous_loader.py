@@ -115,8 +115,9 @@ def data_configs_with_label_fixture():
 
     return data_configs_dict
 
+
 @pytest.fixture(scope="function", name="data_configs_homogeneous")
-def data_configs_with_label_fixture():
+def data_configs_homogeneous_fixture():
     """Create data configuration object that contain features and labels"""
     config_path = os.path.join(
         _ROOT, "resources/small_heterogeneous_graph/gsprocessing-homogeneous.json"
@@ -128,6 +129,7 @@ def data_configs_with_label_fixture():
     data_configs_dict = create_config_objects(gsprocessing_config["graph"])
 
     return data_configs_dict
+
 
 @pytest.fixture(scope="function", name="no_label_data_configs")
 def no_label_data_configs_fixture():
@@ -219,6 +221,7 @@ def dghl_loader_homogeneous_fixture(
         loader_config,
     )
     return dhgl
+
 
 @pytest.fixture(scope="function", name="dghl_loader_no_reverse_edges")
 def dghl_loader_no_reverse_edges_fixture(
@@ -407,7 +410,7 @@ def test_write_edge_structure_homogeneous_reverse_edges(
     spark: SparkSession,
     data_configs_homogeneous,
     dghl_loader_homogeneous: DistHeterogeneousGraphLoader,
-    user_rated_movie_df:DataFrame
+    user_rated_movie_df: DataFrame,
 ):
     edge_configs = data_configs_homogeneous["edges"]
 
@@ -438,7 +441,7 @@ def test_write_edge_structure_homogeneous_reverse_edges(
     ]
     edge_df = spark.read.parquet(*edge_file_path)
 
-    # Only one node type in the
+    # Only one node type in the homogeneous graph
     assert len(dghl_loader_homogeneous.node_mapping_paths) == 1
     for node_type, mapping_files in dghl_loader_homogeneous.node_mapping_paths.items():
         files_with_prefix = [
@@ -446,11 +449,25 @@ def test_write_edge_structure_homogeneous_reverse_edges(
         ]
         mapping_df = spark.read.parquet(*files_with_prefix)
 
-    user_rated_movie_df_int_id = user_rated_movie_df.join(mapping_df, user_rated_movie_df["~from"] == mapping_df["orig"])
-    # mapping_df.show()
-    # user_rated_movie_df.show()
-    # edge_df.show()
-    exit(-1)
+    # Mapping source id to int
+    user_rated_movie_df_int_id = user_rated_movie_df.join(
+        mapping_df, F.col("`~from`") == F.col("orig"), "inner"
+    ).select(F.col("new").alias("src_int_id"), F.col("~to"))
+    # Mapping dest id to int
+    user_rated_movie_df_int_id = user_rated_movie_df_int_id.join(
+        mapping_df, F.col("`~to`") == F.col("orig"), "inner"
+    ).select(F.col("src_int_id"), F.col("new").alias("dst_int_id"))
+    user_rated_movie_df_int_id_reverse = user_rated_movie_df_int_id.select(
+        F.col("dst_int_id").alias("src_int_id"), F.col("src_int_id").alias("dst_int_id")
+    )
+    user_rated_movie_df_int_id = user_rated_movie_df_int_id.union(
+        user_rated_movie_df_int_id_reverse
+    )
+    processing_result_row = set(edge_df.collect())
+    expected_edge_row = set(user_rated_movie_df_int_id.collect())
+    assert (
+        processing_result_row == expected_edge_row
+    ), "Homogeneous graph should add reverse edges to its original edge type"
 
 
 def test_write_edge_structure_no_reverse_edges(

@@ -149,8 +149,6 @@ def test_create_config_objects():
     assert isinstance(config_objects["edges"][0], EdgeConfig)
     assert isinstance(config_objects["nodes"][0], NodeConfig)
 
-    # Test if it will
-
 
 def test_unsupported_transformation():
     """Test that an unsupported transformation raises an error"""
