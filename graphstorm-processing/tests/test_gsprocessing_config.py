@@ -164,7 +164,7 @@ def test_unsupported_transformation():
 
 def test_homogeneous():
     """Test homogeneous flag"""
-    # Case 1: 
+    # Case 1: Homogeneous Graph
     graph_config = {
         "edges": [
             {
@@ -179,4 +179,14 @@ def test_homogeneous():
             }
         ],
     }
-    flag = is_homogeneous(graph_config)
+    assert is_homogeneous(graph_config)
+
+    # Case 2: Remove node definition but still maintain it as a homogeneous graph
+    graph_config["nodes"] = [{}]
+    assert is_homogeneous(graph_config)
+
+    # Case 3: heterogeneous graph
+    graph_config["nodes"] = [{"type": "movie"}]
+    assert not is_homogeneous(graph_config)
+
+
