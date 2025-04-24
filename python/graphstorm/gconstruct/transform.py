@@ -1538,7 +1538,7 @@ def preprocess_features(data, ops: List[TwoPhaseFeatTransform]):
 
     return pre_data
 
-def process_features(data, ops: List[FeatTransform], ext_mem_path=None, feat_conf_list=None):
+def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -1552,23 +1552,13 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None, feat_con
         The operations that transform features.
     ext_mem_path: str or None
         The path of external memory
-    feat_conf_list: list of dict
-        Processed feat config list for one node type
-        The feature config list can be:
-        [
-            {
-                "feature_col":  ["<column name>", ...],
-                "feature_name": "<feature name>",
-                "feature_dim":  [int],
-                "transform":    {"name": "<operator name>", ...}
-            }
-        ]
 
     Returns
     -------
     dict : the key is the data name, the value is the processed data.
     """
     new_data = {}
+    feat_dim_list = {}
     for i, op in enumerate(ops):
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
@@ -1613,14 +1603,11 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None, feat_con
                     new_data[key] = val
 
         # Write feature dimension back to the feature config
-        if feat_conf_list:
-            feat_conf = feat_conf_list[i]
-            feat_conf["feature_dim"] = op.feat_dim
+        feat_dim_list[op.feat_name] = op.feat_dim
 
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()
-
-    return new_data
+    return new_data, feat_dim_list
 
 def get_valid_label_index(label):
     """ Get the index of the samples with valid labels.

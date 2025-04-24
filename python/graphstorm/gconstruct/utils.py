@@ -219,8 +219,9 @@ def generate_hash():
     random_uuid = uuid.uuid4()
     return str(random_uuid)
 
-def merge_feat_transformation_conf(conf, updated_conf):
-    """ Merge the original configuration with the
+
+def update_feat_transformation_conf(conf, feat_dim_list):
+    """ Update the feature configuration with the feature dimension list
 
     Parameters:
     conf: dict
@@ -230,27 +231,18 @@ def merge_feat_transformation_conf(conf, updated_conf):
             "feature_name": "<feature name>",
             "transform":    {"name": "<operator name>", ...}
         }]
-    updated_conf:
+    feat_dim_list: list[tuple]
         Updated feature configuration after feature transformation
-        [{
-            "feature_col":  ["<column name>", ...],
-            "feature_name": "<feature name>",
-            "feature_dim":  [int],
-            "transform":    {"name": "<operator name>", ...}
-        }]
+        [(2,), (3,4,), (1)]
     """
-    assert len(conf) == len(updated_conf), \
-        "Configuration after feature transformation should have same number."
-    for i, feat_conf in enumerate(conf):
-        assert feat_conf["feature_col"] == updated_conf[i]["feature_col"], \
-            "Configuration after feature transformation should have same feature column"
-        assert "feature_dim" in updated_conf[i], \
-            "feature_dim column should always be in the config after feature transformation"
-        if "feature_dim" not in feat_conf and "feature_dim" in updated_conf[i]:
-            feat_conf["feature_dim"] = updated_conf[i]["feature_dim"]
-        elif "feature_dim" in feat_conf and "feature_dim" in updated_conf[i] \
-            and feat_conf["feature_dim"] != updated_conf[i]["feature_dim"]:
-            feat_conf["feature_dim"] = updated_conf[i]["feature_dim"]
+    assert len(conf) == len(feat_dim_list), \
+        "Length of the configuration and feature dimension list should be the same."
+    for feat_conf in conf:
+        feat_name = feat_conf['feature_name'] if 'feature_name' in feat_conf else feat_conf['feature_col']
+        if "feature_dim" in feat_conf:
+            assert feat_conf["feature_dim"] == feat_dim_list[feat_name], \
+                "Feature dimension for one feature transformation should keep the same"
+        feat_conf["feature_dim"] = feat_dim_list[feat_name]
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool
