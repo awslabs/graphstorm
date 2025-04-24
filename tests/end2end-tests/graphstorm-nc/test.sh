@@ -114,7 +114,7 @@ python3 -m graphstorm.run.gs_node_classification \
 
 error_and_exit $?
 
-# Ensure ohly test nodes have embeddings
+# Ensure only test nodes have embeddings
 # test set is 10% of 1682 nodes, so we expect 168 nodes
 python3 $GS_HOME/tests/end2end-tests/graphstorm-nc/check_emb.py \
     --emb-path "$EMBED_CHECK_DIR/only-test-embeddings/" \
