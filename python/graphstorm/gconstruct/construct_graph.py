@@ -360,7 +360,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data, feat_dim_list) in return_dict.items():
-            if process_conf and "features" in process_conf:
+            if process_conf and ("features" in process_conf):
                 update_feat_transformation_conf(process_conf["features"], feat_dim_list)
             for feat_name in data:
                 if feat_name not in type_node_data:
@@ -479,7 +479,7 @@ def _collect_parsed_edge_data(data_dict, process_conf=None):
         if ret_data is None:
             continue
         src_ids, dst_ids, part_data, feat_dim_list = ret_data
-        if process_conf and "features" in process_conf:
+        if process_conf and ("features" in process_conf):
             update_feat_transformation_conf(process_conf["features"], feat_dim_list)
         type_src_ids.append(src_ids)
         type_dst_ids.append(dst_ids)
