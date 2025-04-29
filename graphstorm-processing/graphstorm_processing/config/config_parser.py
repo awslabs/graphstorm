@@ -361,15 +361,15 @@ class NodeConfig(StructureConfig):
 
 
 def update_dict_if_homogeneous(graph_config: Dict[str, Any]):
-    """Parses a GSProcessing JSON configuration dictionary and modify the input if it is
-    a homogeneous graph to fit the DGL requirement.
+    """Parses a GSProcessing JSON configuration dictionary and adjust the node/edge type
+    if it is a homogeneous graph to fit the DGL requirement.
 
     Parameters
     ----------
     graph_config : Dict[str, Any]
         A dictionary with a specific structure, describing stored graph data.
     """
-    if graph_config["nodes"] != [{}]:
+    if "nodes" in graph_config and graph_config["nodes"] != [{}]:
         ntype = {n["type"] for n in graph_config["nodes"]}
     else:
         ntype = set()
@@ -385,7 +385,7 @@ def update_dict_if_homogeneous(graph_config: Dict[str, Any]):
         # Assume node type can be defined in multiple dict
         # in the original configuration
         graph_config["is_homogeneous"] = True
-        if graph_config["nodes"] and graph_config["nodes"] != [{}]:
+        if "nodes" in graph_config and graph_config["nodes"] != [{}]:
             for n_config in graph_config["nodes"]:
                 n_config["type"] = "_N"
         for e_config in graph_config["edges"]:

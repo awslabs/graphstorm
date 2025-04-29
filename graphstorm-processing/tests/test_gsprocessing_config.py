@@ -197,8 +197,7 @@ def test_update_dict_if_homogeneous():
                 "relation": {"type": "relation"},
                 "dest": {"column": "~to", "type": "genre"},
             }
-        ],
-        "nodes": [{}],
+        ]
     }
     update_config = update_dict_if_homogeneous(graph_config)
     assert update_config["edges"][0]["source"]["type"] == "_N"
