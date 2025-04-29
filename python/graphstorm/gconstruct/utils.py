@@ -42,6 +42,7 @@ SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
+FEAT_DIM_COLUMN_NAME = "feature_dim"
 VALIDATE_FEATRE= True
 
 def validate_features():
@@ -224,27 +225,35 @@ def update_feat_transformation_conf(conf, feat_dim_list):
     """ Update the feature configuration with the feature dimension list
 
     Parameters:
-    conf: dict
+    conf: list[dict]
         Original feature configuration.
         [{
             "feature_col":  ["<column name>", ...],
             "feature_name": "<feature name>",
             "transform":    {"name": "<operator name>", ...}
         }]
-    feat_dim_list: list[tuple]
+    feat_dim_list: list[tuple] or list[list]
         Updated feature configuration after feature transformation
-        [(2,), (3,4,), (1)]
+        [(2,), (3,4,), (1)] or [[2], [3,4], [1]]. Tuples for transformation
+        processing result, list for reading directly from output transformation json.
+
+    Returns
+    -------
+    list[dict]: Feature configuration after the update.
     """
     assert len(conf) == len(feat_dim_list), \
-        "Length of the configuration and feature dimension list should be the same."
+        (f"Length of the configuration and feature dimension list should be the same,"
+         f"but get {len(conf)} and {len(feat_dim_list)}")
     for feat_conf in conf:
         feat_name = feat_conf['feature_name'] if 'feature_name' in feat_conf \
             else feat_conf['feature_col']
-        if "feature_dim" in feat_conf:
+        if FEAT_DIM_COLUMN_NAME in feat_conf:
             # JSON will write tuple into list
-            assert feat_conf["feature_dim"] == list(feat_dim_list[feat_name]), \
+            assert feat_conf[FEAT_DIM_COLUMN_NAME] == list(feat_dim_list[feat_name]), \
                 "Feature dimension for one feature transformation should keep the same"
-        feat_conf["feature_dim"] = list(feat_dim_list[feat_name])
+        feat_conf[FEAT_DIM_COLUMN_NAME] = list(feat_dim_list[feat_name])
+
+    return conf
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool

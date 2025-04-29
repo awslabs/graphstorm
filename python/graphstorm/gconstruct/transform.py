@@ -467,6 +467,7 @@ class BucketTransform(FeatTransform):
             if f <= min_val:
                 encoding[i][0] = 1.0
 
+        # encoding shape is initialized with 2D shape.
         self.feat_dim = encoding.shape[1:]
         return {self.feat_name: encoding}
 
@@ -564,6 +565,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
                        if val in self._val_dict]
                 encoding[i, idx] = 1
 
+        # encoding shape is initialized with 2D np array.
         self.feat_dim = encoding.shape[1:]
         return {self.feat_name: encoding}
 
@@ -1069,6 +1071,7 @@ class Text2BERT(FeatTransform):
         else:
             feats = out_embs[0]
 
+        # Huggingface model outputs should have 2D output
         self.feat_dim = feats.shape[1:]
         return {self.feat_name: feats}
 
@@ -1313,6 +1316,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             # per edge), GraphStorm fills the rest with -1.
             neg_ids[i][:nids.shape[0]] = nids
 
+        # neg_ids is initialized with 2D np arrays
         self.feat_dim = neg_ids.shape[1:]
         return {self.feat_name: neg_ids}
 
@@ -1555,7 +1559,10 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
 
     Returns
     -------
-    dict : the key is the data name, the value is the processed data.
+    new_data: dict
+        The key is the data name, the value is the processed data.
+    feat_dim_list: dict
+        The key is the feat_name, and the value is the feature dimension.
     """
     new_data = {}
     feat_dim_list = {}
