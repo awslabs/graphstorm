@@ -101,7 +101,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_me
 
     Returns
     -------
-    tuple : node ID array and a dict of node feature tensors.
+    tuple : node ID array, a dict of node feature tensors and a list of feature dimensions.
     """
     data = read_file(in_file)
     if feat_ops is not None:
@@ -174,7 +174,8 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
 
     Returns
     -------
-    a tuple : source ID vector, destination ID vector, a dict of edge feature tensors.
+    a tuple : source ID vector, destination ID vector, a dict of edge feature tensors,
+            and a list of feature dimension.
     """
     src_id_col = conf['source_id_col'] if 'source_id_col' in conf else None
     dst_id_col = conf['dest_id_col'] if 'dest_id_col' in conf else None

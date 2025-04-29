@@ -467,7 +467,7 @@ class BucketTransform(FeatTransform):
             if f <= min_val:
                 encoding[i][0] = 1.0
 
-        # encoding shape is initialized with 2D shape.
+        # encoding shape is initialized as 2D.
         self.feat_dim = encoding.shape[1:]
         return {self.feat_name: encoding}
 
@@ -565,7 +565,7 @@ class CategoricalTransform(TwoPhaseFeatTransform):
                        if val in self._val_dict]
                 encoding[i, idx] = 1
 
-        # encoding shape is initialized with 2D np array.
+        # encoding shape is initialized as 2D.
         self.feat_dim = encoding.shape[1:]
         return {self.feat_name: encoding}
 
@@ -1071,7 +1071,7 @@ class Text2BERT(FeatTransform):
         else:
             feats = out_embs[0]
 
-        # Huggingface model outputs should have 2D output
+        # Huggingface model outputs should have 2D shape.
         self.feat_dim = feats.shape[1:]
         return {self.feat_name: feats}
 
@@ -1316,7 +1316,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             # per edge), GraphStorm fills the rest with -1.
             neg_ids[i][:nids.shape[0]] = nids
 
-        # neg_ids is initialized with 2D np arrays
+        # neg_ids shape is initialized as 2D.
         self.feat_dim = neg_ids.shape[1:]
         return {self.feat_name: neg_ids}
 
