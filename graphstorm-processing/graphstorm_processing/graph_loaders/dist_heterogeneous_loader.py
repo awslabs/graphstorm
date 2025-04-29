@@ -1583,13 +1583,14 @@ class DistHeterogeneousGraphLoader(object):
         edge_df_with_int_ids = edge_df_with_int_ids.drop(src_col, dst_col).repartition(
             self.num_output_files
         )
-        edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
-        edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
 
         edge_structure_path = os.path.join(
             self.output_prefix, f"edges/{edge_type.replace(':', '_')}"
         )
-        if self.add_reverse_edges:
+
+        edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
+        edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
+        if self.add_reverse_edges and not self.is_homogeneous:
             edge_df_with_only_int_ids.cache()
 
         if self.add_reverse_edges and not self.is_homogeneous:
@@ -1604,12 +1605,19 @@ class DistHeterogeneousGraphLoader(object):
         elif self.add_reverse_edges and self.is_homogeneous:
             # Homogeneous graph will only add reverse edges to the same edge type
             # instead of creating a {relation_type}-rev edge type.
-            reversed_edges = edge_df_with_only_int_ids.select(
-                col("dst_int_id").alias("src_int_id"), col("src_int_id").alias("dst_int_id")
+            other_columns = [c for c in edge_df_with_int_ids_and_all_features.columns
+                             if c not in ("src_int_id", "dst_int_id")]
+            reversed_edges = edge_df_with_int_ids_and_all_features.select(
+                col("dst_int_id").alias("src_int_id"), col("src_int_id").alias("dst_int_id"), *other_columns
+            ).withColumn("is_reverse_flag", F.lit(False))
+            edge_df_with_int_ids_and_all_features = (
+                edge_df_with_int_ids_and_all_features.withColumn("is_reverse_flag", F.lit(True))
             )
-            edge_df_with_int_ids = edge_df_with_only_int_ids.union(reversed_edges).distinct()
+            edge_df_with_int_ids_and_all_features = (edge_df_with_int_ids_and_all_features
+                                                     .unionByName(reversed_edges).distinct())
+            edge_df_with_only_int_ids = edge_df_with_int_ids_and_all_features.select(["src_int_id", "dst_int_id"])
             logging.info("Writing edge structure for edge type %s with reverse edge...", edge_type)
-            path_list = self._write_df(edge_df_with_int_ids, edge_structure_path)
+            path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
             reverse_path_list = []
         else:
             logging.info("Writing edge structure for edge type %s...", edge_type)
@@ -2368,6 +2376,16 @@ class DistHeterogeneousGraphLoader(object):
         int_group_df = input_df.select(
             split_group(input_col).alias(DATA_SPLIT_SET_MASK_COL), *input_df.columns
         )
+        # For homogeneous graph, reverse edge will not have masks
+        if "is_reverse_flag" in int_group_df.columns:
+            int_group_df = int_group_df.withColumn(DATA_SPLIT_SET_MASK_COL,
+                                           when(
+                                               F.col("is_reverse_flag"),
+                                               F.col(DATA_SPLIT_SET_MASK_COL)
+                                           ).otherwise(
+                                               F.lit([0, 0, 0])
+                                           )
+                                       )
 
         if order_col:
             assert (
