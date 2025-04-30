@@ -143,9 +143,19 @@ data = g.nodes['node2'].data['category'].numpy()
 assert data.shape[1] == 10
 assert data.dtype == np.int8
 assert np.all(np.sum(data, axis=1) == 1)
+# Test save feature_dim for node features:
 for node_conf in conf["nodes"]:
+    if node_conf["node_type"] == "node1":
+        if node_conf["format"] == {"name": "parquet"}:
+            assert node_conf["features"][0]["feature_dim"] == [1]
+            assert node_conf["features"][1]["feature_dim"] == [768]
+            assert node_conf["features"][2]["feature_dim"] == [768]
+            assert node_conf["features"][3]["feature_dim"] == [2]
+            assert node_conf["features"][4]["feature_dim"] == [1]
+            assert node_conf["features"][5]["feature_dim"] == [2]
     if node_conf["node_type"] == "node2":
         assert len(node_conf["features"]) == 1
+        assert node_conf["features"][0]["feature_dim"] == [10]
         print(node_conf["features"][0]["transform"])
         assert node_conf["features"][0]["transform"]["name"] == "to_categorical"
         assert "mapping" in node_conf["features"][0]["transform"]
@@ -279,3 +289,14 @@ if args.reverse_edges:
     assert g.num_edges(('node2', 'relation_empty_csv0-rev', 'node1')) == g.num_edges(('node1', 'relation_empty_csv0', 'node2'))
 
     assert g.num_edges(('node2', 'relation_empty_pa0-rev', 'node1')) == g.num_edges(('node1', 'relation_empty_pa0', 'node2'))
+
+# Test save feature_dim for edge features:
+for edge_conf in conf["edges"]:
+    if edge_conf["relation"] == ["node1", "relation2", "node1"]:
+        assert edge_conf["features"][0]["feature_dim"] == [2]
+    if edge_conf["relation"] == ["node2", "relation3", "node3"]:
+        if edge_conf["files"] == "/tmp/test_data/edge_data3_*.parquet":
+            assert edge_conf["features"][0]["feature_dim"] == [1]
+            assert edge_conf["features"][1]["feature_dim"] == [2]
+        if edge_conf["files"] == "/tmp/test_data/ng_edge_data3.parquet":
+            assert edge_conf["features"][0]["feature_dim"] == [4]
