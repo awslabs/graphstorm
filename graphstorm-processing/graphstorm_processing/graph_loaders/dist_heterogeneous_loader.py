@@ -1617,8 +1617,9 @@ class DistHeterogeneousGraphLoader(object):
                 *other_columns,
             ).withColumn(HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(False))
             edge_df_with_int_ids_and_all_features = (
-                edge_df_with_int_ids_and_all_features
-                .withColumn(HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(True))
+                edge_df_with_int_ids_and_all_features.withColumn(
+                    HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(True)
+                )
             )
             edge_df_with_int_ids_and_all_features = (
                 edge_df_with_int_ids_and_all_features.unionByName(reversed_edges).distinct()
@@ -2390,10 +2391,9 @@ class DistHeterogeneousGraphLoader(object):
         if HOMOGENEOUS_REVERSE_COLUMN_FLAG in int_group_df.columns:
             int_group_df = int_group_df.withColumn(
                 DATA_SPLIT_SET_MASK_COL,
-                when(F.col(HOMOGENEOUS_REVERSE_COLUMN_FLAG), F.col(DATA_SPLIT_SET_MASK_COL))
-                .otherwise(
-                    F.lit([0, 0, 0])
-                ),
+                when(
+                    F.col(HOMOGENEOUS_REVERSE_COLUMN_FLAG), F.col(DATA_SPLIT_SET_MASK_COL)
+                ).otherwise(F.lit([0, 0, 0])),
             )
 
         if order_col:
