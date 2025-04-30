@@ -1561,11 +1561,11 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
     -------
     new_data: dict
         The key is the data name, the value is the processed data.
-    feat_dim_list: dict
+    feat_dim_dict: dict
         The key is the feat_name, and the value is the feature dimension.
     """
     new_data = {}
-    feat_dim_list = {}
+    feat_dim_dict = {}
     for op in ops:
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
@@ -1610,12 +1610,12 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
                     new_data[key] = val
 
         # Write feature dimension back to the feature config
-        feat_dim_list[op.feat_name] = op.feat_dim
+        feat_dim_dict[op.feat_name] = op.feat_dim
 
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()
 
-    return new_data, feat_dim_list
+    return new_data, feat_dim_dict
 
 def get_valid_label_index(label):
     """ Get the index of the samples with valid labels.

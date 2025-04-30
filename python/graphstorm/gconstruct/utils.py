@@ -221,7 +221,7 @@ def generate_hash():
     return str(random_uuid)
 
 
-def update_feat_transformation_conf(conf, feat_dim_list):
+def update_feat_transformation_conf(conf, feat_dim_dict):
     """ Update the feature configuration with the feature dimension list
 
     Parameters:
@@ -232,7 +232,7 @@ def update_feat_transformation_conf(conf, feat_dim_list):
             "feature_name": "<feature name>",
             "transform":    {"name": "<operator name>", ...}
         }]
-    feat_dim_list: list[tuple] or list[list]
+    feat_dim_dict: list[tuple] or list[list]
         Updated feature configuration after feature transformation
         [(2,), (3,4,), (1)] or [[2], [3,4], [1]]. Tuples for transformation
         processing result, list for reading directly from output transformation json.
@@ -241,17 +241,17 @@ def update_feat_transformation_conf(conf, feat_dim_list):
     -------
     list[dict]: Feature configuration after the update.
     """
-    assert len(conf) == len(feat_dim_list), \
+    assert len(conf) == len(feat_dim_dict), \
         (f"Length of the configuration and feature dimension list should be the same,"
-         f"but get {len(conf)} and {len(feat_dim_list)}")
+         f"but get {len(conf)} and {len(feat_dim_dict)}")
     for feat_conf in conf:
         feat_name = feat_conf['feature_name'] if 'feature_name' in feat_conf \
             else feat_conf['feature_col']
         if FEAT_DIM_COLUMN_NAME in feat_conf:
             # JSON will write tuple into list
-            assert feat_conf[FEAT_DIM_COLUMN_NAME] == list(feat_dim_list[feat_name]), \
+            assert feat_conf[FEAT_DIM_COLUMN_NAME] == list(feat_dim_dict[feat_name]), \
                 "Feature dimension for one feature transformation should keep the same"
-        feat_conf[FEAT_DIM_COLUMN_NAME] = list(feat_dim_list[feat_name])
+        feat_conf[FEAT_DIM_COLUMN_NAME] = list(feat_dim_dict[feat_name])
 
     return conf
 

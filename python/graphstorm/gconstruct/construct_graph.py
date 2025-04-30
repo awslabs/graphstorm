@@ -105,15 +105,15 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_me
     """
     data = read_file(in_file)
     if feat_ops is not None:
-        feat_data, feat_dim_list = process_features(data, feat_ops, ext_mem)
+        feat_data, feat_dim_dict = process_features(data, feat_ops, ext_mem)
     else:
-        feat_data, feat_dim_list = {}, []
+        feat_data, feat_dim_dict = {}, {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
             feat_data[key] = val
     node_ids = data[node_id_col] if node_id_col in data else None
-    return (node_ids, feat_data, feat_dim_list)
+    return (node_ids, feat_data, feat_dim_dict)
 
 def prepare_edge_data(in_file, feat_ops, read_file):
     """ Prepare edge data information for data transformation.
@@ -190,9 +190,9 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
         return None
 
     if feat_ops is not None:
-        feat_data, feat_dim_list = process_features(data, feat_ops, ext_mem)
+        feat_data, feat_dim_dict = process_features(data, feat_ops, ext_mem)
     else:
-        feat_data, feat_dim_list = {}, []
+        feat_data, feat_dim_dict = {}, {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -216,7 +216,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
                     f"Expecting the edge feature {key} has the same length" \
                     f"as num existing edges {len(src_ids)}, but get {len(feat)}"
 
-    return (src_ids, dst_ids, feat_data, feat_dim_list)
+    return (src_ids, dst_ids, feat_data, feat_dim_dict)
 
 def _process_data(user_pre_parser, user_parser,
                   two_phase_feat_ops,
@@ -360,9 +360,9 @@ def process_node_data(process_confs, arr_merger, remap_id,
                                     ext_mem_workspace_type)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
-        for i, (node_ids, data, feat_dim_list) in return_dict.items():
+        for i, (node_ids, data, feat_dim_dict) in return_dict.items():
             if process_conf and ("features" in process_conf):
-                update_feat_transformation_conf(process_conf["features"], feat_dim_list)
+                update_feat_transformation_conf(process_conf["features"], feat_dim_dict)
             for feat_name in data:
                 if feat_name not in type_node_data:
                     type_node_data[feat_name] = [None] * len(return_dict)
@@ -479,9 +479,9 @@ def _collect_parsed_edge_data(data_dict, process_conf=None):
     for ret_data in return_data:
         if ret_data is None:
             continue
-        src_ids, dst_ids, part_data, feat_dim_list = ret_data
+        src_ids, dst_ids, part_data, feat_dim_dict = ret_data
         if process_conf and ("features" in process_conf):
-            update_feat_transformation_conf(process_conf["features"], feat_dim_list)
+            update_feat_transformation_conf(process_conf["features"], feat_dim_dict)
         type_src_ids.append(src_ids)
         type_dst_ids.append(dst_ids)
         for feat_name in part_data:
