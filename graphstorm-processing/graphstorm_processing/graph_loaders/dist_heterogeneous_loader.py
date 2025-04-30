@@ -55,6 +55,7 @@ from graphstorm_processing.constants import (
     HUGGINGFACE_TRANFORM,
     HUGGINGFACE_TOKENIZE,
     TRANSFORMATIONS_FILENAME,
+    HOMOGENEOUS_REVERSE_COLUMN_FLAG,
 )
 from graphstorm_processing.config.config_parser import (
     EdgeConfig,
@@ -1614,9 +1615,10 @@ class DistHeterogeneousGraphLoader(object):
                 col("dst_int_id").alias("src_int_id"),
                 col("src_int_id").alias("dst_int_id"),
                 *other_columns,
-            ).withColumn("is_reverse_flag", F.lit(False))
+            ).withColumn(HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(False))
             edge_df_with_int_ids_and_all_features = (
-                edge_df_with_int_ids_and_all_features.withColumn("is_reverse_flag", F.lit(True))
+                edge_df_with_int_ids_and_all_features
+                .withColumn(HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(True))
             )
             edge_df_with_int_ids_and_all_features = (
                 edge_df_with_int_ids_and_all_features.unionByName(reversed_edges).distinct()
@@ -2385,10 +2387,11 @@ class DistHeterogeneousGraphLoader(object):
             split_group(input_col).alias(DATA_SPLIT_SET_MASK_COL), *input_df.columns
         )
         # For homogeneous graph, reverse edge will not have masks
-        if "is_reverse_flag" in int_group_df.columns:
+        if HOMOGENEOUS_REVERSE_COLUMN_FLAG in int_group_df.columns:
             int_group_df = int_group_df.withColumn(
                 DATA_SPLIT_SET_MASK_COL,
-                when(F.col("is_reverse_flag"), F.col(DATA_SPLIT_SET_MASK_COL)).otherwise(
+                when(F.col(HOMOGENEOUS_REVERSE_COLUMN_FLAG), F.col(DATA_SPLIT_SET_MASK_COL))
+                .otherwise(
                     F.lit([0, 0, 0])
                 ),
             )

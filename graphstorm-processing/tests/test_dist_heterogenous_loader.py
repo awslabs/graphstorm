@@ -411,6 +411,7 @@ def test_write_edge_structure_homogeneous_reverse_edges(
     data_configs_homogeneous,
     dghl_loader_homogeneous: DistHeterogeneousGraphLoader,
     user_rated_movie_df: DataFrame,
+    tempdir,
 ):
     edge_configs = data_configs_homogeneous["edges"]
 
@@ -468,6 +469,30 @@ def test_write_edge_structure_homogeneous_reverse_edges(
     assert (
         processing_result_row == expected_edge_row
     ), "Homogeneous graph should add reverse edges to its original edge type"
+
+    # Check homogeneous graph label
+    homogeneous_edge_df = create_edges_df_homogeneous_reverse_edge(spark)
+    output_dicts = dghl_loader_homogeneous._create_split_files(
+        homogeneous_edge_df,
+        STR_LABEL_COL,
+        SplitRates(0.8, 0.1, 0.1),
+        os.path.join(tempdir, "sample_homogeneous_reverse_masks"),
+        None,
+        seed=42,
+    )
+
+    train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
+        spark, dghl_loader_homogeneous, output_dicts
+    )
+
+    # For homogeneous graph, reverse edges should not be assigned masks.
+    ensure_masks_are_correct(
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        int(NUM_DATAPOINTS / 2),
+        SplitRates(0.8, 0.1, 0.1).todict(),
+    )
 
 
 def test_write_edge_structure_no_reverse_edges(
@@ -666,6 +691,19 @@ def create_nodes_df_num_labels(
     )
     df = spark.createDataFrame(pandas_df)
 
+    return df
+
+
+def create_edges_df_homogeneous_reverse_edge(spark: SparkSession):
+    """Create an edges DF with a numeric and a string label for testing"""
+    edges_data = [("src_id_val", "dst_id_val", -1, "label_val_1", False)] * NUM_DATAPOINTS
+    edges_data[: (NUM_DATAPOINTS // 2)] = [("src_id_val", "dst_id_val", 1, "label_val_2", True)] * (
+        NUM_DATAPOINTS // 2
+    )
+
+    edge_columns = ["src", "dst", NUM_LABEL_COL, STR_LABEL_COL, "is_reverse_flag"]
+    df = spark.createDataFrame(edges_data, schema=edge_columns)
+    df = df.withColumn(NUM_LABEL_COL, F.col(NUM_LABEL_COL).cast("float").alias(NUM_LABEL_COL))
     return df
 
 
