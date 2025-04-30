@@ -527,16 +527,16 @@ def test_validate_numerical_feats():
     assert validate_numerical_feats(array) is False
 
 def test_update_feat_transformation_config():
-    # Case 1: Single feat_op with feat_dim_list
+    # Case 1: Single feat_op with feat_dim_dict
     process_conf = [
         {
             "feature_col": "test_col",
             "feature_name": "test_name"
         }
     ]
-    feat_dim_list = {"test_name": [1]}
-    update_feat_transformation_conf(process_conf, feat_dim_list)
-    assert process_conf[0]["feature_dim"] == feat_dim_list["test_name"]
+    feat_dim_dict = {"test_name": [1]}
+    update_feat_transformation_conf(process_conf, feat_dim_dict)
+    assert process_conf[0]["feature_dim"] == feat_dim_dict["test_name"]
 
     # Case 2: Multiple configs
     process_conf = [
@@ -551,17 +551,17 @@ def test_update_feat_transformation_config():
             }
         }
     ]
-    feat_dim_list = {"test_name": [1], "test_col_transform": [2, 3, 1]}
-    update_feat_transformation_conf(process_conf, feat_dim_list)
-    assert process_conf[0]["feature_dim"] == feat_dim_list["test_name"]
-    assert process_conf[1]["feature_dim"] == feat_dim_list["test_col_transform"]
+    feat_dim_dict = {"test_name": [1], "test_col_transform": [2, 3, 1]}
+    update_feat_transformation_conf(process_conf, feat_dim_dict)
+    assert process_conf[0]["feature_dim"] == feat_dim_dict["test_name"]
+    assert process_conf[1]["feature_dim"] == feat_dim_dict["test_col_transform"]
 
     # Case 3: Missing configuration
-    feat_dim_list = {"test_name": [1]}
+    feat_dim_dict = {"test_name": [1]}
     with pytest.raises(AssertionError):
-        update_feat_transformation_conf(process_conf, feat_dim_list)
+        update_feat_transformation_conf(process_conf, feat_dim_dict)
 
     # Case 4: Mismatch feature dimension
-    feat_dim_list = {"test_name": [1], "test_col_transform": [2, 3, 1000]}
+    feat_dim_dict = {"test_name": [1], "test_col_transform": [2, 3, 1000]}
     with pytest.raises(AssertionError):
-        update_feat_transformation_conf(process_conf, feat_dim_list)
+        update_feat_transformation_conf(process_conf, feat_dim_dict)
