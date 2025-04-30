@@ -222,7 +222,7 @@ def generate_hash():
 
 
 def update_feat_transformation_conf(conf, feat_dim_dict):
-    """ Update the feature configuration with the feature dimension list
+    """ Update the feature configuration with the feature dimension dict
 
     Parameters:
     conf: list[dict]
