@@ -269,6 +269,11 @@ class GSPureLearnableInputLayer(GSNodeInputLayer):
         super(GSPureLearnableInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self._use_wholegraph_sparse_emb = use_wholegraph_sparse_emb
+
+        # Note: This is a tricky design
+        # Use a dummy parameter to avoid triggering
+        # the DDP error.
+        # Also use the dummy parameter to record the model device.
         self._dummy = nn.Parameter(th.Tensor(2))
 
         if self._use_wholegraph_sparse_emb:
