@@ -30,7 +30,8 @@ from transformers import AutoTokenizer
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
 from graphstorm.config import FeatureGroup
-from graphstorm.model import (GSNodeEncoderInputLayer,
+from graphstorm.model import (GSPureLearnableInputLayer,
+                              GSNodeEncoderInputLayer,
                               GSEdgeEncoderInputLayer,
                               GSLMNodeEncoderInputLayer,
                               GSPureLMNodeInputLayer)
@@ -316,6 +317,31 @@ def test_input_layer4(dev):
         g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10, 14)].detach().cpu().numpy())
     assert_almost_equal(embed[1][('n0', 'r1', 'n1')].detach().cpu().numpy(),
         g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10, 14)].detach().cpu().numpy())
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_learnable_input_layer():
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    layer = GSPureLearnableInputLayer(g, 10)
+    assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
+
+    node_embs = {}
+    input_nodes = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+        node_embs[ntype] = layer.sparse_embeds[ntype].weight[input_nodes[ntype]]
+
+    embed = layer(None, input_nodes)
+    for ntype in embed:
+        assert_almost_equal(embed[ntype].detach().numpy(), node_embs[ntype].detach().numpy())
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()

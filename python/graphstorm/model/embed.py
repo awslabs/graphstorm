@@ -229,6 +229,188 @@ class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
         Default action: Do nothing
         """
 
+class GSPureLearnableInputLayer(GSNodeInputLayer):
+    """ The node encoder input layer for heterogeneous graphs
+        that uses learnable embeddings for every node.
+
+    .. versionadded:: 0.4.2
+        Add ``GSPureLearnableInputLayer`` in v0.4.2 to support
+        Knowledge graph embedding training.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The input DGL distributed graph.
+    embed_size : int
+        The output embedding size.
+    use_wholegraph_sparse_emb : bool
+        Whether or not to use WholeGraph to host embeddings for sparse updates. Default:
+        False.
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        from graphstorm.model import GSgnnNodeModel, GSPureLearnableInputLayer
+        from graphstorm.dataloading import GSgnnData
+
+        np_data = GSgnnData(...)
+
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        encoder = GSPureLearnableInputLayer(g,
+                                            embed_size=4)
+        model.set_node_input_encoder(encoder)
+    """
+    def __init__(self,
+                 g,
+                 embed_size,
+                 use_wholegraph_sparse_emb=False):
+        super(GSPureLearnableInputLayer, self).__init__(g)
+        self.embed_size = embed_size
+        self._use_wholegraph_sparse_emb = use_wholegraph_sparse_emb
+        self._dummy = nn.Parameter(th.Tensor(2))
+
+        if self._use_wholegraph_sparse_emb:
+            assert get_backend() == "nccl",  \
+                "WholeGraph sparse embedding is only supported on NCCL backend."
+            assert is_wholegraph_init(), \
+                "WholeGraph is not initialized yet."
+        if (
+            dgl.__version__ <= "1.1.2"
+            and is_distributed()
+            and get_backend() == "nccl"
+            and not self._use_wholegraph_sparse_emb
+        ):
+            raise NotImplementedError(
+                "GSPureLearnableInputLayer will use learnable "
+                "node embeddings as input node features."
+                "NCCL backend is not supported for utilizing "
+                + "node embeddings. Please use DGL version >=1.1.2 or gloo backend."
+            )
+
+        for ntype in g.ntypes:
+            embed_name = "embed"
+
+            if self._use_wholegraph_sparse_emb:
+                if get_rank() == 0:
+                    logging.debug(
+                        "Use WholeGraph to host additional " \
+                        "sparse embeddings on node %s",
+                        ntype,
+                    )
+                sparse_embed = WholeGraphDistTensor(
+                    (g.number_of_nodes(ntype), embed_size),
+                    th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                    embed_name + "_" + ntype,
+                    use_wg_optimizer=True,  # no memory allocation before opt available
+                )
+            else:
+                if get_rank() == 0:
+                    logging.debug("Use additional sparse embeddings on node %s", ntype)
+                part_policy = g.get_node_partition_policy(ntype)
+                sparse_embed = DistEmbedding(
+                    g.number_of_nodes(ntype),
+                    embed_size,
+                    embed_name + "_" + ntype,
+                    init_emb,
+                    part_policy,
+                )
+
+            self._sparse_embeds[ntype] = sparse_embed
+
+    def forward(self, input_feats, input_nodes):
+        """ Input layer forward computation.
+
+        Parameters
+        ----------
+        input_feats: dict of Tensor
+            The input features in the format of {ntype: feats}.
+            Note: will be ignored
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}.
+
+        Returns
+        -------
+        embs: dict of Tensor
+            The projected node embeddings in the format of {ntype: emb}.
+        """
+        assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
+        embs = {}
+        for ntype in input_nodes:
+            if isinstance(input_nodes[ntype], np.ndarray):
+                # WholeGraphSparseEmbedding requires the input nodes (indexing tensor)
+                # to be a th.Tensor
+                input_nodes[ntype] = th.from_numpy(input_nodes[ntype])
+            emb = None
+            assert ntype in self.sparse_embeds, \
+                "The node embeddings of {ntype} is not initialized." \
+                "Please check the graph used in initializing GSPureLearnableInputLayer" \
+                "and the graph used in training or inference."
+            device = self._dummy.device
+
+            if isinstance(self.sparse_embeds[ntype], WholeGraphDistTensor):
+                # Need all procs pass the following due to nccl all2lallv in wholegraph
+                emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
+                emb = emb.to(device, non_blocking=True)
+            else:
+                if len(input_nodes[ntype]) == 0:
+                    dtype = self.sparse_embeds[ntype].weight.dtype
+                    embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
+                                    device=device, dtype=dtype)
+                    continue
+                emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+
+            if emb is not None:
+                embs[ntype] = emb
+        return embs
+
+    def require_cache_embed(self):
+        """ Whether to cache the embeddings for inference.
+
+        If the input layer encoder includes heavy computations, such as BERT computations,
+        it should return ``True`` and the inference engine will cache the embeddings
+        from the input layer encoder.
+
+        Returns
+        -------
+        bool : ``True`` if we need to cache the embeddings for inference.
+        """
+        return self.cache_embed
+
+    def get_sparse_params(self):
+        """ Get the sparse parameters of this input layer.
+
+        This function is normally called by optimizers to update sparse model parameters,
+        i.e., learnable node embeddings.
+
+        Returns
+        -------
+        list of Tensors: the sparse embeddings, or empty list if no sparse parameters.
+        """
+        if self.sparse_embeds is not None and len(self.sparse_embeds) > 0:
+            return list(self.sparse_embeds.values())
+        else:
+            return []
+
+    @property
+    def in_dims(self):
+        """ Do not accept input features.
+        """
+        return 0
+
+    @property
+    def out_dims(self):
+        """ Return the number of output dimensions, which is given in class initialization.
+        """
+        return self.embed_size
+
+    @property
+    def use_wholegraph_sparse_emb(self):
+        """ Return whether or not to use WholeGraph to host embeddings for sparse updates,
+        which is given in class initialization.
+        """
+        return self._use_wholegraph_sparse_emb
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """ The node encoder input layer for all nodes in a heterogeneous graph.

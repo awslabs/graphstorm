@@ -15,7 +15,9 @@
 
     Package initialization. Import necessary classes.
 """
-from .embed import GSNodeEncoderInputLayer, GSEdgeEncoderInputLayer
+from .embed import (GSPureLearnableInputLayer,
+                    GSNodeEncoderInputLayer,
+                    GSEdgeEncoderInputLayer)
 from .lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 
 from .utils import sparse_emb_initializer
