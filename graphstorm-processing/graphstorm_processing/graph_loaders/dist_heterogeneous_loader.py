@@ -90,7 +90,7 @@ class HeterogeneousLoaderConfig:
     Configuration object for the loader.
 
     is_homogeneous: bool
-        Whether the graph is a homogeneous graph.
+        Whether the graph is a homogeneous graph, with a single edge and single node type.
     add_reverse_edges : bool
         Whether to add reverse edges to the graph.
     data_configs : Dict[str, Sequence[StructureConfig]]

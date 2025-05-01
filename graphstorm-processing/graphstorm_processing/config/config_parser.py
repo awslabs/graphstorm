@@ -367,7 +367,7 @@ def update_dict_if_homogeneous(graph_config: Dict[str, Any]):
     Parameters
     ----------
     graph_config : Dict[str, Any]
-        A dictionary with a specific structure, describing stored graph data.
+        A GSProcessing configuration dict, describing stored graph data.
     """
     if "nodes" in graph_config and graph_config["nodes"] != [{}]:
         ntype = {n["type"] for n in graph_config["nodes"]}
