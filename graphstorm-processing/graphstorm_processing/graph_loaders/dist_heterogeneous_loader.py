@@ -1215,6 +1215,8 @@ class DistHeterogeneousGraphLoader(object):
         }
 
         feat_val = single_feature_df.take(1)[0].asDict().get(feat_name)
+        print(feat_val)
+        exit(-1)
         nfeat_size = _get_feat_size(feat_val)
 
         return node_feature_metadata_dict, nfeat_size
@@ -1296,13 +1298,15 @@ class DistHeterogeneousGraphLoader(object):
                             self.output_prefix,
                             f"node_data/{node_type}-{bert_feat_name}",
                         )
-                        feat_meta, feat_size = self._write_processed_feature(
+                        feat_size = transformer.output_size
+                        feat_meta, _ = self._write_processed_feature(
                             bert_feat_name,
                             single_feature_df,
                             feature_output_path,
                         )
                         node_type_feature_metadata[bert_feat_name] = feat_meta
                         ntype_feat_sizes.update({bert_feat_name: feat_size})
+                        feat_conf["dim"] = feat_size
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
@@ -1317,6 +1321,7 @@ class DistHeterogeneousGraphLoader(object):
                     )
                     node_type_feature_metadata[feat_name] = feat_meta
                     ntype_feat_sizes.update({feat_name: feat_size})
+                    feat_conf["dim"] = feat_size
                 self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
                     perf_counter() - node_transformation_start
                 )
