@@ -126,25 +126,15 @@ def data_configs_homogeneous_fixture():
                 {
                     "data": {
                         "format": "csv",
-                        "files": [
-                            "./edges/user-rated-movie.csv"
-                        ],
-                        "separator": ","
+                        "files": ["./edges/user-rated-movie.csv"],
+                        "separator": ",",
                     },
-                    "source": {
-                        "column": "~from",
-                        "type": "_N"
-                    },
-                    "dest": {
-                        "column": "~to",
-                        "type": "_N"
-                    },
-                    "relation": {
-                        "type": "_E"
-                    }
+                    "source": {"column": "~from", "type": "_N"},
+                    "dest": {"column": "~to", "type": "_N"},
+                    "relation": {"type": "_E"},
                 }
             ]
-        }
+        },
     }
 
     data_configs_dict = create_config_objects(gsprocessing_config["graph"])

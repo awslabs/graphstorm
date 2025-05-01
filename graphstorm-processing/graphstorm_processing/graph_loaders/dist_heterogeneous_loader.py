@@ -1620,7 +1620,9 @@ class DistHeterogeneousGraphLoader(object):
                 edge_df_with_only_int_ids = edge_df_with_int_ids_and_all_features.select(
                     ["src_int_id", "dst_int_id"]
                 )
-                logging.info("Writing edge structure for edge type %s with reverse edge...", edge_type)
+                logging.info(
+                    "Writing edge structure for edge type %s with " "reverse edge...", edge_type
+                )
                 path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
                 reverse_path_list = []
             else:
