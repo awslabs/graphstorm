@@ -182,11 +182,11 @@ def test_update_dict_if_homogeneous():
             }
         ],
     }
-    update_config = update_dict_if_homogeneous(graph_config)
-    assert update_config["nodes"][0]["type"] == "_N"
-    assert update_config["edges"][0]["source"]["type"] == "_N"
-    assert update_config["edges"][0]["dest"]["type"] == "_N"
-    assert update_config["edges"][0]["relation"]["type"] == "_E"
+    update_dict_if_homogeneous(graph_config)
+    assert graph_config["nodes"][0]["type"] == "_N"
+    assert graph_config["edges"][0]["source"]["type"] == "_N"
+    assert graph_config["edges"][0]["dest"]["type"] == "_N"
+    assert graph_config["edges"][0]["relation"]["type"] == "_E"
 
     # Case 2: Remove node definition but still maintain it as a homogeneous graph
     graph_config = {
@@ -199,10 +199,10 @@ def test_update_dict_if_homogeneous():
             }
         ]
     }
-    update_config = update_dict_if_homogeneous(graph_config)
-    assert update_config["edges"][0]["source"]["type"] == "_N"
-    assert update_config["edges"][0]["dest"]["type"] == "_N"
-    assert update_config["edges"][0]["relation"]["type"] == "_E"
+    update_dict_if_homogeneous(graph_config)
+    assert graph_config["edges"][0]["source"]["type"] == "_N"
+    assert graph_config["edges"][0]["dest"]["type"] == "_N"
+    assert graph_config["edges"][0]["relation"]["type"] == "_E"
 
     # Case 3: heterogeneous graph
     graph_config = {
@@ -216,7 +216,7 @@ def test_update_dict_if_homogeneous():
         ],
         "nodes": [{}],
     }
-    update_config = update_dict_if_homogeneous(graph_config)
-    assert update_config["edges"][0]["source"]["type"] == "movie"
-    assert update_config["edges"][0]["dest"]["type"] == "genre"
-    assert update_config["edges"][0]["relation"]["type"] == "relation"
+    update_dict_if_homogeneous(graph_config)
+    assert graph_config["edges"][0]["source"]["type"] == "movie"
+    assert graph_config["edges"][0]["dest"]["type"] == "genre"
+    assert graph_config["edges"][0]["relation"]["type"] == "relation"
