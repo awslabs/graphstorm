@@ -319,6 +319,7 @@ class GSPureLearnableInputLayer(GSNodeInputLayer):
 
             self._sparse_embeds[ntype] = sparse_embed
 
+    # pylint: disable=unused-argument
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation.
 

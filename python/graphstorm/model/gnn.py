@@ -31,8 +31,7 @@ from .utils import create_sparse_embeds_path
 from .utils import LazyDistTensor
 from .utils import get_data_range
 from .embed import compute_node_input_embeddings
-from .embed import (GSNodeInputLayer,
-                    GSPureLearnableInputLayer)
+from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_minibatch_inference
 from ..utils import (
