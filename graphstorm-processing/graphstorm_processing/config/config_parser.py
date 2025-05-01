@@ -395,8 +395,6 @@ def update_dict_if_homogeneous(graph_config: Dict[str, Any]):
     else:
         graph_config["is_homogeneous"] = False
 
-    return graph_config
-
 
 def create_config_objects(graph_config: Dict[str, Any]) -> Dict[str, Sequence[StructureConfig]]:
     """Parses a GSProcessing JSON configuration dictionary and converts it to configuration objects.

@@ -89,8 +89,6 @@ class HeterogeneousLoaderConfig:
     """
     Configuration object for the loader.
 
-    is_homogeneous: bool
-        Whether the graph is a homogeneous graph, with a single edge and single node type.
     add_reverse_edges : bool
         Whether to add reverse edges to the graph.
     data_configs : Dict[str, Sequence[StructureConfig]]
@@ -115,9 +113,10 @@ class HeterogeneousLoaderConfig:
     precomputed_transformations: dict
         A dictionary describing precomputed transformations for the features
         of the graph.
+    is_homogeneous: bool
+        Whether the graph is a homogeneous graph, with a single edge and single node type.
     """
 
-    is_homogeneous: bool
     add_reverse_edges: bool
     data_configs: Mapping[str, Sequence[StructureConfig]]
     enable_assertions: bool
@@ -128,6 +127,7 @@ class HeterogeneousLoaderConfig:
     num_output_files: int
     output_prefix: str
     precomputed_transformations: dict
+    is_homogeneous: bool
 
 
 @dataclass
@@ -1594,43 +1594,47 @@ class DistHeterogeneousGraphLoader(object):
         if self.add_reverse_edges and not self.is_homogeneous:
             edge_df_with_only_int_ids.cache()
 
-        if self.add_reverse_edges and not self.is_homogeneous:
-            logging.info("Writing edge structure for edge type %s...", edge_type)
-            path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
-            reversed_edges = edge_df_with_only_int_ids.select("dst_int_id", "src_int_id")
-            reversed_edge_structure_path = os.path.join(
-                self.output_prefix, f"edges/{rev_edge_type.replace(':', '_')}"
-            )
-            logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
-            reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
-        elif self.add_reverse_edges and self.is_homogeneous:
-            # Homogeneous graph will only add reverse edges to the same edge type
-            # instead of creating a {relation_type}-rev edge type.
-            other_columns = [
-                c
-                for c in edge_df_with_int_ids_and_all_features.columns
-                if c not in ("src_int_id", "dst_int_id")
-            ]
-            reversed_edges = edge_df_with_int_ids_and_all_features.select(
-                col("dst_int_id").alias("src_int_id"),
-                col("src_int_id").alias("dst_int_id"),
-                *other_columns,
-            ).withColumn(HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(False))
-            edge_df_with_int_ids_and_all_features = (
-                edge_df_with_int_ids_and_all_features.withColumn(
-                    HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(True)
+        if self.add_reverse_edges:
+            if self.is_homogeneous:
+                # Add reverse edge to same etype
+                # Homogeneous graph will only add reverse edges to the same edge type
+                # instead of creating a {relation_type}-rev edge type.
+                other_columns = [
+                    c
+                    for c in edge_df_with_int_ids_and_all_features.columns
+                    if c not in ("src_int_id", "dst_int_id")
+                ]
+                reversed_edges = edge_df_with_int_ids_and_all_features.select(
+                    col("dst_int_id").alias("src_int_id"),
+                    col("src_int_id").alias("dst_int_id"),
+                    *other_columns,
+                ).withColumn(HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(False))
+                edge_df_with_int_ids_and_all_features = (
+                    edge_df_with_int_ids_and_all_features.withColumn(
+                        HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(True)
+                    )
                 )
-            )
-            edge_df_with_int_ids_and_all_features = (
-                edge_df_with_int_ids_and_all_features.unionByName(reversed_edges).distinct()
-            )
-            edge_df_with_only_int_ids = edge_df_with_int_ids_and_all_features.select(
-                ["src_int_id", "dst_int_id"]
-            )
-            logging.info("Writing edge structure for edge type %s with reverse edge...", edge_type)
-            path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
-            reverse_path_list = []
+                edge_df_with_int_ids_and_all_features = (
+                    edge_df_with_int_ids_and_all_features.unionByName(reversed_edges)
+                )
+                edge_df_with_only_int_ids = edge_df_with_int_ids_and_all_features.select(
+                    ["src_int_id", "dst_int_id"]
+                )
+                logging.info("Writing edge structure for edge type %s with reverse edge...", edge_type)
+                path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
+                reverse_path_list = []
+            else:
+                # Add reverse to -rev etype
+                logging.info("Writing edge structure for edge type %s...", edge_type)
+                path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
+                reversed_edges = edge_df_with_only_int_ids.select("dst_int_id", "src_int_id")
+                reversed_edge_structure_path = os.path.join(
+                    self.output_prefix, f"edges/{rev_edge_type.replace(':', '_')}"
+                )
+                logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
+                reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
         else:
+            # Do not add reverse
             logging.info("Writing edge structure for edge type %s...", edge_type)
             path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
             reverse_path_list = []

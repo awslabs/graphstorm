@@ -254,7 +254,7 @@ class DistributedExecutor:
         self.spark = spark_utils.create_spark_session(self.execution_env, self.filesystem_type)
 
         # Initialize the graph loader
-        self.gsp_config_dict = update_dict_if_homogeneous(self.gsp_config_dict)
+        update_dict_if_homogeneous(self.gsp_config_dict)
         data_configs = create_config_objects(self.gsp_config_dict)
         loader_config = HeterogeneousLoaderConfig(
             is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],

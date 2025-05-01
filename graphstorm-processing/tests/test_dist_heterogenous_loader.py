@@ -119,12 +119,33 @@ def data_configs_with_label_fixture():
 @pytest.fixture(scope="function", name="data_configs_homogeneous")
 def data_configs_homogeneous_fixture():
     """Create data configuration object that contain features and labels"""
-    config_path = os.path.join(
-        _ROOT, "resources/small_heterogeneous_graph/gsprocessing-homogeneous.json"
-    )
-
-    with open(config_path, "r", encoding="utf-8") as conf_file:
-        gsprocessing_config = json.load(conf_file)
+    gsprocessing_config = {
+        "version": "gsprocessing-v1.0",
+        "graph": {
+            "edges": [
+                {
+                    "data": {
+                        "format": "csv",
+                        "files": [
+                            "./edges/user-rated-movie.csv"
+                        ],
+                        "separator": ","
+                    },
+                    "source": {
+                        "column": "~from",
+                        "type": "_N"
+                    },
+                    "dest": {
+                        "column": "~to",
+                        "type": "_N"
+                    },
+                    "relation": {
+                        "type": "_E"
+                    }
+                }
+            ]
+        }
+    }
 
     data_configs_dict = create_config_objects(gsprocessing_config["graph"])
 
