@@ -2393,7 +2393,9 @@ class DistHeterogeneousGraphLoader(object):
                 DATA_SPLIT_SET_MASK_COL,
                 when(
                     F.col(HOMOGENEOUS_REVERSE_COLUMN_FLAG), F.col(DATA_SPLIT_SET_MASK_COL)
-                ).otherwise(F.array(F.lit(0), F.lit(0), F.lit(0))), # BC for spark < 3.4
+                ).otherwise(
+                    F.array(F.lit(0), F.lit(0), F.lit(0))
+                ),  # BC for spark < 3.4
             )
 
         if order_col:
