@@ -1,6 +1,6 @@
 ## GraphStorm: Enterprise graph machine learning framework for billion-scale graphs
 
-[![PyPI version](https://badge.fury.io/py/graphstorm.svg)](https://badge.fury.io/py/graphstorm)
+[![PyPI version](https://badge.fury.io/py/graphstorm.svg)](https://pypi.org/project/graphstorm/#history)
 [![CI Status](https://github.com/awslabs/graphstorm/actions/workflows/continuous-integration.yml/badge.svg)](https://github.com/awslabs/graphstorm/actions/workflows/continuous-integration.yml)
 [![Docs Status](https://app.readthedocs.org/projects/graphstorm/badge/?version=latest)](https://graphstorm.readthedocs.io/en/latest/)
 
@@ -31,6 +31,7 @@ provide their own model implementations and use GraphStorm training pipeline to 
 ### Installation
 
 GraphStorm is compatible with Python 3.8+. It requires PyTorch 1.13+, DGL 1.0+ and transformers 4.3.0+.
+For a full quick-start example see the [GraphStorm documentation](https://graphstorm.readthedocs.io/en/latest/#getting-started).
 
 You can install and use GraphStorm locally using pip:
 
@@ -107,7 +108,7 @@ python -m graphstorm.run.gs_node_classification \
 ```
 
 
-### Link Prediction on OGB MAG graph
+### Link Prediction on OGB arxiv graph
 
 First, download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for a link prediction task. The edge type we are trying to predict is `author,writes,paper`.
 
@@ -180,7 +181,6 @@ These can help new users use GraphStorm in their production use-cases:
 ## Limitations
 
 - Supports CPU or NVIDIA GPUs for training and inference
-- Works only with PyTorch-gloo backend
 - Multiple samplers only supported in PyTorch versions >= 2.1.0
 
 ## License
