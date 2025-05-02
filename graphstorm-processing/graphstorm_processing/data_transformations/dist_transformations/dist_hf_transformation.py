@@ -198,8 +198,8 @@ class DistHFTransformation(DistributedTransformation):
 
     @staticmethod
     def get_output_size() -> int:
+        """Return HF transformation output dimension"""
         if not self.output_size:
             raise ValueError("Tokenizer can only determine output feature size "
                              "after applying feature transformation")
         return self.output_size
-

@@ -1296,7 +1296,8 @@ class DistHeterogeneousGraphLoader(object):
                             self.output_prefix,
                             f"node_data/{node_type}-{bert_feat_name}",
                         )
-                        # For Huggingface Tokenizer features, we use the output huggingface embedding size
+                        # For Huggingface Tokenizer features, we use the
+                        # output huggingface embedding dimension
                         feat_meta, feat_size = self._write_processed_feature(
                             bert_feat_name,
                             single_feature_df,
