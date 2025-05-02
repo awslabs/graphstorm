@@ -30,3 +30,5 @@ docs/source/generated
 .vscode
 
 dataset/*
+build
+dist

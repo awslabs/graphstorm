@@ -1,10 +1,14 @@
-## GraphStorm
-| [Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
+## GraphStorm: Enterprise graph machine learning framework for billion-scale graphs
 
-GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
-It simplifies the development, training and deployment of GML models for industry-scale graphs
-by providing scalable training and inference pipelines of Graph Machine Learning (GML) models
-for extremely large graphs (measured in billons of nodes and edges).
+[![PyPI version](https://badge.fury.io/py/graphstorm.svg)](https://badge.fury.io/py/graphstorm)
+[![CI Status](https://github.com/awslabs/graphstorm/actions/workflows/continuous-integration.yml/badge.svg)](https://github.com/awslabs/graphstorm/actions/workflows/continuous-integration.yml)
+[![Docs Status](https://app.readthedocs.org/projects/graphstorm/badge/?version=latest)](https://graphstorm.readthedocs.io/en/latest/)
+
+| [Documentation and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
+
+GraphStorm is an enterprise-grade graph machine learning (GML) framework designed for scalability and ease of use.
+It simplifies the development, training, and deployment of GML models on industry-scale graphs with billions of nodes and edges.
+
 GraphStorm provides a collection of built-in GML models and users can train a GML model
 with a single command without writing any code. To help develop SOTA models,
 GraphStorm provides a large collection of configurations for customizing model implementations
@@ -12,116 +16,172 @@ and training pipelines to improve model performance. GraphStorm also provides a 
 interface to train any custom GML model in a distributed manner. Users
 provide their own model implementations and use GraphStorm training pipeline to scale.
 
+## Key Features
+- Single-command GML model training
+- Distributed training on industry-scale graphs (billions of nodes/edges)
+- Built-in model collection
+- AWS integration out-of-the-box
+
+
 ![GraphStorm architecture](https://github.com/awslabs/graphstorm/blob/main/tutorial/graphstorm_arch.jpg?raw=true)
 
 ## Get Started
-### Installation
-GraphStorm is compatible to Python 3.8+. It requires PyTorch 1.13+, DGL 1.0+ and transformers 4.3.0+. GraphStorm only supports DGL up to version 2.3.0.
 
-GraphStorm can be installed with pip and it can be used to train GNN models in a standalone mode. To run GraphStorm in a distributed environment, we recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to reduce environment setup efforts. A guideline to setup GraphStorm running environment can be found at [here](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-docker-environment) and a full instruction on how to setup distributed training can be found [here](https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/distributed/cluster.html). For quick installation, please refer to the following command:
-```
-pip install torchdata==0.9.0 pydantic
-#CPU
-pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+### Installation
+
+GraphStorm is compatible with Python 3.8+. It requires PyTorch 1.13+, DGL 1.0+ and transformers 4.3.0+.
+
+You can install and use GraphStorm locally using pip:
+
+```bash
+# If running on CPU use
+pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu
 pip install dgl==2.3.0 -f https://data.dgl.ai/wheels/torch-2.3/repo.html
-#GPU
-pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Or, to run on GPU use
+pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cu121
 pip install dgl==2.3.0+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html
 
 pip install graphstorm
 ```
 
-### Run GraphStorm with OGB datasets
+### Distributed training
 
-**Note**: we assume users have setup a GraphStorm standalone environment following the [Setup GraphStorm with pip Packages](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-with-pip-packages) instructions. And users have git cloned the GraphStorm source code into the `/graphstorm/` folder to use some complimentatry tools.
+To run GraphStorm in a distributed environment, we recommend using [Amazon SageMaker AI](https://docs.aws.amazon.com/sagemaker/latest/dg/whatis.html) to avoid having to manage cluster infrastructure. See our
+[SageMaker AI setup documentation](https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/distributed/sagemaker.html) to get started with distributed GNN training.
 
-**Node classification on OGB arxiv graph**
-First, use the below command to download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for the node classification task.
+## Quick start
 
-```
-python /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/ --retain-original-features true
-```
 
-Second, use the below command to partition this arxiv graph into a distributed graph that GraphStorm can use as its input.
+After installing GraphStorm and its requirements in your local environment as shown above, you can clone the GraphStorm repository to follow along the quick start examples:
 
-```
-python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
-                                            --filepath /tmp/ogbn-arxiv-nc/ \
-                                            --num-parts 1 \
-                                            --num-trainers-per-machine 4 \
-                                            --output /tmp/ogbn_arxiv_nc_train_val_1p_4t
+```bash
+git clone https://github.com/awslabs/graphstorm.git
+# Switch to the graphstorm repository root
+cd graphstorm
 ```
 
-GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22.
+### Node Classification on OGB arxiv graph
 
-Third, run the below command to train an RGCN model to perform node classification on the partitioned arxiv graph.
+This example demonstrates how to train a model to classify research papers in the OGB arxiv citation network. Each node represents a paper with a 128-dimensional feature vector, and the task is to predict the paper's subject area.
+
+First, download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for the node classification task.
+
+```bash
+python tools/partition_graph.py \
+    --dataset ogbn-arxiv \
+    --filepath /tmp/ogbn-arxiv-nc/ \
+    --num-parts 1 \
+    --output /tmp/ogbn_arxiv_nc_1p
 
 ```
+
+Second, train an RGCN model to perform node classification on the partitioned arxiv graph.
+
+```bash
+# create the workspace folder
+mkdir /tmp/ogbn-arxiv-nc
+
 python -m graphstorm.run.gs_node_classification \
-       --workspace /tmp/ogbn-arxiv-nc \
-       --num-trainers 1 \
-       --part-config /tmp/ogbn_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
-       --ssh-port 22 \
-       --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-       --save-perf-results-path /tmp/ogbn-arxiv-nc/models
+    --workspace /tmp/ogbn-arxiv-nc \
+    --num-trainers 1 \
+    --num-servers 1 \
+    --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+    --cf "$(pwd)/training_scripts/gsgnn_np/arxiv_nc.yaml" \
+    --save-model-path /tmp/ogbn-arxiv-nc/models
 ```
 
-**Link Prediction on OGB MAG graph**
-First, use the below command to download the [OGB MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag) data and process it into a DGL graph for the link prediction task. The edge type for prediction is “*author,writes,paper*”. The command also set 80% of the edges of this type for training and validation (default 10%), and the rest 20% for testing.
+Third, run inference using the trained model
 
-```
-python /graphstorm/tools/gen_mag_dataset.py --savepath /tmp/ogbn-mag-lp/ --edge-pct 0.8
-```
-
-Second, use the following command to partition the MAG graph into a distributed format.
-
-```
-python /graphstorm/tools/partition_graph_lp.py --dataset ogbn-mag \
-                                               --filepath /tmp/ogbn-mag-lp/ \
-                                               --num-parts 1 \
-                                               --num-trainers-per-machine 4 \
-                                               --target-etypes author,writes,paper \
-                                               --output /tmp/ogbn_mag_lp_train_val_1p_4t
+```bash
+python -m graphstorm.run.gs_node_classification \
+          --inference \
+          --workspace /tmp/ogbn-arxiv-nc \
+          --num-trainers 1 \
+          --num-servers 1 \
+          --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+          --cf "$(pwd)/training_scripts/gsgnn_np/arxiv_nc.yaml" \
+          --save-prediction-path /tmp/ogbn-arxiv-nc/predictions/ \
+          --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/
 ```
 
-Third, run the below command to train an RGCN model to perform link prediction on the partitioned MAG graph.
 
+### Link Prediction on OGB MAG graph
+
+First, download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for a link prediction task. The edge type we are trying to predict is `author,writes,paper`.
+
+```bash
+python ./tools/partition_graph_lp.py --dataset ogbn-arxiv \
+                                   --filepath /tmp/ogbn-arxiv-lp/ \
+                                   --num-parts 1 \
+                                   --output /tmp/ogbn_arxiv_lp_1p/
 ```
+
+Second, train an RGCN model to perform link prediction on the partitioned graph.
+
+```bash
+mkdir /tmp/ogbn-arxiv-lp
 python -m graphstorm.run.gs_link_prediction \
-       --workspace /tmp/ogbn-mag-lp/ \
-       --num-trainers 1 \
-       --num-servers 1 \
-       --num-samplers 0 \
-       --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
-       --ssh-port 22 \
-       --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
-       --node-feat-name paper:feat \
-       --save-model-path /tmp/ogbn-mag/models \
-       --save-perf-results-path /tmp/ogbn-mag/models
+          --workspace /tmp/ogbn-arxiv-lp \
+          --num-trainers 1 \
+          --num-servers 1 \
+          --part-config /tmp/ogbn_arxiv_lp_1p/ogbn-arxiv.json \
+          --cf "$(pwd)/training_scripts/gsgnn_lp/arxiv_lp.yaml" \
+          --save-model-path /tmp/ogbn-arxiv-lp/models \
+          --num-epochs 2
 ```
 
-To learn GraphStorm's full capabilities, please refer to our [Documentations and Tutorials](https://graphstorm.readthedocs.io/en/latest/).
+Third, run inference to generate node embeddings that you can use to run node similarity queries
 
-
-## Cite
-
-If you use GraphStorm in a scientific publication, we would appreciate citations to the following paper:
+```bash
+python -m graphstorm.run.gs_gen_node_embedding \
+           --workspace /tmp/ogbn-arxiv-lp \
+           --num-trainers 1 \
+           --num-servers 1 \
+           --part-config /tmp/ogbn_arxiv_lp_1p/ogbn-arxiv.json \
+           --cf "$(pwd)/training_scripts/gsgnn_lp/arxiv_lp.yaml" \
+           --save-embed-path /tmp/ogbn-arxiv-lp/embeddings/ \
+           --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-1/
 ```
-@article{zheng2024graphstorm,
-  title={GraphStorm: all-in-one graph machine learning framework for industry applications},
-  author={Zheng, Da and Song, Xiang and Zhu, Qi and Zhang, Jian and Vasiloudis, Theodore and Ma, Runjie and Zhang, Houyu and Wang, Zichen and Adeshina, Soji and Nisa, Israt and others},
-  journal={arXiv preprint arXiv:2406.06022},
-  year={2024}
+
+For more detailed tutorials and documentation, visit our [Documentation site](https://graphstorm.readthedocs.io/en/latest/).
+
+
+## Citation
+
+If you use GraphStorm in a scientific publication, please cite:
+
+```
+@inproceedings{10.1145/3637528.3671603,
+author = {Zheng, Da and Song, Xiang and Zhu, Qi and Zhang, Jian and Vasiloudis, Theodore and Ma, Runjie and Zhang, Houyu and Wang, Zichen and Adeshina, Soji and Nisa, Israt and Mottini, Alejandro and Cui, Qingjun and Rangwala, Huzefa and Zeng, Belinda and Faloutsos, Christos and Karypis, George},
+title = {GraphStorm: All-in-one Graph Machine Learning Framework for Industry Applications},
+year = {2024},
+url = {https://doi.org/10.1145/3637528.3671603},
+doi = {10.1145/3637528.3671603},
+booktitle = {Proceedings of the 30th ACM SIGKDD Conference on Knowledge Discovery and Data Mining},
+pages = {6356–6367},
+location = {Barcelona, Spain},
+series = {KDD '24}
 }
 ```
 
+## Blog posts
 
-## Limitation
-GraphStorm framework now supports using CPU or NVidia GPU for model training and inference. But it only works with PyTorch-gloo backend. It was only tested on AWS CPU instances or AWS GPU instances equipped with NVidia GPUs including P4, V100, A10 and A100.
+The GraphStorm team has published multiple blog posts with use-case examples and highlighting new GraphStorm features.
+These can help new users use GraphStorm in their production use-cases:
 
-Multiple samplers are supported in PyTorch versions <= 1.12 and >= 2.1.0. Please use `--num-samplers 0` for other PyTorch versions. More details [here](https://github.com/awslabs/graphstorm/issues/199).
+* [Fast-track graph ML with GraphStorm: A new way to solve problems on enterprise-scale graphs](https://aws.amazon.com/blogs/machine-learning/fast-track-graph-ml-with-graphstorm-a-new-way-to-solve-problems-on-enterprise-scale-graphs/)
+* [GraphStorm 0.3: Scalable, multi-task learning on graphs with user-friendly APIs](https://aws.amazon.com/blogs/machine-learning/graphstorm-0-3-scalable-multi-task-learning-on-graphs-with-user-friendly-apis/)
+* [Mitigating risk: AWS backbone network traffic prediction using GraphStorm](https://aws.amazon.com/blogs/machine-learning/mitigating-risk-aws-backbone-network-traffic-prediction-using-graphstorm/)
+* [Faster distributed graph neural network training with GraphStorm v0.4](https://aws.amazon.com/blogs/machine-learning/faster-distributed-graph-neural-network-training-with-graphstorm-v0-4/)
 
-To use multiple samplers on sagemaker please use PyTorch versions <= 1.12.
+
+## Limitations
+
+- Supports CPU or NVIDIA GPUs for training and inference
+- Works only with PyTorch-gloo backend
+- Multiple samplers only supported in PyTorch versions >= 2.1.0
 
 ## License
 This project is licensed under the Apache-2.0 License.
