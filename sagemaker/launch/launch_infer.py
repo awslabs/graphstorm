@@ -20,8 +20,10 @@ import os
 import boto3 # pylint: disable=import-error
 import sagemaker
 from sagemaker.pytorch.estimator import PyTorch
+from sagemaker.local.local_session import LocalSession
 
 from common_parser import (
+    create_sm_session,
     get_common_parser,
     parse_estimator_kwargs,
     SUPPORTED_INFER_TASKS,
@@ -62,13 +64,7 @@ def run_job(input_args, image, unknownargs):
     output_chunk_size = input_args.output_chunk_size # Number of rows per chunked prediction result or node embedding file.
     log_level = input_args.log_level # SageMaker runner logging level
 
-    boto_session = boto3.session.Session(region_name=region)
-    sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
-    # need to skip s3://
-    assert model_artifact_s3.startswith('s3://'), \
-        "Saved model artifact should be stored in S3"
-    sess = sagemaker.session.Session(boto_session=boto_session,
-        sagemaker_client=sagemaker_client)
+    sess = create_sm_session(instance_type, region)
 
     container_image_uri = image
 
