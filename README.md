@@ -7,7 +7,7 @@
 | [Documentation and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
 
 GraphStorm is an enterprise-grade graph machine learning (GML) framework designed for scalability and ease of use.
-It simplifies the development, training, and deployment of GML models on industry-scale graphs with billions of nodes and edges.
+It simplifies the development and deployment of GML models on industry-scale graphs with billions of nodes and edges.
 
 GraphStorm provides a collection of built-in GML models and users can train a GML model
 with a single command without writing any code. To help develop SOTA models,
@@ -17,8 +17,8 @@ interface to train any custom GML model in a distributed manner. Users
 provide their own model implementations and use GraphStorm training pipeline to scale.
 
 ## Key Features
-- Single-command GML model training
-- Distributed training on industry-scale graphs (billions of nodes/edges)
+- Single-command GML model training and inference
+- Distributed training/inference on industry-scale graphs (billions of nodes/edges)
 - Built-in model collection
 - AWS integration out-of-the-box
 
@@ -150,7 +150,7 @@ For more detailed tutorials and documentation, visit our [Documentation site](ht
 
 ## Citation
 
-If you use GraphStorm in a scientific publication, please cite:
+If you use GraphStorm in a scientific publication, we would appreciate citations to the following paper:
 
 ```
 @inproceedings{10.1145/3637528.3671603,
