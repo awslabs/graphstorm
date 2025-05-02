@@ -50,7 +50,6 @@ class DistFeatureTransformer:
 
         default_kwargs = {
             "cols": feature_config.cols,
-            "json_representation": self.json_representation
         }
         logging.info("Feature name: %s", feat_name)
         logging.info("Transformation type: %s", feat_type)
@@ -58,13 +57,17 @@ class DistFeatureTransformer:
         if feat_type == "no-op":
             self.transformation = NoopTransformation(**default_kwargs, **args_dict)
         elif feat_type == "numerical":
-            self.transformation = DistNumericalTransformation(**default_kwargs, **args_dict)
+            self.transformation = DistNumericalTransformation(
+                **default_kwargs, **args_dict, json_representation=json_representation
+            )
         elif feat_type == "multi-numerical":
             self.transformation = DistMultiNumericalTransformation(**default_kwargs, **args_dict)
         elif feat_type == "bucket-numerical":
             self.transformation = DistBucketNumericalTransformation(**default_kwargs, **args_dict)
         elif feat_type == "categorical":
-            self.transformation = DistCategoryTransformation(**default_kwargs, **args_dict, spark=spark)
+            self.transformation = DistCategoryTransformation(
+                **default_kwargs, **args_dict, spark=spark, json_representation=json_representation
+            )
         elif feat_type == "multi-categorical":
             self.transformation = DistMultiCategoryTransformation(**default_kwargs, **args_dict)
         elif feat_type == "huggingface":
