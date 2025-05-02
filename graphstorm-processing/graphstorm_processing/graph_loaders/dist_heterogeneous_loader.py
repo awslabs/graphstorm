@@ -127,7 +127,7 @@ class HeterogeneousLoaderConfig:
     num_output_files: int
     output_prefix: str
     precomputed_transformations: dict
-    is_homogeneous: bool
+    is_homogeneous: bool = False
 
 
 @dataclass
