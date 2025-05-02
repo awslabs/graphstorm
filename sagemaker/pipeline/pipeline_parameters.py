@@ -369,6 +369,7 @@ class PipelineArgs:
         return hashlib.md5(json_str.encode()).hexdigest()
 
     def __post_init__(self):
+        # Ensure correct images are provided
         if not self.instance_config.train_on_cpu:
             assert self.aws_config.graphstorm_pytorch_gpu_image_uri, (
                 "Must use provide GPU image when training on GPU. "
@@ -377,6 +378,12 @@ class PipelineArgs:
         else:
             assert self.aws_config.graphstorm_pytorch_cpu_image_uri, (
                 "Must use provide CPU image when training on CPU. "
+                "use --graphstorm-pytorch-cpu-image-uri"
+            )
+        # Need CPU image for GConstruct
+        if "gconstruct" in self.task_config.jobs_to_run:
+            assert self.aws_config.graphstorm_pytorch_cpu_image_uri, (
+                "Must use provide CPU image when running GConstruct. "
                 "use --graphstorm-pytorch-cpu-image-uri"
             )
 
@@ -545,11 +552,10 @@ def parse_pipeline_args() -> PipelineArgs:
     required_args.add_argument(
         "--region", type=str, required=True, help="AWS region. Required"
     )
-    required_args.add_argument(
+    optional_args.add_argument(
         "--graphstorm-pytorch-cpu-image-uri",
         type=str,
-        required=True,
-        help="GraphStorm GConstruct/dist_part/train/inference CPU ECR image URI. Required",
+        help="GraphStorm GConstruct/dist_part/train/inference CPU ECR image URI.",
     )
     optional_args.add_argument(
         "--graphstorm-pytorch-gpu-image-uri",
