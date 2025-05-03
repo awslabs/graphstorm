@@ -17,8 +17,15 @@
 """
 
 import os
+import argparse
 import shutil
 import tarfile
+import logging
+import re
+import boto3
+from urllib.parse import urlparse
+from botocore.errorfactory import ClientError
+from sagemaker.s3 import S3Uploader
 
 
 def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entry,
@@ -95,3 +102,105 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
         tar.add(output_path, arcname='')
 
     return output_file
+
+
+def parse_s3_url(s3_url):
+    """ Parse the given S3 url and checkif it is a valid S3 url.
+
+    Parameters:
+    -----------
+    s3_url: str
+        The given S3 url string. Should start with "https://" or "s3://". If not, will raise
+        an assertion error.
+    
+    Returns:
+    --------
+    bucket_name: str
+        The name of S3 bucket in the url.
+    key: str
+        The S3 object in the url.
+    """
+    parsed_url = urlparse(s3_url)
+    assert parsed_url.scheme == 's3' or parsed_url.scheme == 'https', (f'Incorrect S3 \
+        url was given {s3_url}')
+
+    bucket_name = parsed_url.netloc
+    key = parsed_url.path.lstrip('/')
+    return bucket_name, key
+
+
+def check_tarfile_s3_object(s3_url):
+    """ Check the object in the given S3 url
+    1. if the url format correct;
+    2. if the object exists.
+    
+    Parameters:
+    -----------
+    s3_url: str
+        The given S3 url string. The object in the url should be an object ending with `.tar.gz`.
+        If not, will raise an assertion error.
+    
+    Returns:
+    --------
+    boolean: True if the S3 object exists, otherwise False.
+    """
+    bucket_name, key = parse_s3_url(s3_url)
+    object = key.split('/')[-1]
+    assert object.endswith('.tar.gz'), (f'The S3 object, {s3_url}, is not a compressed tar file.')
+
+    # create a boto3 S3 client
+    s3_client = boto3.client('s3')
+
+    # check if exists
+    try:
+        s3_client.head_object(Bucket=bucket_name, Key=key)
+        return True
+    except ClientError as e:
+        return False
+
+
+def upload_data_to_s3(s3_path, data_path, sagemaker_session):
+    """ Upload data into S3
+
+    Parameters
+    ----------
+    s3_path: str
+        S3 uri to upload the data
+    data_path: str
+        Local data path.
+    sagemaker_session: sagemaker.session.Session
+        sagemaker_session to run upload
+    """
+    try:
+        ret = S3Uploader.upload(data_path, s3_path, sagemaker_session=sagemaker_session)
+    except Exception as err: # pylint: disable=broad-except
+        logging.error("Can not upload data into %s", s3_path)
+        raise RuntimeError(f"Can not upload data into {s3_path}. {err}")
+    return ret
+
+
+def check_name_format(name_str):
+    """ Check if given name follow AWS naming format
+    
+    The name should follow AWS' naming regular expression: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$
+    It means the string must start with a letter or digit. In the middle, it could be one or more
+    hyphons, letters, or digits. And the string must end with a letter or digit.
+    
+    Parameters:
+    -----------
+    name_str: str
+        The name string to be checked.
+    
+    Returns:
+    --------
+    name_str: str
+        The same name string as input if it match the regular expression. Otherwise will
+        raise a ValueError.
+
+    """
+    pattern = re.compile(r"^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$")
+    if not re.match(pattern, name_str):
+        raise argparse.ArgumentTypeError(f'Value {name_str} failed to satisfy regular ' + \
+                                           'expression pattern: ' + \
+                                           '^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
+    return name_str
