@@ -71,6 +71,7 @@ NODE_CLASS_GRAPHINFO_UPDATES = {
             "multi": 2,
             "no-op-truncated": 1,
             "state": 3,
+            "occupation": 768,
         }
     },
     "efeat_size": {},

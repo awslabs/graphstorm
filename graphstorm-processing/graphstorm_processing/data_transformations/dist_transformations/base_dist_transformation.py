@@ -43,6 +43,7 @@ class DistributedTransformation(ABC):
         self.cols = cols
         self.spark = spark
         self.json_representation = json_representation
+        self.output_dim = None
 
     @abstractmethod
     def apply(self, input_df: DataFrame) -> DataFrame:

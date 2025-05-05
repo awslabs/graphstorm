@@ -415,8 +415,8 @@ class DistributedExecutor:
         graph_meta_dict: dict
             The output graph metadata dictionary
         """
-        nfeat_size = graph_meta_dict['graph_info']['nfeat_size']
-        efeat_size = graph_meta_dict['graph_info']['efeat_size']
+        nfeat_size = graph_meta_dict["graph_info"]["nfeat_size"]
+        efeat_size = graph_meta_dict["graph_info"]["efeat_size"]
         # Nodes may not be defined in the node config
         if "nodes" in gsp_config_dict:
             for gsp_node_config in gsp_config_dict["nodes"]:
@@ -424,8 +424,11 @@ class DistributedExecutor:
                 node_type = gsp_node_config["type"]
                 if "features" in gsp_node_config:
                     for gsp_node_feat in gsp_node_config["features"]:
-                        feat_name = gsp_node_feat["name"] if "name" in gsp_node_feat \
+                        feat_name = (
+                            gsp_node_feat["name"]
+                            if "name" in gsp_node_feat
                             else gsp_node_feat["column"]
+                        )
                         # Align with gconstruct to allow dim a list for 3-D features
                         gsp_node_feat["dim"] = [nfeat_size[node_type][feat_name]]
 
@@ -436,11 +439,13 @@ class DistributedExecutor:
             edge_type = f"{src_type}:{relation}:{dst_type}"
             if "features" in gsp_edge_config:
                 for gsp_edge_feat in gsp_edge_config["features"]:
-                    feat_name = gsp_edge_feat["name"] if "name" in gsp_edge_feat \
+                    feat_name = (
+                        gsp_edge_feat["name"]
+                        if "name" in gsp_edge_feat
                         else gsp_edge_feat["column"]
+                    )
                     # Align with gconstruct to allow dim a list for 3-D features
                     gsp_edge_feat["dim"] = [efeat_size[edge_type][feat_name]]
-
 
     def _merge_config_with_transformations(
         self,

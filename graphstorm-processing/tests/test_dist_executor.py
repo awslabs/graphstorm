@@ -123,6 +123,12 @@ def test_dist_executor_run_with_precomputed(
     # TODO: Verify other metadata files that verify_integ_test_output doesn't check for
 
 
+def test_merge_config_and_feat_dim(executor_configuration: ExecutorConfig):
+    """Test the _merge_config_and_feat_dim function with hardcoded data"""
+    dist_executor = DistributedExecutor(executor_configuration)
+    print(dist_executor.gsp_config_dict)
+    
+
 def test_merge_input_and_transform_dicts(executor_configuration: ExecutorConfig):
     """Test the _merge_config_with_transformations function with hardcoded json data"""
     dist_executor = DistributedExecutor(executor_configuration)

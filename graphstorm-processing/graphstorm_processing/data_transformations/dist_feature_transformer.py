@@ -112,3 +112,13 @@ class DistFeatureTransformer:
         Get the name of the underlying transformation.
         """
         return self.transformation.get_transformation_name()
+
+    def get_output_dim(self) -> int:
+        """Get the output dimension for HF transformation"""
+        print(self.transformation)
+        if not self.transformation.output_dim:
+            raise ValueError(
+                "Only the HuggingFace Feature Transformer needs to "
+                "validate the output size from the feature transformation."
+            )
+        return self.transformation.output_dim
