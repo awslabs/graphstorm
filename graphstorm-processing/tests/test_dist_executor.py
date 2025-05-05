@@ -123,11 +123,44 @@ def test_dist_executor_run_with_precomputed(
     # TODO: Verify other metadata files that verify_integ_test_output doesn't check for
 
 
-def test_merge_config_and_feat_dim(executor_configuration: ExecutorConfig):
+def test_merge_config_and_feat_dim(tempdir: str, executor_configuration: ExecutorConfig):
     """Test the _merge_config_and_feat_dim function with hardcoded data"""
     dist_executor = DistributedExecutor(executor_configuration)
-    print(dist_executor.gsp_config_dict)
-    
+
+    # Mock the SparkContext stop() function to leave the Spark context running
+    # for the other tests, otherwise dist_executor stops it
+    dist_executor.spark.stop = mock.MagicMock(name="stop")
+
+    dist_executor.run()
+    with open(os.path.join(tempdir, "metadata.json"), "r", encoding="utf-8") as mfile:
+        metadata = json.load(mfile)
+
+    dist_executor._merge_config_with_feat_dim(dist_executor.gsp_config_dict, metadata)
+
+    print(metadata["graph_info"])
+    for node_dict_per_type in dist_executor.gsp_config_dict["nodes"]:
+        node_type = node_dict_per_type["type"]
+        if "features" in node_dict_per_type:
+            nfeat_dict_per_type = NODE_CLASS_GRAPHINFO_UPDATES["nfeat_size"][node_type]
+            for node_feat_dict in node_dict_per_type["features"]:
+                feat_name = (
+                    node_feat_dict["name"] if "name" in node_feat_dict else node_feat_dict["column"]
+                )
+                assert node_feat_dict["dim"] == [nfeat_dict_per_type[feat_name]]
+
+    for edge_dict_per_type in dist_executor.gsp_config_dict["edges"]:
+        src_type = edge_dict_per_type["source"]["type"]
+        dst_type = edge_dict_per_type["dest"]["type"]
+        relation = edge_dict_per_type["relation"]["type"]
+        edge_type = f"{src_type}:{relation}:{dst_type}"
+        if "features" in edge_dict_per_type:
+            efeat_dict_per_type = NODE_CLASS_GRAPHINFO_UPDATES["efeat_size"][edge_type]
+            for edge_feat_dict in edge_dict_per_type["features"]:
+                feat_name = (
+                    edge_feat_dict["name"] if "name" in edge_feat_dict else edge_feat_dict["column"]
+                )
+                assert edge_feat_dict["dim"] == [efeat_dict_per_type[feat_name]]
+
 
 def test_merge_input_and_transform_dicts(executor_configuration: ExecutorConfig):
     """Test the _merge_config_with_transformations function with hardcoded json data"""

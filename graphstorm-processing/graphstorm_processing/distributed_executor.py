@@ -420,7 +420,6 @@ class DistributedExecutor:
         # Nodes may not be defined in the node config
         if "nodes" in gsp_config_dict:
             for gsp_node_config in gsp_config_dict["nodes"]:
-                print(gsp_node_config)
                 node_type = gsp_node_config["type"]
                 if "features" in gsp_node_config:
                     for gsp_node_feat in gsp_node_config["features"]:

@@ -74,7 +74,14 @@ NODE_CLASS_GRAPHINFO_UPDATES = {
             "occupation": 768,
         }
     },
-    "efeat_size": {},
+    "efeat_size": {
+        "user:rated:movie": {
+            "input_ids": 16,
+            "attention_mask": 16,
+            "token_type_ids": 16,
+            "rating": 768,
+        }
+    },
     "etype_label": [],
     "etype_label_property": [],
     "ntype_label": ["user"],

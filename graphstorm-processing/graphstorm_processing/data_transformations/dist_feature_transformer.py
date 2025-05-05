@@ -115,7 +115,6 @@ class DistFeatureTransformer:
 
     def get_output_dim(self) -> int:
         """Get the output dimension for HF transformation"""
-        print(self.transformation)
         if not self.transformation.output_dim:
             raise ValueError(
                 "Only the HuggingFace Feature Transformer needs to "
