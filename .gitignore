@@ -30,3 +30,7 @@ docs/source/generated
 .vscode
 
 dataset/*
+
+# Python/sphinx build and distribution
+build
+dist
