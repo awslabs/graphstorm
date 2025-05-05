@@ -274,9 +274,10 @@ class GConstructConfigConverter(ConfigConverter):
             # files
             node_files = n["files"] if isinstance(n["files"], list) else [n["files"]]
             for file_name in node_files:
-                if "*" in file_name or "?" in file_name:
+                if "?" in file_name:
                     raise ValueError(
-                        f"We do not currently support wildcards in node file names got: {file_name}"
+                        "We do not currently support '?' wildcards "
+                        f"in node file names got: {file_name}"
                     )
 
             # features

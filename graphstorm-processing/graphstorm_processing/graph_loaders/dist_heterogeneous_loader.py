@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import fnmatch
+import glob
 import json
 import logging
 import math
@@ -22,6 +24,7 @@ import os
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, Optional, Set, Tuple, Union, List
 from uuid import uuid4
@@ -1012,6 +1015,98 @@ class DistHeterogeneousGraphLoader(object):
 
         return node_df_with_ids.orderBy(NODE_MAPPING_INT)
 
+    def _extract_paths(self, files: Sequence[str]) -> list[str]:
+        """
+        Expand wildcard patterns in file paths and add input prefix to each
+
+        Parameters
+        ----------
+        files : list[str]
+            A list of relative file paths that can contain '*' wildcards.
+
+        Returns
+        -------
+        list[str]
+            A list of absolute file paths, with the input prefix added, and wildcard expanded.
+        """
+        expanded_files = []
+
+        def handle_wildcard(file_path, expanded_files):
+            # Handle wildcard pattern
+            if self.filesystem_type == FilesystemType.S3:
+                # Extract the parent directory path and filename pattern
+                parent_path = str(Path(file_path).parent)
+                if parent_path == ".":
+                    parent_path = ""
+                filename_pattern = os.path.basename(file_path)
+
+                # Get bucket and prefix for S3
+                input_bucket, input_prefix = s3_utils.extract_bucket_and_key(self.input_prefix)
+
+                # Combine parent path with input prefix if needed
+                if parent_path:
+                    if input_prefix:
+                        full_prefix = f"{input_prefix}/{parent_path}"
+                    else:
+                        full_prefix = parent_path
+                else:
+                    full_prefix = input_prefix
+
+                # List all objects under the prefix
+                all_objects = s3_utils.list_s3_objects(input_bucket, full_prefix)
+
+                # Filter objects that match the wildcard pattern
+                for obj_key in all_objects:
+                    obj_filename = os.path.basename(obj_key)
+                    # Only matches if the filename matches the pattern
+                    if fnmatch.fnmatch(obj_filename, filename_pattern):
+                        # Get relative path from input prefix
+                        if input_prefix:
+                            rel_path = (
+                                obj_key[len(input_prefix) + 1 :]
+                                if obj_key.startswith(f"{input_prefix}/")
+                                else obj_key
+                            )
+                        else:
+                            rel_path = obj_key
+                        expanded_files.append(rel_path)
+
+                if not expanded_files:
+                    logging.warning(
+                        "No files found matching pattern '%s' "
+                        "in S3 bucket '%s' under prefix '%s'",
+                        file_path,
+                        input_bucket,
+                        full_prefix,
+                    )
+            else:
+                # Handle local filesystem wildcards
+                full_pattern = os.path.join(self.input_prefix, file_path)
+                matched_files = glob.glob(full_pattern)
+
+                if not matched_files:
+                    logging.warning("No files found matching pattern '%s'", full_pattern)
+
+                # Convert absolute paths back to relative paths
+                for matched_file in matched_files:
+                    rel_path = os.path.relpath(matched_file, self.input_prefix)
+                    expanded_files.append(rel_path)
+
+        # Process each file path, expanding wildcards if needed
+        for file_path in files:
+            if "*" in file_path:
+                handle_wildcard(file_path, expanded_files)
+            else:
+                # No wildcard, use the file path as is
+                expanded_files.append(file_path)
+
+        # If no files were found after expansion, log a warning and fall back to original list
+        if not expanded_files and any("*" in f for f in files):
+            logging.warning("No files found after expanding wildcards for %s", files)
+            expanded_files = files
+
+        return [os.path.join(self.input_prefix, f) for f in expanded_files]
+
     def _write_nodeid_mapping_and_update_state(
         self, node_df_with_ids: DataFrame, node_type: str
     ) -> None:
@@ -1060,7 +1155,7 @@ class DistHeterogeneousGraphLoader(object):
         self.graph_info["ntype_to_label_masks"] = defaultdict(list)
         for node_config in node_configs:
             files = node_config.files
-            file_paths = [os.path.join(self.input_prefix, f) for f in files]
+            file_paths = self._extract_paths(files)
 
             node_type = node_config.ntype
             node_col = node_config.node_col
@@ -1619,11 +1714,24 @@ class DistHeterogeneousGraphLoader(object):
         return edge_df_with_int_ids_and_all_features, path_list, reverse_path_list
 
     def _read_edge_df(self, edge_config: EdgeConfig) -> DataFrame:
+        """Read edge dataframe from files
+
+        Parameters
+        ----------
+        edge_config : EdgeConfig
+            Configuration for the edge type
+
+        Returns
+        -------
+        DataFrame
+            Spark DataFrame containing the edge data
+        """
         # TODO: Allow reading only id-cols for mapping building to allow faster reads
         files = edge_config.files
         separator = edge_config.separator
-        file_paths = [os.path.join(self.input_prefix, f) for f in files]
+        file_paths = self._extract_paths(files)
 
+        # Read the data based on format
         if edge_config.format == "csv":
             edge_file_schema = schema_utils.parse_edge_file_schema(edge_config)
             edges_df_untyped = self.spark.read.csv(path=file_paths, sep=separator, header=True)
