@@ -57,7 +57,7 @@ To run GraphStorm with the Amazon SageMaker service, users should set up a local
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
-    # Change to the GraphStorm sagemaker directory
+    # Change to the GraphStorm directory
     cd graphstorm
 
 For the remainder of this guide we assume the starting working directory is the root
@@ -373,7 +373,7 @@ Run GraphStorm SageMaker jobs locally
 .....................................
 
 You can use `SageMaker's local mode <https://sagemaker.readthedocs.io/en/stable/overview.html#local-mode>`_
-to test running your jobs locally before launching large-scale
+to test your SageMaker jobs locally before launching large-scale
 jobs, to ensure your configuration or other changes are correct.
 
 First, you need to ensure your SageMaker installation has the necessary dependencies.
