@@ -1296,8 +1296,6 @@ class DistHeterogeneousGraphLoader(object):
                             self.output_prefix,
                             f"node_data/{node_type}-{bert_feat_name}",
                         )
-                        # For Huggingface Tokenizer features, we use the
-                        # output huggingface embedding dimension
                         feat_meta, feat_size = self._write_processed_feature(
                             bert_feat_name,
                             single_feature_df,
@@ -1305,6 +1303,7 @@ class DistHeterogeneousGraphLoader(object):
                         )
                         node_type_feature_metadata[bert_feat_name] = feat_meta
                         ntype_feat_sizes.update({bert_feat_name: feat_size})
+                    # Update the corresponding feature dimension for HF embedding
                     feat_emb_size = transformer.get_output_dim()
                     ntype_feat_sizes.update({feat_name: feat_emb_size})
                 else:
@@ -1895,6 +1894,7 @@ class DistHeterogeneousGraphLoader(object):
                         )
                         edge_type_feature_metadata[bert_feat_name] = feat_meta
                         etype_feat_sizes.update({bert_feat_name: feat_size})
+                    # Update the corresponding feature dimension for HF embedding
                     feat_emb_size = transformer.get_output_dim()
                     etype_feat_sizes.update({feat_name: feat_emb_size})
                 else:

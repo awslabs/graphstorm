@@ -137,7 +137,6 @@ def test_merge_config_and_feat_dim(tempdir: str, executor_configuration: Executo
 
     dist_executor._merge_config_with_feat_dim(dist_executor.gsp_config_dict, metadata)
 
-    print(metadata["graph_info"])
     for node_dict_per_type in dist_executor.gsp_config_dict["nodes"]:
         node_type = node_dict_per_type["type"]
         if "features" in node_dict_per_type:
