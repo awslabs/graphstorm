@@ -15,8 +15,8 @@
 """
 import logging
 
-from .construct_graph import verify_confs
 from ..utils import sys_tracker, get_log_level, check_graph_name
+from .construct_graph import verify_conf
 
 
 def process_json_payload_nodes(node_conf):
@@ -65,6 +65,7 @@ def process_json_payload_graph(args):
             if args.num_processes_for_nodes is not None else args.num_processes
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
+    print(num_processes_for_nodes, num_processes_for_edges)
     verify_confs(process_confs)
 
     output_format = args.output_format

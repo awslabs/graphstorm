@@ -47,7 +47,9 @@ from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
                     partition_graph,
                     ExtMemArrayWrapper,
-                    stop_validate_features)
+                    stop_validate_features,
+                    is_homogeneous,
+                    verify_confs)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
 from .construct_payload_graph import process_json_payload_graph
@@ -679,50 +681,6 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
     return (edges, edge_data, label_stats, label_masks, hard_edge_neg_ops)
-
-def is_homogeneous(confs):
-    """ Verify if it is a homogeneous graph
-    Parameter
-    ---------
-    confs: dict
-        A dict containing all user input config
-    """
-    ntypes = {conf['node_type'] for conf in confs["nodes"]}
-    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
-    return len(ntypes) == 1 and len(etypes) == 1
-
-def verify_confs(confs):
-    """ Verify the configuration of the input data.
-    Parameter
-    ---------
-    confs: dict
-        A dict containing all user input config
-    """
-    if "version" not in confs:
-        # TODO: Make a requirement with v1.0 launch
-        logging.warning(
-            "The config file does not have a 'version' entry. Assuming gconstruct-v0.1")
-    ntypes = {conf['node_type'] for conf in confs["nodes"]}
-    etypes = [conf['relation'] for conf in confs["edges"]]
-    for etype in etypes:
-        assert len(etype) == 3, \
-                "The edge type must be (source node type, relation type, dest node type)."
-        src_type, _, dst_type = etype
-        assert src_type in ntypes, \
-                f"source node type {src_type} does not exist. Please check your input data."
-        assert dst_type in ntypes, \
-                f"dest node type {dst_type} does not exist. Please check your input data."
-    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
-    if is_homogeneous(confs):
-        logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
-                        "changed to _N and edge type will be changed to [_N, _E, _N]")
-        for node in confs['nodes']:
-            node['node_type'] = DEFAULT_NTYPE
-        for edge in confs['edges']:
-            edge['relation'] = list(DEFAULT_ETYPE)
-        confs["is_homogeneous"] = True
-    else:
-        confs["is_homogeneous"] = False
 
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
