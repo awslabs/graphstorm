@@ -16,8 +16,8 @@
 import logging
 
 
-from .utils import (sys_tracker, get_log_level, check_graph_name,
-                     verify_confs)
+from ..utils import (sys_tracker, get_log_level, check_graph_name)
+from .utils import verify_confs
 
 
 def process_json_payload_nodes(node_conf):
