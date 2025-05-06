@@ -20,6 +20,7 @@ import tarfile
 import pytest
 import boto3
 import sagemaker as sm
+from argparse import ArgumentTypeError
 from unittest.mock import patch, Mock
 from botocore.exceptions import ClientError
 from urllib.parse import urlparse
@@ -279,7 +280,7 @@ def test_check_name_format():
                 ""         # empty string
             ]
     for invalid_name in invalid_names:
-        with pytest.raises(ValueError, match='failed to satisfy regular expression pattern'):
+        with pytest.raises(ArgumentTypeError, match='failed to satisfy regular expression pattern'):
             check_name_format(invalid_name)
 
 @patch('launch_utils.boto3.client')
@@ -376,12 +377,13 @@ def local_test_upload_data_to_s3(input_value, expected_result=None):
 if __name__ == '__main__':
 
     # Should only run this in local environment where service access is configured.
-    parser = argparse.ArgumentParser('Local test for services')
-    parser.add_argument('--input-value', type=str, help='Input value of a test function.')
-    parser.add_argument('--expected-result', type=str, help='The expected result of a test.')
-    args = parser.parse_args()
+    # Comment out the parser when run locally
+    # parser = argparse.ArgumentParser('Local test for services')
+    # parser.add_argument('--input-value', type=str, help='Input value of a test function.')
+    # parser.add_argument('--expected-result', type=str, help='The expected result of a test.')
+    # args = parser.parse_args()
 
     # Comment out all excpet the one to be tested.
     # local_test_check_tarfile_s3_object(args.input_value, args.expected_result)
 
-    local_test_upload_data_to_s3(args.input_value)
+    # local_test_upload_data_to_s3(args.input_value)

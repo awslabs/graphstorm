@@ -68,30 +68,18 @@ def run_job(input_args):
         entrypoint_file_name = input_args.entrypoint_file_name
 
         model_url_s3 = input_args.model_tarfile_s3
+        assert check_tarfile_s3_object(args.model_tarfile_s3) == True, \
+            (f'Not find a tar file in the given S3 URL: {args.model_tarfile_s3}...')
 
-        if input_args.model_name:
-            model_name = input_args.model_name
-        else:
-            # check if the given model name f
-            _, key = parse_s3_url(model_url_s3)
-            model_file_name = key.split('/')[-1]
-            model_name = model_file_name[ :-len('.tar.gz')]
-            logging.info(f'No model name is provided in --model-name argument, will use the tar \
-                file name {model_name} as model name.')
-
-            try:
-                model_name = check_name_format(model_name)
-            except AssertionError as e:
-                logging.error('The tar file name does not follow SageMaker model name\'s ' + \
-                              'requirements. please set the --model-name argument to ' + \
-                              'avoid this problem {}.'.format(e))
-                exit(-1)
+        # model_name is either directly given by users, or had been assigned by the argument
+        # validation function
+        model_name = input_args.model_name
     else:
         # prepare task dependent variables
         entry_point_dir = os.path.join(os.path.dirname(__file__), ENTRY_FOLDER_NAME)
 
         # TODO: When adding new realtime inference tasks, add new elif here to support them
-        if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_TASKS[0]:    # node_classification
+        if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_TASKS[0]: # node_classification
             entrypoint_file_name = list(ENTRY_FILE_NAMES)[0]
             path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
         else:
@@ -225,7 +213,7 @@ def get_realtime_infer_parser():
 
     return realtime_infer_parser
 
-def validate_arguments(args):
+def validate_realtime_infer_arguments(args):
     """ Validate the input arguments with the designed launch logic
     
     The real-time inference endpoint lauch has the logic as the followings.
@@ -234,31 +222,26 @@ def validate_arguments(args):
        provide the --entrypoint-file-name too, which means users need to implement their own
        SageMaker entry point file, pack it with other model artifacts in to a compressed
        tar file, and upload to the given S3 url.
-    2. The launch script, then, will use this pre-uploaded model tar file to create endpoint
-       with some sanity checks before calling SageMaker, including:
-       a. Check if the given S3 url contains a tar file, i.e., an object exists and its name
-          ends with '.tar.gz'.
-       b. If users also provide a model name in the --model-name argument, the script will use it,
-          otherwise, the script will use the name of the tar file as model name. For either case,
-          the script will check if the model name follows the SageMaker naming fomat.
-    3. If users want to use the default launch functions, they must provide five arguments:
+    2. If users want to use the default launch functions, they must provide five arguments:
        --restore-model-path
        --model-yaml-config-file
        --graph-json-config-file
        --infer-task-type
        --upload-tarfile-s3
-    4. If users also provide a model name in the --model-name argument, the script will use it and
+    3. If users also provide a model name in the --model-name argument, the script will use it and
        check if it follows the SageMaker naming fomat.
+       
+       Note: Checking model_name format actually happens in the argument parsing stage. So there is no
+              such check in this function.
+    4. TODO(James): Will do sanity check of the contents of the given YAML, and JSON files when they
+                    become available.
+
     """
     if args.model_tarfile_s3:
         assert args.entrypoint_file_name, ('To use your own model tar file, please set the \
             --entrypoint-file-name argument, and place the actual file into a subfolder, \
             named \'/code\', inside the tar file, as requested in the SageMaker document: \
             https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure.')
-
-        assert check_tarfile_s3_object(args.model_tarfile_s3) == True, \
-            (f'There is not a tar file existing in the given S3 URL: {args.model_tarfile_s3}.')
-
     else:
         assert args.restore_model_path, f'To use GraphStorm default real-time inference ' + \
                      'endpoint launch script, please set --restore-model-path argument.'
@@ -266,7 +249,7 @@ def validate_arguments(args):
                      'inference endpoint launch script, please set --model-yaml-config-file ' + \
                      'argument.'
         assert args.graph_json_config_file, f'To use GraphStorm default real-time ' + \
-                     'inference endpoint launch script, please set --graph-json-config-file. ' + \
+                     'inference endpoint launch script, please set --graph-json-config-file ' + \
                      'argument.'
         assert args.upload_tarfile_s3, f'To use GraphStorm default real-time ' + \
                      'inference endpoint launch script, please set --upload-tarfile-s3 ' + \
@@ -281,6 +264,6 @@ if __name__ == "__main__":
     args = arg_parser.parse_args()
     print(f"Real-time endpoint launch args: '{args}'")
 
-    validate_arguments(args)
+    validate_realtime_infer_arguments(args)
 
     run_job(args)

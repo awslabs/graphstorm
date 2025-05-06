@@ -23,6 +23,7 @@ import tarfile
 import logging
 import re
 import boto3
+from argparse import ArgumentTypeError
 from urllib.parse import urlparse
 from botocore.errorfactory import ClientError
 from sagemaker.s3 import S3Uploader
@@ -200,7 +201,7 @@ def check_name_format(name_str):
     """
     pattern = re.compile(r"^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$")
     if not re.match(pattern, name_str):
-        raise argparse.ArgumentTypeError(f'Value {name_str} failed to satisfy regular ' + \
+        raise ArgumentTypeError(f'Value {name_str} failed to satisfy regular ' + \
                                            'expression pattern: ' + \
                                            '^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
     return name_str
