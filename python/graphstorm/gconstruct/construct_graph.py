@@ -50,7 +50,6 @@ from .utils import (multiprocessing_data_read,
                     stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
-from .construct_payload_graph import construct_json_payload_graph
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -797,7 +796,21 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
         for label_name, stats in edge_label_stats[etype].items():
             print_edge_label_stats(etype, label_name, stats)
 
-def _construct_gconstruct_graph(args, process_confs):
+def process_graph(args):
+    """ Process the graph.
+    """
+    check_graph_name(args.graph_name)
+    logging.basicConfig(level=get_log_level(args.logging_level))
+    if args.no_feature_validate:
+        logging.warning("Turn off input feature validation."
+                        "This will speedup data processing, "
+                        "but won't check whether there are "
+                        "invalid values from the input.")
+        stop_validate_features()
+
+    with open(args.conf_file, 'r', encoding="utf8") as json_file:
+        process_confs = json.load(json_file)
+
     sys_tracker.set_rank(0)
     num_processes_for_nodes = args.num_processes_for_nodes \
             if args.num_processes_for_nodes is not None else args.num_processes
@@ -945,33 +958,6 @@ def _construct_gconstruct_graph(args, process_confs):
         raw_id_map.save(map_prefix)
         logging.info("Graph construction generated new node IDs for '%s'. " + \
                     "The ID map is saved under %s.", ntype, map_prefix)
-
-def process_graph(args):
-    """ Process the graph.
-    """
-    check_graph_name(args.graph_name)
-    logging.basicConfig(level=get_log_level(args.logging_level))
-    if args.no_feature_validate:
-        logging.warning("Turn off input feature validation."
-                        "This will speedup data processing, "
-                        "but won't check whether there are "
-                        "invalid values from the input.")
-        stop_validate_features()
-
-    with open(args.conf_file, 'r', encoding="utf8") as json_file:
-        process_confs = json.load(json_file)
-
-    if "version" not in process_confs:
-        process_confs["version"] = "gconstruct-v0.1"
-    elif process_confs["version"].startswith("gs-realtime"):
-        logging.warning("Constructing DGLGraph from json payload")
-        construct_json_payload_graph(args, process_confs)
-    elif process_confs["version"].startswith("gconstruct"):
-        logging.info("Parsing config file as GConstruct config")
-        _construct_gconstruct_graph(args, process_confs)
-    else:
-        logging.warning("Unrecognized configuration file version name: %s",
-                        process_confs["version"])
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
