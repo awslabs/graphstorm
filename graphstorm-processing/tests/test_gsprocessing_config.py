@@ -21,6 +21,7 @@ from graphstorm_processing.config.config_parser import (
     EdgeConfig,
     create_config_objects,
     parse_feat_config,
+    update_dict_if_homogeneous,
 )
 from graphstorm_processing.config.numerical_configs import (
     NumericalFeatureConfig,
@@ -159,3 +160,63 @@ def test_unsupported_transformation():
         match="Unknown transformation name: 'unsupported_transform'",
     ):
         parse_feat_config(feature_dict)
+
+
+def test_update_dict_if_homogeneous():
+    """Test homogeneous flag"""
+    # Case 1: Homogeneous Graph
+    graph_config = {
+        "edges": [
+            {
+                "data": {"format": "csv", "files": ["nodes/genre-edge.csv"]},
+                "source": {"column": "~from", "type": "genre"},
+                "relation": {"type": "relation"},
+                "dest": {"column": "~to", "type": "genre"},
+            }
+        ],
+        "nodes": [
+            {
+                "data": {"format": "csv", "files": ["nodes/genre.csv"]},
+                "column": "~id",
+                "type": "genre",
+            }
+        ],
+    }
+    update_dict_if_homogeneous(graph_config)
+    assert graph_config["nodes"][0]["type"] == "_N"
+    assert graph_config["edges"][0]["source"]["type"] == "_N"
+    assert graph_config["edges"][0]["dest"]["type"] == "_N"
+    assert graph_config["edges"][0]["relation"]["type"] == "_E"
+
+    # Case 2: Remove node definition but still maintain it as a homogeneous graph
+    graph_config = {
+        "edges": [
+            {
+                "data": {"format": "csv", "files": ["nodes/genre-edge.csv"]},
+                "source": {"column": "~from", "type": "genre"},
+                "relation": {"type": "relation"},
+                "dest": {"column": "~to", "type": "genre"},
+            }
+        ]
+    }
+    update_dict_if_homogeneous(graph_config)
+    assert graph_config["edges"][0]["source"]["type"] == "_N"
+    assert graph_config["edges"][0]["dest"]["type"] == "_N"
+    assert graph_config["edges"][0]["relation"]["type"] == "_E"
+
+    # Case 3: heterogeneous graph
+    graph_config = {
+        "edges": [
+            {
+                "data": {"format": "csv", "files": ["nodes/genre-edge.csv"]},
+                "source": {"column": "~from", "type": "movie"},
+                "relation": {"type": "relation"},
+                "dest": {"column": "~to", "type": "genre"},
+            }
+        ],
+        "nodes": [{}],
+    }
+    update_dict_if_homogeneous(graph_config)
+    assert graph_config["edges"][0]["source"]["type"] == "movie"
+    assert graph_config["edges"][0]["dest"]["type"] == "genre"
+    assert graph_config["edges"][0]["relation"]["type"] == "relation"
