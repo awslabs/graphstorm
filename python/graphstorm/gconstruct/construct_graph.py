@@ -472,9 +472,7 @@ def _collect_parsed_edge_data(data_dict, process_conf=None):
         if ret_data is None:
             continue
         # Order the data according to the file ID (i)
-        src_ids, dst_ids, part_data, feat_dim_dict = ret_data
-        if process_conf and ("features" in process_conf):
-            update_feat_transformation_conf(process_conf["features"], feat_dim_dict)
+        return_data[i] = ret_data
 
     type_src_ids = []
     type_dst_ids = []
@@ -482,7 +480,9 @@ def _collect_parsed_edge_data(data_dict, process_conf=None):
     for ret_data in return_data:
         if ret_data is None:
             continue
-        src_ids, dst_ids, part_data = ret_data
+        src_ids, dst_ids, part_data, feat_dim_dict = ret_data
+        if process_conf and ("features" in process_conf):
+            update_feat_transformation_conf(process_conf["features"], feat_dim_dict)
         type_src_ids.append(src_ids)
         type_dst_ids.append(dst_ids)
         for feat_name in part_data:
@@ -722,6 +722,7 @@ def verify_confs(confs):
         confs["is_homogeneous"] = True
     else:
         confs["is_homogeneous"] = False
+
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
                      node_label_masks, edge_label_masks):
