@@ -374,8 +374,7 @@ def local_test_upload_data_to_s3(input_value, expected_result=None):
     s3.delete_object(Bucket=bucket_name, Key=object_key)
 
 
-if __name__ == '__main__':
-
+# if __name__ == '__main__':
     # Should only run this in local environment where service access is configured.
     # Comment out the parser when run locally
     # parser = argparse.ArgumentParser('Local test for services')
