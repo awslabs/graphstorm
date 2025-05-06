@@ -1,0 +1,36 @@
+{
+  "version": "gs-realtime-v0.1",
+  "gml_task": "node_classification",
+  "graph": {
+    "nodes": [
+      {
+        "node_type": "movie",
+        "features": {
+            "feat": [
+                0.011269339360296726
+            ]
+        },
+        "node_id": "m1"
+      },
+      {
+        "node_type": "author",
+        "features": {
+            "feat": [
+                -0.0032965524587780237
+            ]
+        },
+        "node_id": "a1"
+      }
+    ],
+    "edges": [{
+      "edge_type": [
+          "movie",
+          "writing",
+          "paper"
+      ],
+      "features": {},
+      "src_node_id": "m1",
+      "dest_node_id": "a1"
+    }]
+  }
+}

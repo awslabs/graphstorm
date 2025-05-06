@@ -50,6 +50,8 @@ from .utils import (multiprocessing_data_read,
                     stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
+from .construct_payload_graph import process_json_payload_graph
+
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -963,6 +965,8 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
+    argparser.add_argument("--json-payload-file", type=str,
+                           help="The json payload graph")
     argparser.add_argument("--output-conf-file", type=str,
                            help="The output file with the updated configurations.")
     argparser.add_argument("--num-processes", type=int, default=1,
@@ -1010,4 +1014,9 @@ if __name__ == '__main__':
                            default="false",
                            help=("Whether to convert the partitioned data to the GraphBolt format "
                                "after creating the DistDGL graph."))
-    process_graph(argparser.parse_args())
+
+    args = argparser.parse_args()
+    if args.json_payload_file:
+        process_json_payload_graph(args)
+    else:
+        process_graph(args)
