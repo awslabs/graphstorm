@@ -49,6 +49,7 @@ from .utils import (multiprocessing_data_read,
                     stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
+from .construct_payload_graph import construct_json_payload_graph
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -946,6 +947,7 @@ def process_graph(args):
         process_confs["version"] = "gconstruct-v0.1"
     elif process_confs["version"].startswith("gs-realtime"):
         logging.warning("Constructing DGLGraph from json payload")
+        _construct_json_payload_graph(args)
     elif process_confs["version"].startswith("gconstruct"):
         logging.info("Parsing config file as GConstruct config")
         _construct_gconstruct_graph(args)
