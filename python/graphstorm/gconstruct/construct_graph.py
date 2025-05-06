@@ -778,21 +778,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
         for label_name, stats in edge_label_stats[etype].items():
             print_edge_label_stats(etype, label_name, stats)
 
-def process_graph(args):
-    """ Process the graph.
-    """
-    check_graph_name(args.graph_name)
-    logging.basicConfig(level=get_log_level(args.logging_level))
-    if args.no_feature_validate:
-        logging.warning("Turn off input feature validation."
-                        "This will speedup data processing, "
-                        "but won't check whether there are "
-                        "invalid values from the input.")
-        stop_validate_features()
-
-    with open(args.conf_file, 'r', encoding="utf8") as json_file:
-        process_confs = json.load(json_file)
-
+def _construct_gconstruct_graph(args):
     sys_tracker.set_rank(0)
     num_processes_for_nodes = args.num_processes_for_nodes \
             if args.num_processes_for_nodes is not None else args.num_processes
@@ -940,6 +926,32 @@ def process_graph(args):
         raw_id_map.save(map_prefix)
         logging.info("Graph construction generated new node IDs for '%s'. " + \
                     "The ID map is saved under %s.", ntype, map_prefix)
+
+def process_graph(args):
+    """ Process the graph.
+    """
+    check_graph_name(args.graph_name)
+    logging.basicConfig(level=get_log_level(args.logging_level))
+    if args.no_feature_validate:
+        logging.warning("Turn off input feature validation."
+                        "This will speedup data processing, "
+                        "but won't check whether there are "
+                        "invalid values from the input.")
+        stop_validate_features()
+
+    with open(args.conf_file, 'r', encoding="utf8") as json_file:
+        process_confs = json.load(json_file)
+
+    if "version" not in process_confs:
+        process_confs["version"] = "gconstruct-v0.1"
+    elif process_confs["version"].startswith("gs-realtime"):
+        logging.warning("Constructing DGLGraph from json payload")
+    elif process_confs["version"].startswith("gconstruct"):
+        logging.info("Parsing config file as GConstruct config")
+        _construct_gconstruct_graph(args)
+    else:
+        logging.warning("Unrecognized configuration file version name: %s",
+                        process_confs["version"])
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
