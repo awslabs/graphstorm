@@ -14,7 +14,7 @@
     limitations under the License.
 """
 
-def construct_json_payload_graph(args):
+def construct_json_payload_graph(args, process_confs):
     """ Construct DGLGraph from json payload.
     """
     print(args)
