@@ -28,7 +28,6 @@ import logging
 import numpy as np
 import torch as th
 import dgl
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from ..utils import sys_tracker, get_log_level, check_graph_name
 from .file_io import parse_node_file_format, parse_edge_file_format
@@ -973,8 +972,7 @@ if __name__ == '__main__':
                            help=("Whether to convert the partitioned data to the GraphBolt format "
                                "after creating the DistDGL graph."))
 
-    args = argparser.parse_args()
     if args.json_payload_file:
-        process_json_payload_graph(args)
+        process_json_payload_graph(argparser.parse_args())
     else:
-        process_graph(args)
+        process_graph(argparser.parse_args())

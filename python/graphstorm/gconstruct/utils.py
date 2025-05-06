@@ -31,6 +31,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import dgl
 from dgl import distributed as dgl_distributed
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from packaging import version
 import torch as th
 from torch import multiprocessing
