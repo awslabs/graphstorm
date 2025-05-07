@@ -456,6 +456,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
                     f"Node data and node IDs for node type {node_type} does not match: " + \
                     f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
+    print(node_data)
     return (node_id_map, node_data, label_stats, label_masks)
 
 def _collect_parsed_edge_data(data_dict, process_conf=None):
@@ -680,6 +681,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 f"does not match the number of edges of {edge_type}. " \
                 f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
+    print(edges, edge_data)
     return (edges, edge_data, label_stats, label_masks, hard_edge_neg_ops)
 
 
