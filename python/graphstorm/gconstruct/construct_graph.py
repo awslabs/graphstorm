@@ -972,7 +972,7 @@ if __name__ == '__main__':
                            help=("Whether to convert the partitioned data to the GraphBolt format "
                                "after creating the DistDGL graph."))
 
-    if args.json_payload_file:
+    if argparser.parse_args().json_payload_file:
         process_json_payload_graph(argparser.parse_args())
     else:
         process_graph(argparser.parse_args())
