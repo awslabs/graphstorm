@@ -28,6 +28,7 @@ import logging
 import numpy as np
 import torch as th
 import dgl
+from dgl.distributed.constants import DEFAULT_ETYPE
 
 from ..utils import sys_tracker, get_log_level, check_graph_name
 from .file_io import parse_node_file_format, parse_edge_file_format
