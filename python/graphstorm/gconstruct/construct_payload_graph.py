@@ -18,7 +18,70 @@ import logging
 
 
 from ..utils import (sys_tracker, get_log_level, check_graph_name)
+from .transform import parse_feat_ops, process_features, preprocess_features
 from .utils import verify_confs
+
+def prepare_node_data(in_file, feat_ops, read_file):
+    """ Prepare node data information for data transformation.
+
+    The function parses a node file that contains node features
+    The node file is parsed according to users' configuration
+    and transformation related information is extracted.
+
+    Parameters
+    ----------
+    in_file : str
+        The path of the input node file.
+    feat_ops : dict of FeatTransform
+        The operations run on the node features of the node file.
+    read_file : callable
+        The function to read the node file
+
+    Returns
+    -------
+    dict : A dict of node feature info.
+    """
+    data = read_file(in_file)
+    assert feat_ops is not None, "feat_ops must exist when prepare_node_data is called."
+    feat_info = preprocess_features(data, feat_ops)
+
+    return feat_info
+
+def _process_data(user_parser,
+                  two_phase_feat_ops,
+                  task_info,
+                  ext_mem_workspace):
+    """ Process node and edge data.
+
+    Parameter
+    ---------
+    user_pre_parser: func
+        A function that prepares data for processing.
+    user_parser: func
+        A function that processes node data or edge data.
+    two_phase_feat_ops: list of TwoPhaseFeatTransform
+        List of TwoPhaseFeatTransform transformation ops.
+    task_info: str
+        Task meta info for debugging.
+    """
+    if len(two_phase_feat_ops) > 0:
+        pre_parse_start = time.time()
+        phase_one_ret = {}
+        for i, in_file in enumerate(in_files):
+            phase_one_ret[i] = prepare_node_data(in_file)
+        update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
+
+        dur = time.time() - pre_parse_start
+        logging.debug("Preprocessing data files for %s takes %.3f seconds.",
+                      task_info, dur)
+
+    start = time.time()
+    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser,
+                                            ext_mem_workspace)
+    dur = time.time() - start
+    logging.debug("Processing data files for %s takes %.3f seconds.",
+                    task_info, dur)
+    return return_dict
 
 
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
@@ -40,7 +103,15 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
     for node_conf in payload_node_conf_list:
         assert "node_type" in node_conf, "node type must be defined in the config"
         assert "node_id" in node_conf, "node id must be defined in the config"
-    return np.array([0, 0])
+
+        node_type = node_conf["node_type"]
+        gconstruct_node_conf = gconstruct_node_conf_list[node_type]
+        (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
+            parse_feat_ops(gconstruct_node_conf["features"], gconstruct_node_conf["format"]["name"]) \
+                if 'features' in gconstruct_node_conf else (None, [], {}, [])
+
+        # Always do single process feature transformation as there is only payload input
+    return {}, np.array([0, 0])
 
 
 def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list):
@@ -90,7 +161,7 @@ def process_json_payload_graph(args):
     output_format = args.output_format
     if len(output_format) != 1 and output_format[0] != "DGL":
         logging.warning("We only support building DGLGraph for json payload")
-    node_data = process_json_payload_nodes(gconstruct_confs["nodes"],
+    raw_node_id_maps, node_data = process_json_payload_nodes(gconstruct_confs["nodes"],
                                            json_payload_confs["graph"]["nodes"])
     sys_tracker.check('Process the node data')
 
@@ -105,14 +176,8 @@ def process_json_payload_graph(args):
 
     for ntype in node_data:
         for name, ndata in node_data[ntype].items():
-            if isinstance(ndata, ExtMemArrayWrapper):
-                g.nodes[ntype].data[name] = ndata.to_tensor()
-            else:
-                g.nodes[ntype].data[name] = th.tensor(ndata)
+            g.nodes[ntype].data[name] = th.tensor(ndata)
     for etype in edge_data:
         for name, edata in edge_data[etype].items():
-            if isinstance(edata, ExtMemArrayWrapper):
-                g.edges[etype].data[name] = edata.to_tensor()
-            else:
-                g.edges[etype].data[name] = th.tensor(edata)
+            g.edges[etype].data[name] = th.tensor(edata)
     dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
