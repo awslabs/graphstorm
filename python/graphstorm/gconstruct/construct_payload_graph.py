@@ -35,6 +35,7 @@ def process_json_payload_nodes(node_conf):
     }
     """
     print(node_conf)
+    return np.array([0, 0])
 
 
 def process_json_payload_edges(edge_conf):
@@ -50,6 +51,7 @@ def process_json_payload_edges(edge_conf):
     }
     """
     print(edge_conf)
+    return np.array([0, 0])
 
 
 def process_json_payload_graph(args):
@@ -76,9 +78,30 @@ def process_json_payload_graph(args):
     for node_conf in process_confs["graph"]["nodes"]:
         assert "node_type" in node_conf, "node type must be defined in the config"
         assert "node_id" in node_conf, "node id must be defined in the config"
-        process_json_payload_nodes(node_conf)
+        node_data = process_json_payload_nodes(node_conf)
+    sys_tracker.check('Process the node data')
 
     for edge_conf in process_confs["graph"]["edges"]:
         assert "edge_type" in edge_conf, "edge type must be defined in the config"
         assert "edge_id" in edge_conf, "edge id must be defined in the config"
-        process_json_payload_edges(edge_conf)
+        edge_data = process_json_payload_edges(edge_conf)
+    sys_tracker.check('Process the edge data')
+
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    sys_tracker.check('Construct DGL graph')
+
+    for ntype in node_data:
+        for name, ndata in node_data[ntype].items():
+            if isinstance(ndata, ExtMemArrayWrapper):
+                g.nodes[ntype].data[name] = ndata.to_tensor()
+            else:
+                g.nodes[ntype].data[name] = th.tensor(ndata)
+    for etype in edge_data:
+        for name, edata in edge_data[etype].items():
+            if isinstance(edata, ExtMemArrayWrapper):
+                g.edges[etype].data[name] = edata.to_tensor()
+            else:
+                g.edges[etype].data[name] = th.tensor(edata)
+    dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
