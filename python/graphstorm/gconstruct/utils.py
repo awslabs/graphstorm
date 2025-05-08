@@ -234,7 +234,7 @@ def update_feat_transformation_conf(conf, feat_dim_dict):
         }]
     feat_dim_dict: key is feature name, value is feature dimension in tuple or list.
         Updated feature configuration after feature transformation
-        {feat_name1: (2,), feat_name2: (3,4,)} or {feat_name1: [2], feat_name1: [3,4]}.
+        {feat_name1: (2,), feat_name2: (3,4,)} or {feat_name1: [2], feat_name1: [3,4]}. 
         Tuples for transformation processing result, 
         list for reading from output transformation json.
 
