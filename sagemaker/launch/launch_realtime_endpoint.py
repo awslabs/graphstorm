@@ -207,7 +207,7 @@ def run_job(input_args):
 
 def get_realtime_infer_parser():
     """
-    Get GraphStorm realtime  task parser.
+    Get GraphStorm realtime task parser.
     """
     realtime_infer_parser = argparse.ArgumentParser("GraphStorm Inference Args")
 
