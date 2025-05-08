@@ -101,7 +101,7 @@ def run_job(input_args):
     """
     # ================= prepare model artifacts ================= #
     # prepare sessions
-    b3_session = boto3.Session(region_name=input_args.region)
+    boto_session = boto3.Session(region_name=input_args.region)
     sm_session = sm.Session(boto_session=b3_session)
 
     # If users provide the S3 tar file path already, directly use it for model creation
