@@ -131,8 +131,8 @@ def run_job(input_args):
                                         {input_args.infer_task_type} is not supported.')
 
         path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODLE_FILE_NAME)
-        path_to_yaml = input_args.model_yaml_config_file
-        path_to_json = input_args.graph_json_config_file
+        path_to_model_yaml = input_args.model_yaml_config_file
+        path_to_graph_json = input_args.graph_json_config_file
         model_name = input_args.model_name
 
         with tempfile.TemporaryDirectory() as tmpdirname:
@@ -209,7 +209,7 @@ def run_job(input_args):
 
 def get_realtime_infer_parser():
     """
-    Get GraphStorm realtime  task parser.
+    Get GraphStorm realtime task parser.
     """
     realtime_infer_parser = argparse.ArgumentParser("GraphStorm Inference Args")
 
@@ -253,7 +253,7 @@ def get_realtime_infer_parser():
               to create a SageMaker Model.")
     realtime_infer_parser.add_argument("--entrypoint-file-name", type=str,
         help="The name of the model entry point file. This file name will be used when you \
-              sepcify the --model-tarfile-s3 argument to use a pre-uploaded model tar file.")
+              specify the --model-tarfile-s3 argument to use a pre-uploaded model tar file.")
 
     return realtime_infer_parser
 
