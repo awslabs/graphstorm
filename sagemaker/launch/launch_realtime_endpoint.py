@@ -47,7 +47,7 @@ def run_job(input_args):
     
     Following SageMaker's document for deploying model for real-time inference in
     https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html,
-    the general steps of the deployment include:
+    The general steps of a deployment include:
     1. prepare model artifacts;
     2. create a deployable model;
     3. create an endpoint configuration based on the deployable model;
