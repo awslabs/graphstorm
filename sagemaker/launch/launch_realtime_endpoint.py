@@ -251,7 +251,7 @@ def get_realtime_infer_parser():
               to create a SageMaker Model.")
     realtime_infer_parser.add_argument("--entrypoint-file-name", type=str,
         help="The name of the model entry point file. This file name will be used when you \
-              sepcify the --model-tarfile-s3 argument to use a pre-uploaded model tar file.")
+              specify the --model-tarfile-s3 argument to use a pre-uploaded model tar file.")
 
     return realtime_infer_parser
 
