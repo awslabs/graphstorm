@@ -31,7 +31,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 import dgl
 from dgl import distributed as dgl_distributed
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from packaging import version
 import torch as th
 from torch import multiprocessing
@@ -222,52 +221,6 @@ def generate_hash():
     return str(random_uuid)
 
 
-def is_homogeneous(confs):
-    """ Verify if it is a homogeneous graph
-    Parameter
-    ---------
-    confs: dict
-        A dict containing all user input config
-    """
-    ntypes = {conf['node_type'] for conf in confs["nodes"]}
-    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
-    return len(ntypes) == 1 and len(etypes) == 1
-
-
-def verify_confs(confs):
-    """ Verify the configuration of the input data.
-    Parameter
-    ---------
-    confs: dict
-        A dict containing all user input config
-    """
-    if "version" not in confs:
-        # TODO: Make a requirement with v1.0 launch
-        logging.warning(
-            "The config file does not have a 'version' entry. Assuming gconstruct-v0.1")
-    ntypes = {conf['node_type'] for conf in confs["nodes"]}
-    etypes = [conf['relation'] for conf in confs["edges"]]
-    for etype in etypes:
-        assert len(etype) == 3, \
-                "The edge type must be (source node type, relation type, dest node type)."
-        src_type, _, dst_type = etype
-        assert src_type in ntypes, \
-                f"source node type {src_type} does not exist. Please check your input data."
-        assert dst_type in ntypes, \
-                f"dest node type {dst_type} does not exist. Please check your input data."
-    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
-    if is_homogeneous(confs):
-        logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
-                        "changed to _N and edge type will be changed to [_N, _E, _N]")
-        for node in confs['nodes']:
-            node['node_type'] = DEFAULT_NTYPE
-        for edge in confs['edges']:
-            edge['relation'] = list(DEFAULT_ETYPE)
-        confs["is_homogeneous"] = True
-    else:
-        confs["is_homogeneous"] = False
-
-
 def update_feat_transformation_conf(conf, feat_dim_dict):
     """ Update the feature configuration with the feature dimension dict
 
@@ -281,8 +234,8 @@ def update_feat_transformation_conf(conf, feat_dim_dict):
         }]
     feat_dim_dict: key is feature name, value is feature dimension in tuple or list.
         Updated feature configuration after feature transformation
-        {feat_name1: (2,), feat_name2: (3,4,)} or {feat_name1: [2], feat_name1: [3,4]}. 
-        Tuples for transformation processing result, 
+        {feat_name1: (2,), feat_name2: (3,4,)} or {feat_name1: [2], feat_name1: [3,4]}.
+        Tuples for transformation processing result,
         list for reading from output transformation json.
 
     Returns
