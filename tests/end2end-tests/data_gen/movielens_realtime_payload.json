@@ -24,9 +24,9 @@
     ],
     "edges": [{
       "edge_type": [
-          "movie",
-          "writing",
-          "paper"
+          "user",
+          "rating",
+          "movie"
       ],
       "features": {},
       "src_node_id": "m1",

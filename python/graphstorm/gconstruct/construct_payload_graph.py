@@ -15,11 +15,15 @@
 """
 import json
 import logging
+import numpy as np
+import dgl
 
-
-from ..utils import (sys_tracker, get_log_level, check_graph_name)
 from .transform import parse_feat_ops, process_features, preprocess_features
-from .utils import verify_confs
+
+STATUS = "status_code"
+MSG = "message"
+GRAPH = "graph"
+NODE_MAPPING = "node_mapping"
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -41,7 +45,6 @@ def prepare_node_data(in_file, feat_ops, read_file):
     -------
     dict : A dict of node feature info.
     """
-    data = read_file(in_file)
     assert feat_ops is not None, "feat_ops must exist when prepare_node_data is called."
     feat_info = preprocess_features(data, feat_ops)
 
@@ -84,6 +87,31 @@ def _process_data(user_parser,
     return return_dict
 
 
+def get_conf(gconstruct_conf_list, type_name, structure_type):
+    """ Retrieve node/edge type gconstruct config
+
+    Paramters:
+        gconstruct_conf_list: dict
+            GConstruct Config Dict for either node or edge
+        type_name: str
+            Node/Edge Name
+        structure_type: str
+            One of "Node" and "Edges"
+    """
+    conf_list = []
+    if structure_type == "Node":
+        col_name = "node_type"
+    elif structure_type == "Edge":
+        col_name = "relation"
+    else:
+        raise ValueError("Expect structure_type be one of Node/Edge")
+    for conf in gconstruct_conf_list:
+        if conf[col_name] == type_name:
+            conf_list.append(conf)
+
+    return conf_list
+
+
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
     """ Process json payload node data
 
@@ -101,14 +129,11 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
         node_data: {nfeat_name: node_feat_np_array}
     """
     for node_conf in payload_node_conf_list:
-        assert "node_type" in node_conf, "node type must be defined in the config"
-        assert "node_id" in node_conf, "node id must be defined in the config"
-
         node_type = node_conf["node_type"]
-        gconstruct_node_conf = gconstruct_node_conf_list[node_type]
-        (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
-            parse_feat_ops(gconstruct_node_conf["features"], gconstruct_node_conf["format"]["name"]) \
-                if 'features' in gconstruct_node_conf else (None, [], {}, [])
+        gconstruct_node_conf = get_conf(gconstruct_node_conf_list, node_type, "Node")
+        # (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
+        #     parse_feat_ops(gconstruct_node_conf["features"], gconstruct_node_conf["format"]["name"]) \
+        #         if 'features' in gconstruct_node_conf else (None, [], {}, [])
 
         # Always do single process feature transformation as there is only payload input
     return {}, np.array([0, 0])
@@ -132,52 +157,94 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
         edges: {etype: (src_np_array, dst_np_array)}
         edge_data: {efeat_name: edge_feat_np_array}
     """
-    for edge_conf in payload_edge_conf_list:
-        assert "edge_type" in edge_conf, "edge type must be defined in the config"
-        assert "edge_id" in edge_conf, "edge id must be defined in the config"
+    # for edge_conf in payload_edge_conf_list:
+
     return np.array([0, 0])
 
 
-def process_json_payload_graph(args):
-    """ Construct DGLGraph from json payload.
-    """
-    check_graph_name(args.graph_name)
-    logging.basicConfig(level=get_log_level(args.logging_level))
+def verify_payload_conf(request_json_payload):
+    """ Verify input json payload
 
-    with open(args.conf_file, 'r', encoding="utf8") as json_file:
+    Parameters:
+    request_json_payload: dict
+        JSON request payload
+    """
+    assert "graph" in request_json_payload, \
+        "The JSON request must include a 'graph' definition."
+    assert "nodes" in request_json_payload["graph"], \
+        "The 'graph' definition in the JSON request must include a 'nodes' field."
+    assert "edges" in request_json_payload["graph"], \
+        "The 'graph' definition in the JSON request must include a 'edges' field."
+
+    for node_conf in request_json_payload["graph"]["nodes"]:
+        assert "node_type" in node_conf, \
+            "The 'node' definition in the JSON request must include a 'node_type'"
+        assert "node_id" in node_conf, \
+            "The 'node' definition in the JSON request must include a 'node_id'"
+
+    for edge_conf in request_json_payload["graph"]["edges"]:
+        assert "edge_type" in edge_conf, \
+            "The 'edge_type' definition in the JSON request must include a 'edge_type'"
+        assert "src_node_id" in edge_conf, \
+            "The 'edge' definition in the JSON request must include a 'src_node_id'"
+        assert "dest_node_id" in edge_conf, \
+            "The 'edge' definition in the JSON request must include a 'dest_node_id'"
+
+    # TODO: Check if all the node/edge types are in the gconstruct definition
+    return True
+
+
+def process_json_payload_graph(request_json_payload, gconstruct_config):
+    """ Construct DGLGraph from json payload.
+
+
+    Parameters:
+    request_json_payload: dict
+        Input json payload request
+
+    gconstruct_config: dict
+        Input Gconstruct config file
+    """
+    with open(gconstruct_config, 'r', encoding="utf8") as json_file:
         gconstruct_confs = json.load(json_file)
 
-    with open(args.json_payload_file, 'r', encoding="utf8") as json_file:
+    with open(request_json_payload, 'r', encoding="utf8") as json_file:
         json_payload_confs = json.load(json_file)
 
-    sys_tracker.set_rank(0)
-    num_processes_for_nodes = args.num_processes_for_nodes \
-            if args.num_processes_for_nodes is not None else args.num_processes
-    num_processes_for_edges = args.num_processes_for_edges \
-            if args.num_processes_for_edges is not None else args.num_processes
-    print(num_processes_for_nodes, num_processes_for_edges)
-    verify_confs(gconstruct_confs)
+    # Verify JSON payload request
+    try:
+        verify_payload_conf(json_payload_confs)
+    except AssertionError as ae:
+        error_message = str(ae)
+        return {STATUS: 400, MSG: error_message}
 
-    output_format = args.output_format
-    if len(output_format) != 1 and output_format[0] != "DGL":
-        logging.warning("We only support building DGLGraph for json payload")
-    raw_node_id_maps, node_data = process_json_payload_nodes(gconstruct_confs["nodes"],
-                                           json_payload_confs["graph"]["nodes"])
-    sys_tracker.check('Process the node data')
+    # Process Node Data
+    try:
+        raw_node_id_maps, node_data = process_json_payload_nodes(gconstruct_confs["nodes"],
+                                               json_payload_confs["graph"]["nodes"])
+        num_nodes = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
+    except AssertionError as ae:
+        error_message = str(ae)
+        return {STATUS: 400, MSG: error_message}
 
-    edges, edge_data = process_json_payload_edges(gconstruct_confs["edges"],
+    # Process Edge Data
+    try:
+        edges, edge_data = process_json_payload_edges(gconstruct_confs["edges"],
                                                   json_payload_confs["graph"]["edges"])
-    sys_tracker.check('Process the edge data')
+    except AssertionError as ae:
+        error_message = str(ae)
+        return {STATUS: 400, MSG: error_message}
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    g = None
+    # g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    #
+    # # Assign node/edge features
+    # for ntype in node_data:
+    #     for name, ndata in node_data[ntype].items():
+    #         g.nodes[ntype].data[name] = th.tensor(ndata)
+    # for etype in edge_data:
+    #     for name, edata in edge_data[etype].items():
+    #         g.edges[etype].data[name] = th.tensor(edata)
 
-    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    sys_tracker.check('Construct DGL graph')
-
-    for ntype in node_data:
-        for name, ndata in node_data[ntype].items():
-            g.nodes[ntype].data[name] = th.tensor(ndata)
-    for etype in edge_data:
-        for name, edata in edge_data[etype].items():
-            g.edges[etype].data[name] = th.tensor(edata)
-    dgl.save_graphs(os.path.join(args.output_dir, args.graph_name + ".dgl"), [g])
+    return {STATUS: 200, MSG: "successful build payload graph",
+            GRAPH: g, NODE_MAPPING: raw_node_id_maps}
