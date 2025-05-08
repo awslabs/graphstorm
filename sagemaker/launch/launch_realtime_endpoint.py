@@ -31,7 +31,8 @@ import sagemaker as sm
 
 
 # TODO: When adding new realtime inference tasks, modify this list
-SUPPORTED_REALTIME_INFER_TASKS = ['node_classification']
+SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
+SUPPORTED_REALTIME_INFER_TASKS = [SUPPORTED_REALTIME_INFER_NC_TASK]
 
 # Constants for SageMaker endpoints
 ENTRY_FOLDER_NAME = 'realtime_entry_points'
@@ -120,7 +121,7 @@ def run_job(input_args):
         entry_point_dir = os.path.join(os.path.dirname(__file__), ENTRY_FOLDER_NAME)
 
         # TODO: When adding new realtime inference tasks, add new elif here to support them
-        if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_TASKS[0]: # node_classification
+        if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
             entrypoint_file_name = list(ENTRY_FILE_NAMES)[0]
             path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
         else:
