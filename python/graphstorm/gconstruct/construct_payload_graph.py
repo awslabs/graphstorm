@@ -17,6 +17,7 @@ import json
 import logging
 import numpy as np
 import dgl
+from cattr import structure
 
 from .transform import parse_feat_ops, process_features, preprocess_features
 
@@ -111,6 +112,58 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
 
     return conf_list
 
+def merge_payload_input(payload_input_list):
+    """Merge the payload input within the same node/edge type
+
+    Parameters:
+        payload_input_list: list[dict]
+            input payload list
+    """
+    merged_data_temp = {}
+
+    for item in payload_input_list:
+        element_category = None
+        type_name = None
+        current_ids = {}
+        output_type_field = None
+
+        if "node_type" in item and "node_id" in item:
+            element_category = "node"
+            type_name = item["node_type"]
+            output_type_field = "node_type"
+            current_ids["node_id"] = item["node_id"]
+        elif "edge_type" in item and "src_node_id" in item and "dest_node_id" in item:
+            element_category = "edge"
+            type_name = item["edge_type"]
+            output_type_field = "edge_type"
+            current_ids["src_node_id"] = item["src_node_id"]
+            current_ids["dest_node_id"] = item["dest_node_id"]
+
+        grouping_key = (element_category, type_name)
+
+        if grouping_key not in merged_data_temp:
+            merged_entry = {output_type_field: type_name}
+            for id_key, id_val in current_ids.items():
+                merged_entry[id_key] = [id_val]
+
+            if "features" in item and isinstance(item["features"], dict) and item["features"]:
+                merged_entry["features"] = {}
+                for feature_key, feature_value_list in item["features"].items():
+                    merged_entry["features"][feature_key] = [feature_value_list]
+            merged_data_temp[grouping_key] = merged_entry
+        else:
+            for id_key, id_val in current_ids.items():
+                if id_key in merged_data_temp[grouping_key]:
+                     merged_data_temp[grouping_key][id_key].append(id_val)
+
+            if "features" in merged_data_temp[grouping_key] and \
+               "features" in item and isinstance(item["features"], dict):
+                for feature_key, feature_value_list in item["features"].items():
+                    if feature_key in merged_data_temp[grouping_key]["features"]:
+                        merged_data_temp[grouping_key]["features"][feature_key].append(feature_value_list)
+
+    final_merged_list = list(merged_data_temp.values())
+    return final_merged_list
 
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
     """ Process json payload node data
@@ -128,7 +181,9 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
     Return:
         node_data: {nfeat_name: node_feat_np_array}
     """
-    for node_conf in payload_node_conf_list:
+    node_data_dict = {}
+    merged_payload_node_conf_list = merge_payload_input(payload_node_conf_list)
+    for node_conf in merged_payload_node_conf_list:
         node_type = node_conf["node_type"]
         gconstruct_node_conf = get_conf(gconstruct_node_conf_list, node_type, "Node")
         # (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
@@ -190,6 +245,7 @@ def verify_payload_conf(request_json_payload):
         assert "dest_node_id" in edge_conf, \
             "The 'edge' definition in the JSON request must include a 'dest_node_id'"
 
+    # TODO: Check if all the nodes/edges in one type have features or not have features
     # TODO: Check if all the node/edge types are in the gconstruct definition
     return True
 
