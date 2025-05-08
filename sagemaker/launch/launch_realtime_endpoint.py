@@ -130,7 +130,7 @@ def run_job(input_args):
 
         path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODLE_FILE_NAME)
         path_to_yaml = input_args.model_yaml_config_file
-        path_to_json = input_args.graph_json_config_file
+        path_to_graph_json = input_args.graph_json_config_file
         model_name = input_args.model_name
 
         with tempfile.TemporaryDirectory() as tmpdirname:
