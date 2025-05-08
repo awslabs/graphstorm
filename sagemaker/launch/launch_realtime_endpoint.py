@@ -21,13 +21,15 @@ import argparse
 import logging
 import tempfile
 from time import gmtime, strftime
+
 import boto3 # pylint: disable=import-error
 from botocore.exceptions import WaiterError
+import sagemaker as sm
+
 from launch_utils import (wrap_model_artifacts,
                           check_tarfile_s3_object,
                           upload_data_to_s3,
                           check_name_format)
-import sagemaker as sm
 
 
 # TODO: When adding new realtime inference tasks, modify this list

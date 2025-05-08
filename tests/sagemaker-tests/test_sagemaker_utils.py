@@ -238,23 +238,25 @@ def test_parse_s3_url():
     """
     # Test case 1:  normal case, using valid S3 url.
     #       1.1: start with 's3://' or 'S3://'
-    test_s3_url = 's3://graphstorm-demos/test/GSF-demo.pptx'
+    test_s3_url = 's3://a_bucket/a_path/test.pptx'
     bucket_name, key = parse_s3_url(test_s3_url)
-    test_s3_url = 'S3://graphstorm-demos/test/GSF-demo.pptx'
+    assert bucket_name == 'a_bucket'
+    assert key == 'a_path/test.pptx'
+
+    test_s3_url = 'S3://a_bucket/a_path/test.pptx'
     bucket_name, key = parse_s3_url(test_s3_url)
-    
-    assert bucket_name == 'graphstorm-demos'
-    assert key == 'test/GSF-demo.pptx'
+    assert bucket_name == 'a_bucket'
+    assert key == 'a_path/test.pptx'
     
     #       1.2: start with 'https://'
-    test_s3_url = 'https://graphstorm-demos.s3.us-west-1.amazonaws.com/test/GSF-demo.pptx'
+    test_s3_url = 'https://a_bucket/a_path/test.pptx'
     bucket_name, key = parse_s3_url(test_s3_url)
     
-    assert bucket_name == 'graphstorm-demos.s3.us-west-1.amazonaws.com'
-    assert key == 'test/GSF-demo.pptx'
+    assert bucket_name == 'a_bucket'
+    assert key == 'a_path/test.pptx'
 
     # Test case 2: abnormal cases, not start either s3:// or https://
-    test_s3_url = '/graphstorm-demos/test/GSF-demo.pptx'
+    test_s3_url = '/a_bucket/a_path/test.pptx'
     with pytest.raises(AssertionError, match='Incorrect S3 *'):
         parse_s3_url(test_s3_url)
 
@@ -291,39 +293,39 @@ def test_check_tarfile_s3_object(mock_boto_client):
     mock_boto_client.return_value = mock_s3
 
     # Test case 1: normal case. S3 url is right and the object ends with '.tar.gz' 
-    mock_s3.head_object.return_value = "s3://graphstorm-demos/test/model.tar.gz"
-    assert check_tarfile_s3_object("s3://graphstorm-demos/test/model.tar.gz") is True
+    mock_s3.head_object.return_value = "s3://a_bucket/a_path/model.tar.gz"
+    assert check_tarfile_s3_object("s3://a_bucket/a_path/model.tar.gz") is True
 
     # Test case 2: abnormal cases
     #       2.1: S3 url is incorrect, not starting with s3 or https
     error_response = {'Error': {'Code': '404'}}
     mock_s3.head_object.side_effect = ClientError(error_response, 'HeadObject')
     with pytest.raises(AssertionError, match='Incorrect S3'):
-        check_tarfile_s3_object('/graphstorm-demos/test/GSF-demo.pptx')
+        check_tarfile_s3_object('/a_bucket/a_path/test.pptx')
 
     #       2.2: S3 url is correct, but not ending with .tar.gz
     error_response = {'Error': {'Code': '404'}}
     mock_s3.head_object.side_effect = ClientError(error_response, 'HeadObject')
     with pytest.raises(AssertionError, match='not a compressed tar file'):
-        check_tarfile_s3_object('s3://graphstorm-demos/test/GSF-demo.pptx')
+        check_tarfile_s3_object('s3://a_bucket/a_path/test.pptx')
 
 @patch('launch_utils.S3Uploader.upload')
 def test_upload_data_to_s3(mock_s3uploader):
     """ Test the upload data to S3 function.
     """
-    mock_s3uploader.return_value = 's3://graphstorm-demos/test/model.tar.gz'
+    mock_s3uploader.return_value = 's3://a_bucket/a_path/model.tar.gz'
     
     # Test case 1: mock successful upload
-    ret = upload_data_to_s3('s3://graphstorm-demos/test/', './model.tar.gz', 'session')
-    mock_s3uploader.assert_called_once_with('./model.tar.gz', 's3://graphstorm-demos/test/',
+    ret = upload_data_to_s3('s3://a_bucket/a_path/', './model.tar.gz', 'session')
+    mock_s3uploader.assert_called_once_with('./model.tar.gz', 's3://a_bucket/a_path/',
                                             sagemaker_session='session')
 
-    assert ret == 's3://graphstorm-demos/test/model.tar.gz'
+    assert ret == 's3://a_bucket/a_path/model.tar.gz'
 
     # Test case 2: mock unsucessful upload
-    ret = upload_data_to_s3('s3://graphstorm-demos/test/', './model.tar.gz', 'session')
+    ret = upload_data_to_s3('s3://a_bucket/a_path/', './model.tar.gz', 'session')
     with pytest.raises(AssertionError):
-        mock_s3uploader.assert_called_once_with('s3://graphstorm-demos/test/', './model.tar.gz',
+        mock_s3uploader.assert_called_once_with('s3://a_bucket/a_path/', './model.tar.gz',
                                                 sagemaker_session='session')
     
 
@@ -374,7 +376,8 @@ def local_test_upload_data_to_s3(input_value, expected_result=None):
     s3.delete_object(Bucket=bucket_name, Key=object_key)
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    pass
     # Should only run this in local environment where service access is configured.
     # Comment out the parser when run locally
     # parser = argparse.ArgumentParser('Local test for services')
