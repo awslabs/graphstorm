@@ -28,7 +28,7 @@ import logging
 import numpy as np
 import torch as th
 import dgl
-from dgl.distributed.constants import DEFAULT_ETYPE
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from ..utils import sys_tracker, get_log_level, check_graph_name
 from .file_io import parse_node_file_format, parse_edge_file_format
@@ -47,13 +47,9 @@ from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
                     partition_graph,
                     ExtMemArrayWrapper,
-                    stop_validate_features,
-                    is_homogeneous,
-                    verify_confs)
+                    stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
-from .construct_payload_graph import process_json_payload_graph
-
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -456,7 +452,6 @@ def process_node_data(process_confs, arr_merger, remap_id,
                     f"Node data and node IDs for node type {node_type} does not match: " + \
                     f"{len(data)} vs. {len(node_id_map[node_type])}"
     sys_tracker.check('Finish processing node data')
-    print(node_data)
     return (node_id_map, node_data, label_stats, label_masks)
 
 def _collect_parsed_edge_data(data_dict, process_conf=None):
@@ -681,8 +676,51 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 f"does not match the number of edges of {edge_type}. " \
                 f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
-    print(edges, edge_data)
     return (edges, edge_data, label_stats, label_masks, hard_edge_neg_ops)
+
+def is_homogeneous(confs):
+    """ Verify if it is a homogeneous graph
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
+    """
+    ntypes = {conf['node_type'] for conf in confs["nodes"]}
+    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
+    return len(ntypes) == 1 and len(etypes) == 1
+
+def verify_confs(confs):
+    """ Verify the configuration of the input data.
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
+    """
+    if "version" not in confs:
+        # TODO: Make a requirement with v1.0 launch
+        logging.warning(
+            "The config file does not have a 'version' entry. Assuming gconstruct-v0.1")
+    ntypes = {conf['node_type'] for conf in confs["nodes"]}
+    etypes = [conf['relation'] for conf in confs["edges"]]
+    for etype in etypes:
+        assert len(etype) == 3, \
+                "The edge type must be (source node type, relation type, dest node type)."
+        src_type, _, dst_type = etype
+        assert src_type in ntypes, \
+                f"source node type {src_type} does not exist. Please check your input data."
+        assert dst_type in ntypes, \
+                f"dest node type {dst_type} does not exist. Please check your input data."
+    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
+    if is_homogeneous(confs):
+        logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
+                        "changed to _N and edge type will be changed to [_N, _E, _N]")
+        for node in confs['nodes']:
+            node['node_type'] = DEFAULT_NTYPE
+        for edge in confs['edges']:
+            edge['relation'] = list(DEFAULT_ETYPE)
+        confs["is_homogeneous"] = True
+    else:
+        confs["is_homogeneous"] = False
 
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
@@ -925,8 +963,6 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
-    argparser.add_argument("--json-payload-file", type=str,
-                           help="The json payload graph")
     argparser.add_argument("--output-conf-file", type=str,
                            help="The output file with the updated configurations.")
     argparser.add_argument("--num-processes", type=int, default=1,
@@ -974,8 +1010,4 @@ if __name__ == '__main__':
                            default="false",
                            help=("Whether to convert the partitioned data to the GraphBolt format "
                                "after creating the DistDGL graph."))
-
-    if argparser.parse_args().json_payload_file:
-        process_json_payload_graph(argparser.parse_args())
-    else:
-        process_graph(argparser.parse_args())
+    process_graph(argparser.parse_args())
