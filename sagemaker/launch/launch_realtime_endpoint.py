@@ -54,6 +54,50 @@ def run_job(input_args):
     4. create an endpoint based on the endpoint configuration.
 
     This job follows these steps.
+
+    Parameters:
+    -----------
+    region: str
+        The AWS region where the SageMaker endpoint will be deployed.
+    image_url: str
+        The URL of a GraphStorm SageMaker real-time inference Docker image that is located at
+        Amazon ECR in the same region specified in the `region` argument.
+    role: str
+        The ARN string of an AWS account ARN that has SageMaker execution and model registry full
+        access role.
+    instance_type: str
+        The string type of a SageMaker instance type. The default value is \"ml.c6i.xlarge\".
+    instance_count: int
+        The number of SageMaker instances to be deployed for the endpoint.
+    restore_model_path: str
+        The local folder path where GraphStorm trained model artifacts were stored, e.g.,
+        \"save_model/epoch-1/\".
+    model_yaml_config_file: str
+        The YAML file path. This YAML file is the one that was stored by GraphStorm model training
+        pipeline during model training. It is NOT the one used as one of the arguments
+        for GraphStorm model training.
+    graph_json_config_file: str
+        The JSON file path. This JSON file is the one that was stored by GraphStorm graph
+        building tools, e.g., gconstruct and GSProcessing. It is NOT the one used as one of the
+        arguments for GraphStorm graph building.
+    upload_tarfile_s3: str
+        The S3 location to upload the packed and compressed model tar file. This location should
+        be in the same region specified in the `region` argument.
+    infer_task_type: str
+        The name of real time inference task. Options include \"node_classification\".
+    model_name: str
+        A string to define the name of a SageMaker inference model. This name string must follow
+        SageMaker's naming format, which is ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. The default
+        value is \"GSF-Model4Realtime\".
+    model_tarfile_s3: str
+        The S3 location where a custom model tar file is stored. If provided, this script will
+        use this model tarfile to deploy a SageMaker endpoint. This S3 location should be in the
+        same region specified in the `region` argument.
+    entrypoint_file_name: str
+        The name of a Python file. SageMaker will use this file as the entry point of an endpoint.
+        This is name is required if the `model_tarfile_s3` is provided. If not, this script will
+        GraphStorm's default entry point file according to the `infer_task_type`.
+    
     """
     # ================= prepare model artifacts ================= #
     # prepare sessions
@@ -167,13 +211,13 @@ def get_realtime_infer_parser():
     realtime_infer_parser = argparse.ArgumentParser("GraphStorm Inference Args")
 
     # SageMaker specific arguments
+    realtime_infer_parser.add_argument("--region", type=str, required=True,
+        help="AWS region to launch jobs in. Make sure this region is where the inference image, \
+             and model tar file are located!")
     realtime_infer_parser.add_argument("--image-url", type=str, required=True,
         help="GraphStorm SageMaker docker image URI")
     realtime_infer_parser.add_argument("--role", type=str, required=True,
         help="SageMaker execution role")
-    realtime_infer_parser.add_argument("--region", type=str, required=True,
-        help="AWS region to launch jobs in. Make sure this region is where the inference image, \
-             and model tar file are located!")
     realtime_infer_parser.add_argument("--instance-type", type=str, default="ml.c6i.xlarge",
         help="instance type for the SageMaker job")
     realtime_infer_parser.add_argument("--instance-count", type=int, default=1,
@@ -189,7 +233,7 @@ def get_realtime_infer_parser():
         help="The file path to the updated JSON configuration file created in GraphStorm \
               graph construction process.")
     realtime_infer_parser.add_argument("--upload-tarfile-s3", type=str,
-        help="The S3 location for uploading the packed model artifacts tar file.")
+        help="The S3 location for uploading the packed and compressed model artifacts tar file.")
     realtime_infer_parser.add_argument("--infer-task-type", type=str,
         choices=SUPPORTED_REALTIME_INFER_TASKS,
         help=f"The name of real time inference task. Options \
