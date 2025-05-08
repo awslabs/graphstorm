@@ -38,10 +38,10 @@ SUPPORTED_REALTIME_INFER_TASKS = [SUPPORTED_REALTIME_INFER_NC_TASK]
 
 # Constants for SageMaker endpoints
 ENTRY_FOLDER_NAME = 'realtime_entry_points'
-# TODO: When add new realtime inference tasks, modify this list
-ENTRY_FILE_NAMES = [
-    'node_classification_entry.py',
-    ]
+# TODO: When add new realtime inference tasks, modify this dict
+ENTRY_FILE_NAMES = {
+    SUPPORTED_REALTIME_INFER_NC_TASK: 'node_classification_entry.py'
+    }
 DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
 
 
@@ -105,7 +105,7 @@ def run_job(input_args):
     # ================= prepare model artifacts ================= #
     # prepare sessions
     boto_session = boto3.Session(region_name=input_args.region)
-    sm_session = sm.Session(boto_session=b3_session)
+    sm_session = sm.Session(boto_session=boto_session)
 
     # If users provide the S3 tar file path already, directly use it for model creation
     if input_args.model_tarfile_s3:
@@ -124,7 +124,7 @@ def run_job(input_args):
 
         # TODO: When adding new realtime inference tasks, add new elif here to support them
         if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
-            entrypoint_file_name = list(ENTRY_FILE_NAMES)[0]
+            entrypoint_file_name = ENTRY_FILE_NAMES[SUPPORTED_REALTIME_INFER_NC_TASK]
             path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
         else:
             raise NotImplementedError(f'The given real-time inference task \
@@ -136,15 +136,15 @@ def run_job(input_args):
         model_name = input_args.model_name
 
         with tempfile.TemporaryDirectory() as tmpdirname:
-            model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json,
-                                                    path_to_entry, tmpdirname,
-                                                    output_tarfile_name=model_name)
-            logging.info('Packed and compressed model artifacts into %s.', model_tarfile_path)
+            model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_model_yaml,
+                                                      path_to_graph_json, path_to_entry,
+                                                      tmpdirname, output_tarfile_name=model_name)
+            logging.debug('Packed and compressed model artifacts into %s.', model_tarfile_path)
 
             # upload the model tar file to the given S3 bucket
             model_url_s3 = upload_data_to_s3(input_args.upload_tarfile_s3, model_tarfile_path,
                                             sm_session)
-            logging.info('Uploaded the model tar file to %s.', model_url_s3)
+            logging.debug('Uploaded the model tar file to %s.', model_url_s3)
 
     # ================= create deployable model ================= #
     image_url = input_args.image_url
@@ -160,7 +160,7 @@ def run_job(input_args):
     sm_model_name = model_name + '-' + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
     create_model_response = sm_client.create_model(ModelName=sm_model_name,
                                                    ExecutionRoleArn=role, Containers=[container])
-    logging.info('Model ARN: %s', create_model_response['ModelArn'])
+    logging.debug('Model ARN: %s', create_model_response['ModelArn'])
 
     # ================= create an endpoint configuration ================= #
     sm_ep_config_name = model_name + "-EndpointConfig-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
@@ -178,7 +178,7 @@ def run_job(input_args):
             ],
         )
     endpoint_arn = create_endpoint_config_response["EndpointConfigArn"]
-    logging.info("Endpoint config Arn: %s", endpoint_arn)
+    logging.debug("Endpoint config Arn: %s", endpoint_arn)
 
     # ================= create an endpoint ================= #
     sm_ep_name = model_name + "-Endpoint-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
@@ -186,11 +186,11 @@ def run_job(input_args):
     create_endpoint_response = sm_client.create_endpoint(
         EndpointName=sm_ep_name, EndpointConfigName=sm_ep_config_name
     )
-    logging.info("Endpoint Arn: %s", create_endpoint_response["EndpointArn"])
+    logging.debug("Endpoint Arn: %s", create_endpoint_response["EndpointArn"])
 
     resp = sm_client.describe_endpoint(EndpointName=sm_ep_name)
     status = resp["EndpointStatus"]
-    logging.info("Endpoint Status: %s", status)
+    logging.info("Endpoint name: %s, in status: %s", sm_ep_name, status)
 
     logging.info("Waiting for %s endpoint to be in service...", sm_ep_name)
     waiter = sm_client.get_waiter("endpoint_in_service")
