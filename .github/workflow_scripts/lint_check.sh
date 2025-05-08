@@ -24,3 +24,5 @@ pylint --rcfile=./tests/lint/pylintrc ./tools/convert_feat_to_wholegraph.py
 
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/sagemaker/
 pylint --rcfile=./tests/lint/pylintrc  ./examples/sagemaker-pipelines-graphbolt/  --recursive y
+
+pylint --rcfile=./tests/lint/pylintrc  ./sagemaker/  --recursive y

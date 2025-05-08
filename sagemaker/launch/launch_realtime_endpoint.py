@@ -21,13 +21,12 @@ import argparse
 import logging
 import tempfile
 import boto3 # pylint: disable=import-error
-from time import gmtime, strftime
 import sagemaker as sm
+from time import gmtime, strftime
 from botocore.exceptions import WaiterError
 
 from launch_utils import (wrap_model_artifacts,
                           check_tarfile_s3_object,
-                          parse_s3_url,
                           upload_data_to_s3,
                           check_name_format)
 
@@ -37,11 +36,10 @@ SUPPORTED_REALTIME_INFER_TASKS = ['node_classification']
 
 # Constants for SageMaker endpoints
 ENTRY_FOLDER_NAME = 'realtime_entry_points'
+# TODO: When add new realtime inference tasks, modify this list
 ENTRY_FILE_NAMES = [
     'node_classification_entry.py',
-    'node_regression_entry.py',
-    'edge_classification_entry.py',
-    'edge_regression_entry.py']
+    ]
 DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
 
 
