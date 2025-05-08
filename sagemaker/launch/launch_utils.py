@@ -17,14 +17,13 @@
 """
 
 import os
-import argparse
 import shutil
 import tarfile
 import logging
 import re
-import boto3
 from argparse import ArgumentTypeError
 from urllib.parse import urlparse
+import boto3
 from botocore.errorfactory import ClientError
 from sagemaker.s3 import S3Uploader
 
@@ -122,8 +121,7 @@ def parse_s3_url(s3_url):
         The S3 object in the url.
     """
     parsed_url = urlparse(s3_url)
-    assert parsed_url.scheme == 's3' or parsed_url.scheme == 'https', (f'Incorrect S3 \
-        url was given {s3_url}')
+    assert parsed_url.scheme in ['s3', 'https'], (f'Incorrect S3 url was given {s3_url}')
 
     bucket_name = parsed_url.netloc
     key = parsed_url.path.lstrip('/')
@@ -146,8 +144,9 @@ def check_tarfile_s3_object(s3_url):
     boolean: True if the S3 object exists, otherwise False.
     """
     bucket_name, key = parse_s3_url(s3_url)
-    object = key.split('/')[-1]
-    assert object.endswith('.tar.gz'), (f'The S3 object, {s3_url}, is not a compressed tar file.')
+    s3_object = key.split('/')[-1]
+    assert s3_object.endswith('.tar.gz'), (f'The S3 object, {s3_url}, is not a compressed ' + \
+                                            'tar file.')
 
     # create a boto3 S3 client
     s3_client = boto3.client('s3')
@@ -156,7 +155,7 @@ def check_tarfile_s3_object(s3_url):
     try:
         s3_client.head_object(Bucket=bucket_name, Key=key)
         return True
-    except ClientError as e:
+    except ClientError:
         return False
 
 
@@ -181,7 +180,7 @@ def upload_data_to_s3(s3_path, data_path, sagemaker_session):
 
 
 def check_name_format(name_str):
-    """ Check if given name follow AWS naming format
+    r""" Check if given name follow AWS naming format
     
     The name should follow AWS' naming regular expression: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$
     It means the string must start with a letter or digit. In the middle, it could be one or more
@@ -203,5 +202,5 @@ def check_name_format(name_str):
     if not re.match(pattern, name_str):
         raise ArgumentTypeError(f'Value {name_str} failed to satisfy regular ' + \
                                            'expression pattern: ' + \
-                                           '^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
+                                           r'^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
     return name_str

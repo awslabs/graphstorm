@@ -92,7 +92,7 @@ def run_job(input_args):
             model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json,
                                                     path_to_entry, tmpdirname,
                                                     output_tarfile_name=model_name)
-            logging.info('Packed and compressed model artifacts into %.', model_tarfile_path)
+            logging.info('Packed and compressed model artifacts into %s.', model_tarfile_path)
 
             # upload the model tar file to the given S3 bucket
             model_url_s3 = upload_data_to_s3(input_args.upload_tarfile_s3, model_tarfile_path,
