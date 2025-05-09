@@ -17,15 +17,17 @@ import json
 import logging
 import numpy as np
 import dgl
+import torch as th
 
 from .transform import parse_feat_ops, process_features, preprocess_features
+from .transform import LABEL_STATS_FIELD, collect_label_stats
 
 STATUS = "status_code"
 MSG = "message"
 GRAPH = "graph"
 NODE_MAPPING = "node_mapping"
 
-def prepare_node_data(in_file, feat_ops, read_file):
+def prepare_data(input_data, feat_ops):
     """ Prepare node data information for data transformation.
 
     The function parses a node file that contains node features
@@ -34,19 +36,17 @@ def prepare_node_data(in_file, feat_ops, read_file):
 
     Parameters
     ----------
-    in_file : str
-        The path of the input node file.
+    input_data : dict
+        The json payload features input.
     feat_ops : dict of FeatTransform
         The operations run on the node features of the node file.
-    read_file : callable
-        The function to read the node file
 
     Returns
     -------
     dict : A dict of node feature info.
     """
-    assert feat_ops is not None, "feat_ops must exist when prepare_node_data is called."
-    feat_info = preprocess_features(data, feat_ops)
+    assert feat_ops is not None, "feat_ops must exist when prepare_data is called."
+    feat_info = preprocess_features(input_data, feat_ops)
 
     return feat_info
 
@@ -71,7 +71,7 @@ def _process_data(user_parser,
         pre_parse_start = time.time()
         phase_one_ret = {}
         for i, in_file in enumerate(in_files):
-            phase_one_ret[i] = prepare_node_data(in_file)
+            phase_one_ret[i] = prepare_data(in_file)
         update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
 
         dur = time.time() - pre_parse_start
@@ -109,7 +109,16 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
         if conf[col_name] == type_name:
             conf_list.append(conf)
 
-    return conf_list
+    if len(conf_list) >= 2:
+        collected_features = [
+            feature
+            for conf in conf_list
+            if "features" in conf
+            for feature in conf.get("features", [])
+        ]
+        conf_list[0]["features"] = collected_features
+        conf_list = [conf_list[0]]
+    return conf_list[0]
 
 
 def merge_payload_input(payload_input_list):
@@ -134,7 +143,7 @@ def merge_payload_input(payload_input_list):
             current_ids["node_id"] = item["node_id"]
         elif "edge_type" in item and "src_node_id" in item and "dest_node_id" in item:
             element_category = "edge"
-            type_name = item["edge_type"]
+            type_name = item["edge_type"][0] + "-" + item["edge_type"][1] + "-" + item["edge_type"][2]
             output_type_field = "edge_type"
             current_ids["src_node_id"] = item["src_node_id"]
             current_ids["dest_node_id"] = item["dest_node_id"]
@@ -163,7 +172,11 @@ def merge_payload_input(payload_input_list):
                         merged_data_temp[grouping_key]["features"][feature_key].append(feature_value_list)
 
     final_merged_list = list(merged_data_temp.values())
+    for item in final_merged_list:
+        if "edge_type" in item:
+            item["edge_type"] = item["edge_type"].split("-")
     return final_merged_list
+
 
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
     """ Process json payload node data
@@ -181,22 +194,58 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
     Return:
         node_data: {nfeat_name: node_feat_np_array}
     """
-    node_data_dict = {}
+    node_id_map = {}
+    node_data = {}
     merged_payload_node_conf_list = merge_payload_input(payload_node_conf_list)
-    print(merged_payload_node_conf_list)
-    exit(-1)
     for node_conf in merged_payload_node_conf_list:
         node_type = node_conf["node_type"]
+        node_ids = np.array(node_conf["node_id"])
         gconstruct_node_conf = get_conf(gconstruct_node_conf_list, node_type, "Node")
-        # (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
-        #     parse_feat_ops(gconstruct_node_conf["features"], gconstruct_node_conf["format"]["name"]) \
-        #         if 'features' in gconstruct_node_conf else (None, [], {}, [])
-
+        (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
+            parse_feat_ops(gconstruct_node_conf["features"], gconstruct_node_conf["format"]["name"]) \
+                if 'features' in gconstruct_node_conf else (None, [], {}, [])
+        input_feat = node_conf["features"]
+        for key, val in input_feat.items():
+            input_feat[key] = np.array(val)
+        prepare_data(input_feat, two_phase_feat_ops)
         # Always do single process feature transformation as there is only payload input
-    return {}, np.array([0, 0])
+        if feat_ops is not None:
+            feat_data, _ = process_features(input_feat, feat_ops, None)
+        else:
+            feat_data, _ = {}, {}
+
+        for feat_name in list(feat_data):
+            merged_feat = np.concatenate(feat_data[feat_name])
+            if feat_name in after_merge_feat_ops:
+                # do data transformation with the entire feat array.
+                merged_feat = \
+                    after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+            feat_data[feat_name] = merged_feat
+
+        node_data[node_type] = feat_data
+        raw_node_id_map = {}
+        for index, value in enumerate(node_ids):
+            if value not in raw_node_id_map:
+                raw_node_id_map[value] = index
+        node_id_map[node_type] = raw_node_id_map
+
+    return node_id_map, node_data
 
 
-def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list):
+def map_node_id(str_node_list, node_id_map, node_type):
+    """ Mapping node string id into int id
+    str_node_list: list
+        original node id list
+    node_id_map: dict of dict
+        {node_type: {str_node_id: int_node_id}}
+    node_type: str
+        node type
+    """
+    type_node_id_map = node_id_map[node_type]
+    int_node_list = [type_node_id_map.get(val) for val in str_node_list]
+    return int_node_list
+
+def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list, node_id_map):
     """ Process json payload edge data
 
     The edge conf in the edge payload json file could be:
@@ -214,9 +263,55 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
         edges: {etype: (src_np_array, dst_np_array)}
         edge_data: {efeat_name: edge_feat_np_array}
     """
-    # for edge_conf in payload_edge_conf_list:
+    edges = {}
+    edge_data = {}
+    merged_payload_edge_conf_list = merge_payload_input(payload_edge_conf_list)
+    for edge_conf in merged_payload_edge_conf_list:
+        edge_type = edge_conf["edge_type"]
+        src_node_ids = np.array(edge_conf["src_node_id"])
+        dest_node_ids = np.array(edge_conf["dest_node_id"])
+        gconstruct_edge_conf = get_conf(gconstruct_edge_conf_list, edge_type, "Edge")
 
-    return np.array([0, 0])
+        edge_type = tuple(edge_type)
+        (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
+            parse_feat_ops(gconstruct_edge_conf["features"], gconstruct_edge_conf["format"]["name"]) \
+                if 'features' in gconstruct_edge_conf else (None, [], {}, [])
+
+        # We don't need to copy all node ID maps to the worker processes.
+        # Only the node ID maps of the source node type and destination node type
+        # are sufficient.
+        id_map = {edge_type[0]: node_id_map[edge_type[0]],
+                  edge_type[2]: node_id_map[edge_type[2]]}
+
+        # For edge hard negative transformation ops, more information is needed
+        for op in hard_edge_neg_ops:
+            op.set_target_etype(edge_type)
+            op.set_id_maps(id_map)
+
+        input_feat = edge_conf.get("features", {})
+        for key, val in input_feat.items():
+            input_feat[key] = np.array(val)
+        prepare_data(input_feat, two_phase_feat_ops)
+
+        # Always do single process feature transformation as there is only payload input
+        if feat_ops is not None:
+            feat_data, _ = process_features(input_feat, feat_ops, None)
+        else:
+            feat_data, _ = {}, {}
+
+        for feat_name in list(feat_data):
+            merged_feat = np.concatenate(feat_data[feat_name])
+            if feat_name in after_merge_feat_ops:
+                # do data transformation with the entire feat array.
+                merged_feat = \
+                    after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
+            feat_data[feat_name] = merged_feat
+        mapped_src_node_ids = map_node_id(src_node_ids, node_id_map, edge_type[0])
+        mapped_dst_node_ids = map_node_id(dest_node_ids, node_id_map, edge_type[2])
+        edges[edge_type] = (mapped_src_node_ids, mapped_dst_node_ids)
+        edge_data[edge_type] = feat_data
+
+    return edges, edge_data
 
 
 def verify_payload_conf(request_json_payload):
@@ -288,21 +383,20 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
     # Process Edge Data
     try:
         edges, edge_data = process_json_payload_edges(gconstruct_confs["edges"],
-                                                  json_payload_confs["graph"]["edges"])
+                                                  json_payload_confs["graph"]["edges"], raw_node_id_maps)
     except AssertionError as ae:
         error_message = str(ae)
         return {STATUS: 400, MSG: error_message}
 
-    g = None
-    # g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
-    #
-    # # Assign node/edge features
-    # for ntype in node_data:
-    #     for name, ndata in node_data[ntype].items():
-    #         g.nodes[ntype].data[name] = th.tensor(ndata)
-    # for etype in edge_data:
-    #     for name, edata in edge_data[etype].items():
-    #         g.edges[etype].data[name] = th.tensor(edata)
+    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+
+    # Assign node/edge features
+    for ntype in node_data:
+        for name, ndata in node_data[ntype].items():
+            g.nodes[ntype].data[name] = th.tensor(ndata)
+    for etype in edge_data:
+        for name, edata in edge_data[etype].items():
+            g.edges[etype].data[name] = th.tensor(edata)
 
     return {STATUS: 200, MSG: "successful build payload graph",
             GRAPH: g, NODE_MAPPING: raw_node_id_maps}

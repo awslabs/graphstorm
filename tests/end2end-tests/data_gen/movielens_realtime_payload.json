@@ -4,6 +4,15 @@
   "graph": {
     "nodes": [
       {
+        "node_type": "user",
+        "features": {
+            "feat": [
+                -0.0032965524587780237
+            ]
+        },
+        "node_id": "a1"
+      },
+      {
         "node_type": "movie",
         "features": {
             "feat": [
@@ -20,15 +29,6 @@
             ]
         },
         "node_id": "m2"
-      },
-      {
-        "node_type": "author",
-        "features": {
-            "feat": [
-                -0.0032965524587780237
-            ]
-        },
-        "node_id": "a1"
       }
     ],
     "edges": [{
@@ -38,8 +38,18 @@
           "movie"
       ],
       "features": {},
-      "src_node_id": "m1",
-      "dest_node_id": "a1"
+      "src_node_id": "a1",
+      "dest_node_id": "m1"
+    },
+    {
+      "edge_type": [
+          "user",
+          "rating",
+          "movie"
+      ],
+      "features": {},
+      "src_node_id": "a1",
+      "dest_node_id": "m2"
     }]
   }
 }

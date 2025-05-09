@@ -23,3 +23,5 @@ from graphstorm.gconstruct.construct_payload_graph import process_json_payload_g
 def test_process_json_payload_graph():
     process_json_payload_graph("/graphstorm/tests/end2end-tests/data_gen/movielens_realtime_payload.json",
                                "/graphstorm/tests/end2end-tests/data_gen/movielens.json")
+
+test_process_json_payload_graph()
