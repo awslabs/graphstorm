@@ -1031,7 +1031,17 @@ class DistHeterogeneousGraphLoader(object):
         """
         expanded_files = []
 
-        def handle_wildcard(file_path, expanded_files):
+        def handle_wildcard(file_path: str, expanded_files: list[str]):
+            """Handles ``*`` wildcard in file path, matching files for local and S3 paths.
+            Appends new files to input list.
+
+            Parameters
+            ----------
+            file_path : str
+                File path that includes a ``*`` wildcard.
+            expanded_files : list[str]
+                List of file paths. Expanded files paths will appended to this list.
+            """
             # Handle wildcard pattern
             if self.filesystem_type == FilesystemType.S3:
                 # Extract the parent directory path and filename pattern
@@ -1100,10 +1110,9 @@ class DistHeterogeneousGraphLoader(object):
                 # No wildcard, use the file path as is
                 expanded_files.append(file_path)
 
-        # If no files were found after expansion, log a warning and fall back to original list
+        # If no files were found after expansion, error out
         if not expanded_files and any("*" in f for f in files):
-            logging.warning("No files found after expanding wildcards for %s", files)
-            expanded_files = files
+            raise ValueError(f"No files found after expanding wildcard for input {files=}")
 
         return [os.path.join(self.input_prefix, f) for f in expanded_files]
 
