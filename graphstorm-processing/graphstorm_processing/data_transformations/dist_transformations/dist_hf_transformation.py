@@ -201,7 +201,5 @@ class DistHFTransformation(DistributedTransformation):
     def get_output_dim(self) -> int:
         """Get the output dimension for HF transformation"""
         if not self.output_dim:
-            raise ValueError(
-                "output_dim can only be determined after feature transformation."
-            )
+            raise ValueError("output_dim can only be determined after feature transformation.")
         return self.output_dim

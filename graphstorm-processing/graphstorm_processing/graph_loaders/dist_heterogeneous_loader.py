@@ -67,8 +67,9 @@ from graphstorm_processing.config.feature_config_base import FeatureConfig
 from graphstorm_processing.data_transformations.dist_feature_transformer import (
     DistFeatureTransformer,
 )
-from graphstorm_processing.data_transformations.dist_transformations\
-    .dist_hf_transformation import (DistHFTransformation)
+from graphstorm_processing.data_transformations.dist_transformations.dist_hf_transformation import (
+    DistHFTransformation,
+)
 from graphstorm_processing.data_transformations.dist_label_loader import (
     CustomSplit,
     DistLabelLoader,
