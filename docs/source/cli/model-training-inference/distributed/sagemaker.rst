@@ -385,27 +385,8 @@ and a SageMaker Python SDK installation with ``local`` extras:
 
     pip install 'sagemaker[local]' --upgrade
 
-second, ensure your local mode configuration includes a high shared memory size for the
-launched local containers:
 
-.. code:: yaml
-
-    local:
-        local_code: true # Using everything locally
-        region_name: "us-west-2" # Name of the region
-        container_config:
-            shm_size: "32G" # Set this according to your available memory
-
-This is necessary as GraphStorm uses shared memory for in-memory graph storage.
-
-Set the environment variable ``USE_SHORT_LIVED_CREDENTIALS=1`` if running on EC2 and
-you would like to use the session credentials instead of EC2 Metadata Service credentials:
-
-.. code:: bash
-
-    export USE_SHORT_LIVED_CREDENTIALS=1
-
-finally, when launching your SageMaker job, use ``local`` as the instance type:
+When launching your SageMaker job, use ``local`` as the instance type:
 
 .. code:: bash
 
@@ -413,8 +394,24 @@ finally, when launching your SageMaker job, use ``local`` as the instance type:
        <other arguments> \
        --instance-type "local"
 
-The above will launch the GraphStorm job by spinning up local
-Docker containers, using Docker compose.
+This command will launch the GraphStorm job locally, by spinning up local
+Docker containers, using Docker compose. See the
+`SageMaker security configuration user guide <https://docs.aws.amazon.com/sagemaker/latest/dg/security.html>`_
+for more information, or
+`the local pipeline examples in the SageMaker SDK <https://sagemaker.readthedocs.io/en/stable/overview.html#local-pipelines>`_.
+
+
+.. note::
+
+    * If you encounter a ``bus error`` during training try increasing the shared memory size
+      (``shm_size``) assigned to your local container. See the
+      `SageMaker Local mode configuration docs <https://sagemaker.readthedocs.io/en/stable/overview.html#local-mode-configuration>`_
+      for instructions on how to do so.
+    * If running on EC2 and you would like to use the session credentials instead of EC2 Metadata Service credentials
+      set the environment variable ``USE_SHORT_LIVED_CREDENTIALS=1``
+    * To run GPU jobs locally your host instance will need to have a GPU available and CUDA installed.
+
+
 
 Legacy image building instructions
 ``````````````````````````````````

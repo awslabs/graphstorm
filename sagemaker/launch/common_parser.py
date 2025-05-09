@@ -39,9 +39,23 @@ def create_sm_session(instance_type, region):
     """
     if instance_type == "local":
         sess = LocalSession()
+        # Add local SM config if needed
         if sess.config is None:
             sess.config = {}
-        sess.config.update({'local': {'local_code': True}})
+        sess.config.update({"local": {"local_code": True}})
+
+        # Set shm_size if needed
+        should_set_shm = (
+            "container_config" not in sess.config["local"] or
+            "shm_size" not in sess.config["local"]["container_config"]
+        )
+        if should_set_shm:
+            try:
+                import psutil
+                shm_size_mb = (psutil.virtual_memory().total * 0.9) // (1024**2)
+            except ImportError:
+                shm_size_mb = 1024
+            sess.config["local"]["container_config"] = {"shm_size": f"{shm_size_mb}m"}
     else:
         boto_session = boto3.session.Session(region_name=region)
         sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
