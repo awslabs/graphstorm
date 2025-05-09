@@ -30,7 +30,7 @@ from .base_dist_transformation import DistributedTransformation
 
 def apply_transform(
     cols: Sequence[str], action: str, hf_model: str, max_seq_length: int, input_df: DataFrame
-) -> DataFrame:
+) -> tuple[DataFrame, int]:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
 
@@ -51,6 +51,8 @@ def apply_transform(
     if action == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        config = AutoConfig.from_pretrained(hf_model)
+        output_dim = config.hidden_size
         if max_seq_length > tokenizer.model_max_length:
             raise RuntimeError(
                 f"max_seq_length {max_seq_length} is larger "
@@ -118,6 +120,7 @@ def apply_transform(
                 f"than expected {tokenizer.model_max_length}"
             )
         config = AutoConfig.from_pretrained(hf_model)
+        output_dim = config.hidden_size
         lm_model = AutoModel.from_pretrained(hf_model, config)
         lm_model.eval()
         lm_model = lm_model.to(device)
@@ -154,7 +157,7 @@ def apply_transform(
     else:
         raise ValueError(f"The input action needs to be {HUGGINGFACE_TOKENIZE}")
 
-    return transformed_df
+    return transformed_df, output_dim
 
 
 class DistHFTransformation(DistributedTransformation):
@@ -181,14 +184,22 @@ class DistHFTransformation(DistributedTransformation):
         self.action = action
         self.hf_model = hf_model
         self.max_seq_length = max_seq_length
+        self.output_dim = None
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        transformed_df = apply_transform(
+        transformed_df, output_dim = apply_transform(
             self.cols, self.action, self.hf_model, self.max_seq_length, input_df
         )
 
+        self.output_dim = output_dim
         return transformed_df
 
     @staticmethod
     def get_transformation_name() -> str:
         return "DistHFTransformation"
+
+    def get_output_dim(self) -> int:
+        """Get the output dimension for HF transformation"""
+        if not self.output_dim:
+            raise ValueError("output_dim can only be determined after feature transformation.")
+        return self.output_dim
