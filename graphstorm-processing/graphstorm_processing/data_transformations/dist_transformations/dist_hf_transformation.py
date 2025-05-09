@@ -184,6 +184,7 @@ class DistHFTransformation(DistributedTransformation):
         self.action = action
         self.hf_model = hf_model
         self.max_seq_length = max_seq_length
+        self.output_dim = None
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         transformed_df, output_dim = apply_transform(
