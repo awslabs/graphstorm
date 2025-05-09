@@ -17,7 +17,6 @@ import json
 import logging
 import numpy as np
 import dgl
-from cattr import structure
 
 from .transform import parse_feat_ops, process_features, preprocess_features
 
@@ -112,6 +111,7 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
 
     return conf_list
 
+
 def merge_payload_input(payload_input_list):
     """Merge the payload input within the same node/edge type
 
@@ -183,6 +183,8 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
     """
     node_data_dict = {}
     merged_payload_node_conf_list = merge_payload_input(payload_node_conf_list)
+    print(merged_payload_node_conf_list)
+    exit(-1)
     for node_conf in merged_payload_node_conf_list:
         node_type = node_conf["node_type"]
         gconstruct_node_conf = get_conf(gconstruct_node_conf_list, node_type, "Node")

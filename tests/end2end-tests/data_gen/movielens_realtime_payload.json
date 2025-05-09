@@ -13,6 +13,15 @@
         "node_id": "m1"
       },
       {
+        "node_type": "movie",
+        "features": {
+            "feat": [
+                0.0235343543
+            ]
+        },
+        "node_id": "m2"
+      },
+      {
         "node_type": "author",
         "features": {
             "feat": [
