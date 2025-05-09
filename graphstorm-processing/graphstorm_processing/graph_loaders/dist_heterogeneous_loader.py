@@ -67,6 +67,8 @@ from graphstorm_processing.config.feature_config_base import FeatureConfig
 from graphstorm_processing.data_transformations.dist_feature_transformer import (
     DistFeatureTransformer,
 )
+from graphstorm_processing.data_transformations.dist_transformations\
+    .dist_hf_transformation import (DistHFTransformation)
 from graphstorm_processing.data_transformations.dist_label_loader import (
     CustomSplit,
     DistLabelLoader,
@@ -1309,7 +1311,8 @@ class DistHeterogeneousGraphLoader(object):
                         node_type_feature_metadata[bert_feat_name] = feat_meta
                         ntype_feat_sizes.update({bert_feat_name: feat_size})
                     # Update the corresponding feature dimension for HF embedding
-                    feat_emb_size = transformer.get_output_dim()
+                    assert isinstance(transformer.transformation, DistHFTransformation)
+                    feat_emb_size = transformer.transformation.get_output_dim()
                     ntype_feat_sizes.update({feat_name: feat_emb_size})
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
@@ -1936,7 +1939,8 @@ class DistHeterogeneousGraphLoader(object):
                         edge_type_feature_metadata[bert_feat_name] = feat_meta
                         etype_feat_sizes.update({bert_feat_name: feat_size})
                     # Update the corresponding feature dimension for HF embedding
-                    feat_emb_size = transformer.get_output_dim()
+                    assert isinstance(transformer.transformation, DistHFTransformation)
+                    feat_emb_size = transformer.transformation.get_output_dim()
                     etype_feat_sizes.update({feat_name: feat_emb_size})
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(

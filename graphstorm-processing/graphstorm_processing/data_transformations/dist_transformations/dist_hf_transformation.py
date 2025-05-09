@@ -196,3 +196,11 @@ class DistHFTransformation(DistributedTransformation):
     @staticmethod
     def get_transformation_name() -> str:
         return "DistHFTransformation"
+
+    def get_output_dim(self) -> int:
+        """Get the output dimension for HF transformation"""
+        if not self.output_dim:
+            raise ValueError(
+                "output_dim can only be determined after feature transformation."
+            )
+        return self.output_dim
