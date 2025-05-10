@@ -20,6 +20,7 @@ import math
 import os
 import shutil
 import tempfile
+from unittest.mock import patch
 from uuid import uuid4
 
 import numpy as np
@@ -53,6 +54,7 @@ from graphstorm_processing.constants import (
     MIN_VALUE,
     VALUE_COUNTS,
     TRANSFORMATIONS_FILENAME,
+    FilesystemType,
 )
 
 pytestmark = pytest.mark.usefixtures("spark")
@@ -292,7 +294,9 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     dghl_loader.load()
 
     with open(
-        os.path.join(dghl_loader.local_meta_output_path, "metadata.json"), "r", encoding="utf-8"
+        os.path.join(dghl_loader.local_meta_output_path, "metadata.json"),
+        "r",
+        encoding="utf-8",
     ) as mfile:
         metadata = json.load(mfile)
 
@@ -1540,7 +1544,10 @@ def test_edge_dist_label_order_partitioned(
     # Process the label, create masks and write the output DFs,
     # we will read it from disk to emulate real downstream scenario
     label_metadata_dicts = dghl_loader._process_edge_labels(
-        label_configs, names_df_repart, "dummy-src-type:dummy-rel:dummy-dst-type", "dummy-rel"
+        label_configs,
+        names_df_repart,
+        "dummy-src-type:dummy-rel:dummy-dst-type",
+        "dummy-rel",
     )
 
     assert label_metadata_dicts.keys() == {
@@ -1610,3 +1617,79 @@ def test_edge_dist_label_order_partitioned(
         )
         print(grouped_values)
         raise ValueError("\n".join(errors))
+
+
+def test_wildcard_file_handling_local(
+    dghl_loader: DistHeterogeneousGraphLoader,
+):
+    """Test handling of wildcard patterns in file paths for local filesystem."""
+
+    # Create an EdgeConfig with wildcard pattern
+    edge_dict = {
+        "data": {
+            "format": "csv",
+            "files": ["edges/director-directed-*.csv"],
+            "separator": ",",
+        },
+        "source": {"column": "~from", "type": "director"},
+        "relation": {"type": "directed"},
+        "dest": {"column": "~to", "type": "movie"},
+    }
+
+    edge_config = EdgeConfig(edge_dict, edge_dict["data"])
+
+    # Set up the loader to use the test directory
+    dghl_loader.filesystem_type = FilesystemType.LOCAL
+
+    # Call the method under test
+    result_df = dghl_loader._read_edge_df(edge_config)
+
+    # Verify the result, director DF should only have 4 rows
+    assert result_df.count() == 4
+
+
+def test_wildcard_file_handling_s3(
+    dghl_loader: DistHeterogeneousGraphLoader,
+):
+    """Test handling of wildcard patterns in file paths for S3."""
+    # Mock the loader to think it's using S3 (we actually read local files)
+    dghl_loader.filesystem_type = FilesystemType.S3
+
+    # Create an EdgeConfig with wildcard pattern
+    edge_dict = {
+        "data": {
+            "format": "csv",
+            "files": ["edges/director-directed-*.csv"],
+            "separator": ",",
+        },
+        "source": {"column": "~from", "type": "director"},
+        "relation": {"type": "directed"},
+        "dest": {"column": "~to", "type": "movie"},
+    }
+
+    edge_config = EdgeConfig(edge_dict, edge_dict["data"])
+
+    # Mock S3 list_objects response, include all files under prefix
+    s3_objects = [
+        "edges/director-directed-movie.csv",
+        "edges/movie-inlcuded_in-genre.csv",
+        "edges/user-rated-movie.csv",
+    ]
+
+    # Mock the s3_utils.extract_bucket_and_key and list_s3_objects functions
+    with (
+        patch(
+            "graphstorm_processing.data_transformations.s3_utils.extract_bucket_and_key",
+            return_value=("test-bucket", "test-prefix"),
+        ),
+        patch(
+            "graphstorm_processing.data_transformations.s3_utils.list_s3_objects",
+            return_value=s3_objects,
+        ),
+    ):
+
+        # Call the method under test
+        result_df = dghl_loader._read_edge_df(edge_config)
+
+        # Verify the result, director DF should only have 4 rows
+        assert result_df.count() == 4

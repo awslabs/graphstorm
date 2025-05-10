@@ -41,11 +41,11 @@ def create_node_dict() -> dict:
     return text_input
 
 
-@pytest.mark.parametrize("wildcard", ["*", "?"])
+@pytest.mark.parametrize("wildcard", ["?"])
 def test_try_read_file_with_wildcard(
     converter: GConstructConfigConverter, node_dict: dict, wildcard
 ):
-    """We don't currently support wildcards in filenames, so should error out."""
+    """We don't currently support ? wildcards in filenames, so should error out."""
     node_dict["nodes"][0]["files"] = f"/tmp/acm_raw/nodes/author{wildcard}.parquet"
 
     with pytest.raises(ValueError):

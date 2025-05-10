@@ -274,9 +274,10 @@ class GConstructConfigConverter(ConfigConverter):
             # files
             node_files = n["files"] if isinstance(n["files"], list) else [n["files"]]
             for file_name in node_files:
-                if "*" in file_name or "?" in file_name:
+                if "?" in file_name:
                     raise ValueError(
-                        f"We do not currently support wildcards in node file names got: {file_name}"
+                        "We do not currently support '?' wildcards "
+                        f"in node file names, got: {file_name}"
                     )
 
             # features
@@ -310,8 +311,12 @@ class GConstructConfigConverter(ConfigConverter):
             # files
             edge_files = e["files"] if isinstance(e["files"], list) else [e["files"]]
             for file_name in edge_files:
-                if "*" in file_name or "?" in file_name:
-                    raise ValueError("Not Support for wildcard in edge file name")
+                for file_name in edge_files:
+                    if "?" in file_name:
+                        raise ValueError(
+                            "We do not currently support '?' wildcards "
+                            f"in edge file names, got: {file_name}"
+                        )
 
             # format
             edge_format = e["format"]["name"]
