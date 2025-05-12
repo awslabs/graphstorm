@@ -267,7 +267,7 @@ def get_realtime_infer_parser():
               model training.")
     realtime_infer_parser.add_argument("--graph-json-config-file", type=str,
         help="The file path to the updated JSON configuration file created in GraphStorm \
-              graph construction process.")
+              graph construction process. This should be available under the output of GConstruct/GSProcessing")
     realtime_infer_parser.add_argument("--upload-tarfile-s3", type=str,
         help="The S3 location for uploading the packed and compressed model artifacts tar file.")
     realtime_infer_parser.add_argument("--infer-task-type", type=str,
