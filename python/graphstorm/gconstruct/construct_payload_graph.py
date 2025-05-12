@@ -20,7 +20,6 @@ import dgl
 import torch as th
 
 from .transform import parse_feat_ops, process_features, preprocess_features
-from .transform import LABEL_STATS_FIELD, collect_label_stats
 
 STATUS = "status_code"
 MSG = "message"
@@ -143,7 +142,8 @@ def merge_payload_input(payload_input_list):
             current_ids["node_id"] = item["node_id"]
         elif "edge_type" in item and "src_node_id" in item and "dest_node_id" in item:
             element_category = "edge"
-            type_name = item["edge_type"][0] + "-" + item["edge_type"][1] + "-" + item["edge_type"][2]
+            type_name = (item["edge_type"][0] + "-" + item["edge_type"][1] +
+                         "-" + item["edge_type"][2])
             output_type_field = "edge_type"
             current_ids["src_node_id"] = item["src_node_id"]
             current_ids["dest_node_id"] = item["dest_node_id"]
@@ -163,13 +163,15 @@ def merge_payload_input(payload_input_list):
         else:
             for id_key, id_val in current_ids.items():
                 if id_key in merged_data_temp[grouping_key]:
-                     merged_data_temp[grouping_key][id_key].append(id_val)
+                    merged_data_temp[grouping_key][id_key].append(id_val)
 
             if "features" in merged_data_temp[grouping_key] and \
                "features" in item and isinstance(item["features"], dict):
                 for feature_key, feature_value_list in item["features"].items():
                     if feature_key in merged_data_temp[grouping_key]["features"]:
-                        merged_data_temp[grouping_key]["features"][feature_key].append(feature_value_list)
+                        merged_data_temp[grouping_key]["features"][feature_key].append(
+                            feature_value_list
+                        )
 
     final_merged_list = list(merged_data_temp.values())
     for item in final_merged_list:
@@ -202,7 +204,8 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
         node_ids = np.array(node_conf["node_id"])
         gconstruct_node_conf = get_conf(gconstruct_node_conf_list, node_type, "Node")
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
-            parse_feat_ops(gconstruct_node_conf["features"], gconstruct_node_conf["format"]["name"]) \
+            parse_feat_ops(gconstruct_node_conf["features"],
+                           gconstruct_node_conf["format"]["name"]) \
                 if 'features' in gconstruct_node_conf else (None, [], {}, [])
         input_feat = node_conf["features"]
         for key, val in input_feat.items():
@@ -274,7 +277,8 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
 
         edge_type = tuple(edge_type)
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
-            parse_feat_ops(gconstruct_edge_conf["features"], gconstruct_edge_conf["format"]["name"]) \
+            parse_feat_ops(gconstruct_edge_conf["features"],
+                           gconstruct_edge_conf["format"]["name"]) \
                 if 'features' in gconstruct_edge_conf else (None, [], {}, [])
 
         # We don't need to copy all node ID maps to the worker processes.
@@ -378,7 +382,6 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
 def process_json_payload_graph(request_json_payload, gconstruct_config):
     """ Construct DGLGraph from json payload.
 
-
     Parameters:
     request_json_payload: dict
         Input json payload request
@@ -395,8 +398,8 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
     # Verify JSON payload request
     try:
         verify_payload_conf(json_payload_confs, gconstruct_confs)
-    except AssertionError as ae:
-        error_message = str(ae)
+    except AssertionError as assert_error:
+        error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
 
     # Process Node Data
