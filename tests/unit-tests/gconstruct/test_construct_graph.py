@@ -30,6 +30,8 @@ from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.construct_graph import (parse_edge_data,
                                                    prepare_edge_data,
+                                                   verify_confs,
+                                                   is_homogeneous,
                                                    _collect_parsed_edge_data)
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
@@ -46,8 +48,7 @@ from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          ExtMemArrayWrapper,
                                          partition_graph,
                                          update_two_phase_feat_ops,
-                                         HDF5Array, ExtFeatureWrapper,
-                                         verify_confs, is_homogeneous)
+                                         HDF5Array, ExtFeatureWrapper)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
