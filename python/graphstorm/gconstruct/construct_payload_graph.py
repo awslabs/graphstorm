@@ -70,7 +70,7 @@ def _process_data(user_parser,
         pre_parse_start = time.time()
         phase_one_ret = {}
         for i, in_file in enumerate(in_files):
-            phase_one_ret[i] = prepare_data(in_file)
+            phase_one_ret[i] = prepare_data(in_file, two_phase_feat_ops)
         update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
 
         dur = time.time() - pre_parse_start
@@ -407,16 +407,16 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
         raw_node_id_maps, node_data = process_json_payload_nodes(gconstruct_confs["nodes"],
                                                json_payload_confs["graph"]["nodes"])
         num_nodes = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
-    except AssertionError as ae:
-        error_message = str(ae)
+    except AssertionError as assert_error:
+        error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
 
     # Process Edge Data
     try:
         edges, edge_data = process_json_payload_edges(gconstruct_confs["edges"],
-                                                  json_payload_confs["graph"]["edges"], raw_node_id_maps)
-    except AssertionError as ae:
-        error_message = str(ae)
+                                                json_payload_confs["graph"]["edges"], raw_node_id_maps)
+    except AssertionError as assert_error:
+        error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
 
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
