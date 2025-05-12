@@ -48,7 +48,7 @@ DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
 
 
 def run_job(input_args):
-    """ The procedure of deploying a SageMaker real-time inference endpoint
+    """ Deploys a SageMaker real-time inference endpoint
     
     SageMaker's document for deploying model for real-time inference is in
     https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html.
