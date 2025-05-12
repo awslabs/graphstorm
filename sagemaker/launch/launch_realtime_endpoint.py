@@ -92,9 +92,8 @@ def run_job(input_args):
         pipeline during model training. It is NOT the one used as one of the arguments
         for GraphStorm model training.
     graph_json_config_file: str
-        The JSON file path. This JSON file is the one that was stored by GraphStorm graph
-        building tools, e.g., gconstruct and GSProcessing. It is NOT the one used as one of the
-        arguments for GraphStorm graph building.
+        Path to modified GConstruct/GSProcessing JSON config. This should be available under the 
+        **output** of GConstruct/GSProcessing.
     upload_tarfile_s3: str
         The S3 location to upload the packed and compressed model tar file. This location should
         be in the same region specified in the `region` argument.
