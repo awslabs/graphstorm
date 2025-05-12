@@ -414,7 +414,7 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
     # Process Edge Data
     try:
         edges, edge_data = process_json_payload_edges(gconstruct_confs["edges"],
-                                                json_payload_confs["graph"]["edges"], raw_node_id_maps)
+                                json_payload_confs["graph"]["edges"], raw_node_id_maps)
     except AssertionError as assert_error:
         error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
