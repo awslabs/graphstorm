@@ -29,6 +29,16 @@
                     "node_type":    "movie",
                     "format":       {"name": "parquet"},
                     "files":        "/data/ml-100k/movie.parquet",
+                    "features":     [
+                        {
+                                "feature_col":  "title",
+                                "transform":    {
+                                        "name": "bert_hf",
+                                        "bert_model": "bert-base-uncased",
+                                        "max_seq_length": 16
+                                }
+                        }
+                 ],
                     "labels":	[
                         {
                             "label_col":	"label",

@@ -17,6 +17,9 @@
         "features": {
             "feat": [
                 0.011269339360296726
+            ],
+            "title": [
+              "sample text 1"
             ]
         },
         "node_id": "m1"
@@ -26,6 +29,9 @@
         "features": {
             "feat": [
                 0.0235343543
+            ],
+            "title": [
+              "sample text 2"
             ]
         },
         "node_id": "m2"
