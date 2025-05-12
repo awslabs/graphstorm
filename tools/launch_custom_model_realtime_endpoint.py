@@ -14,30 +14,35 @@
     limitations under the License.
 
     Launch a custom model SageMaker endpoint for realtime inference
+
+    This tool is provided as a coutesy to help users deploy a SageMaker endpoint for real-time
+    inference with your own GraphStorm-based models.
+    It is users responsibility to make sure that model artifacts and related entry
+    point file follow SageMaker's specifications, e.g., the deployment document at
+    https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html.
+
 """
 
 import os
 import argparse
 import logging
 import json
-import shutil
 from time import gmtime, strftime
 from uuid import uuid4
 
 import boto3 # pylint: disable=import-error
 from botocore.exceptions import WaiterError
-import sagemaker as sm
 
 
 def run_job(input_args):
     """ This job works on custom model only
 
-    Users need to read SageMaker's document for deploying model for real-time inference in
-    https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html.
-    And prepare model artifacts, including the entry point file, and compress and zip them
-    into a tar file. To create an endpoint, this tar file should be saved into an Amazon S3
-    location. The S3 URL of the location and the entry point file name are required to run
-    this endpoint deployment job.
+    Users need to read SageMaker's document in
+    https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html
+    to deploy custom model for real-time inference. And prepare model artifacts, including the
+    entry point file, and compress and zip them into a tar file. To create an endpoint, this
+    tar file should be saved into an Amazon S3 location. The S3 URL of the location and the
+    entry point file name are required to run this endpoint deployment job.
 
     Parameters:
     -----------
@@ -79,7 +84,11 @@ def run_job(input_args):
     # ================= prepare model artifacts ================= #
     entrypoint_file_name = input_args.entrypoint_file_name
     model_url_s3 = input_args.model_tarfile_s3
-    model_name = input_args.model_name
+    # if not provide model_name, will create a random name
+    if input_args.model_name:
+        model_name = input_args.model_name
+    else:
+        model_name = uuid4().hex[:8]
 
     # ================= create deployable model ================= #
     image_url = input_args.image_url
@@ -176,8 +185,7 @@ def get_realtime_infer_parser():
         choices=['True', 'true', 'False', 'false'],
         help="Determine if f using asynchronous execution mode to creating endpoint. Options" + \
              "include \"True\" and \"true\" for True, \"False\" and \"false\" for False.")
-    realtime_infer_parser.add_argument("--model-name", type=check_name_format,
-        default='GSF-Model4Realtime',
+    realtime_infer_parser.add_argument("--model-name", type=str,
         help=r"The name for the to-be created SageMaker objects. The name should follow \
               a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. Default \
               is \"GSF-Model4Realtime\".")

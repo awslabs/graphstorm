@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Launch a SageMaker endpoint for realtime inference
+    Launch a GraphStorm SageMaker endpoint for realtime inference
 """
 
 import os
@@ -30,7 +30,6 @@ import sagemaker as sm
 
 from launch_utils import (wrap_model_artifacts,
                           extract_ecr_region,
-                          check_tarfile_s3_object,
                           upload_data_to_s3,
                           check_name_format)
 
@@ -51,15 +50,18 @@ DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
 def run_job(input_args):
     """ The procedure of deploying a SageMaker real-time inference endpoint
     
-    Following SageMaker's document for deploying model for real-time inference in
-    https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html,
+    SageMaker's document for deploying model for real-time inference is in
+    https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html.
     The general steps of a deployment include:
     1. prepare model artifacts;
     2. create a deployable model;
     3. create an endpoint configuration based on the deployable model;
     4. create an endpoint based on the endpoint configuration.
 
-    This job follows these steps.
+    This job follows these steps, and only work on GraphStorm's model training and inference
+    pipeline.
+    
+    For custom model deployment, we provide a tool as a courtesy under graphstorm/tools folder.
 
     Parameters:
     -----------
@@ -104,14 +106,6 @@ def run_job(input_args):
         A string to define the name of a SageMaker inference model. This name string must follow
         SageMaker's naming format, which is ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. The default
         value is \"GSF-Model4Realtime\".
-    model_tarfile_s3: str
-        The S3 location where a custom model tar file is stored. If provided, this script will
-        use this model tarfile to deploy a SageMaker endpoint. This S3 location should be in the
-        same region specified in the `region` argument.
-    entrypoint_file_name: str
-        The name of a Python file. SageMaker will use this file as the entry point of an endpoint.
-        This is name is required if the `model_tarfile_s3` is provided. If not, this script will
-        GraphStorm's default entry point file according to the `infer_task_type`.
     
     """
     # ================= prepare model artifacts ================= #
@@ -119,50 +113,38 @@ def run_job(input_args):
     boto_session = boto3.Session(region_name=input_args.region)
     sm_session = sm.Session(boto_session=boto_session)
 
-    # If users provide the S3 tar file path already, directly use it for model creation
-    if input_args.model_tarfile_s3:
-        entrypoint_file_name = input_args.entrypoint_file_name
+    # prepare task dependent variables
+    current_folder = os.path.dirname(__file__)
+    entry_point_dir = os.path.join(current_folder, ENTRY_FOLDER_NAME)
 
-        model_url_s3 = input_args.model_tarfile_s3
-        assert check_tarfile_s3_object(args.model_tarfile_s3) is True, \
-            (f'Not find a tar file in the given S3 URL: {args.model_tarfile_s3}...')
-
-        # model_name is either directly given by users, or had been assigned by the argument
-        # validation function
-        model_name = input_args.model_name
+    # TODO: When adding new realtime inference tasks, add new elif here to support them
+    if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
+        entrypoint_file_name = ENTRY_FILE_NAMES[SUPPORTED_REALTIME_INFER_NC_TASK]
+        path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
     else:
-        # prepare task dependent variables
-        current_folder = os.path.dirname(__file__)
-        entry_point_dir = os.path.join(current_folder, ENTRY_FOLDER_NAME)
+        raise NotImplementedError(f'The given real-time inference task \
+                                    {input_args.infer_task_type} is not supported.')
 
-        # TODO: When adding new realtime inference tasks, add new elif here to support them
-        if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
-            entrypoint_file_name = ENTRY_FILE_NAMES[SUPPORTED_REALTIME_INFER_NC_TASK]
-            path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
-        else:
-            raise NotImplementedError(f'The given real-time inference task \
-                                        {input_args.infer_task_type} is not supported.')
+    path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODLE_FILE_NAME)
+    path_to_model_yaml = input_args.model_yaml_config_file
+    path_to_graph_json = input_args.graph_json_config_file
+    model_name = input_args.model_name
 
-        path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODLE_FILE_NAME)
-        path_to_model_yaml = input_args.model_yaml_config_file
-        path_to_graph_json = input_args.graph_json_config_file
-        model_name = input_args.model_name
+    # use a temporary folder in the current folder as output folder
+    tmp_output_folder = os.path.join(current_folder, f'{uuid4().hex[:8]}')
+    model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_model_yaml,
+                                                path_to_graph_json, path_to_entry,
+                                                tmp_output_folder,
+                                                output_tarfile_name=model_name)
+    logging.debug('Packed and compressed model artifacts into %s.', model_tarfile_path)
 
-        # use a temporary folder in the current folder as output folder
-        tmp_output_folder = os.path.join(current_folder, f'{uuid4().hex[:8]}')
-        model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_model_yaml,
-                                                  path_to_graph_json, path_to_entry,
-                                                  tmp_output_folder,
-                                                  output_tarfile_name=model_name)
-        logging.debug('Packed and compressed model artifacts into %s.', model_tarfile_path)
-
-        # upload the model tar file to the given S3 bucket
-        model_url_s3 = upload_data_to_s3(input_args.upload_tarfile_s3, model_tarfile_path,
-                                        sm_session)
-        logging.debug('Uploaded the model tar file to %s.', model_url_s3)
-        
-        # clean up the temporary folder after model uploading
-        shutil.rmtree(tmp_output_folder)
+    # upload the model tar file to the given S3 bucket
+    model_url_s3 = upload_data_to_s3(input_args.upload_tarfile_s3, model_tarfile_path,
+                                    sm_session)
+    logging.debug('Uploaded the model tar file to %s.', model_url_s3)
+    
+    # clean up the temporary folder after model uploading
+    shutil.rmtree(tmp_output_folder)
 
     # ================= create deployable model ================= #
     image_url = input_args.image_url
@@ -280,14 +262,6 @@ def get_realtime_infer_parser():
               a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. Default \
               is \"GSF-Model4Realtime\".")
 
-    # customized model specific arguments
-    realtime_infer_parser.add_argument("--model-tarfile-s3", type=str,
-        help="The S3 location of the compressed model tar file. If provided, it will be used \
-              to create a SageMaker Model.")
-    realtime_infer_parser.add_argument("--entrypoint-file-name", type=str,
-        help="The name of the model entry point file. This file name will be used when you \
-              specify the --model-tarfile-s3 argument to use a pre-uploaded model tar file.")
-
     return realtime_infer_parser
 
 def validate_realtime_infer_arguments(input_args):
@@ -295,22 +269,17 @@ def validate_realtime_infer_arguments(input_args):
     
     The real-time inference endpoint lauch has the logic as the followings.
     
-    1. If users provide the --model-tarfile-s3, it means it is a custom model. Then users must
-       provide the --entrypoint-file-name too, which means users need to implement their own
-       SageMaker entry point file, pack it with other model artifacts in to a compressed
-       tar file, and upload to the given S3 url.
-    2. If users want to use the default launch functions, they must provide five arguments:
+    1. Users use the default launch functions, they must provide five arguments:
        --restore-model-path
        --model-yaml-config-file
        --graph-json-config-file
        --infer-task-type
        --upload-tarfile-s3
-    3. If users also provide a model name in the --model-name argument, the script will use it and
-       check if it follows the SageMaker naming fomat.
 
        Note: Checking model_name format actually happens in the argument parsing stage. So there
              is no such check in this function.
-    4. TODO(James): Will do sanity check of the contents of the given YAML, and JSON files when
+
+    2. TODO(James): Will do sanity check of the contents of the given YAML, and JSON files when
                     they become available.
 
     """
@@ -320,26 +289,20 @@ def validate_realtime_infer_arguments(input_args):
             '{input_args.region}. Please check if the image url is correct or reset the ' + \
             '--region argument. The endpoint should be deployed at the same region as the image.'
 
-    if input_args.model_tarfile_s3:
-        assert input_args.entrypoint_file_name, ('To use your own model tar file, please set the \
-            --entrypoint-file-name argument, and place the actual file into a subfolder, \
-            named \'/code\', inside the tar file, as requested in the SageMaker document: \
-            https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure.')
-    else:
-        assert input_args.restore_model_path, 'To use GraphStorm default real-time inference ' + \
-                     'endpoint launch script, please set --restore-model-path argument.'
-        assert input_args.model_yaml_config_file, 'To use GraphStorm default real-time ' + \
-                     'inference endpoint launch script, please set --model-yaml-config-file ' + \
-                     'argument.'
-        assert input_args.graph_json_config_file, 'To use GraphStorm default real-time ' + \
-                     'inference endpoint launch script, please set --graph-json-config-file ' + \
-                     'argument.'
-        assert input_args.upload_tarfile_s3, 'To use GraphStorm default real-time ' + \
-                     'inference endpoint launch script, please set --upload-tarfile-s3 ' + \
-                     'argument.'
-        assert input_args.infer_task_type, 'To use GraphStorm default real-time ' + \
-                     'inference endpoint launch script, please set --infer-task-type ' + \
-                     'argument.'
+    assert input_args.restore_model_path, 'To use GraphStorm default real-time inference ' + \
+                    'endpoint launch script, please set --restore-model-path argument.'
+    assert input_args.model_yaml_config_file, 'To use GraphStorm default real-time ' + \
+                    'inference endpoint launch script, please set --model-yaml-config-file ' + \
+                    'argument.'
+    assert input_args.graph_json_config_file, 'To use GraphStorm default real-time ' + \
+                    'inference endpoint launch script, please set --graph-json-config-file ' + \
+                    'argument.'
+    assert input_args.upload_tarfile_s3, 'To use GraphStorm default real-time ' + \
+                    'inference endpoint launch script, please set --upload-tarfile-s3 ' + \
+                    'argument.'
+    assert input_args.infer_task_type, 'To use GraphStorm default real-time ' + \
+                    'inference endpoint launch script, please set --infer-task-type ' + \
+                    'argument.'
  
 
 if __name__ == "__main__":
