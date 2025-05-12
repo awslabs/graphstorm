@@ -128,6 +128,22 @@ def parse_s3_url(s3_url):
     return bucket_name, key
 
 
+def extract_ecr_region(ecr_uri):
+    """ extract the region string from an ECR URI
+    
+    A normal ECR URI is like <account_id>.dkr.ecr.<region>.amazonaws.com. The region string
+    contains letters, digits, and hyphons only, and is between '.ecr.' and '.amazonaws.com'.
+    """
+    pattern = re.compile(r'\.ecr\.([a-z0-9-]+)\.amazonaws\.com')
+    is_match = re.search(pattern, ecr_uri)
+    if is_match:
+        region = is_match.group(1)
+    else:
+        region = None
+
+    return region
+
+
 def check_tarfile_s3_object(s3_url):
     """ Check the object in the given S3 url
     1. if the url format correct;
@@ -170,6 +186,11 @@ def upload_data_to_s3(s3_path, data_path, sagemaker_session):
         Local data path.
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run upload
+    
+    Returns
+    -------
+    ret: str
+        The S3 url of the uploaded data.
     """
     try:
         ret = S3Uploader.upload(data_path, s3_path, sagemaker_session=sagemaker_session)

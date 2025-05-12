@@ -166,13 +166,14 @@ def test_validate_realtime_infer_arguments():
     test_cmd = "test_sagemaker_args.py"
     default_args = {'--instance-type': 'ml.c6i.xlarge',
                     '--instance-count': 1,
+                    '--async-execution': 'true',
                     '--model-name': 'GSF-Model4Realtime'}
-    required_args = {'--image-url': 'image_url_val',
+    required_args = {'--image-url': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
                      '--role': 'role_val',
-                     '--region': 'region_val'}
+                     '--region': 'us-west-2'}
 
     # Test case 1: normal cases
-    #       1.1: given model_tarfile_s3 and entrypoint-file-name arguments
+    #       1.1: given model_tarfile_s3 and entrypoint_file_name arguments
     other_args = {'--model-tarfile-s3': 's3://test_bucket/test.tar.gz',
                   '--entrypoint-file-name': 'entrypoint.py'}
     test_args = {**required_args, **default_args, **other_args}
@@ -210,7 +211,20 @@ def test_validate_realtime_infer_arguments():
         expected_vals = {k.replace('-', '_')[2: ]: v for k, v in test_args.items()}
         assert args_w_vals == expected_vals
 
-    # Test case 2: abnormal case. Not provide model-tarfile-s3, and missing one of the 5 arguments
+    # Test case 2: abnormal case. 
+    #       2.1: Provide model-tarfile-s3, but missing entrypoint_file_name
+    other_args = {'--model-tarfile-s3': 's3://test_bucket/test.tar.gz'}
+    test_args = {**required_args, **default_args, **other_args}
+    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
+
+    with mock.patch.object(sys, 'argv', test_args_str):
+        arg_parser = get_realtime_infer_parser()
+        args = arg_parser.parse_args()
+
+        with pytest.raises(AssertionError, match=r' * --entrypoint-file-name argument *'):
+            validate_realtime_infer_arguments(args)
+
+    #       2.2: Not provide model-tarfile-s3, and missing one of the 5 arguments
     other_args = {'--restore-model-path': 'model_path',
                   '--model-yaml-config-file': 'yaml_config_file',
                   '--graph-json-config-file': 'json_config_file',
@@ -230,4 +244,18 @@ def test_validate_realtime_infer_arguments():
                             f'please set {k} argument.'
             with pytest.raises(AssertionError, match=match_pattern):
                 validate_realtime_infer_arguments(args)
+
+    #       2.3: image url is in different region from the --region argument
+    required_args = {'--image-url': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
+                    '--role': 'role_val',
+                    '--region': 'us-east-1'}
+    test_args = {**required_args, **default_args}
+    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
+
+    with mock.patch.object(sys, 'argv', test_args_str):
+        arg_parser = get_realtime_infer_parser()
+        args = arg_parser.parse_args()
+
+        with pytest.raises(AssertionError, match=r'The given Docker image * '):
+            validate_realtime_infer_arguments(args)
 

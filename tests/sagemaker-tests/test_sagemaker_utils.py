@@ -28,6 +28,7 @@ from urllib.parse import urlparse
 from launch_utils import (wrap_model_artifacts,
                           check_tarfile_s3_object,
                           parse_s3_url,
+                          extract_ecr_region,
                           upload_data_to_s3,
                           check_name_format)
 
@@ -259,6 +260,30 @@ def test_parse_s3_url():
     test_s3_url = '/a_bucket/a_path/test.pptx'
     with pytest.raises(AssertionError, match='Incorrect S3 *'):
         parse_s3_url(test_s3_url)
+
+def test_extract_ecr_region():
+    """ Test the extract_ecr_region function.
+    
+    A normal ECR URI is like <account_id>.dkr.ecr.<region>.amazonaws.com. The region string
+    contains letters, digits, and hyphons only, and is between '.ecr.' and '.amazonaws.com'.
+    """
+    # Test case 1: normal case
+    ecr_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-image:latest"
+    expected_region = 'us-west-2'
+    assert extract_ecr_region(ecr_uri) == expected_region
+    
+    # Test case 2: abnormal cases
+    #       2.1: no region in uri
+    ecr_uri = "my-image:latest"
+    assert extract_ecr_region(ecr_uri) is None
+
+    #       2.2: region name dos not follow the simple region format rule, i.e., letter+digit+-
+    ecr_uri = "123456789012.dkr.ecr.us_west_2.amazonaws.com/my-image:latest"
+    assert extract_ecr_region(ecr_uri) is None
+
+    #       2.3: region name is ok, but not between '.ecr.' and '.amazonaws.com'
+    ecr_uri = "123456789012.us-west-2.amazonaws.com/my-image:latest"
+    assert extract_ecr_region(ecr_uri) is None
 
 def test_check_name_format():
     """ test the check_name_format functions

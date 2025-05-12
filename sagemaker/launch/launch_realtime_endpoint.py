@@ -19,14 +19,17 @@
 import os
 import argparse
 import logging
-import tempfile
+import json
+import shutil
 from time import gmtime, strftime
+from uuid import uuid4
 
 import boto3 # pylint: disable=import-error
 from botocore.exceptions import WaiterError
 import sagemaker as sm
 
 from launch_utils import (wrap_model_artifacts,
+                          extract_ecr_region,
                           check_tarfile_s3_object,
                           upload_data_to_s3,
                           check_name_format)
@@ -72,6 +75,15 @@ def run_job(input_args):
         The string type of a SageMaker instance type. The default value is \"ml.c6i.xlarge\".
     instance_count: int
         The number of SageMaker instances to be deployed for the endpoint.
+    custom_production_variant: dict
+        The dictionary that inludes custom configuration of the SageMaker ProductionVarient
+        for identifying a model to host and the resources chosen to deploy for hosting it, as
+        documented at
+        https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html.
+    async_execution: str
+        The string boolean value, determining if using asynchronous execution mode to creating
+        endpoint. Options include "True" and "true" for True, "False" and "false" for False.
+        Default is True.
     restore_model_path: str
         The local folder path where GraphStorm trained model artifacts were stored, e.g.,
         \"save_model/epoch-1/\".
@@ -120,7 +132,8 @@ def run_job(input_args):
         model_name = input_args.model_name
     else:
         # prepare task dependent variables
-        entry_point_dir = os.path.join(os.path.dirname(__file__), ENTRY_FOLDER_NAME)
+        current_folder = os.path.dirname(__file__)
+        entry_point_dir = os.path.join(current_folder, ENTRY_FOLDER_NAME)
 
         # TODO: When adding new realtime inference tasks, add new elif here to support them
         if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
@@ -135,16 +148,21 @@ def run_job(input_args):
         path_to_graph_json = input_args.graph_json_config_file
         model_name = input_args.model_name
 
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_model_yaml,
-                                                      path_to_graph_json, path_to_entry,
-                                                      tmpdirname, output_tarfile_name=model_name)
-            logging.debug('Packed and compressed model artifacts into %s.', model_tarfile_path)
+        # use a temporary folder in the current folder as output folder
+        tmp_output_folder = os.path.join(current_folder, f'{uuid4().hex[:8]}')
+        model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_model_yaml,
+                                                  path_to_graph_json, path_to_entry,
+                                                  tmp_output_folder,
+                                                  output_tarfile_name=model_name)
+        logging.debug('Packed and compressed model artifacts into %s.', model_tarfile_path)
 
-            # upload the model tar file to the given S3 bucket
-            model_url_s3 = upload_data_to_s3(input_args.upload_tarfile_s3, model_tarfile_path,
-                                            sm_session)
-            logging.debug('Uploaded the model tar file to %s.', model_url_s3)
+        # upload the model tar file to the given S3 bucket
+        model_url_s3 = upload_data_to_s3(input_args.upload_tarfile_s3, model_tarfile_path,
+                                        sm_session)
+        logging.debug('Uploaded the model tar file to %s.', model_url_s3)
+        
+        # clean up the temporary folder after model uploading
+        shutil.rmtree(tmp_output_folder)
 
     # ================= create deployable model ================= #
     image_url = input_args.image_url
@@ -165,17 +183,22 @@ def run_job(input_args):
     # ================= create an endpoint configuration ================= #
     sm_ep_config_name = model_name + "-EndpointConfig-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 
-    create_endpoint_config_response = sm_client.create_endpoint_config(
-            EndpointConfigName=sm_ep_config_name,
-            ProductionVariants=[
-                {
+    default_product_variant = {
                     "InstanceType": input_args.instance_type,
                     "InitialInstanceCount": input_args.instance_count,
                     "InitialVariantWeight": 1,
                     "ModelName": sm_model_name,
                     "VariantName": "AllTraffic",
                 }
-            ],
+    if input_args.custom_production_variant:
+        # merge custom ProductionVariant to the default key arguments, and overwrite same keys
+        product_variant = {**default_product_variant, **input_args.custom_production_variant}
+    else:
+        product_variant = default_product_variant
+
+    create_endpoint_config_response = sm_client.create_endpoint_config(
+            EndpointConfigName=sm_ep_config_name,
+            ProductionVariants=[product_variant],
         )
     endpoint_arn = create_endpoint_config_response["EndpointConfigArn"]
     logging.debug("Endpoint config Arn: %s", endpoint_arn)
@@ -188,23 +211,24 @@ def run_job(input_args):
     )
     logging.debug("Endpoint Arn: %s", create_endpoint_response["EndpointArn"])
 
-    resp = sm_client.describe_endpoint(EndpointName=sm_ep_name)
-    status = resp["EndpointStatus"]
-    logging.info("Endpoint name: %s, in status: %s", sm_ep_name, status)
+    if input_args.async_execution.lower() == 'true':
+        resp = sm_client.describe_endpoint(EndpointName=sm_ep_name)
+        status = resp["EndpointStatus"]
+        logging.info("Creating endpoint name: %s, current status: %s", sm_ep_name, status)
+    else:
+        logging.info("Waiting for %s endpoint to be in service...", sm_ep_name)
+        waiter = sm_client.get_waiter("endpoint_in_service")
 
-    logging.info("Waiting for %s endpoint to be in service...", sm_ep_name)
-    waiter = sm_client.get_waiter("endpoint_in_service")
-
-    try:
-        waiter.wait(EndpointName=sm_ep_name,
-                    WaiterConfig={
-                        'Delay': 30,        # seconds between querying
-                        'MaxAttempts': 60   # max retries (~30 minutes here)
-                    })
-        logging.info('%s endpoint has been successfully created, and ready to be \
-                 invoked!', sm_ep_name)
-    except WaiterError as e:
-        logging.error("Waiter timed out or endpoint creation failed: %s", e)
+        try:
+            waiter.wait(EndpointName=sm_ep_name,
+                        WaiterConfig={
+                            'Delay': 30,        # seconds between querying
+                            'MaxAttempts': 60   # max retries (~30 minutes here)
+                        })
+            logging.info('%s endpoint has been successfully created, and ready to be \
+                    invoked!', sm_ep_name)
+        except WaiterError as e:
+            logging.error("Waiter timed out or endpoint creation failed: %s", e)
 
 
 def get_realtime_infer_parser():
@@ -225,6 +249,15 @@ def get_realtime_infer_parser():
         help="instance type for the SageMaker job")
     realtime_infer_parser.add_argument("--instance-count", type=int, default=1,
         help="number of instances")
+    realtime_infer_parser.add_argument("--custom-production-variant", type=json.loads,
+        help="A dictionary string that inludes custom configurations of the SageMaker " + \
+             "ProductionVarient for identifying a model to host and the resources " + \
+             "chosen to deploy for hosting it as documented at " + \
+        "https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html")
+    realtime_infer_parser.add_argument("--async-execution", type=str, default='true', 
+        choices=['True', 'true', 'False', 'false'],
+        help="Determine if f using asynchronous execution mode to creating endpoint. Options" + \
+             "include \"True\" and \"true\" for True, \"False\" and \"false\" for False.")
 
     # real-time task specific arguments
     realtime_infer_parser.add_argument("--restore-model-path", type=str,
@@ -281,6 +314,12 @@ def validate_realtime_infer_arguments(input_args):
                     they become available.
 
     """
+    ecr_region = extract_ecr_region(input_args.image_url)
+    assert ecr_region == input_args.region, f'The given Docker image {input_args.image_url} ' + \
+            'is in the region {ecr_region}, but is different from the --region argument: ' + \
+            '{input_args.region}. Please check if the image url is correct or reset the ' + \
+            '--region argument. The endpoint should be deployed at the same region as the image.'
+
     if input_args.model_tarfile_s3:
         assert input_args.entrypoint_file_name, ('To use your own model tar file, please set the \
             --entrypoint-file-name argument, and place the actual file into a subfolder, \
@@ -301,7 +340,7 @@ def validate_realtime_infer_arguments(input_args):
         assert input_args.infer_task_type, 'To use GraphStorm default real-time ' + \
                      'inference endpoint launch script, please set --infer-task-type ' + \
                      'argument.'
-
+ 
 
 if __name__ == "__main__":
     arg_parser = get_realtime_infer_parser()
