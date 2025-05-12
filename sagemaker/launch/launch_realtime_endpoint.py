@@ -48,7 +48,7 @@ DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
 
 
 def run_job(input_args):
-    """ The procedure of deploying a SageMaker real-time inference endpoint
+    """ Deploys a SageMaker real-time inference endpoint
     
     SageMaker's documentation for deploying model for real-time inference is in
     https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html.
@@ -69,8 +69,8 @@ def run_job(input_args):
     -----------
     region: str
         The AWS region where the SageMaker endpoint will be deployed.
-    image_url: str
-        The URL of a GraphStorm SageMaker real-time inference Docker image that is located at
+    image_uri: str
+        The URI of a GraphStorm SageMaker real-time inference Docker image that is located at
         Amazon ECR in the same region specified in the `region` argument.
     role: str
         The ARN string of an AWS account ARN that has SageMaker execution and model registry full
