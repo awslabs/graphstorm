@@ -50,13 +50,15 @@ DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
 def run_job(input_args):
     """ The procedure of deploying a SageMaker real-time inference endpoint
     
-    SageMaker's document for deploying model for real-time inference is in
+    SageMaker's documentation for deploying model for real-time inference is in
     https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html.
-    The general steps of a deployment include:
+
+    The steps of a model deployment are:
+
     1. prepare model artifacts;
-    2. create a deployable model;
-    3. create an endpoint configuration based on the deployable model;
-    4. create an endpoint based on the endpoint configuration.
+    2. create a deployable "SageMaker Model";
+    3. create an "Endpoint Configuration" based on the "SageMaker Model";
+    4. create an "Endpoint" based on the "Endpoint Configuration".
 
     This job follows these steps, and only work on GraphStorm's model training and inference
     pipeline.
@@ -132,9 +134,9 @@ def run_job(input_args):
     # use a temporary folder in the current folder as output folder
     tmp_output_folder = os.path.join(current_folder, f'{uuid4().hex[:8]}')
     model_tarfile_path = wrap_model_artifacts(path_to_model, path_to_model_yaml,
-                                                path_to_graph_json, path_to_entry,
-                                                tmp_output_folder,
-                                                output_tarfile_name=model_name)
+                                              path_to_graph_json, path_to_entry,
+                                              tmp_output_folder,
+                                              output_tarfile_name=model_name)
     logging.debug('Packed and compressed model artifacts into %s.', model_tarfile_path)
 
     # upload the model tar file to the given S3 bucket
@@ -241,17 +243,17 @@ def get_realtime_infer_parser():
              "include \"True\" and \"true\" for True, \"False\" and \"false\" for False.")
 
     # real-time task specific arguments
-    realtime_infer_parser.add_argument("--restore-model-path", type=str,
+    realtime_infer_parser.add_argument("--restore-model-path", type=str, required=True,
         help="The folder path where trained GraphStorm model parameters were saved.")
-    realtime_infer_parser.add_argument("--model-yaml-config-file", type=str,
+    realtime_infer_parser.add_argument("--model-yaml-config-file", type=str, required=True,
         help="The file path to the new YAML configuration file generated in GraphStorm \
               model training.")
-    realtime_infer_parser.add_argument("--graph-json-config-file", type=str,
+    realtime_infer_parser.add_argument("--graph-json-config-file", type=str, required=True,
         help="The file path to the updated JSON configuration file created in GraphStorm \
               graph construction process. This should be available under the output of GConstruct/GSProcessing")
-    realtime_infer_parser.add_argument("--upload-tarfile-s3", type=str,
+    realtime_infer_parser.add_argument("--upload-tarfile-s3", type=str, required=True,
         help="The S3 location for uploading the packed and compressed model artifacts tar file.")
-    realtime_infer_parser.add_argument("--infer-task-type", type=str,
+    realtime_infer_parser.add_argument("--infer-task-type", type=str, required=True,
         choices=SUPPORTED_REALTIME_INFER_TASKS,
         help=f"The name of real time inference task. Options \
                include {SUPPORTED_REALTIME_INFER_TASKS}")
@@ -263,24 +265,21 @@ def get_realtime_infer_parser():
 
     return realtime_infer_parser
 
-def validate_realtime_infer_arguments(input_args):
-    """ Validate the input arguments with the designed launch logic
+def sanity_check_realtime_infer_inputs(input_args):
+    """ Sanity check the inputs for real-time endpoint deployment
     
-    The real-time inference endpoint lauch has the logic as the followings.
-    
-    1. Users use the default launch functions, they must provide five arguments:
-       --restore-model-path
-       --model-yaml-config-file
-       --graph-json-config-file
-       --infer-task-type
-       --upload-tarfile-s3
+    To catch potential SageMaker service errors, here do some sanity checks.
 
-       Note: Checking model_name format actually happens in the argument parsing stage. So there
-             is no such check in this function.
-
+    1. The endpoint should be deployed in the same region as the ECR Docker image.
     2. TODO(James): Will do sanity check of the contents of the given YAML, and JSON files when
                     they become available.
 
+    Note: 
+        1. Checking model_name format actually happens in the argument parsing stage. So there
+           is no such check in this function.
+        2. Because S3 URI/URL may not contain a sub-string to indicate the region, do not check
+           S3 region here. Users should make sure the S3 path for the tarfile to be uploaded is
+           in the same region as the ECR Docker image and the endpoint.
     """
     ecr_region = extract_ecr_region(input_args.image_url)
     assert ecr_region == input_args.region, f'The given Docker image {input_args.image_url} ' + \
@@ -288,27 +287,14 @@ def validate_realtime_infer_arguments(input_args):
             '{input_args.region}. Please check if the image url is correct or reset the ' + \
             '--region argument. The endpoint should be deployed at the same region as the image.'
 
-    assert input_args.restore_model_path, 'To use GraphStorm default real-time inference ' + \
-                    'endpoint launch script, please set --restore-model-path argument.'
-    assert input_args.model_yaml_config_file, 'To use GraphStorm default real-time ' + \
-                    'inference endpoint launch script, please set --model-yaml-config-file ' + \
-                    'argument.'
-    assert input_args.graph_json_config_file, 'To use GraphStorm default real-time ' + \
-                    'inference endpoint launch script, please set --graph-json-config-file ' + \
-                    'argument.'
-    assert input_args.upload_tarfile_s3, 'To use GraphStorm default real-time ' + \
-                    'inference endpoint launch script, please set --upload-tarfile-s3 ' + \
-                    'argument.'
-    assert input_args.infer_task_type, 'To use GraphStorm default real-time ' + \
-                    'inference endpoint launch script, please set --infer-task-type ' + \
-                    'argument.'
- 
+    # TODO: Do sanity check of the YAML and JSON file.
+
 
 if __name__ == "__main__":
     arg_parser = get_realtime_infer_parser()
     args = arg_parser.parse_args()
     print(f"Real-time endpoint launch args: '{args}'")
 
-    validate_realtime_infer_arguments(args)
+    sanity_check_realtime_infer_inputs(args)
 
     run_job(args)

@@ -3,7 +3,7 @@ import sys
 from unittest import mock
 from argparse import ArgumentTypeError
 from common_parser import parse_unknown_gs_args
-from launch_realtime_endpoint import get_realtime_infer_parser, validate_realtime_infer_arguments
+from launch_realtime_endpoint import get_realtime_infer_parser, sanity_check_realtime_infer_inputs
 
 
 def test_basic_parsing():
@@ -98,13 +98,19 @@ def test_get_realtime_infer_argparser():
     test_cmd = "test_sagemaker_args.py"
     default_args = {'--instance-type': 'ml.c6i.xlarge',
                     '--instance-count': 1,
+                    '--async-execution': 'true',
                     '--model-name': 'GSF-Model4Realtime'}
 
     # Test case 1: normal cases
     #       1.1: for the three required arguments
     required_args = {'--image-url': 'image_url_val',
                      '--role': 'role_val',
-                     '--region': 'region_val'}
+                     '--region': 'region_val',
+                     '--restore-model-path': 'model_path',
+                     '--model-yaml-config-file': 'yaml_config_file',
+                     '--graph-json-config-file': 'json_config_file',
+                     '--upload-tarfile-s3': 'tarfile_s3',
+                     '--infer-task-type': 'node_classification'}
     test_args = {**required_args, **default_args}
     test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
 
@@ -116,14 +122,8 @@ def test_get_realtime_infer_argparser():
         assert args_w_vals == expected_vals
 
     #       1.2: for other arguments
-    other_args = {'--restore-model-path': 'model_path',
-                  '--model-yaml-config-file': 'yaml_config_file',
-                  '--graph-json-config-file': 'json_config_file',
-                  '--upload-tarfile-s3': 'tarfile_s3',
-                  '--infer-task-type': 'node_classification',
-                  '--model-name': 'test-model',     # here overwritten the default, and no '_'
-                  '--model-tarfile-s3': 's3://test_bucket/test.tar.gz',
-                  '--entrypoint-file-name': 'entrypoint.py'}
+    other_args = {'--model-name': 'test-model'     # here overwritten the default, and no '_'
+                  }
     test_args = {**required_args, **default_args, **other_args}
     test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
 
@@ -160,8 +160,8 @@ def test_get_realtime_infer_argparser():
             arg_parser.parse_args()
         assert excinfo.value.code != 0
 
-def test_validate_realtime_infer_arguments():
-    """ Test the argument logics defined in the validate_realtime_infer_arguments function
+def test_sanity_check_realtime_infer_inputs():
+    """ Test the argument logics defined in the sanity_check_realtime_infer_inputs function
     """
     test_cmd = "test_sagemaker_args.py"
     default_args = {'--instance-type': 'ml.c6i.xlarge',
@@ -170,85 +170,15 @@ def test_validate_realtime_infer_arguments():
                     '--model-name': 'GSF-Model4Realtime'}
     required_args = {'--image-url': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
                      '--role': 'role_val',
-                     '--region': 'us-west-2'}
+                     '--region': 'us-west-2',
+                     '--restore-model-path': 'model_path',
+                     '--model-yaml-config-file': 'yaml_config_file',
+                     '--graph-json-config-file': 'json_config_file',
+                     '--upload-tarfile-s3': 'tarfile_s3',
+                     '--infer-task-type': 'node_classification'}
 
     # Test case 1: normal cases
-    #       1.1: given model_tarfile_s3 and entrypoint_file_name arguments
-    other_args = {'--model-tarfile-s3': 's3://test_bucket/test.tar.gz',
-                  '--entrypoint-file-name': 'entrypoint.py'}
-    test_args = {**required_args, **default_args, **other_args}
-    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
-
-    with mock.patch.object(sys, 'argv', test_args_str):
-        arg_parser = get_realtime_infer_parser()
-        args = arg_parser.parse_args()
-
-        validate_realtime_infer_arguments(args)
-
-        args_w_vals = {k: v for k, v in vars(args).items() if v is not None}
-        expected_vals = {k.replace('-', '_')[2: ]: v for k, v in test_args.items()}
-        assert args_w_vals == expected_vals
-
-    #       1.2: not provide model_tarfile_s3, but give the 5 arguments
-    other_args = {'--restore-model-path': 'model_path',
-                  '--model-yaml-config-file': 'yaml_config_file',
-                  '--graph-json-config-file': 'json_config_file',
-                  '--upload-tarfile-s3': 'tarfile_s3',
-                  '--infer-task-type': 'node_classification',
-                  '--model-name': 'test-model',     # here overwritten the default, and no '_'
-                  '--model-tarfile-s3': 's3://test_bucket/test.tar.gz',
-                  '--entrypoint-file-name': 'entrypoint.py'}
-    test_args = {**required_args, **default_args, **other_args}
-    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
-
-    with mock.patch.object(sys, 'argv', test_args_str):
-        arg_parser = get_realtime_infer_parser()
-        args = arg_parser.parse_args()
-
-        validate_realtime_infer_arguments(args)
-
-        args_w_vals = {k: v for k, v in vars(args).items() if v is not None}
-        expected_vals = {k.replace('-', '_')[2: ]: v for k, v in test_args.items()}
-        assert args_w_vals == expected_vals
-
-    # Test case 2: abnormal case. 
-    #       2.1: Provide model-tarfile-s3, but missing entrypoint_file_name
-    other_args = {'--model-tarfile-s3': 's3://test_bucket/test.tar.gz'}
-    test_args = {**required_args, **default_args, **other_args}
-    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
-
-    with mock.patch.object(sys, 'argv', test_args_str):
-        arg_parser = get_realtime_infer_parser()
-        args = arg_parser.parse_args()
-
-        with pytest.raises(AssertionError, match=r' * --entrypoint-file-name argument *'):
-            validate_realtime_infer_arguments(args)
-
-    #       2.2: Not provide model-tarfile-s3, and missing one of the 5 arguments
-    other_args = {'--restore-model-path': 'model_path',
-                  '--model-yaml-config-file': 'yaml_config_file',
-                  '--graph-json-config-file': 'json_config_file',
-                  '--upload-tarfile-s3': 'tarfile_s3',
-                  '--infer-task-type': 'node_classification'}
-
-    for k, v in other_args.items():
-        new_other_args = {k1: v1 for k1, v1 in other_args.items() if k1 != k}
-        test_args = {**required_args, **default_args, **new_other_args}
-        test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
-
-        with mock.patch.object(sys, 'argv', test_args_str):
-            arg_parser = get_realtime_infer_parser()
-            args = arg_parser.parse_args()
-
-            match_pattern = 'To use GraphStorm default real-time inference endpoint launch script, ' + \
-                            f'please set {k} argument.'
-            with pytest.raises(AssertionError, match=match_pattern):
-                validate_realtime_infer_arguments(args)
-
-    #       2.3: image url is in different region from the --region argument
-    required_args = {'--image-url': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
-                    '--role': 'role_val',
-                    '--region': 'us-east-1'}
+    #       1.1 image url is in same region as the --region argument
     test_args = {**required_args, **default_args}
     test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
 
@@ -256,6 +186,19 @@ def test_validate_realtime_infer_arguments():
         arg_parser = get_realtime_infer_parser()
         args = arg_parser.parse_args()
 
-        with pytest.raises(AssertionError, match=r'The given Docker image * '):
-            validate_realtime_infer_arguments(args)
+        # should pass the check without raising errors
+        sanity_check_realtime_infer_inputs(args)
 
+    # Test case 2: abnormal cases
+    #       2.1 image url is in different region from the --region argument
+    other_args = {'--image-url': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
+                  '--region': 'us-east-1'}
+    test_args = { **default_args, **required_args, **other_args}
+    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
+
+    with mock.patch.object(sys, 'argv', test_args_str):
+        arg_parser = get_realtime_infer_parser()
+        args = arg_parser.parse_args()
+
+        with pytest.raises(AssertionError, match=r'The given Docker image * '):
+            sanity_check_realtime_infer_inputs(args)
