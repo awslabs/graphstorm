@@ -67,8 +67,8 @@ def run_job(input_args):
     -----------
     region: str
         The AWS region where the SageMaker endpoint will be deployed.
-    image_url: str
-        The URL of a GraphStorm SageMaker real-time inference Docker image that is located at
+    image_uri: str
+        The URI of a GraphStorm SageMaker real-time inference Docker image that is located at
         Amazon ECR in the same region specified in the `region` argument.
     role: str
         The ARN string of an AWS account ARN that has SageMaker execution and model registry full
