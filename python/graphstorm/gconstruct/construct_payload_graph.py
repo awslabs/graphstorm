@@ -314,12 +314,14 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
     return edges, edge_data
 
 
-def verify_payload_conf(request_json_payload):
+def verify_payload_conf(request_json_payload, gconstruct_confs):
     """ Verify input json payload
 
     Parameters:
     request_json_payload: dict
         JSON request payload
+    gconstruct_confs: dict
+        GConstruct Config
     """
     assert "graph" in request_json_payload, \
         "The JSON request must include a 'graph' definition."
@@ -328,22 +330,48 @@ def verify_payload_conf(request_json_payload):
     assert "edges" in request_json_payload["graph"], \
         "The 'graph' definition in the JSON request must include a 'edges' field."
 
+    unique_node_types_set = {node['node_type'] for node in gconstruct_confs["nodes"]}
+    unique_edge_types_set = {tuple(edge['relation']) for edge in gconstruct_confs["edges"]}
+
+    node_feat_type = set()
     for node_conf in request_json_payload["graph"]["nodes"]:
         assert "node_type" in node_conf, \
             "The 'node' definition in the JSON request must include a 'node_type'"
+        node_type = node_conf["node_type"]
+        assert node_type in unique_node_types_set, \
+            f"The node type {node_type} is not defined in the gconstruct config"
         assert "node_id" in node_conf, \
             "The 'node' definition in the JSON request must include a 'node_id'"
+        if "features" in node_conf:
+            if node_conf["node_type"] not in node_feat_type:
+                node_feat_type.add(node_conf["node_type"])
+    assert all(
+        node_config.get("node_type") not in node_feat_type or "features" in node_config
+        for node_config in request_json_payload["graph"]["nodes"]
+    ), ("Validation Failed: Some nodes have the 'features' key "
+        "while others of the same type do not.")
 
+    edge_feat_type = set()
     for edge_conf in request_json_payload["graph"]["edges"]:
         assert "edge_type" in edge_conf, \
             "The 'edge_type' definition in the JSON request must include a 'edge_type'"
+        edge_type = edge_conf["edge_type"]
+        assert tuple(edge_type) in unique_edge_types_set, \
+            f"The edge type {edge_type} is not defined in the gconstruct config"
         assert "src_node_id" in edge_conf, \
             "The 'edge' definition in the JSON request must include a 'src_node_id'"
         assert "dest_node_id" in edge_conf, \
             "The 'edge' definition in the JSON request must include a 'dest_node_id'"
+        if "features" in edge_conf:
+            if tuple(edge_conf["edge_type"]) not in edge_feat_type:
+                edge_feat_type.add(tuple(edge_conf["edge_type"]))
 
-    # TODO: Check if all the nodes/edges in one type have features or not have features
-    # TODO: Check if all the node/edge types are in the gconstruct definition
+    assert all(
+        edge_config.get("node_type") not in edge_feat_type or "features" in edge_config
+        for edge_config in request_json_payload["graph"]["edges"]
+    ), ("Validation Failed: Some edges have the 'features' key "
+        "while others of the same type do not.")
+
     return True
 
 
@@ -366,7 +394,7 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
 
     # Verify JSON payload request
     try:
-        verify_payload_conf(json_payload_confs)
+        verify_payload_conf(json_payload_confs, gconstruct_confs)
     except AssertionError as ae:
         error_message = str(ae)
         return {STATUS: 400, MSG: error_message}
