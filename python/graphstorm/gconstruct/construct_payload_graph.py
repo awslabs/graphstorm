@@ -48,7 +48,7 @@ def prepare_data(input_data, feat_ops):
     assert feat_ops is not None, "feat_ops must exist when prepare_data is called."
     feat_info = preprocess_features(input_data, feat_ops)
 
-    return feat_info
+    return {0: feat_info}
 
 
 def get_conf(gconstruct_conf_list, type_name, structure_type):
