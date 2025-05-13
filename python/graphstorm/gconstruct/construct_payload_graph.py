@@ -52,28 +52,6 @@ def prepare_data(input_data, feat_ops):
     return feat_info
 
 
-def _process_data(
-                  two_phase_feat_ops,
-                  task_info,
-                  ext_mem_workspace):
-    """ Process node and edge data.
-
-    Parameter
-    ---------
-    user_pre_parser: func
-        A function that prepares data for processing.
-    user_parser: func
-        A function that processes node data or edge data.
-    two_phase_feat_ops: list of TwoPhaseFeatTransform
-        List of TwoPhaseFeatTransform transformation ops.
-    task_info: str
-        Task meta info for debugging.
-    """
-    if len(two_phase_feat_ops) > 0:
-        phase_one_ret[i] = prepare_data(in_file, two_phase_feat_ops)
-        update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
-
-
 def get_conf(gconstruct_conf_list, type_name, structure_type):
     """ Retrieve node/edge type gconstruct config
 
