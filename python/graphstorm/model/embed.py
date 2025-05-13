@@ -301,7 +301,7 @@ class GSPureLearnableInputLayer(GSNodeInputLayer):
                 if get_rank() == 0:
                     logging.debug(
                         "Use WholeGraph to host additional " \
-                        "sparse embeddings on node %s",
+                        "sparse embeddings on node type %s",
                         ntype,
                     )
                 sparse_embed = WholeGraphDistTensor(
@@ -350,7 +350,7 @@ class GSPureLearnableInputLayer(GSNodeInputLayer):
                 input_nodes[ntype] = th.from_numpy(input_nodes[ntype])
             emb = None
             assert ntype in self.sparse_embeds, \
-                "The node embeddings of {ntype} is not initialized." \
+                f"The node embeddings of {ntype} is not initialized." \
                 "Please check the graph used in initializing GSPureLearnableInputLayer" \
                 "and the graph used in training or inference."
             device = self._dummy.device
