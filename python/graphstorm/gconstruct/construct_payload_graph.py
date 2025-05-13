@@ -20,11 +20,13 @@ import dgl
 import torch as th
 
 from .transform import parse_feat_ops, process_features, preprocess_features
+from .utils import update_two_phase_feat_ops
 
 STATUS = "status_code"
 MSG = "message"
 GRAPH = "graph"
 NODE_MAPPING = "node_mapping"
+
 
 def prepare_data(input_data, feat_ops):
     """ Prepare node data information for data transformation.
@@ -49,7 +51,8 @@ def prepare_data(input_data, feat_ops):
 
     return feat_info
 
-def _process_data(user_parser,
+
+def _process_data(
                   two_phase_feat_ops,
                   task_info,
                   ext_mem_workspace):
@@ -67,23 +70,8 @@ def _process_data(user_parser,
         Task meta info for debugging.
     """
     if len(two_phase_feat_ops) > 0:
-        pre_parse_start = time.time()
-        phase_one_ret = {}
-        for i, in_file in enumerate(in_files):
-            phase_one_ret[i] = prepare_data(in_file, two_phase_feat_ops)
+        phase_one_ret[i] = prepare_data(in_file, two_phase_feat_ops)
         update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
-
-        dur = time.time() - pre_parse_start
-        logging.debug("Preprocessing data files for %s takes %.3f seconds.",
-                      task_info, dur)
-
-    start = time.time()
-    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser,
-                                            ext_mem_workspace)
-    dur = time.time() - start
-    logging.debug("Processing data files for %s takes %.3f seconds.",
-                    task_info, dur)
-    return return_dict
 
 
 def get_conf(gconstruct_conf_list, type_name, structure_type):
@@ -210,21 +198,20 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
         input_feat = node_conf["features"]
         for key, val in input_feat.items():
             input_feat[key] = np.array(val)
-        prepare_data(input_feat, two_phase_feat_ops)
+        if len(two_phase_feat_ops) > 0:
+            phase_one_ret = prepare_data(input_feat, two_phase_feat_ops)
+            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
         # Always do single process feature transformation as there is only payload input
         if feat_ops is not None:
             feat_data, _ = process_features(input_feat, feat_ops, None)
         else:
-            feat_data, _ = {}, {}
-
+            feat_data = {}
         for feat_name in list(feat_data):
-            merged_feat = np.concatenate(feat_data[feat_name])
             if feat_name in after_merge_feat_ops:
                 # do data transformation with the entire feat array.
                 merged_feat = \
-                    after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
-            feat_data[feat_name] = merged_feat
-
+                    after_merge_feat_ops[feat_name].after_merge_transform(feat_data[feat_name])
+                feat_data[feat_name] = merged_feat
         node_data[node_type] = feat_data
         raw_node_id_map = {}
         for index, value in enumerate(node_ids):
@@ -247,6 +234,7 @@ def map_node_id(str_node_list, node_id_map, node_type):
     type_node_id_map = node_id_map[node_type]
     int_node_list = [type_node_id_map.get(val) for val in str_node_list]
     return int_node_list
+
 
 def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list, node_id_map):
     """ Process json payload edge data
@@ -295,21 +283,20 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
         input_feat = edge_conf.get("features", {})
         for key, val in input_feat.items():
             input_feat[key] = np.array(val)
-        prepare_data(input_feat, two_phase_feat_ops)
-
+        if len(two_phase_feat_ops) > 0:
+            phase_one_ret = prepare_data(input_feat, two_phase_feat_ops)
+            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
         # Always do single process feature transformation as there is only payload input
         if feat_ops is not None:
             feat_data, _ = process_features(input_feat, feat_ops, None)
         else:
-            feat_data, _ = {}, {}
-
+            feat_data = {}
         for feat_name in list(feat_data):
-            merged_feat = np.concatenate(feat_data[feat_name])
             if feat_name in after_merge_feat_ops:
                 # do data transformation with the entire feat array.
                 merged_feat = \
-                    after_merge_feat_ops[feat_name].after_merge_transform(merged_feat)
-            feat_data[feat_name] = merged_feat
+                    after_merge_feat_ops[feat_name].after_merge_transform(feat_data[feat_name])
+                feat_data[feat_name] = merged_feat
         mapped_src_node_ids = map_node_id(src_node_ids, node_id_map, edge_type[0])
         mapped_dst_node_ids = map_node_id(dest_node_ids, node_id_map, edge_type[2])
         edges[edge_type] = (mapped_src_node_ids, mapped_dst_node_ids)
@@ -371,7 +358,7 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
                 edge_feat_type.add(tuple(edge_conf["edge_type"]))
 
     assert all(
-        edge_config.get("node_type") not in edge_feat_type or "features" in edge_config
+        tuple(edge_config.get("edge_type")) not in edge_feat_type or "features" in edge_config
         for edge_config in request_json_payload["graph"]["edges"]
     ), ("Validation Failed: Some edges have the 'features' key "
         "while others of the same type do not.")

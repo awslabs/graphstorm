@@ -1070,7 +1070,6 @@ class Text2BERT(FeatTransform):
             feats = np.concatenate(out_embs)
         else:
             feats = out_embs[0]
-
         # Huggingface model outputs should have 2D shape.
         self.feat_dim = feats.shape[1:]
         return {self.feat_name: feats}
@@ -1614,7 +1613,6 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
 
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()
-
     return new_data, feat_dim_dict
 
 def get_valid_label_index(label):
