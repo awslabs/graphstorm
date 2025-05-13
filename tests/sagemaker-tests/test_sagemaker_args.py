@@ -103,7 +103,7 @@ def test_get_realtime_infer_argparser():
 
     # Test case 1: normal cases
     #       1.1: for the three required arguments
-    required_args = {'--image-url': 'image_url_val',
+    required_args = {'--image-uri': 'image_uri_val',
                      '--role': 'role_val',
                      '--region': 'region_val',
                      '--restore-model-path': 'model_path',
@@ -168,7 +168,7 @@ def test_sanity_check_realtime_infer_inputs():
                     '--instance-count': 1,
                     '--async-execution': 'true',
                     '--model-name': 'GSF-Model4Realtime'}
-    required_args = {'--image-url': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
+    required_args = {'--image-uri': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
                      '--role': 'role_val',
                      '--region': 'us-west-2',
                      '--restore-model-path': 'model_path',
@@ -191,7 +191,7 @@ def test_sanity_check_realtime_infer_inputs():
 
     # Test case 2: abnormal cases
     #       2.1 image url is in different region from the --region argument
-    other_args = {'--image-url': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
+    other_args = {'--image-uri': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
                   '--region': 'us-east-1'}
     test_args = { **default_args, **required_args, **other_args}
     test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]

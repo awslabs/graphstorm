@@ -148,12 +148,12 @@ def run_job(input_args):
     shutil.rmtree(tmp_output_folder)
 
     # ================= create deployable model ================= #
-    image_url = input_args.image_url
+    image_uri = input_args.image_uri
     role = input_args.role
     sm_client = boto3.client(service_name="sagemaker", region_name=input_args.region)
 
     container = {
-        "Image": image_url,
+        "Image": image_uri,
         "ModelDataUrl": model_url_s3,
         "Environment": {"SAGEMAKER_PROGRAM": entrypoint_file_name}
     }
@@ -224,7 +224,7 @@ def get_realtime_infer_parser():
     realtime_infer_parser.add_argument("--region", type=str, required=True,
         help="AWS region to launch jobs in. Make sure this region is where the inference image, \
              and model tar file are located!")
-    realtime_infer_parser.add_argument("--image-url", type=str, required=True,
+    realtime_infer_parser.add_argument("--image-uri", type=str, required=True,
         help="GraphStorm SageMaker docker image URI")
     realtime_infer_parser.add_argument("--role", type=str, required=True,
         help="SageMaker execution role")
@@ -281,8 +281,8 @@ def sanity_check_realtime_infer_inputs(input_args):
            S3 region here. Users should make sure the S3 path for the tarfile to be uploaded is
            in the same region as the ECR Docker image and the endpoint.
     """
-    ecr_region = extract_ecr_region(input_args.image_url)
-    assert ecr_region == input_args.region, f'The given Docker image {input_args.image_url} ' + \
+    ecr_region = extract_ecr_region(input_args.image_uri)
+    assert ecr_region == input_args.region, f'The given Docker image {input_args.image_uri} ' + \
             'is in the region {ecr_region}, but is different from the --region argument: ' + \
             '{input_args.region}. Please check if the image url is correct or reset the ' + \
             '--region argument. The endpoint should be deployed at the same region as the image.'
