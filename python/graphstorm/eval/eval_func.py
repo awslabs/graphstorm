@@ -31,11 +31,14 @@ from sklearn.metrics import (precision_recall_curve,
 from .utils import is_float
 
 
+SUPPORTED_RECALL_AT_PRECISION_METRICS = 'recall_at_precision'
+SUPPORTED_PRECISION_AT_RECALL_METRICS = 'precision_at_recall'
 SUPPORTED_FSCORE_AT_METRICS = 'fscore_at'
 SUPPORTED_HIT_AT_METRICS = 'hit_at'
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
     'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', 'precision', 'recall', \
-    SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS}
+    SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS, \
+    SUPPORTED_RECALL_AT_PRECISION_METRICS, SUPPORTED_PRECISION_AT_RECALL_METRICS}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
 SUPPORTED_LINK_PREDICTION_METRICS = {"mrr", SUPPORTED_HIT_AT_METRICS, "amri"}
 
@@ -739,6 +742,147 @@ def compute_fscore(y_preds, y_targets, beta):
     _, _, fscore = compute_precision_recall_fscore(y_preds, y_targets, beta)
 
     return fscore
+
+def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
+    """ compute precision at recall at beta for classification tasks.
+        If there is no a recall score equal to beta, it returns the precision
+            at the largest recall less than beta.
+        If there are multiple precision scores when recall equal to beta
+            or the largest recall less than beta, it returns the maximum precision
+            among these precision scores.
+        If any errors occur, raise the error to callers and stop.
+
+        It only supports binary classification.
+
+        Parameters
+        ----------
+        y_preds : Target scores in 1D or 2D tensor.
+        y_targets: Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
+                   binary label indicators.
+        weights: List of weights with the same number of classes in labels.
+        beta: Beta value of precision for getting recall. Default is 1.0.
+        Returns
+        -------
+        float: The precision_at_recall score.
+    """
+    if beta > 1:
+        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
+                        f"Using 1. instead.")
+    if beta < 0:
+        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
+                        f"Using 0. instead.")
+
+    y_true = y_targets.cpu().numpy()
+    y_pred = y_preds.cpu().numpy()
+
+    # only support binary classification
+    nclass = len(np.unique(y_true))
+    assert nclass == 2, (f"ERROR: compute_precision_at_recall only supports binary "
+                         f"classification, but got {nclass} classes.")
+
+    # same check for binary cases, input in (n, 2) and label in 1D or (n, 1)
+    assert len(y_pred.shape) <= 2, (f"ERROR: not support >2D predictions, "
+                                    f"but got shape: {y_pred.shape}")
+    if len(y_pred.shape) > 1 and y_pred.shape[1] == 2:
+        if len(y_true.shape) == 1:
+            y_pred = y_pred[:, 1]
+        elif len(y_true.shape) == 2 and y_true.shape[1] == 1:
+            y_pred = y_pred[:, 1]
+            y_true = y_true.squeeze()
+
+    precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
+                                              sample_weight=weights)
+
+    if beta in recall:
+        locations = np.where(recall == beta)[0]
+        return np.max(precision[locations])
+    else:
+        # sort the recall and precision lists by the ascending order of recall
+        sort_idx = np.argsort(recall)
+        recall_sorted_asc = recall[sort_idx]
+        precision_sorted = precision[sort_idx]
+
+        idx = np.searchsorted(recall_sorted_asc, beta) - 1
+        assert idx >= 0, f"ERROR: the given beta {beta} is too small."
+
+        new_beta = recall_sorted_asc[idx]
+        locations = np.where(recall_sorted_asc == new_beta)[0]
+        return np.max(precision_sorted[locations])
+
+def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
+    """ compute recall at precision at beta for classification tasks.
+        If there is no precision score equal to beta, we update the beta as the first precision
+            less than beta following the ascending order of corresponding recall. For example, given
+            a list of recall [0., 0.5, 0.5, 1., 1.], a list of precision [1., 1., 0.5, 0.67, 0.5],
+            and beta=0.6, the updated beta will be 0.5 whose index is 2 in the precision list.
+        With the known index of the first met precision equal to beta or the updated beta in the
+            precision list (following the ascending order of corresponding recall list), to find the
+            location of the last met maximum precision in the slice of precision list
+            from the known index to the end, it will return the recall at that location.
+            For example, the known index is 2 as above, the location of the maximum precision in the
+            slice of precision list is 3, and the returned recall will be 1. at the 3rd index of the
+            recall list.
+        If any errors occur, raise the error to callers and stop.
+
+        If only support binary classification.
+
+        Parameters
+        ----------
+        y_preds : Target scores in 1D or 2D tensor.
+        y_targets: Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
+                   binary label indicators.
+        weights: List of weights with the same number of classes in labels.
+        beta: Beta value of precision for getting recall. Default is 1.0.
+        Returns
+        -------
+        float: The recall_at_precision score.
+    """
+    if beta > 1:
+        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
+                        f"Using 1. instead.")
+    if beta < 0:
+        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
+                        f"Using 0. instead.")
+
+    y_true = y_targets.cpu().numpy()
+    y_pred = y_preds.cpu().numpy()
+
+    # only support binary classification
+    nclass = len(np.unique(y_true))
+    assert nclass == 2, (f"ERROR: compute_precision_at_recall only supports binary "
+                                    f"classification, but got {nclass} classes.")
+
+    # same check for binary cases, input in (n, 2) and label in 1D or (n, 1)
+    assert len(y_pred.shape) <= 2, (f"ERROR: not support >2D predictions, "
+                                    f"but got shape: {y_pred.shape}")
+    if len(y_pred.shape) > 1 and y_pred.shape[1] == 2:
+        if len(y_true.shape) == 1:
+            y_pred = y_pred[:, 1]
+        elif len(y_true.shape) == 2 and y_true.shape[1] == 1:
+            y_pred = y_pred[:, 1]
+            y_true = y_true.squeeze()
+
+    precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
+                                                 sample_weight=weights)
+
+    if beta in precision:
+        locations = np.where(precision == beta)[0]
+        return np.max(recall[locations])
+    else:
+        # sort the recall and precision lists by the ascending order of recall
+        sort_idx = np.argsort(recall)
+        recall_sorted_asc = recall[sort_idx]
+        precision_sorted = precision[sort_idx]
+
+        new_beta = None
+        for i, p in enumerate(precision_sorted):
+            if p < beta:
+                new_beta = p
+                break
+        assert new_beta, f"ERROR: the given beta {beta} is too small."
+
+        # returns the maximum recall at precision == new_beta
+        return np.max(recall_sorted_asc[precision_sorted == new_beta])
 
 def compute_acc(pred, labels, multilabel):
     '''Compute accuracy.
