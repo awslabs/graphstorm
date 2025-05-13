@@ -35,7 +35,9 @@ from graphstorm.eval.eval_func import (
     compute_precision_recall_fscore,
     compute_precision,
     compute_recall,
-    compute_fscore)
+    compute_fscore,
+    compute_precision_at_recall,
+    compute_recall_at_precision)
 from graphstorm.eval.eval_func import ClassificationMetrics, LinkPredictionMetrics
 
 def test_compute_mse():
@@ -776,3 +778,131 @@ def test_compute_fscore(beta):
     expected_fscore = (1 + beta**2) * precision * recall / (beta**2 * precision + recall)
 
     assert_almost_equal(fscore, expected_fscore, decimal=4)
+
+def test_compute_precision_at_recall():
+    """ Test get precision at certain recall with different beta values.
+    """
+    # GraphStorm inputs: preds 1D or 2D ints, target 1D or 2D ints.
+
+    # Invalid case 1: preds 2D (in logits format) but labels 1D, assertion error, return -1
+    preds = th.concat([th.tensor([0.75, 0.15, 0.05, 0.05]).repeat(25),
+                       th.tensor([0.05, 0.75, 0.15, 0.05]).repeat(25),
+                       th.tensor([0.05, 0.05, 0.75, 0.15]).repeat(25),
+                       th.tensor([0.15, 0.05, 0.05, 0.75]).repeat(25)], dim=0).reshape(100, 4)
+    targets = th.concat([th.zeros(50),
+                         th.ones(50)]).long()
+    try:
+        error_score_1 = compute_precision_at_recall(preds, targets)
+    except (AssertionError, ValueError):
+        error_score_1 = -1
+
+    # Invalid case 2: pred in 3D, assertion error, return -1
+    preds = th.ones(100, 2, 2).int()
+    targets = th.concat([th.zeros(50),
+                         th.ones(50)]).long()
+    try:
+        error_score_2 = compute_precision_at_recall(preds, targets)
+    except (AssertionError, ValueError):
+        error_score_2 = -1
+
+    # Invalid case 3: preds 1D with multiple classes, labels 1D
+    targets = th.tensor([0, 0, 1, 2])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    try:
+        error_score_3 = compute_precision_at_recall(preds, targets)
+    except (AssertionError, ValueError):
+        error_score_3 = -1
+
+    assert error_score_1 == -1
+    assert error_score_2 == -1
+    assert error_score_3 == -1
+
+    # Normal case 1: preds 1D and labels 1D in 0s and 1s, using binary; existing beta in recall
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 0.5
+
+    precision = compute_precision_at_recall(preds, targets, beta)
+    assert precision == 1.
+
+    # Normal case 2: preds 1D and labels 1D in 0s and 1s, using binary; existing beta in recall
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 1
+
+    precision = compute_precision_at_recall(preds, targets, beta)
+    assert_almost_equal(
+        precision,
+        0.6667,
+        decimal=4
+    )
+
+    # Normal case 3: preds 1D and labels 1D in 0s and 1s, using binary; non-existing beta in recall
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 0.6
+
+    precision = compute_precision_at_recall(preds, targets, beta)
+    assert precision == 1.
+
+def test_compute_recall_at_precision():
+    """ Test get recall at certain precision with different beta values.
+    """
+    # GraphStorm inputs: preds 1D or 2D ints, target 1D or 2D ints.
+
+    # Invalid case 1: preds 2D (in logits format) but labels 1D, assertion error, return -1
+    preds = th.concat([th.tensor([0.75, 0.15, 0.05, 0.05]).repeat(25),
+                       th.tensor([0.05, 0.75, 0.15, 0.05]).repeat(25),
+                       th.tensor([0.05, 0.05, 0.75, 0.15]).repeat(25),
+                       th.tensor([0.15, 0.05, 0.05, 0.75]).repeat(25)], dim=0).reshape(100, 4)
+    targets = th.concat([th.zeros(50),
+                         th.ones(50)]).long()
+    try:
+        error_score_1 = compute_recall_at_precision(preds, targets)
+    except (AssertionError, ValueError):
+        error_score_1 = -1
+
+    # Invalid case 2: pred in 3D, assertion error, return -1
+    preds = th.ones(100, 2, 2).int()
+    targets = th.concat([th.zeros(50),
+                         th.ones(50)]).long()
+    try:
+        error_score_2 = compute_recall_at_precision(preds, targets)
+    except (AssertionError, ValueError):
+        error_score_2 = -1
+
+    # Invalid case 3: preds 1D with multiple classes, labels 1D
+    targets = th.tensor([0, 0, 1, 2])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    try:
+        error_score_3 = compute_recall_at_precision(preds, targets)
+    except (AssertionError, ValueError):
+        error_score_3 = -1
+
+    assert error_score_1 == -1
+    assert error_score_2 == -1
+    assert error_score_3 == -1
+
+    # Normal case 1: preds 1D and labels 1D in 0s and 1s, using binary; existing beta in precision
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 0.5
+
+    recall = compute_recall_at_precision(preds, targets, beta)
+    assert recall == 1.
+
+    # Normal case 2: preds 1D and labels 1D in 0s and 1s, using binary; existing beta in precision
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 1
+
+    recall = compute_recall_at_precision(preds, targets, beta)
+    assert recall == 0.5
+
+    # Normal case 3: preds 1D and labels 1D in 0s and 1s, using binary; beta not in precision
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 0.6
+
+    recall = compute_recall_at_precision(preds, targets, beta)
+    assert recall == 1.
