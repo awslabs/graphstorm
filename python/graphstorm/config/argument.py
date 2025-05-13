@@ -3065,11 +3065,13 @@ class GSConfig:
                             "hit_at_k evaluation metric for classification " \
                             f"must end with an integer, but get {eval_metric}."
                     elif eval_metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
-                        assert is_float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
-                            "recall_at_precision_beta evaluation metric for classification " \
-                            f"must end with an integer or float, but get {eval_metric}."
+                        assert is_float(
+                            eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS) + 1:]), \
+                        "recall_at_precision_beta evaluation metric for classification " \
+                        f"must end with an integer or float, but get {eval_metric}."
                     elif eval_metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
-                        assert is_float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
+                        assert is_float(
+                            eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]), \
                             "precision_at_recall_beta evaluation metric for classification " \
                             f"must end with an integer or float, but get {eval_metric}."
                     elif eval_metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
