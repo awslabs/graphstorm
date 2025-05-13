@@ -227,9 +227,9 @@ def get_realtime_infer_parser():
     realtime_infer_parser.add_argument("--role", type=str, required=True,
         help="SageMaker execution role")
     realtime_infer_parser.add_argument("--instance-type", type=str, default="ml.c6i.xlarge",
-        help="instance type for the SageMaker job")
+        help="instance type for the SageMaker Inference Endpoint")
     realtime_infer_parser.add_argument("--instance-count", type=int, default=1,
-        help="number of instances")
+        help="Number of inference endpoint instances.")
     realtime_infer_parser.add_argument("--custom-production-variant", type=json.loads,
         help="A dictionary string that inludes custom configurations of the SageMaker " + \
              "ProductionVarient for identifying a model to host and the resources " + \
