@@ -211,8 +211,10 @@ def run_job(input_args):
             logging.info('%s endpoint has been successfully created, and ready to be \
                     invoked!', sm_ep_name)
         except WaiterError as e:
-            logging.error("Waiter timed out or endpoint creation failed: %s", e)
+            logging.error("Creation of the endpoint %s waiting time is out or endpoint ", sm_ep_name + \
+                          "creation failed with reason: %s", e)
 
+    return sm_ep_name
 
 def get_realtime_infer_parser():
     """

@@ -133,6 +133,16 @@ def extract_ecr_region(ecr_uri):
     
     A normal ECR URI is like <account_id>.dkr.ecr.<region>.amazonaws.com. The region string
     contains letters, digits, and hyphons only, and is between '.ecr.' and '.amazonaws.com'.
+    
+    Parameters
+    ----------
+    ecr_uri: str
+        The URI of an ECR Docker image.
+
+    Returns
+    -------
+    region: str
+        The region string extraced from the given URI of an ECR Docker image.
     """
     pattern = re.compile(r'\.ecr\.([a-z0-9-]+)\.amazonaws\.com')
     is_match = re.search(pattern, ecr_uri)
