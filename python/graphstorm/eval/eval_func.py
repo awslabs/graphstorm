@@ -767,10 +767,10 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
     """
     if beta > 1:
         logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        f"Using 1. instead.")
+                        "Using 1. instead.")
     if beta < 0:
         logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        f"Using 0. instead.")
+                        "Using 0. instead.")
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
@@ -790,8 +790,9 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
             y_pred = y_pred[:, 1]
             y_true = y_true.squeeze()
 
+    # pylint: disable=unexpected-keyword-arg
     precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
-                                              sample_weight=weights)
+                                                  sample_weight=weights)
 
     if beta in recall:
         locations = np.where(recall == beta)[0]
@@ -839,10 +840,10 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
     """
     if beta > 1:
         logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        f"Using 1. instead.")
+                        "Using 1. instead.")
     if beta < 0:
         logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        f"Using 0. instead.")
+                        "Using 0. instead.")
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
@@ -862,8 +863,9 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
             y_pred = y_pred[:, 1]
             y_true = y_true.squeeze()
 
+    # pylint: disable=unexpected-keyword-arg
     precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
-                                                 sample_weight=weights)
+                                                  sample_weight=weights)
 
     if beta in precision:
         locations = np.where(precision == beta)[0]
@@ -875,9 +877,9 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
         precision_sorted = precision[sort_idx]
 
         new_beta = None
-        for i, p in enumerate(precision_sorted):
-            if p < beta:
-                new_beta = p
+        for prec in precision_sorted:
+            if prec < beta:
+                new_beta = prec
                 break
         assert new_beta, f"ERROR: the given beta {beta} is too small."
 
