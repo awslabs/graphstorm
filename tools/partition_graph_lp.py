@@ -60,7 +60,7 @@ if __name__ == '__main__':
                                                 "for the ogbn-arxiv dataset")
     argparser.add_argument('--retain-etypes', nargs='+', type=str, default=[],
         help='The list of canonical etype that will be retained before partitioning the graph. '
-              + 'This might be helpfull to remove noise edges in this application. Format example: '
+              + 'This might be helpful to remove noise edges in this application. Format example: '
               + '--retain_etypes query,clicks,asin query,adds,asin query,purchases,asin '
               + 'asin,rev-clicks,query asin,rev-adds,query asin,rev-purchases,query')
     # partition arguments
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     constructed_graph = False
 
-    # arugment sanity check
+    # argument sanity check
     assert (args.train_pct + args.val_pct) <= 1, \
         "The sum of train and validation percentages should NOT larger than 1."
     edge_pct = args.train_pct + args.val_pct
@@ -171,7 +171,7 @@ if __name__ == '__main__':
             else:
                 # Inductive split for link prediction
                 # 1. split the head nodes u into three disjoint sets (train/val/test)
-                # such that model will be evaluted to predict links for unseen nodes
+                # such that model will be evaluated to predict links for unseen nodes
                 utype, _, vtype = target_e
                 num_nodes = g.number_of_nodes(utype)
                 shuffled_index = d_shuffled_nids.get(utype,
@@ -189,10 +189,10 @@ if __name__ == '__main__':
                 if utype == vtype:
                     # we remove edges with tail nodes outside of the training set
                     # this isn't necessary if head and tail are different types
-                    train_eids = train_eids[np.in1d(train_v, train_u)]
+                    train_eids = train_eids[np.isin(train_v, train_u)]
                     # remove overlaps between val and test
-                    val_eids = val_eids[~np.in1d(val_v, test_u)]
-                    test_eids = test_eids[~np.in1d(test_v, val_u)]
+                    val_eids = val_eids[~np.isin(val_v, test_u)]
+                    test_eids = test_eids[~np.isin(test_v, val_u)]
                 # 3. build boolean edge masks: the edge mask prevents message-passing
                 # flow graphs from fetching edges outside of the splits
                 g.edges[target_e].data['train_mask'][train_eids] = True

@@ -38,7 +38,8 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
-from .config import (BUILTIN_LP_DOT_DECODER,
+from .config import (BUILTIN_INPUT_ONLY_ENCODER,
+                     BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
                      BUILTIN_LP_ROTATE_DECODER,
                      BUILTIN_LP_TRANSE_L1_DECODER,
@@ -54,7 +55,9 @@ from .config import (FeatureGroup,
                      FeatureGroupSize)
 from .eval.eval_func import (SUPPORTED_HIT_AT_METRICS,
                              SUPPORTED_LINK_PREDICTION_METRICS)
-from .model.embed import GSNodeEncoderInputLayer, GSEdgeEncoderInputLayer
+from .model.embed import (GSPureLearnableInputLayer,
+                          GSNodeEncoderInputLayer,
+                          GSEdgeEncoderInputLayer)
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
@@ -1105,13 +1108,20 @@ def set_encoder(model, g, config, train_task):
                                                     force_no_embeddings=config.construct_feat_ntype
                                                     )
     else:
-        node_encoder = GSNodeEncoderInputLayer(g, node_feat_size, config.hidden_size,
-                                            dropout=config.dropout,
-                                            activation=config.input_activate,
-                                            use_node_embeddings=config.use_node_embeddings,
-                                            force_no_embeddings=config.construct_feat_ntype,
-                                            num_ffn_layers_in_input=config.num_ffn_layers_in_input,
-                                            use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+        if model_encoder_type == "learnable_embed":
+            # only use learnable embeddings as features of every node
+            node_encoder = GSPureLearnableInputLayer(g,
+                config.hidden_size,
+                use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+        else:
+            node_encoder = GSNodeEncoderInputLayer(g,
+                node_feat_size, config.hidden_size,
+                dropout=config.dropout,
+                activation=config.input_activate,
+                use_node_embeddings=config.use_node_embeddings,
+                force_no_embeddings=config.construct_feat_ntype,
+                num_ffn_layers_in_input=config.num_ffn_layers_in_input,
+                use_wholegraph_sparse_emb=config.use_wholegraph_embed)
         # set edge encoder input layer no matter if having edge feature names or not
         # TODO: add support of languange models and GLEM
         edge_feat_size = get_edge_feat_size(g, config.edge_feat_name)
@@ -1130,7 +1140,7 @@ def set_encoder(model, g, config, train_task):
     dropout = config.dropout if train_task else 0
     out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
 
-    if model_encoder_type in ("mlp", "lm"):
+    if model_encoder_type in BUILTIN_INPUT_ONLY_ENCODER:
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None

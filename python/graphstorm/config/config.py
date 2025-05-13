@@ -20,7 +20,8 @@ import typing
 from typing import List
 
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
-BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
+BUILTIN_INPUT_ONLY_ENCODER = ["lm", "mlp", "learnable_embed"]
+BUILTIN_ENCODER = BUILTIN_INPUT_ONLY_ENCODER + BUILTIN_GNN_ENCODER
 SUPPORTED_BACKEND = ["gloo", "nccl"]
 BUILTIN_EDGE_FEAT_MP_OPS = ["concat", "add", "sub", "mul", "div"]
 
