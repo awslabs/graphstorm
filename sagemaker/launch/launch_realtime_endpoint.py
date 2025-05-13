@@ -93,7 +93,7 @@ def run_job(input_args):
         \"save_model/epoch-1/\".
     model_yaml_config_file: str
         The YAML file path. This YAML file is the one that was stored by GraphStorm model training
-        pipeline during model training. It is NOT the one used as one of the arguments
+        pipeline during model training. It is NOT the one used as the input arguments
         for GraphStorm model training.
     graph_json_config_file: str
         Path to modified GConstruct/GSProcessing JSON config. This should be available under the 
