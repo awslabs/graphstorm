@@ -93,13 +93,13 @@ def run_job(input_args):
         \"save_model/epoch-1/\".
     model_yaml_config_file: str
         The YAML file path. This YAML file is the one that was stored by GraphStorm model training
-        pipeline during model training. It is NOT the one used as one of the arguments
+        pipeline during model training. It is NOT the one used as the input arguments
         for GraphStorm model training.
     graph_json_config_file: str
         Path to modified GConstruct/GSProcessing JSON config. This should be available under the 
         **output** of GConstruct/GSProcessing.
     upload_tarfile_s3: str
-        The S3 location to upload the packed and compressed model tar file. This location should
+        The S3 location to upload the packed model tar file. This location should
         be in the same region specified in the `region` argument.
     infer_task_type: str
         The name of real time inference task. Options include \"node_classification\".
