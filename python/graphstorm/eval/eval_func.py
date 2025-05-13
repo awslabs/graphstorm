@@ -766,11 +766,11 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
         float: The precision_at_recall score.
     """
     if beta > 1:
-        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        "Using 1. instead.")
+        logging.warning(
+            f"WARNING: beta should be between 0 and 1, but got {beta}. Using 1. instead.")
     if beta < 0:
-        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        "Using 0. instead.")
+        logging.warning(
+            f"WARNING: beta should be between 0 and 1, but got {beta}. Using 0. instead.")
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
@@ -790,7 +790,7 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
             y_pred = y_pred[:, 1]
             y_true = y_true.squeeze()
 
-    # pylint: disable=unexpected-keyword-arg
+    # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
     precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
                                                   sample_weight=weights)
 
@@ -839,11 +839,11 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
         float: The recall_at_precision score.
     """
     if beta > 1:
-        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        "Using 1. instead.")
+        logging.warning(
+            f"WARNING: beta should be between 0 and 1, but got {beta}. Using 1. instead.")
     if beta < 0:
-        logging.warning(f"WARNING: beta should be between 0 and 1, but got {beta}. "
-                        "Using 0. instead.")
+        logging.warning(
+            f"WARNING: beta should be between 0 and 1, but got {beta}. Using 0. instead.")
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
@@ -863,7 +863,7 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
             y_pred = y_pred[:, 1]
             y_true = y_true.squeeze()
 
-    # pylint: disable=unexpected-keyword-arg
+    # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
     precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
                                                   sample_weight=weights)
 
