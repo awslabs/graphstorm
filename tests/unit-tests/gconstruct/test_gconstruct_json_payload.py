@@ -20,10 +20,12 @@ import json
 import torch as th
 
 from graphstorm.gconstruct.construct_payload_graph import (process_json_payload_graph,
-                                                    get_conf,
-                                                    merge_payload_input,
-                                                    process_json_payload_nodes,
-                                                    verify_payload_conf)
+                                            get_conf,
+                                            merge_payload_input,
+                                            process_json_payload_nodes,
+                                            verify_payload_conf,
+                                            STATUS, MSG,
+                                            GRAPH, NODE_MAPPING)
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 gconstruct_file_path = os.path.join(_ROOT, "../../end2end-tests/data_gen/movielens.json")
@@ -39,12 +41,12 @@ with open(json_payload_file_path, 'r', encoding="utf8") as json_file:
 def test_process_json_payload_graph():
     response = process_json_payload_graph(json_payload_file_path,
                                gconstruct_file_path)
-    assert response["status_code"] == 200
-    assert "message" in response
+    assert response[STATUS] == 200
+    assert MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
-    assert response["node_mapping"] == expected_raw_node_id_maps
+    assert response[NODE_MAPPING] == expected_raw_node_id_maps
 
-    dgl_hg = response["graph"]
+    dgl_hg = response[GRAPH]
     assert dgl_hg.ntypes == ["movie", "user"]
     assert dgl_hg.canonical_etypes == [("user", "rating", "movie")]
     expected_node_count = {"movie": 2, "user": 1}

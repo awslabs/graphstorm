@@ -14,7 +14,6 @@
     limitations under the License.
 """
 import json
-import logging
 import numpy as np
 import dgl
 import torch as th
