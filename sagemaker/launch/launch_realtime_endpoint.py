@@ -78,7 +78,7 @@ def run_job(input_args):
     instance_type: str
         The string type of a SageMaker instance type. The default value is \"ml.c6i.xlarge\".
     instance_count: int
-        The number of SageMaker instances to be deployed for the endpoint.
+        The number of SageMaker instances to be deployed for the endpoint. The default value is 1.
     custom_production_variant: dict
         The dictionary that inludes custom configuration of the SageMaker ProductionVarient
         for identifying a model to host and the resources chosen to deploy for hosting it, as
