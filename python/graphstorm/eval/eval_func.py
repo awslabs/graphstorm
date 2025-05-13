@@ -106,6 +106,16 @@ class ClassificationMetrics:
                 self.metric_function[eval_metric] = partial(compute_fscore, beta=beta)
                 self.metric_eval_function[eval_metric] = partial(compute_fscore, beta=beta)
 
+            if eval_metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+                beta = float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:].strip())
+                self.metric_comparator[eval_metric] = operator.le
+                self.metric_function[eval_metric] = partial(compute_precision_at_recall, beta=beta)
+
+            if eval_metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+                beta = float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:].strip())
+                self.metric_comparator[eval_metric] = operator.le
+                self.metric_function[eval_metric] = partial(compute_recall_at_precision, beta=beta)
+
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
