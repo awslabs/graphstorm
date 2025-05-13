@@ -99,7 +99,7 @@ def run_job(input_args):
         Path to modified GConstruct/GSProcessing JSON config. This should be available under the 
         **output** of GConstruct/GSProcessing.
     upload_tarfile_s3: str
-        The S3 location to upload the packed and compressed model tar file. This location should
+        The S3 location to upload the packed model tar file. This location should
         be in the same region specified in the `region` argument.
     infer_task_type: str
         The name of real time inference task. Options include \"node_classification\".
