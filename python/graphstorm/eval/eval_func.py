@@ -767,10 +767,10 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
     """
     if beta > 1:
         logging.warning(
-            f"WARNING: beta should be between 0 and 1, but got {beta}. Using 1. instead.")
+            "WARNING: beta should be between 0 and 1, but got %s. Using 1. instead.", str(beta))
     if beta < 0:
         logging.warning(
-            f"WARNING: beta should be between 0 and 1, but got {beta}. Using 0. instead.")
+            "WARNING: beta should be between 0 and 1, but got %s. Using 0. instead.", str(beta))
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
