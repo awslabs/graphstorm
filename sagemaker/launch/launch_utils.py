@@ -16,13 +16,14 @@
     Utility functions for inference
 """
 
+import logging
 import os
+import re
 import shutil
 import tarfile
-import logging
-import re
 from argparse import ArgumentTypeError
 from urllib.parse import urlparse
+
 import boto3
 from botocore.errorfactory import ClientError
 from sagemaker.s3 import S3Uploader

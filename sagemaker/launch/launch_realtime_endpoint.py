@@ -16,23 +16,19 @@
     Launch a GraphStorm SageMaker endpoint for realtime inference
 """
 
-import os
 import argparse
-import logging
 import json
+import logging
+import os
 import shutil
 from time import gmtime, strftime
 from uuid import uuid4
 
-import boto3 # pylint: disable=import-error
-from botocore.exceptions import WaiterError
+import boto3  # pylint: disable=import-error
 import sagemaker as sm
-
-from launch_utils import (wrap_model_artifacts,
-                          extract_ecr_region,
-                          upload_data_to_s3,
-                          check_name_format)
-
+from botocore.exceptions import WaiterError
+from launch_utils import (check_name_format, extract_ecr_region,
+                          upload_data_to_s3, wrap_model_artifacts)
 
 # TODO: When adding new realtime inference tasks, modify this list
 SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
