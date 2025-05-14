@@ -452,11 +452,21 @@ Classification and Regression Task
     - Yaml: ``save_prediction_path: /data/infer-output/predictions/``
     - Argument: ``--save-prediction-path /data/infer-output/predictions/``
     - Default value: If not provided, it will be the same as save_embed_path.
-- **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``. ``focal`` means to use the focal loss function defined in the `Focal Loss for Dense Object Detection <https://arxiv.org/abs/1708.02002>`_, which is designed for class imbalance. If set ``focal``, you may want to adjust the values of the **gamma** and **alpha** configurations according to your data.
+- **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``.
+  Setting this to ``focal`` will user the focal loss function defined in `Focal Loss for Dense Object Detection <https://arxiv.org/abs/1708.02002>`_,
+  which is designed for imbalanced binary classification problems.
+  When using focal loss, you may want to adjust the values of the **gamma** and **alpha** loss parameters to best fit your data.
 
     - Yaml: ``class_loss_func: cross_entropy``
     - Argument: ``--class-loss-func focal``
     - Default value: ``cross_entropy``
+
+    .. note::
+
+        Focal loss can only be used for binary classification problems.
+        Currently, focal loss produces predictions with shape ``(N, 1)``, where ``N`` is the number of target nodes/edges.
+        In ``v0.5.0`` this will change to produce predictions with shape ``(N, 2)`` to match the cross-entropy loss.
+
 - **regression_loss_func**: Node/Edge regression loss function. Builtin loss functions include ``mse`` and ``shrinkage``. ``shrinkage`` means to use the shrinkage loss function defined in the `Deep Regression Tracking with Shrinkage Loss <https://openaccess.thecvf.com/content_ECCV_2018/html/Xiankai_Lu_Deep_Regression_Tracking_ECCV_2018_paper.html>`_, which is designed for data imbalance in regression tasks. If set ``shrinkage``, you may want to adjust the values of the **gamma** and **alpha** configurations according to your data.
 
     - Yaml: ``regression_loss_func: mse``
