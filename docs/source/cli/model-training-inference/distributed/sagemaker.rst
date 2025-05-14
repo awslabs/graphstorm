@@ -395,7 +395,7 @@ When launching your SageMaker job, use ``local`` as the instance type:
        --instance-type "local"
 
 This command will launch the GraphStorm job locally, by spinning up local
-Docker containers, using Docker compose. See the
+Docker containers and using Docker compose. See the
 `SageMaker security configuration user guide <https://docs.aws.amazon.com/sagemaker/latest/dg/security.html>`_
 for more information, or
 `the local pipeline examples in the SageMaker SDK <https://sagemaker.readthedocs.io/en/stable/overview.html#local-pipelines>`_.
@@ -403,7 +403,7 @@ for more information, or
 
 .. note::
 
-    * If you encounter a ``bus error`` during training try increasing the shared memory size
+    * If you encounter a ``bus error`` during training, try increasing the shared memory size
       (``shm_size``) assigned to your local container. See the
       `SageMaker Local mode configuration docs <https://sagemaker.readthedocs.io/en/stable/overview.html#local-mode-configuration>`_
       for instructions on how to do so.

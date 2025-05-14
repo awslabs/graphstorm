@@ -44,7 +44,7 @@ def create_sm_session(instance_type, region):
             sess.config = {}
         sess.config.update({"local": {"local_code": True}})
 
-        # Set shm_size if needed
+        # if shm_size is not specified, use 90% of host memory as shared memory.
         should_set_shm = (
             "container_config" not in sess.config["local"] or
             "shm_size" not in sess.config["local"]["container_config"]
