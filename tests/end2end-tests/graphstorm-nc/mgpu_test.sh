@@ -899,7 +899,7 @@ fi
 rm /tmp/train_log.txt
 
 echo "**************dataset: MovieLens: NC, RGCN layer: 1, node feat: fixed, eval metrics: precision_at_recall_0.6"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 1  --num-epochs 2 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type rgcn --eval-metric precision_at_recall_0.6
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_nc_binary_train_val_1p_4t/movie-lens-100k.json --target-ntype "user" --label-field "label_binary" --num-classes 2 --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 1  --num-epochs 2 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type rgcn --eval-metric precision_at_recall_0.6
 
 error_and_exit $?
 
@@ -914,7 +914,7 @@ fi
 rm /tmp/train_log.txt
 
 echo "**************dataset: MovieLens: NC, RGCN layer: 1, node feat: fixed, eval metrics: recall_at_precision_0.6"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 1  --num-epochs 2 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type rgcn --eval-metric recall_at_precision_0.6
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_nc_binary_train_val_1p_4t/movie-lens-100k.json --target-ntype "user" --label-field "label_binary" --num-classes 2 --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 1  --num-epochs 2 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type rgcn --eval-metric recall_at_precision_0.6
 
 error_and_exit $?
 
