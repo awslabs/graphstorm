@@ -3,12 +3,13 @@
 import logging
 from time import strftime, gmtime
 
-import boto3 # pylint: disable=import-error
 from sagemaker.processing import ScriptProcessor
-import sagemaker
 
 from common_parser import ( # pylint: disable=wrong-import-order
-    get_common_parser, parse_estimator_kwargs)
+    create_sm_session,
+    get_common_parser,
+    parse_estimator_kwargs,
+)
 
 INSTANCE_TYPE = "ml.m5.12xlarge"
 
@@ -41,7 +42,7 @@ def run_job(input_args, image):
         else output_data_s3 # The output will be an S3 folder
     metadata_filename = input_args.metadata_filename # graph metadata filename
 
-    sagemaker_session = sagemaker.Session(boto3.Session(region_name=region))
+    sagemaker_session = create_sm_session(instance_type, region)
 
     skip_partitioning_str = "true" if input_args.skip_partitioning else "false"
     arguments = [
@@ -90,7 +91,7 @@ def get_partition_parser():
 
     partition_args = parser.add_argument_group("GraphStorm Partition Arguments")
 
-    partition_args.add_argument("--output-data-s3", type=str,
+    partition_args.add_argument("--output-data-s3", "--output-graph-s3", type=str,
         required=True,
         help="Output S3 location to store the partitioned graph")
     partition_args.add_argument("--num-parts", type=int, help="Number of partitions",

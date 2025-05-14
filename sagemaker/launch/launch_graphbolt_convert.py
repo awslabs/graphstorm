@@ -19,14 +19,12 @@
 import logging
 import os
 from pprint import pformat
-from time import strftime, gmtime
 
-import boto3  # pylint: disable=import-error
-import sagemaker
 from sagemaker.processing import ScriptProcessor
 from sagemaker.workflow.steps import ProcessingInput
 
 from common_parser import (  # pylint: disable=wrong-import-order
+    create_sm_session,
     get_common_parser,
     parse_estimator_kwargs,
 )
@@ -60,7 +58,7 @@ def run_gbconvert_job(input_args, image):
         graph_data_s3[:-1] if graph_data_s3[-1] == "/" else graph_data_s3
     )  # The input will be an S3 prefix without trailing /
 
-    sagemaker_session = sagemaker.Session(boto3.Session(region_name=region))
+    sagemaker_session = create_sm_session(instance_type, region)
 
     logging.info("Parameters %s", pformat(input_args))
     if input_args.sm_estimator_parameters:

@@ -17,13 +17,16 @@
 """
 import os
 
-import boto3 # pylint: disable=import-error
 from sagemaker.processing import (ScriptProcessor,
                                   ProcessingInput,
                                   ProcessingOutput)
-import sagemaker
 
-from common_parser import get_common_parser, parse_estimator_kwargs
+
+from common_parser import (
+    create_sm_session,
+    get_common_parser,
+    parse_estimator_kwargs
+)
 
 INSTANCE_TYPE = "ml.m5.12xlarge"
 
@@ -48,10 +51,7 @@ def run_job(input_args, image, unknownargs):
     graph_name = input_args.graph_name # Inference graph name
     graph_config_file = input_args.graph_config_file # graph config file
 
-    boto_session = boto3.session.Session(region_name=region)
-    sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
-    sess = sagemaker.session.Session(boto_session=boto_session,
-        sagemaker_client=sagemaker_client)
+    sess = create_sm_session(instance_type, region)
 
     input_path = '/opt/ml/processing/input'
     config_path = os.path.join(input_path, graph_config_file)
