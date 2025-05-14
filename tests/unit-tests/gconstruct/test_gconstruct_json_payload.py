@@ -44,9 +44,15 @@ def check_heterogeneous_graph(dgl_hg):
     for ntype in dgl_hg.ntypes:
         assert dgl_hg.num_nodes(ntype) == expected_node_count[ntype]
         if ntype == "movie":
-            assert "title" in dgl_hg.nodes[ntype].data
-            assert len(dgl_hg.nodes[ntype].data["title"]) == expected_node_count[ntype]
+            assert "title" in dgl_hg.nodes[ntype].data or "feat" in dgl_hg.nodes[ntype].data
+            # Define bert feature transformation
+            if "title" in dgl_hg.nodes[ntype].data:
+                assert len(dgl_hg.nodes[ntype].data["title"]) == expected_node_count[ntype]
+            # Define rank_guass feature transformation
+            if "feat" in dgl_hg.nodes[ntype].data:
+                assert len(dgl_hg.nodes[ntype].data["feat"]) == expected_node_count[ntype]
         elif ntype == "user":
+            # Define Noop feature transformation
             assert "feat" in dgl_hg.nodes[ntype].data
             assert len(dgl_hg.nodes[ntype].data["feat"]) == expected_node_count[ntype]
 
@@ -57,7 +63,7 @@ def check_heterogeneous_graph(dgl_hg):
         assert th.equal(dest_actual, th.tensor([0, 1]))
 
 
-def test_process_json_payload_graph():
+def test_process_json_payload_graph(tmp_path):
     response = process_json_payload_graph(json_payload_file_path,
                                gconstruct_file_path)
     assert response[STATUS] == 200
@@ -68,16 +74,33 @@ def test_process_json_payload_graph():
     dgl_hg = response[GRAPH]
     check_heterogeneous_graph(dgl_hg)
 
+    # Test with Edge features
+    edge_feat_gconstruct_confs = copy.deepcopy(gconstruct_confs)
+    edge_feat_gconstruct_confs["edges"][0]["features"] = [{
+            "feature_col": "rate"
+    }]
+    with open(os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"), 'w') as f:
+        json.dump(edge_feat_gconstruct_confs, f, indent=4)
+    response = process_json_payload_graph(json_payload_file_path,
+                                          os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"))
+    dgl_hg = response[GRAPH]
+    check_heterogeneous_graph(dgl_hg)
+    for etype in dgl_hg.canonical_etypes:
+        assert "rate" in dgl_hg.edges[etype].data
 
-def test_with_two_phase_transformation():
-    gconstruct_confs["nodes"][0]["features"] = {
+
+def test_with_two_phase_transformation(tmp_path):
+    two_phase_gconstruct_confs = copy.deepcopy(gconstruct_confs)
+    two_phase_gconstruct_confs["nodes"][0]["features"] = [{
             "feature_col": "feat",
             "transform": {"name": "max_min_norm",
                           "max_val": 2,
                           "min_val": -2}
-    }
+    }]
+    with open(os.path.join(tmp_path, "/two_phase_gconstruct_confs.json"), 'w') as f:
+        json.dump(two_phase_gconstruct_confs, f, indent=4)
     response = process_json_payload_graph(json_payload_file_path,
-                               gconstruct_file_path)
+                               os.path.join(tmp_path, "/two_phase_gconstruct_confs.json"))
     assert response[STATUS] == 200
     assert MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
@@ -85,6 +108,57 @@ def test_with_two_phase_transformation():
 
     dgl_hg = response[GRAPH]
     check_heterogeneous_graph(dgl_hg)
+
+    # Edge Feature Transformation
+    edge_feat_gconstruct_confs = copy.deepcopy(gconstruct_confs)
+    edge_feat_gconstruct_confs["edges"][0]["features"] = [{
+            "feature_col": "rate",
+            "transform": {"name": "max_min_norm",
+                          "max_val": 2,
+                          "min_val": -2}
+    }]
+    with open(os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"), 'w') as f:
+        json.dump(edge_feat_gconstruct_confs, f, indent=4)
+    response = process_json_payload_graph(json_payload_file_path,
+                                          os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"))
+    dgl_hg = response[GRAPH]
+    check_heterogeneous_graph(dgl_hg)
+    for etype in dgl_hg.canonical_etypes:
+        assert "rate" in dgl_hg.edges[etype].data
+
+
+def test_with_after_merge_transformation(tmp_path):
+    after_merge_gconstruct_conf = copy.deepcopy(gconstruct_confs)
+    after_merge_gconstruct_conf["nodes"][2]["features"] = [{
+            "feature_col": "feat",
+            "transform": {"name": "rank_gauss"}
+    }]
+    with open(os.path.join(tmp_path, "/after_merge_gconstruct_conf.json"), 'w') as f:
+        json.dump(after_merge_gconstruct_conf, f, indent=4)
+    response = process_json_payload_graph(json_payload_file_path,
+                               os.path.join(tmp_path, "/after_merge_gconstruct_conf.json"))
+    assert response[STATUS] == 200
+    assert MSG in response
+    expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
+    assert response[NODE_MAPPING] == expected_raw_node_id_maps
+
+    dgl_hg = response[GRAPH]
+    check_heterogeneous_graph(dgl_hg)
+
+    # Edge Feature Transformation
+    edge_feat_gconstruct_confs = copy.deepcopy(gconstruct_confs)
+    edge_feat_gconstruct_confs["edges"][0]["features"] = [{
+            "feature_col": "rate",
+            "transform": {"name": "rank_gauss"}
+    }]
+    with open(os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"), 'w') as f:
+        json.dump(edge_feat_gconstruct_confs, f, indent=4)
+    response = process_json_payload_graph(json_payload_file_path,
+                                          os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"))
+    dgl_hg = response[GRAPH]
+    check_heterogeneous_graph(dgl_hg)
+    for etype in dgl_hg.canonical_etypes:
+        assert "rate" in dgl_hg.edges[etype].data
 
 
 def test_get_gconstruct_conf():
@@ -104,11 +178,11 @@ def test_merge_payloads():
     assert len(merged_payload_node_conf_list) == 2
     assert merged_payload_node_conf_list[0]["node_type"] == "user"
     assert merged_payload_node_conf_list[0]["node_id"] == ["a1"]
-    assert merged_payload_node_conf_list[0]["features"] == {"feat": [[-0.0032965524587780237]]}
+    assert merged_payload_node_conf_list[0]["features"] == {"feat": [[-0.0032965524587780237, -0.1]]}
 
     assert merged_payload_node_conf_list[1]["node_type"] == "movie"
     assert merged_payload_node_conf_list[1]["node_id"] == ["m1", "m2"]
-    assert merged_payload_node_conf_list[1]["features"] == {'feat': [[0.011269339360296726], [0.0235343543]],
+    assert merged_payload_node_conf_list[1]["features"] == {'feat': [[0.011269339360296726, 0.1], [0.0235343543, 0.1]],
                                                             'title': ['sample text 1', 'sample text 2']}
     # Test Edge Payload
     payload_edge_conf_list = json_payload["graph"]["edges"]

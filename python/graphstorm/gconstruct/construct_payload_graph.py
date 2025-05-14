@@ -54,7 +54,7 @@ def prepare_data(input_data, feat_ops):
 def get_conf(gconstruct_conf_list, type_name, structure_type):
     """ Retrieve node/edge type gconstruct config
 
-    Paramters:
+    Parameters:
         gconstruct_conf_list: dict
             GConstruct Config Dict for either node or edge
         type_name: str
@@ -91,6 +91,8 @@ def merge_payload_input(payload_input_list):
     Parameters:
         payload_input_list: list[dict]
             input payload list
+    Return:
+        merged payload input dict
     """
     merged_data_temp = {}
 
@@ -172,14 +174,16 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
             parse_feat_ops(gconstruct_node_conf["features"],
                            gconstruct_node_conf["format"]["name"]) \
                 if 'features' in gconstruct_node_conf else (None, [], {}, [])
-        input_feat = node_conf["features"]
-        for key, val in input_feat.items():
-            input_feat[key] = np.array(val)
-        if len(two_phase_feat_ops) > 0:
-            phase_one_ret = prepare_data(input_feat, two_phase_feat_ops)
-            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
         # Always do single process feature transformation as there is only payload input
         if feat_ops is not None:
+            assert "features" in node_conf, \
+                "features need to be defined in the payload"
+            input_feat = node_conf["features"]
+            for key, val in input_feat.items():
+                input_feat[key] = np.array(val)
+            if len(two_phase_feat_ops) > 0:
+                phase_one_ret = prepare_data(input_feat, two_phase_feat_ops)
+                update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
             feat_data, _ = process_features(input_feat, feat_ops, None)
         else:
             feat_data = {}
@@ -257,14 +261,16 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
             op.set_target_etype(edge_type)
             op.set_id_maps(id_map)
 
-        input_feat = edge_conf.get("features", {})
-        for key, val in input_feat.items():
-            input_feat[key] = np.array(val)
-        if len(two_phase_feat_ops) > 0:
-            phase_one_ret = prepare_data(input_feat, two_phase_feat_ops)
-            update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
         # Always do single process feature transformation as there is only payload input
         if feat_ops is not None:
+            assert "features" in edge_conf, \
+                "Features need to be defined in the payload"
+            input_feat = edge_conf["features"]
+            for key, val in input_feat.items():
+                input_feat[key] = np.array(val)
+            if len(two_phase_feat_ops) > 0:
+                phase_one_ret = prepare_data(input_feat, two_phase_feat_ops)
+                update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
             feat_data, _ = process_features(input_feat, feat_ops, None)
         else:
             feat_data = {}
