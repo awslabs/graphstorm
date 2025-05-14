@@ -45,14 +45,14 @@ def check_heterogeneous_graph(dgl_hg):
         assert dgl_hg.num_nodes(ntype) == expected_node_count[ntype]
         if ntype == "movie":
             assert "title" in dgl_hg.nodes[ntype].data or "feat" in dgl_hg.nodes[ntype].data
-            # Define bert feature transformation
+            # If bert feature transformation
             if "title" in dgl_hg.nodes[ntype].data:
                 assert len(dgl_hg.nodes[ntype].data["title"]) == expected_node_count[ntype]
-            # Define rank_guass feature transformation
+            # If rank_guass feature transformation
             if "feat" in dgl_hg.nodes[ntype].data:
                 assert len(dgl_hg.nodes[ntype].data["feat"]) == expected_node_count[ntype]
         elif ntype == "user":
-            # Define Noop feature transformation
+            # If Noop feature transformation
             assert "feat" in dgl_hg.nodes[ntype].data
             assert len(dgl_hg.nodes[ntype].data["feat"]) == expected_node_count[ntype]
 
@@ -90,6 +90,7 @@ def test_process_json_payload_graph(tmp_path):
 
 
 def test_with_two_phase_transformation(tmp_path):
+    # Node Feature Transformation
     two_phase_gconstruct_confs = copy.deepcopy(gconstruct_confs)
     two_phase_gconstruct_confs["nodes"][0]["features"] = [{
             "feature_col": "feat",
@@ -128,6 +129,7 @@ def test_with_two_phase_transformation(tmp_path):
 
 
 def test_with_after_merge_transformation(tmp_path):
+    # Node Feature Transformation
     after_merge_gconstruct_conf = copy.deepcopy(gconstruct_confs)
     after_merge_gconstruct_conf["nodes"][2]["features"] = [{
             "feature_col": "feat",
@@ -164,7 +166,7 @@ def test_with_after_merge_transformation(tmp_path):
 def test_get_gconstruct_conf():
     # Test merge feature transformation
     node_movie_config = get_conf(gconstruct_confs["nodes"], "movie", "Node")
-    node_movie_config["features"] = [
+    assert node_movie_config["features"] == [
         {'feature_col': 'title', 'transform': {
             'name': 'bert_hf', 'bert_model': 'bert-base-uncased',
             'max_seq_length': 16}}

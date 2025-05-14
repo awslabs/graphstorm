@@ -28,11 +28,11 @@ NODE_MAPPING = "node_mapping"
 
 
 def prepare_data(input_data, feat_ops):
-    """ Prepare node data information for data transformation.
+    """ Prepare phase one data for two-phase feature transformation.
 
-    The function parses a node file that contains node features
-    The node file is parsed according to users' configuration
-    and transformation related information is extracted.
+    The function parses a payload input that contains node/edge features
+    The payload is parsed according to original gconstruct configuration
+    and transformation.
 
     Parameters
     ----------
@@ -48,11 +48,13 @@ def prepare_data(input_data, feat_ops):
     assert feat_ops is not None, "feat_ops must exist when prepare_data is called."
     feat_info = preprocess_features(input_data, feat_ops)
 
+    # preprocess_features function expects an input dictionary indexed by integers
     return {0: feat_info}
 
 
 def get_conf(gconstruct_conf_list, type_name, structure_type):
-    """ Retrieve node/edge type gconstruct config
+    """ Retrieve node/edge type gconstruct config. Will combine all feature configuration
+    for one node/edge type
 
     Parameters:
         gconstruct_conf_list: dict
@@ -73,6 +75,7 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
         if conf[col_name] == type_name:
             conf_list.append(conf)
 
+    # Features may be defined in multiple block for one node/edge type
     if len(conf_list) >= 2:
         collected_features = [
             feature
@@ -90,38 +93,41 @@ def merge_payload_input(payload_input_list):
 
     Parameters:
         payload_input_list: list[dict]
-            input payload list
+            input payload
     Return:
-        merged payload input dict
+        dict: merged payload input
     """
     merged_data_temp = {}
 
     for item in payload_input_list:
-        element_category = None
+        structure_type = None
         type_name = None
         current_ids = {}
-        output_type_field = None
+        col_name = None
 
+        # Merge IDs
         if "node_type" in item and "node_id" in item:
-            element_category = "node"
+            structure_type = "node"
             type_name = item["node_type"]
-            output_type_field = "node_type"
+            col_name = "node_type"
             current_ids["node_id"] = item["node_id"]
         elif "edge_type" in item and "src_node_id" in item and "dest_node_id" in item:
-            element_category = "edge"
+            structure_type = "edge"
+            # List can not be hashed
             type_name = (item["edge_type"][0] + "-" + item["edge_type"][1] +
                          "-" + item["edge_type"][2])
-            output_type_field = "edge_type"
+            col_name = "edge_type"
             current_ids["src_node_id"] = item["src_node_id"]
             current_ids["dest_node_id"] = item["dest_node_id"]
 
-        grouping_key = (element_category, type_name)
+        grouping_key = (structure_type, type_name)
 
         if grouping_key not in merged_data_temp:
-            merged_entry = {output_type_field: type_name}
+            merged_entry = {col_name: type_name}
             for id_key, id_val in current_ids.items():
                 merged_entry[id_key] = [id_val]
 
+            # Merge features if necessary
             if "features" in item and isinstance(item["features"], dict) and item["features"]:
                 merged_entry["features"] = {}
                 for feature_key, feature_value_list in item["features"].items():
@@ -141,6 +147,7 @@ def merge_payload_input(payload_input_list):
                         )
 
     final_merged_list = list(merged_data_temp.values())
+    # Convert Edge Type back to a list
     for item in final_merged_list:
         if "edge_type" in item:
             item["edge_type"] = item["edge_type"].split("-")
@@ -148,7 +155,7 @@ def merge_payload_input(payload_input_list):
 
 
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
-    """ Process json payload node data
+    """ Process json payload node input
 
     We need to process all node data before we can process edge data.
 
@@ -157,11 +164,12 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
         "node_type":    "<node type>",
         "node_id":      "<node id>",
         "features":     {
-            "<feat_name>": [feat_num]
+            "<feat_name>": [feat_val]
         }
     }
     Return:
-        node_data: {nfeat_name: node_feat_np_array}
+        node_id_map: {str_node_id: int_node_id}
+        node_data: {nfeat_name: edge_feat_np_array}
     """
     node_id_map = {}
     node_data = {}
@@ -174,11 +182,12 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
             parse_feat_ops(gconstruct_node_conf["features"],
                            gconstruct_node_conf["format"]["name"]) \
                 if 'features' in gconstruct_node_conf else (None, [], {}, [])
-        # Always do single process feature transformation as there is only payload input
+        # Always do single process feature transformation as there is only one payload input
         if feat_ops is not None:
             assert "features" in node_conf, \
                 "features need to be defined in the payload"
             input_feat = node_conf["features"]
+            # Input features raw data should be numpy array type
             for key, val in input_feat.items():
                 input_feat[key] = np.array(val)
             if len(two_phase_feat_ops) > 0:
@@ -194,6 +203,7 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
                     after_merge_feat_ops[feat_name].after_merge_transform(feat_data[feat_name])
                 feat_data[feat_name] = merged_feat
         node_data[node_type] = feat_data
+        # Avoid using id_map class as we do not save to the disk
         raw_node_id_map = {}
         for index, value in enumerate(node_ids):
             if value not in raw_node_id_map:
@@ -225,9 +235,9 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
     {
         "edge_type": "<edge type>",
         "src_node_id": <src edge id>,
-        "dest_node_id": <dst edge id>
+        "dest_node_id": <dest edge id>
         "features: {
-            "<feat_name>": [feat_num]
+            "<feat_name>": [feat_val]
         }
     }
 
@@ -244,15 +254,13 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
         dest_node_ids = np.array(edge_conf["dest_node_id"])
         gconstruct_edge_conf = get_conf(gconstruct_edge_conf_list, edge_type, "Edge")
 
+        # List is not hashable
         edge_type = tuple(edge_type)
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
             parse_feat_ops(gconstruct_edge_conf["features"],
                            gconstruct_edge_conf["format"]["name"]) \
                 if 'features' in gconstruct_edge_conf else (None, [], {}, [])
 
-        # We don't need to copy all node ID maps to the worker processes.
-        # Only the node ID maps of the source node type and destination node type
-        # are sufficient.
         id_map = {edge_type[0]: node_id_map[edge_type[0]],
                   edge_type[2]: node_id_map[edge_type[2]]}
 
@@ -266,6 +274,7 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
             assert "features" in edge_conf, \
                 "Features need to be defined in the payload"
             input_feat = edge_conf["features"]
+            # Input features raw data should be numpy array type
             for key, val in input_feat.items():
                 input_feat[key] = np.array(val)
             if len(two_phase_feat_ops) > 0:
