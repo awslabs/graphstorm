@@ -151,12 +151,13 @@ write_data_parquet(neg_edge_data, '/data/ml-100k/hard_neg.parquet')
 
 # generate synthetic user data with label
 user_labels = np.random.randint(11, size=feat.shape[0])
-user_data = {'id': user['id'].values, 'feat': feat, 'occupation': user['occupation'], 'label': user_labels}
+user_labels_binary = np.random.randint(2, size=feat.shape[0])
+user_data = {'id': user['id'].values, 'feat': feat, 'occupation': user['occupation'], 'label': user_labels, 'label_binary': user_labels_binary}
 write_data_parquet(user_data, '/data/ml-100k/users_with_synthetic_labels.parquet')
 
 
 user_feat_only = {'feat': feat}
-user_labels_only = {'label': user_labels}
+user_labels_only = {'label': user_labels, 'label_binary': user_labels_binary}
 user_feat_path = '/data/ml-100k/user_feat.parquet'
 user_label_path = '/data/ml-100k/user_labels.parquet'
 write_data_parquet(user_feat_only, user_feat_path)
