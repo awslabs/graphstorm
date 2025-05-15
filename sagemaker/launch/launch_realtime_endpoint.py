@@ -231,10 +231,10 @@ def get_realtime_infer_parser():
     realtime_infer_parser.add_argument("--instance-count", type=int, default=1,
         help="Number of inference endpoint instances.")
     realtime_infer_parser.add_argument("--custom-production-variant", type=json.loads,
-        help="A dictionary string that inludes custom configurations of the SageMaker " + \
-             "ProductionVarient for identifying a model to host and the resources " + \
-             "chosen to deploy for hosting it as documented at " + \
-        "https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html")
+        help=("A dictionary string that includes custom configurations of the SageMaker "
+             "ProductionVariant. Used to identify which model to host and the resources "
+             "chosen to deploy for hosting it. See documentation at "
+        "https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html"))
     realtime_infer_parser.add_argument("--async-execution", type=str, default='true', 
         choices=['True', 'true', 'False', 'false'],
         help="Determine if f using asynchronous execution mode to creating endpoint. Options" + \
