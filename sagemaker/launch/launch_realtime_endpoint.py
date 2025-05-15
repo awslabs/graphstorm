@@ -220,8 +220,8 @@ def get_realtime_infer_parser():
 
     # SageMaker specific arguments
     realtime_infer_parser.add_argument("--region", type=str, required=True,
-        help="AWS region to launch jobs in. Make sure this region is where the inference " + \
-             "image, and model tar file are located!")
+        help=("AWS region to launch jobs in. Make sure this region is where the inference "
+             "image, and model tar file are located!"))
     realtime_infer_parser.add_argument("--image-uri", type=str, required=True,
         help="GraphStorm SageMaker docker image URI")
     realtime_infer_parser.add_argument("--role", type=str, required=True,
