@@ -207,8 +207,8 @@ def run_job(input_args):
             logging.info('%s endpoint has been successfully created, and ready to be \
                     invoked!', sm_ep_name)
         except WaiterError as e:
-            logging.error("Creation of the endpoint %s waiting time is out ", sm_ep_name + \
-                          "or endpoint creation failed with reason: %s", e)
+            logging.error("Timed out while creating  endpoint '%s'  " 
+                          "or endpoint creation failed with reason: %s", sm_ep_name, e)
 
     return sm_ep_name
 
