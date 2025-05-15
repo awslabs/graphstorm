@@ -268,8 +268,6 @@ def sanity_check_realtime_infer_inputs(input_args):
     
 
     1. The endpoint should be deployed in the same region as the ECR Docker image.
-    2. TODO(James): Will do sanity check of the contents of the given YAML, and JSON files when
-                    they become available.
 
     Note: 
         1. Checking model_name format actually happens in the argument parsing stage. So there
