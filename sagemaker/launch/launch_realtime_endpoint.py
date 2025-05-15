@@ -244,8 +244,8 @@ def get_realtime_infer_parser():
     realtime_infer_parser.add_argument("--restore-model-path", type=str, required=True,
         help="The folder path where trained GraphStorm model parameters were saved.")
     realtime_infer_parser.add_argument("--model-yaml-config-file", type=str, required=True,
-        help="The file path to the new YAML configuration file generated in GraphStorm " + \
-             "model training.")
+        help=("The file path to the new YAML configuration file generated in GraphStorm "
+             "model training."))
     realtime_infer_parser.add_argument("--graph-json-config-file", type=str, required=True,
         help="The file path to the updated JSON configuration file created in GraphStorm " + \
              "graph construction process. This should be available under the output of " + \
