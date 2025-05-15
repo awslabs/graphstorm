@@ -130,7 +130,7 @@ def parse_s3_url(s3_url):
 
 
 def extract_ecr_region(ecr_uri):
-    """ extract the region string from an ECR URI
+    """Extracts the region string from an ECR URI
     
     A normal ECR URI is like <account_id>.dkr.ecr.<region>.amazonaws.com. The region string
     contains letters, digits, and hyphons only, and is between '.ecr.' and '.amazonaws.com'.
