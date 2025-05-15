@@ -241,7 +241,7 @@ def get_realtime_infer_parser():
 
     # real-time task specific arguments
     realtime_infer_parser.add_argument("--restore-model-path", type=str, required=True,
-        help="The folder path where trained GraphStorm model parameters were saved.")
+        help="Path to GraphStorm trained model artifacts we'll use to create the endpoint.")
     realtime_infer_parser.add_argument("--model-yaml-config-file", type=str, required=True,
         help=("The file path to the new YAML configuration file generated in GraphStorm "
              "model training."))
