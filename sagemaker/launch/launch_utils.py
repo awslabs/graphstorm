@@ -143,7 +143,8 @@ def extract_ecr_region(ecr_uri):
     Returns
     -------
     region: str
-        The region string extraced from the given URI of an ECR Docker image.
+        The region string extraced from the given URI of an ECR Docker image, or None if no such
+        region string.
     """
     pattern = re.compile(r'\.ecr\.([a-z0-9-]+)\.amazonaws\.com')
     is_match = re.search(pattern, ecr_uri)
@@ -157,15 +158,15 @@ def extract_ecr_region(ecr_uri):
 
 def check_tarfile_s3_object(s3_url):
     """ Check the object in the given S3 url
-    1. if the url format correct;
-    2. if the object exists.
-    
+    1. if the object exists;
+    2. if the object ends with ".tar.gz".
+
     Parameters:
     -----------
     s3_url: str
         The given S3 url string. The object in the url should be an object ending with `.tar.gz`.
         If not, will raise an assertion error.
-    
+
     Returns:
     --------
     bool: 
@@ -234,6 +235,6 @@ def check_name_format(name_str):
     pattern = re.compile(r"^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$")
     if not re.match(pattern, name_str):
         raise ArgumentTypeError(f'Value {name_str} failed to satisfy regular ' + \
-                                           'expression pattern: ' + \
-                                           r'^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
+                                'expression pattern: ' + \
+                                r'^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
     return name_str
