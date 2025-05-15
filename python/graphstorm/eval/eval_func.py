@@ -110,11 +110,15 @@ class ClassificationMetrics:
                 beta = float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:].strip())
                 self.metric_comparator[eval_metric] = operator.le
                 self.metric_function[eval_metric] = partial(compute_precision_at_recall, beta=beta)
+                self.metric_eval_function[eval_metric] = partial(compute_precision_at_recall,
+                                                                 beta=beta)
 
             if eval_metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
                 beta = float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:].strip())
                 self.metric_comparator[eval_metric] = operator.le
                 self.metric_function[eval_metric] = partial(compute_recall_at_precision, beta=beta)
+                self.metric_eval_function[eval_metric] = partial(compute_recall_at_precision,
+                                                                 beta=beta)
 
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
@@ -126,6 +130,14 @@ class ClassificationMetrics:
         elif metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
             assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
                             "fscore_at_beta evaluation metric for classification " \
+                            f"must end with an integer or float, but get {metric}"
+        elif metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+            assert is_float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
+                            "precision_at_recall evaluation metric for classification " \
+                            f"must end with an integer or float, but get {metric}"
+        elif metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+            assert is_float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
+                            "recall_at_precision evaluation metric for classification " \
                             f"must end with an integer or float, but get {metric}"
         else:
             assert metric in self.supported_metrics, \
