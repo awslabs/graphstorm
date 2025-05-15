@@ -264,9 +264,8 @@ def get_realtime_infer_parser():
     return realtime_infer_parser
 
 def sanity_check_realtime_infer_inputs(input_args):
-    """ Sanity check the inputs for real-time endpoint deployment
+    """ Verify the user-provided inputs for real-time endpoint deployment
     
-    To catch potential SageMaker service errors, here do some sanity checks.
 
     1. The endpoint should be deployed in the same region as the ECR Docker image.
     2. TODO(James): Will do sanity check of the contents of the given YAML, and JSON files when
