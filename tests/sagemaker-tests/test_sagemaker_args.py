@@ -93,7 +93,7 @@ def test_parse_complex_string_with_quotes():
 
 
 def test_get_realtime_infer_argparser():
-    """ Test the default values of realtime parser
+    """ Test the default values of realtime parser.
     """
     test_cmd = "test_sagemaker_args.py"
     default_args = {'--instance-type': 'ml.c6i.xlarge',

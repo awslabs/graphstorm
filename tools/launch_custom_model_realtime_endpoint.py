@@ -15,7 +15,7 @@
 
     Launch a custom model SageMaker endpoint for realtime inference
 
-    This tool is provided as a coutesy to help users deploy a SageMaker endpoint for real-time
+    This tool is provided as a courtesy to help users deploy a SageMaker endpoint for real-time
     inference with your own GraphStorm-based models.
     It is users responsibility to make sure that model artifacts and related entry
     point file follow SageMaker's specifications, e.g., the deployment document at
@@ -48,8 +48,8 @@ def run_job(input_args):
     -----------
     region: str
         The AWS region where the SageMaker endpoint will be deployed.
-    image_url: str
-        The URL of a GraphStorm SageMaker real-time inference Docker image that is located at
+    image_uri: str
+        The URI of a GraphStorm SageMaker real-time inference Docker image that is located at
         Amazon ECR in the same region specified in the `region` argument.
     role: str
         The ARN string of an AWS account ARN that has SageMaker execution and model registry full
@@ -91,12 +91,12 @@ def run_job(input_args):
         model_name = uuid4().hex[:8]
 
     # ================= create deployable model ================= #
-    image_url = input_args.image_url
+    image_uri = input_args.image_uri
     role = input_args.role
     sm_client = boto3.client(service_name="sagemaker", region_name=input_args.region)
 
     container = {
-        "Image": image_url,
+        "Image": image_uri,
         "ModelDataUrl": model_url_s3,
         "Environment": {"SAGEMAKER_PROGRAM": entrypoint_file_name}
     }
@@ -109,7 +109,7 @@ def run_job(input_args):
     # ================= create an endpoint configuration ================= #
     sm_ep_config_name = model_name + "-EndpointConfig-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 
-    default_product_variant = {
+    default_production_variant = {
                     "InstanceType": input_args.instance_type,
                     "InitialInstanceCount": input_args.instance_count,
                     "InitialVariantWeight": 1,
@@ -118,13 +118,13 @@ def run_job(input_args):
                 }
     if input_args.custom_production_variant:
         # merge custom ProductionVariant to the default key arguments, and overwrite same keys
-        product_variant = {**default_product_variant, **input_args.custom_production_variant}
+        production_variant = {**default_production_variant, **input_args.custom_production_variant}
     else:
-        product_variant = default_product_variant
+        production_variant = default_production_variant
 
     create_endpoint_config_response = sm_client.create_endpoint_config(
             EndpointConfigName=sm_ep_config_name,
-            ProductionVariants=[product_variant],
+            ProductionVariants=[production_variant],
         )
     endpoint_arn = create_endpoint_config_response["EndpointConfigArn"]
     logging.debug("Endpoint config Arn: %s", endpoint_arn)
@@ -154,7 +154,8 @@ def run_job(input_args):
             logging.info('%s endpoint has been successfully created, and ready to be \
                     invoked!', sm_ep_name)
         except WaiterError as e:
-            logging.error("Waiter timed out or endpoint creation failed: %s", e)
+            logging.error("Creation of the endpoint %s waiting time is out ", sm_ep_name + \
+                          "or endpoint creation failed with reason: %s", e)
 
 
 def get_realtime_infer_parser():
@@ -162,13 +163,13 @@ def get_realtime_infer_parser():
     Get GraphStorm real-time inference task parser.
     """
     realtime_infer_parser = argparse.ArgumentParser("GraphStorm Custom Model Real-time " + \
-                                                     "Inference Args")
+                                                    "Inference Args")
 
     # SageMaker specific arguments
     realtime_infer_parser.add_argument("--region", type=str, required=True,
-        help="AWS region to launch jobs in. Make sure this region is where the inference image, \
-             and model tar file are located!")
-    realtime_infer_parser.add_argument("--image-url", type=str, required=True,
+        help="AWS region to launch jobs in. Make sure this region is where the inference " + \
+             "image, and model tar file are located!")
+    realtime_infer_parser.add_argument("--image-uri", type=str, required=True,
         help="GraphStorm SageMaker docker image URI")
     realtime_infer_parser.add_argument("--role", type=str, required=True,
         help="SageMaker execution role")
@@ -183,20 +184,20 @@ def get_realtime_infer_parser():
         "https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html")
     realtime_infer_parser.add_argument("--async-execution", type=str, default='true', 
         choices=['True', 'true', 'False', 'false'],
-        help="Determine if f using asynchronous execution mode to creating endpoint. Options" + \
+        help="Determine if using asynchronous execution mode to creating endpoint. Options" + \
              "include \"True\" and \"true\" for True, \"False\" and \"false\" for False.")
     realtime_infer_parser.add_argument("--model-name", type=str,
-        help=r"The name for the to-be created SageMaker objects. The name should follow \
-              a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. Default \
-              is \"GSF-Model4Realtime\".")
+        help=r"The name for the to-be created SageMaker objects. The name should follow " + \
+              "a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. " + \
+              "is \"GSF-Model4Realtime\".")
 
     # customized model specific arguments
     realtime_infer_parser.add_argument("--model-tarfile-s3", type=str, required=True,
-        help="The S3 location of the compressed model tar file to be used to create a SageMaker \
-              Model.")
+        help="The S3 location of the compressed model tar file to be used to create a " + \
+              "SageMaker Model.")
     realtime_infer_parser.add_argument("--entrypoint-file-name", type=str, required=True,
-        help="The name of the model entry point file. This file name will be used when you \
-              specify the --model-tarfile-s3 argument to use a pre-uploaded model tar file.")
+        help="The name of the model entry point file. This file name will be used when you " + \
+              "specify the --model-tarfile-s3 argument to use a pre-uploaded model tar file.")
 
     return realtime_infer_parser
 

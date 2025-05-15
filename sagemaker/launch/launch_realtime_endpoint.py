@@ -81,7 +81,7 @@ def run_job(input_args):
         documented at
         https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html.
     async_execution: str
-        The string boolean value, determining if using asynchronous execution mode to creating
+        The string boolean value. Determine if using asynchronous execution mode to creating
         endpoint. Options include "True" and "true" for True, "False" and "false" for False.
         Default is True.
     restore_model_path: str
@@ -92,11 +92,11 @@ def run_job(input_args):
         pipeline during model training. It is NOT the one used as the input arguments
         for GraphStorm model training.
     graph_json_config_file: str
-        Path to modified GConstruct/GSProcessing JSON config. This should be available under the 
+        Path to modified GConstruct/GSProcessing JSON config. This should be available under the
         **output** of GConstruct/GSProcessing.
     upload_tarfile_s3: str
-        The S3 location to upload the packed model tar file. This location should
-        be in the same region specified in the `region` argument.
+        The S3 location to upload the packed model tar file. This location should be in the same
+        region specified in the `region` argument.
     infer_task_type: str
         The name of real time inference task. Options include \"node_classification\".
     model_name: str
@@ -162,7 +162,7 @@ def run_job(input_args):
     # ================= create an endpoint configuration ================= #
     sm_ep_config_name = model_name + "-EndpointConfig-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 
-    default_product_variant = {
+    default_production_variant = {
                     "InstanceType": input_args.instance_type,
                     "InitialInstanceCount": input_args.instance_count,
                     "InitialVariantWeight": 1,
@@ -171,13 +171,13 @@ def run_job(input_args):
                 }
     if input_args.custom_production_variant:
         # merge custom ProductionVariant to the default key arguments, and overwrite same keys
-        product_variant = {**default_product_variant, **input_args.custom_production_variant}
+        production_variant = {**default_production_variant, **input_args.custom_production_variant}
     else:
-        product_variant = default_product_variant
+        production_variant = default_production_variant
 
     create_endpoint_config_response = sm_client.create_endpoint_config(
             EndpointConfigName=sm_ep_config_name,
-            ProductionVariants=[product_variant],
+            ProductionVariants=[production_variant],
         )
     endpoint_arn = create_endpoint_config_response["EndpointConfigArn"]
     logging.debug("Endpoint config Arn: %s", endpoint_arn)
@@ -207,8 +207,8 @@ def run_job(input_args):
             logging.info('%s endpoint has been successfully created, and ready to be \
                     invoked!', sm_ep_name)
         except WaiterError as e:
-            logging.error("Creation of the endpoint %s waiting time is out or endpoint ", sm_ep_name + \
-                          "creation failed with reason: %s", e)
+            logging.error("Creation of the endpoint %s waiting time is out ", sm_ep_name + \
+                          "or endpoint creation failed with reason: %s", e)
 
     return sm_ep_name
 
@@ -220,8 +220,8 @@ def get_realtime_infer_parser():
 
     # SageMaker specific arguments
     realtime_infer_parser.add_argument("--region", type=str, required=True,
-        help="AWS region to launch jobs in. Make sure this region is where the inference image, \
-             and model tar file are located!")
+        help="AWS region to launch jobs in. Make sure this region is where the inference " + \
+             "image, and model tar file are located!")
     realtime_infer_parser.add_argument("--image-uri", type=str, required=True,
         help="GraphStorm SageMaker docker image URI")
     realtime_infer_parser.add_argument("--role", type=str, required=True,
@@ -244,11 +244,12 @@ def get_realtime_infer_parser():
     realtime_infer_parser.add_argument("--restore-model-path", type=str, required=True,
         help="The folder path where trained GraphStorm model parameters were saved.")
     realtime_infer_parser.add_argument("--model-yaml-config-file", type=str, required=True,
-        help="The file path to the new YAML configuration file generated in GraphStorm \
-              model training.")
+        help="The file path to the new YAML configuration file generated in GraphStorm " + \
+             "model training.")
     realtime_infer_parser.add_argument("--graph-json-config-file", type=str, required=True,
-        help="The file path to the updated JSON configuration file created in GraphStorm \
-              graph construction process. This should be available under the output of GConstruct/GSProcessing")
+        help="The file path to the updated JSON configuration file created in GraphStorm " + \
+             "graph construction process. This should be available under the output of " + \
+             "GConstruct/GSProcessing")
     realtime_infer_parser.add_argument("--upload-tarfile-s3", type=str, required=True,
         help="The S3 location for uploading the packed and compressed model artifacts tar file.")
     realtime_infer_parser.add_argument("--infer-task-type", type=str, required=True,
@@ -257,9 +258,9 @@ def get_realtime_infer_parser():
                include {SUPPORTED_REALTIME_INFER_TASKS}")
     realtime_infer_parser.add_argument("--model-name", type=check_name_format,
         default='GSF-Model4Realtime',
-        help=r"The name for the to-be created SageMaker objects. The name should follow \
-              a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. Default \
-              is \"GSF-Model4Realtime\".")
+        help=r"The name for the to-be created SageMaker objects. The name should follow " + \
+              "a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. " + \
+              "Default is \"GSF-Model4Realtime\".")
 
     return realtime_infer_parser
 
