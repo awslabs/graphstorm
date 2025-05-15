@@ -258,9 +258,9 @@ def get_realtime_infer_parser():
                include {SUPPORTED_REALTIME_INFER_TASKS}")
     realtime_infer_parser.add_argument("--model-name", type=check_name_format,
         default='GSF-Model4Realtime',
-        help=r"The name for the to-be created SageMaker objects. The name should follow " + \
-              "a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. " + \
-              "Default is \"GSF-Model4Realtime\".")
+        help=(r"The name for the to-be created SageMaker objects. The name should follow "
+              "a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. "
+              "Default is \"GSF-Model4Realtime\"."))
 
     return realtime_infer_parser
 
