@@ -237,8 +237,7 @@ def get_realtime_infer_parser():
         "https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html"))
     realtime_infer_parser.add_argument("--async-execution", type=str, default='true', 
         choices=['True', 'true', 'False', 'false'],
-        help="Determine if f using asynchronous execution mode to creating endpoint. Options" + \
-             "include \"True\" and \"true\" for True, \"False\" and \"false\" for False.")
+        help="Set to 'true' to create the endpoint asynchronously, 'false' to wait for creation.")
 
     # real-time task specific arguments
     realtime_infer_parser.add_argument("--restore-model-path", type=str, required=True,
