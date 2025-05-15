@@ -203,5 +203,5 @@ def test_sanity_check_realtime_infer_inputs():
         arg_parser = get_realtime_infer_parser()
         args = arg_parser.parse_args()
 
-        with pytest.raises(AssertionError, match=r'The given Docker image * '):
+        with pytest.raises(ValueError, match=r'The given Docker image * '):
             sanity_check_realtime_infer_inputs(args)
