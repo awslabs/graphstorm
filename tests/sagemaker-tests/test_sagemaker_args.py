@@ -3,7 +3,10 @@ import sys
 from unittest import mock
 from argparse import ArgumentTypeError
 from common_parser import parse_unknown_gs_args
-from launch_realtime_endpoint import get_realtime_infer_parser, sanity_check_realtime_infer_inputs
+from launch_realtime_endpoint import (
+    get_realtime_infer_parser, 
+    sanity_check_realtime_infer_inputs,
+    )
 
 
 def test_basic_parsing():
