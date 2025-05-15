@@ -253,8 +253,8 @@ def get_realtime_infer_parser():
         help="The S3 location for uploading the packed and compressed model artifacts tar file.")
     realtime_infer_parser.add_argument("--infer-task-type", type=str, required=True,
         choices=SUPPORTED_REALTIME_INFER_TASKS,
-        help=f"The name of real time inference task. Options \
-               include {SUPPORTED_REALTIME_INFER_TASKS}")
+        help=("The name of real time inference task. Options: "
+               f"include {SUPPORTED_REALTIME_INFER_TASKS}"))
     realtime_infer_parser.add_argument("--model-name", type=check_name_format,
         default='GSF-Model4Realtime',
         help=(r"The name for the to-be created SageMaker objects. The name should follow "
