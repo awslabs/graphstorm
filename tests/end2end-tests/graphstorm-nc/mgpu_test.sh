@@ -898,5 +898,35 @@ fi
 
 rm /tmp/train_log.txt
 
+echo "**************dataset: MovieLens: NC, RGCN layer: 1, node feat: fixed, eval metrics: precision_at_recall_0.6"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_nc_binary_train_val_1p_4t/movie-lens-100k.json --target-ntype "user" --label-field "label_binary" --num-classes 2 --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 1  --num-epochs 2 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type rgcn --eval-metric precision_at_recall_0.6
+
+error_and_exit $?
+
+precision_at_recall_eval_cnts=$(grep "precision_at_recall_0.6:" /tmp/train_log.txt | wc -l)
+
+if [ $precision_at_recall_eval_cnts < 1 ]
+then
+    echo "The number of precision_at_recall_0.6 should be greater than 0, but got $precision_at_recall_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: MovieLens: NC, RGCN layer: 1, node feat: fixed, eval metrics: recall_at_precision_0.6"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_nc_binary_train_val_1p_4t/movie-lens-100k.json --target-ntype "user" --label-field "label_binary" --num-classes 2 --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 1  --num-epochs 2 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type rgcn --eval-metric recall_at_precision_0.6
+
+error_and_exit $?
+
+recall_at_precision_eval_cnts=$(grep "recall_at_precision_0.6:" /tmp/train_log.txt | wc -l)
+
+if [ $recall_at_precision_eval_cnts < 1 ]
+then
+    echo "The number of recall_at_precision_eval_cnts should be greater than 0, but got $recall_at_precision_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
 
 rm -fr /tmp/*

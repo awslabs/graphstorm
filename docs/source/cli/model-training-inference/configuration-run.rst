@@ -381,12 +381,15 @@ General Configurations
   choose the best trained model and for early stopping. Each learning task supports different evaluation metrics:
 
   - The supported evaluation metrics of classification tasks include ``accuracy``,
-    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``, and ``fscore_at_beta``.
+    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``, ``fscore_at_beta``, ``recall_at_precision_beta``, and ``precision_at_recall_beta``.
 
     - The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or
       ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k``
       predictions with the highest confidence scores. Note that ``hit_at_k`` only works with binary classification tasks.
     - The ``beta`` of ``fscore_at_beta`` can be any positive integer or float numbers, for example ``fscore_at_2`` or ``fscore_at_0.5``. Please make sure that the ``beta`` string can be converted to a float number by Python's `float()` method.
+    - The ``beta`` of ``recall_at_precision_beta`` and ``precision_at_recall_beta`` can be a positive number in (0, 1],
+      for example ``recall_at_precision_0.9``, ``recall_at_precision_1``, ``precision_at_recall_0.8``, or ``precision_at_recall_1.0``.
+      Please make sure that the ``beta`` string can be converted to a float number by Python's `float()` method.
   - The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``.
   - The supported evaluation metrics of link prediction tasks include ``mrr``, ``amri`` and
     ``hit_at_k``. MRR refers to the Mean Reciprocal Rank with values between and 0 (worst) and 1
@@ -399,7 +402,9 @@ General Configurations
         | ``- precision_recall``
         | ``- hit_at_10``
         | ``- fscore_at_0.5``
-    - Argument: ``--eval-metric accuracy precision_recall hit_at_10 fscore_at_0.5``
+        | ``- recall_at_precision_0.7``
+        | ``- precision_at_recall_0.8``
+    - Argument: ``--eval-metric accuracy precision_recall hit_at_10 fscore_at_0.5 recall_at_precision_0.7 precision_at_recall_0.8``
     - Default value:
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.
