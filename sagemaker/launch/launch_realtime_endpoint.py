@@ -269,12 +269,6 @@ def sanity_check_realtime_infer_inputs(input_args):
 
     1. The endpoint should be deployed in the same region as the ECR Docker image.
 
-    Note: 
-        1. Checking model_name format actually happens in the argument parsing stage. So there
-           is no such check in this function.
-        2. Because S3 URI/URL may not contain a sub-string to indicate the region, do not check
-           S3 region here. Users should make sure the S3 path for the tarfile to be uploaded is
-           in the same region as the ECR Docker image and the endpoint.
     """
     ecr_region = extract_ecr_region(input_args.image_uri)
     assert ecr_region == input_args.region, f'The given Docker image {input_args.image_uri} ' + \
