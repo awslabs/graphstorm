@@ -284,7 +284,6 @@ def sanity_check_realtime_infer_inputs(input_args):
 if __name__ == "__main__":
     arg_parser = get_realtime_infer_parser()
     args = arg_parser.parse_args()
-    print(f"Real-time endpoint launch args: '{args}'")
 
     sanity_check_realtime_infer_inputs(args)
 
