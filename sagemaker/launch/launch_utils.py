@@ -168,7 +168,8 @@ def check_tarfile_s3_object(s3_url):
     
     Returns:
     --------
-    boolean: True if the S3 object exists, otherwise False.
+    bool: 
+        True if the S3 object exists and ends with ``.tar.gz``, False otherwise.
     """
     bucket_name, key = parse_s3_url(s3_url)
     s3_object = key.split('/')[-1]
