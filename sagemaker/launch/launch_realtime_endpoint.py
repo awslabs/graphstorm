@@ -271,10 +271,12 @@ def sanity_check_realtime_infer_inputs(input_args):
 
     """
     ecr_region = extract_ecr_region(input_args.image_uri)
-    assert ecr_region == input_args.region, f'The given Docker image {input_args.image_uri} ' + \
-            'is in the region {ecr_region}, but is different from the --region argument: ' + \
-            '{input_args.region}. Please check if the image url is correct or reset the ' + \
-            '--region argument. The endpoint should be deployed at the same region as the image.'
+    if ecr_region != input_args.region:
+        raise ValueError(
+            f'The given Docker image {input_args.image_uri} ' 
+            f'is in the region {ecr_region}, but is different from the --region argument: ' 
+            f'{input_args.region}. The endpoint should be deployed at the same region as the image.'
+        )
 
     # TODO: Do sanity check of the YAML and JSON file.
 
