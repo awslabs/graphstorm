@@ -226,7 +226,7 @@ def check_name_format(name_str):
     
     Returns:
     --------
-    name_str: str
+    str
         The same name string as input if it match the regular expression. Otherwise will
         raise a ValueError.
 
