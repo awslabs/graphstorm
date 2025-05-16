@@ -25,7 +25,7 @@ STATUS = "status_code"
 MSG = "message"
 GRAPH = "graph"
 NODE_MAPPING = "node_mapping"
-
+PROCESS_INDEX = 0
 
 def prepare_data(input_data, feat_ops):
     """ Prepare phase one data for two-phase feature transformation.
@@ -43,26 +43,66 @@ def prepare_data(input_data, feat_ops):
 
     Returns
     -------
-    dict : A dict of node feature info.
+    dict : A dict of feature info.
     """
     assert feat_ops is not None, "feat_ops must exist when prepare_data is called."
     feat_info = preprocess_features(input_data, feat_ops)
 
-    # preprocess_features function expects an input dictionary indexed by integers
-    return {0: feat_info}
+    # update_two_phase_feat_ops function expects an input dictionary indexed by integers
+    # e.g {chunk_index: chunk_data}
+    # Here we are only do single process feature processing,
+    # so we need to add a dummy index to the return dictionary
+    return {PROCESS_INDEX: feat_info}
 
 
 def get_conf(gconstruct_conf_list, type_name, structure_type):
     """ Retrieve node/edge type gconstruct config. Will combine all feature configuration
     for one node/edge type
 
+    For either GConstruct Node/Edge, feature transformation can be defined in multiple blocks,
+    e.g
+    [{
+        "node_id_col": "id",
+        "node_type": "user",
+        "features":     [
+            {
+                "feature_col":  "feat_one"
+            }
+        ]
+    },
+    {
+        "node_type": "user",
+        "features":     [
+            {
+                "feature_col":  "feat_two"
+            }
+        ]
+    }]
+
+    The function is expected to gather all the feature transformation into the first
+    node/edge config definition and return. For the above example, it will be:
+    [{
+        "node_id_col": "id",
+        "node_type": "user",
+        "features":     [
+            {
+                "feature_col":  "feat_one"
+            },
+            {
+                "feature_col":  "feat_two"
+            }
+        ]
+    }]
+
     Parameters:
         gconstruct_conf_list: dict
             GConstruct Config Dict for either node or edge
         type_name: str
-            Node/Edge Name
+            Node/Edge Type Name
         structure_type: str
             One of "Node" or "Edge"
+    Return:
+        dict: merged gconstruct config
     """
     conf_list = []
     if structure_type == "Node":
@@ -77,20 +117,55 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
 
     # Features may be defined in multiple block for one node/edge type
     if len(conf_list) >= 2:
-        collected_features = [
-            feature
-            for conf in conf_list
-            if "features" in conf
-            for feature in conf.get("features", [])
-        ]
+        # Collect all feature transformation block into the first block
+        collected_features = []
+        for conf in conf_list:
+            if "features" in conf:
+                for feature in conf["features"]:
+                    collected_features.append(feature)
         conf_list[0]["features"] = collected_features
         conf_list = [conf_list[0]]
+    # if there is only one node/edge type definition block,
+    # no need to merge feature transformation config.
+    elif len(conf_list) == 1:
+        pass
+    else:
+        raise ValueError(f"Expect one node/edge type definition for {type_name}")
     return conf_list[0]
 
 
 def merge_payload_input(payload_input_list):
     """Merge the payload input within the same node/edge type
 
+    There may be multiple node/edge definitions within one node/edge type. For example:
+
+    [{
+        "node_type":    "user",
+        "node_id":      "u1",
+        "features":     {
+            "feat": [feat_val1]
+        }
+    },
+    {
+        "node_type":    "user",
+        "node_id":      "u2",
+        "features":     {
+            "feat": [feat_val2]
+        }
+    },
+    ]
+
+    This function is expected to group all the blocks with the same node_type/edge_type
+    to fit in the gconstruct feature transformation input.
+    The above return should be like:
+
+    [{
+        "node_type":    "user",
+        "node_id":      ["u1", "u2"]
+        "features":     {
+            "feat": [[feat_val1], [feat_val2]]
+        }
+    }]
     Parameters:
         payload_input_list: list of dict
             input payload
@@ -105,7 +180,7 @@ def merge_payload_input(payload_input_list):
         current_ids = {}
         col_name = None
 
-        # Merge IDs
+        # Merge Node/Edge IDs
         if "node_type" in item and "node_id" in item:
             structure_type = "node"
             type_name = item["node_type"]
@@ -157,7 +232,8 @@ def merge_payload_input(payload_input_list):
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
     """ Process json payload node input
 
-    We need to process all node data before we can process edge data.
+    We need to process all node data before we can process edge data. Return node id mapping
+    and node feature data.
 
     The node conf in the payload is defined as follows:
     {
@@ -230,7 +306,8 @@ def map_node_id(str_node_list, node_id_map, node_type):
 def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list, node_id_map):
     """ Process json payload edge data
 
-    The edge conf in the edge payload json file could be:
+    The edge conf in the edge payload json file could be like following. Return
+    edges info definition and edge feature data.
 
     {
         "edge_type": "<edge type>",
@@ -298,7 +375,17 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
 
 
 def verify_payload_conf(request_json_payload, gconstruct_confs):
-    """ Verify input json payload
+    """ Verify input json payload.
+
+    The json payload is expected to have input format like:
+    {
+        "version": "gs-realtime-v0.1",
+        "gml_task": "node_classification",
+        "graph": {
+            "nodes": [{node_payload_definition}]，
+            "edges": [{edge_payload_definition}]
+        }
+    }
 
     Parameters:
     request_json_payload: dict
@@ -360,6 +447,16 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
 
 def process_json_payload_graph(request_json_payload, gconstruct_config):
     """ Construct DGLGraph from json payload.
+
+    The json payload is expected to have input format like:
+    {
+        "version": "gs-realtime-v0.1",
+        "gml_task": "node_classification",
+        "graph": {
+            "nodes": [{node_payload_definition}]，
+            "edges": [{edge_payload_definition}]
+        }
+    }
 
     Parameters:
     request_json_payload: dict
