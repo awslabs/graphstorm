@@ -30,7 +30,7 @@ NODE_MAPPING = "node_mapping"
 def prepare_data(input_data, feat_ops):
     """ Prepare phase one data for two-phase feature transformation.
 
-    The function parses a payload input that contains node/edge features
+    The function parses a payload input that contains node/edge features.
     The payload is parsed according to original gconstruct configuration
     and transformation.
 
@@ -62,7 +62,7 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
         type_name: str
             Node/Edge Name
         structure_type: str
-            One of "Node" and "Edges"
+            One of "Node" or "Edge"
     """
     conf_list = []
     if structure_type == "Node":
@@ -92,7 +92,7 @@ def merge_payload_input(payload_input_list):
     """Merge the payload input within the same node/edge type
 
     Parameters:
-        payload_input_list: list[dict]
+        payload_input_list: list of dict
             input payload
     Return:
         dict: merged payload input
