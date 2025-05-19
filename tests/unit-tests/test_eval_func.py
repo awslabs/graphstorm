@@ -845,6 +845,15 @@ def test_compute_precision_at_recall():
     precision = compute_precision_at_recall(preds, targets, beta)
     assert precision == 1.
 
+    # Normal case 4: preds 1D and labels 1D in 0s and 1s, using binary;
+    # beta is too small to find the corresponding precision
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 0.
+
+    precision = compute_precision_at_recall(preds, targets, beta)
+    assert precision == 0.
+
 def test_compute_recall_at_precision():
     """ Test get recall at certain precision with different beta values.
     """
@@ -906,3 +915,12 @@ def test_compute_recall_at_precision():
 
     recall = compute_recall_at_precision(preds, targets, beta)
     assert recall == 1.
+
+    # Normal case 3: preds 1D and labels 1D in 0s and 1s, using binary;
+    # beta is too small to find the corresponding recall
+    targets = th.tensor([0, 0, 1, 1])
+    preds = th.tensor([0.1, 0.4, 0.35, 0.8])
+    beta = 0.1
+
+    recall = compute_recall_at_precision(preds, targets, beta)
+    assert recall == 0.

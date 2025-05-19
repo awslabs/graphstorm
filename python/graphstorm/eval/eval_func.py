@@ -135,10 +135,18 @@ class ClassificationMetrics:
             assert is_float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
                             "precision_at_recall evaluation metric for classification " \
                             f"must end with an integer or float, but get {metric}"
+            assert (float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) > 0
+                    and float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]) <= 1), \
+                "The beta in precision_at_recall evaluation metric must be in (0, 1], " \
+                f"but get {float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:])}."
         elif metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
             assert is_float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
                             "recall_at_precision evaluation metric for classification " \
                             f"must end with an integer or float, but get {metric}"
+            assert (float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) > 0
+                    and float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+                "The beta in recall_at_precision evaluation metric must be in (0, 1], " \
+                f"but get {float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:])}."
         else:
             assert metric in self.supported_metrics, \
                 f"Metric {metric} not supported for classification"
@@ -766,40 +774,42 @@ def compute_fscore(y_preds, y_targets, beta):
     return fscore
 
 def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
-    """ compute precision at recall at beta for classification tasks.
+    """ Compute precision at recall at beta for binary classification tasks.
         If there is no a recall score equal to beta, it returns the precision
             at the largest recall less than beta.
         If there are multiple precision scores when recall equal to beta
             or the largest recall less than beta, it returns the maximum precision
             among these precision scores.
-        If any errors occur, raise the error to callers and stop.
+        If unable to find a proper precision with the given beta value,
+            it will return 0 as precision, and provide warning message.
 
-        It only supports binary classification.
+        This metric is only for binary classification tasks.
 
         Parameters
         ----------
-        y_preds : Target scores in 1D or 2D tensor.
-        y_targets: Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
-                   binary label indicators.
-        weights: List of weights with the same number of classes in labels.
-        beta: Beta value of precision for getting recall. Default is 1.0.
+        y_preds : tensor
+            Target scores in 1D or 2D tensor. Tensors with more than 2D will trigger an error.
+        y_targets: tensor
+            Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
+            binary label indicators.
+        weights: list
+            A list of weights with the same number of classes in labels.
+        beta: float or int
+            Beta value of precision for getting recall. Should be in the range of (0, 1].
+            Default is 1.0.
+
         Returns
         -------
         float: The precision_at_recall score.
     """
-    if beta > 1:
-        logging.warning(
-            "WARNING: beta should be between 0 and 1, but got %s. Using 1. instead.", str(beta))
-    if beta < 0:
-        logging.warning(
-            "WARNING: beta should be between 0 and 1, but got %s. Using 0. instead.", str(beta))
+    assert beta > 0 and beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
 
     # only support binary classification
     nclass = len(np.unique(y_true))
-    assert nclass == 2, (f"ERROR: compute_precision_at_recall only supports binary "
+    assert nclass <= 2, (f"ERROR: compute_precision_at_recall only supports binary "
                          f"classification, but got {nclass} classes.")
 
     # same check for binary cases, input in (n, 2) and label in 1D or (n, 1)
@@ -826,14 +836,18 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
         precision_sorted = precision[sort_idx]
 
         idx = np.searchsorted(recall_sorted_asc, beta) - 1
-        assert idx >= 0, f"ERROR: the given beta {beta} is too small."
+        if idx < 0:
+            logging.warning(
+                f"WARNING: could not find a corresponding precision score given beta {beta}. "
+                f"Return 0 for precision@recall instead.")
+            return 0.
 
         new_beta = recall_sorted_asc[idx]
         locations = np.where(recall_sorted_asc == new_beta)[0]
         return np.max(precision_sorted[locations])
 
 def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
-    """ compute recall at precision at beta for classification tasks.
+    """ Compute recall at precision at beta for binary classification tasks.
         If there is no precision score equal to beta, we update the beta as the first precision
             less than beta following the ascending order of corresponding recall. For example, given
             a list of recall [0., 0.5, 0.5, 1., 1.], a list of precision [1., 1., 0.5, 0.67, 0.5],
@@ -845,34 +859,36 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
             For example, the known index is 2 as above, the location of the maximum precision in the
             slice of precision list is 3, and the returned recall will be 1. at the 3rd index of the
             recall list.
-        If any errors occur, raise the error to callers and stop.
+        If unable to find a proper precision with the given beta value,
+            it will return 0 as precision, and provide warning message.
 
-        If only support binary classification.
+        This metric is only for binary classification tasks.
 
         Parameters
         ----------
-        y_preds : Target scores in 1D or 2D tensor.
-        y_targets: Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
-                   binary label indicators.
-        weights: List of weights with the same number of classes in labels.
-        beta: Beta value of precision for getting recall. Default is 1.0.
+        y_preds : tensor
+            Target scores in 1D or 2D tensor. Tensors with more than 2D will trigger an error.
+        y_targets: tensor
+            Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
+            binary label indicators.
+        weights: list
+            A list of weights with the same number of classes in labels.
+        beta: float or int
+            Beta value of precision for getting recall. Should be in the range of (0, 1].
+            Default is 1.0.
+
         Returns
         -------
-        float: The recall_at_precision score.
+        float: The precision_at_recall score.
     """
-    if beta > 1:
-        logging.warning(
-            "WARNING: beta should be between 0 and 1, but got %s. Using 1. instead.", str(beta))
-    if beta < 0:
-        logging.warning(
-            "WARNING: beta should be between 0 and 1, but got %s. Using 0. instead.", str(beta))
+    assert beta > 0 and beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
 
     # only support binary classification
     nclass = len(np.unique(y_true))
-    assert nclass == 2, (f"ERROR: compute_precision_at_recall only supports binary "
+    assert nclass <= 2, (f"ERROR: compute_precision_at_recall only supports binary "
                                     f"classification, but got {nclass} classes.")
 
     # same check for binary cases, input in (n, 2) and label in 1D or (n, 1)
@@ -903,7 +919,11 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
             if prec < beta:
                 new_beta = prec
                 break
-        assert new_beta, f"ERROR: the given beta {beta} is too small."
+        if new_beta is None:
+            logging.warning(
+                f"WARNING: could not find a corresponding recall score given beta {beta}. "
+                f"Return 0 for recall@precision instead.")
+            return 0.
 
         # returns the maximum recall at precision == new_beta
         return np.max(recall_sorted_asc[precision_sorted == new_beta])

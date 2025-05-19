@@ -381,8 +381,10 @@ General Configurations
   choose the best trained model and for early stopping. Each learning task supports different evaluation metrics:
 
   - The supported evaluation metrics of classification tasks include ``accuracy``,
-    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``, ``fscore_at_beta``, ``recall_at_precision_beta``, and ``precision_at_recall_beta``.
+    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``,
+    ``fscore_at_beta``, ``recall_at_precision_beta``, and ``precision_at_recall_beta``.
 
+    - We only support ``recall_at_precision_beta`` and ``precision_at_recall_beta`` metrics for binary classification.
     - The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or
       ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k``
       predictions with the highest confidence scores. Note that ``hit_at_k`` only works with binary classification tasks.
