@@ -295,7 +295,8 @@ def map_node_id(str_node_list, node_id_map, node_type):
     str_node_list: list
         The original string type node id list.
     node_id_map: dict of dict
-        The node id mapping for each node type in the format of {node_type: {str_node_id: int_node_id}}.
+        The node id mapping for each node type in the format of
+        {node_type: {str_node_id: int_node_id}}.
     node_type: str
         The node type string.
     """
@@ -411,7 +412,8 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
             "The 'node' field in the JSON request must include a 'node_type' field."
         node_type = node_conf["node_type"]
         assert node_type in unique_node_types_set, \
-            f"The node type {node_type} is not defined in the graph used during model training. Please check the payload contents."
+            (f"The node type {node_type} is not defined in the graph used during model training. "
+             f"Please check the payload contents.")
         assert "node_id" in node_conf, \
             "The 'node' field in the JSON request must include a 'node_id' field."
         if "features" in node_conf:
@@ -429,7 +431,8 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
             "The 'edge_type' field in the JSON request must include a 'edge_type' field."
         edge_type = edge_conf["edge_type"]
         assert tuple(edge_type) in unique_edge_types_set, \
-            f"The edge type {edge_type} is not defined in the graph used during model training. Please check the payload contents."
+            (f"The edge type {edge_type} is not defined in the graph used during model training. "
+             f"Please check the payload contents.")
         assert "src_node_id" in edge_conf, \
             "The 'edge' field in the JSON request must include a 'src_node_id' field."
         assert "dest_node_id" in edge_conf, \
