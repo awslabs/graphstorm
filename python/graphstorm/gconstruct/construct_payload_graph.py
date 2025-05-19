@@ -272,6 +272,7 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
             feat_data, _ = process_features(input_feat, feat_ops, None)
         else:
             feat_data = {}
+
         for feat_name in list(feat_data):
             if feat_name in after_merge_feat_ops:
                 # do data transformation with the entire feat array.
@@ -292,11 +293,11 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
 def map_node_id(str_node_list, node_id_map, node_type):
     """ Mapping node string id into int id
     str_node_list: list
-        original node id list
+        The original string type node id list.
     node_id_map: dict of dict
-        {node_type: {str_node_id: int_node_id}}
+        The node id mapping for each node type in the format of {node_type: {str_node_id: int_node_id}}.
     node_type: str
-        node type
+        The node type string.
     """
     type_node_id_map = node_id_map[node_type]
     int_node_list = [type_node_id_map.get(val) for val in str_node_list]
@@ -388,17 +389,18 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     }
 
     Parameters:
+    ------------
     request_json_payload: dict
-        JSON request payload
+        JSON request payload.
     gconstruct_confs: dict
-        GConstruct Config
+        GConstruct configuration JSON object.
     """
     assert "graph" in request_json_payload, \
-        "The JSON request must include a 'graph' definition."
+        "The JSON request must include a 'graph' object field."
     assert "nodes" in request_json_payload["graph"], \
-        "The 'graph' definition in the JSON request must include a 'nodes' field."
+        "The 'graph' field in the JSON request must include a 'nodes' field."
     assert "edges" in request_json_payload["graph"], \
-        "The 'graph' definition in the JSON request must include a 'edges' field."
+        "The 'graph' field in the JSON request must include an 'edges' field."
 
     unique_node_types_set = {node['node_type'] for node in gconstruct_confs["nodes"]}
     unique_edge_types_set = {tuple(edge['relation']) for edge in gconstruct_confs["edges"]}
@@ -406,12 +408,12 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     node_feat_type = set()
     for node_conf in request_json_payload["graph"]["nodes"]:
         assert "node_type" in node_conf, \
-            "The 'node' definition in the JSON request must include a 'node_type'"
+            "The 'node' field in the JSON request must include a 'node_type' field."
         node_type = node_conf["node_type"]
         assert node_type in unique_node_types_set, \
-            f"The node type {node_type} is not defined in the gconstruct config"
+            f"The node type {node_type} is not defined in the graph used during model training. Please check the payload contents."
         assert "node_id" in node_conf, \
-            "The 'node' definition in the JSON request must include a 'node_id'"
+            "The 'node' field in the JSON request must include a 'node_id' field."
         if "features" in node_conf:
             if node_conf["node_type"] not in node_feat_type:
                 node_feat_type.add(node_conf["node_type"])
@@ -424,14 +426,14 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     edge_feat_type = set()
     for edge_conf in request_json_payload["graph"]["edges"]:
         assert "edge_type" in edge_conf, \
-            "The 'edge_type' definition in the JSON request must include a 'edge_type'"
+            "The 'edge_type' field in the JSON request must include a 'edge_type' field."
         edge_type = edge_conf["edge_type"]
         assert tuple(edge_type) in unique_edge_types_set, \
-            f"The edge type {edge_type} is not defined in the gconstruct config"
+            f"The edge type {edge_type} is not defined in the graph used during model training. Please check the payload contents."
         assert "src_node_id" in edge_conf, \
-            "The 'edge' definition in the JSON request must include a 'src_node_id'"
+            "The 'edge' field in the JSON request must include a 'src_node_id' field."
         assert "dest_node_id" in edge_conf, \
-            "The 'edge' definition in the JSON request must include a 'dest_node_id'"
+            "The 'edge' field in the JSON request must include a 'dest_node_id' field."
         if "features" in edge_conf:
             if tuple(edge_conf["edge_type"]) not in edge_feat_type:
                 edge_feat_type.add(tuple(edge_conf["edge_type"]))
@@ -460,7 +462,7 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
 
     Parameters:
     request_json_payload: dict
-        Input json payload request
+        Json payload in request.
 
     gconstruct_config: dict
         Input Gconstruct config file
