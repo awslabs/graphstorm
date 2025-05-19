@@ -680,12 +680,28 @@ def create_node_class_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name + "_fail_metric7.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # test eval_metric precision_at_recall_0 is an error. Beta should be in (0, 1].
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "precision_at_recall_0"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric8.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric precision_at_recall_2 is an error. Beta should be in (0, 1].
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "precision_at_recall_2"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric9.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
     # test eval_metric recall_at_precision_one is an error. Should be recall_at_precision_1
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 2,
         "eval_metric": "recall_at_precision_one"
     }
-    with open(os.path.join(tmp_path, file_name + "_fail_metric8.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name + "_fail_metric10.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # test eval_metric recall_at_precision_0.5. is an error. Should be recall_at_precision_0.5
@@ -693,7 +709,23 @@ def create_node_class_config(tmp_path, file_name):
         "num_classes": 2,
         "eval_metric": "recall_at_precision_0.5."
     }
-    with open(os.path.join(tmp_path, file_name + "_fail_metric9.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name + "_fail_metric11.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric recall_at_precision_0 is an error. Beta should be in (0, 1]
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "recall_at_precision_0"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric12.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric recall_at_precision_2 is an error. Beta should be in (0, 1]
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "recall_at_precision_2"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric13.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
@@ -922,6 +954,34 @@ def test_node_class_info():
 
         args = Namespace(
             yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric9.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric10.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric11.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric12.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric13.yaml'),
             local_rank=0)
         config = GSConfig(args)
         assert config.num_classes == 2
