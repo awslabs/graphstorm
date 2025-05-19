@@ -43,26 +43,25 @@ for more build and push options.
 
 Run GraphStorm on SageMaker
 ----------------------------
-There are two ways to run GraphStorm on SageMaker.
 
-* **Run with Amazon SageMaker service**. In this way, users will use GraphStorm's tools to submit SageMaker API calls, which request SageMaker services to start new SageMaker training or inference instances that run GraphStorm code. Users can submit the API calls on a properly configured machine without GPUs (e.g., C5.xlarge). This is the formal way to run GraphStorm experiments on large graphs and to deploy GraphStorm on SageMaker for production environment.
-* **Run with Docker Compose in a local environment**. In this way, users do not call the SageMaker service, but use Docker Compose to run SageMaker locally in a Linux instance that has GPUs. This is mainly for model developers and testers to simulate running GraphStorm on SageMaker.
-
-Run GraphStorm with Amazon SageMaker service
-..............................................
-To run GraphStorm with the Amazon SageMaker service, users should set up an instance with the SageMaker library installed and GraphStorm's SageMaker tools copied.
+To run GraphStorm with the Amazon SageMaker service, users should set up a local Python environment with the SageMaker library installed and GraphStorm's SageMaker helper scripts.
 
 1. Use the below command to install SageMaker.
 
 .. code-block:: bash
 
-    pip install sagemaker
+    pip install --upgrade sagemaker
 
-2. Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository using the following command or copy the `sagemaker folder <https://github.com/awslabs/graphstorm/tree/main/sagemaker>`_ to the instance.
+2. Clone the GraphStorm repository using the following command
 
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
+    # Change to the GraphStorm directory
+    cd graphstorm
+
+For the remainder of this guide we assume the starting working directory is the root
+of the GraphStorm repository.
 
 Prepare graph data
 `````````````````````
@@ -370,187 +369,49 @@ Using ``Processor`` arguments the above example would become:
        --sm-estimator-parameters "max_runtime_in_seconds=3600 volume_size_in_gb=100"
 
 
-Run GraphStorm SageMaker with Docker Compose
-..............................................
-This section describes how to launch Docker compose jobs that emulate a SageMaker training execution environment. This can be used to develop and test GraphStorm model training and inference on SageMaker locally.
+Run GraphStorm SageMaker jobs locally
+.....................................
 
-If users have never worked with Docker compose before the official description provides a great intro:
+You can use `SageMaker's local mode <https://sagemaker.readthedocs.io/en/stable/overview.html#local-mode>`_
+to test your SageMaker jobs locally before launching large-scale
+jobs, to ensure your configuration or other changes are correct.
 
-.. hint::
+First, you need to ensure your SageMaker installation has the necessary dependencies.
+SageMaker Local Mode requires
+`Docker Compose <https://docs.docker.com/compose/install/#scenario-two-install-the-docker-compose-plugin-linux-only>`_
+and a SageMaker Python SDK installation with ``local`` extras:
 
-    Compose is a tool for defining and running multi-container Docker applications. With Compose, you use a YAML file to configure your application's services. Then, with a single command, you create and start all the services from your configuration.
+.. code:: bash
 
-We will use this capability to launch multiple worker instances locally, that will be configured to “look like” a SageMaker training instance and communicate over a virtual network created by Docker Compose. This way our test environment will be as close to a real SageMaker distributed job as we can get, without needing to launch SageMaker jobs, or launch and configure multiple EC2 instances when developing features.
+    pip install 'sagemaker[local]' --upgrade
 
-Get Started
-`````````````
-To run GraphStorm SageMaker with Docker Compose, we need to set up a local Linux instance with the following contents.
 
-1. Use the below command to install SageMaker.
+When launching your SageMaker job, use ``local`` as the instance type:
 
-.. code-block:: bash
+.. code:: bash
 
-    pip install sagemaker
+    python3 launch/launch_[infer|train|partition] \
+       <other arguments> \
+       --instance-type "local"
 
-2. Clone GraphStorm code.
+This command will launch the GraphStorm job locally, by spinning up local
+Docker containers and using Docker compose. See the
+`SageMaker security configuration user guide <https://docs.aws.amazon.com/sagemaker/latest/dg/security.html>`_
+for more information, or
+`the local pipeline examples in the SageMaker SDK <https://sagemaker.readthedocs.io/en/stable/overview.html#local-pipelines>`_.
 
-.. code-block:: bash
 
-    git clone https://github.com/awslabs/graphstorm.git
+.. note::
 
-3. Setup GraphStorm in the PYTHONPATH variable.
+    * If you encounter a ``bus error`` during training, try increasing the shared memory size
+      (``shm_size``) assigned to your local container. See the
+      `SageMaker Local mode configuration docs <https://sagemaker.readthedocs.io/en/stable/overview.html#local-mode-configuration>`_
+      for instructions on how to do so.
+    * If running on EC2 and you would like to use the session credentials instead of EC2 Metadata Service credentials
+      set the environment variable ``USE_SHORT_LIVED_CREDENTIALS=1``
+    * To run GPU jobs locally your host instance will need to have a GPU available and CUDA installed.
 
-.. code-block:: bash
 
-    export PYTHONPATH=/PATH_TO_GRAPHSTORM/python:$PYTHONPATH
-
-4. Build a SageMaker compatible Docker image following the :ref:`Step 1 <build_sagemaker_docker>`.
-
-5. Follow the `Docker Compose <https://docs.docker.com/compose/install/linux/>`_ documentation to install Docker Compose.
-
-Generate a Docker Compose file
-`````````````````````````````````
-A Docker Compose file is a YAML file that tells Docker which containers to spin up and how to configure them. To launch the services with a Docker Compose file, we can use ``docker compose -f docker-compose.yaml up``. This will launch the container and execute its entry point.
-
-To emulate a SageMaker distributed execution environment based on the previously built Docker image (suppose the docker image is named ``graphstorm:sm``), you would need a Docker Compose file that resembles the following:
-
-.. code-block:: yaml
-
-    version: '3.7'
-
-    networks:
-    gfs:
-        name: gsf-network
-
-    services:
-    algo-1:
-        image: graphstorm:sm
-        container_name: algo-1
-        hostname: algo-1
-        networks:
-        - gsf
-        command: 'xxx'
-        environment:
-        SM_TRAINING_ENV: '{"hosts": ["algo-1", "algo-2", "algo-3", "algo-4"], "current_host": "algo-1"}'
-        WORLD_SIZE: 4
-        MASTER_ADDR: 'algo-1'
-        AWS_REGION: 'us-west-2'
-        ports:
-        - 22
-        working_dir: '/opt/ml/code/'
-
-    algo-2:
-        [...]
-
-Some explanation on the above elements (see the `official docs <https://docs.docker.com/compose/compose-file/>`_ for more details):
-
-* **image**: Specifies the Docker image that will be used for launching the container. In this case, the image is ``graphstorm:sm``, which should correspond to the previously built Docker image.
-* **environment**: Sets the environment variables for the container.
-* **command**: Specifies the entry point, i.e., the command that will be executed when the container launches. In this case, /path/to/entrypoint.sh is the command that will be executed.
-
-To help users generate yaml file automatically, GraphStorm provides a Python script, ``generate_sagemaker_docker_compose.py``, that builds the docker compose file for users.
-
-.. Note:: The script uses the `PyYAML <https://pypi.org/project/PyYAML/>`_ library. Please use the below commnd to install it.
-
-    .. code-block:: bash
-
-        pip install pyyaml
-
-This Python script has 4 required arguments that determine the Docker Compose file that will be generated:
-
-* **--aws-access-key-id**: The AWS access key ID for accessing S3 data within docker
-* **--aws-secret-access-key**: The AWS secret access key for accessing S3 data within docker.
-* **--aws-session-token**: The AWS session toekn used for accessing S3 data within docker.
-* **--num-instances**: The number of instances we want to launch. This will determine the number of algo-x services entries our compose file ends up with.
-
-The rest of the arguments are passed on to ``sagemaker_train.py`` or ``sagemaker_infer.py``:
-
-* **--task-type**: Task type.
-* **--graph-data-s3**: S3 location of the input graph.
-* **--graph-name**: Name of the input graph. The graph name must adhere to the `Python identifier naming rules<https://docs.python.org/3/reference/lexical_analysis.html#identifiers>`_ with the exception that hyphens (``-``) are permitted and the name can start with numbers.
-* **--yaml-s3**: S3 location of yaml file for training and inference.
-* **--custom-script**: Custom training script provided by customers to run customer training logic. This should be a path to the Python script within the Docker image.
-* **--output-emb-s3**: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.
-* **--output-prediction-s3**: S3 location to store prediction results. This is an inference only argument.
-
-Run GraphStorm on Docker Compose for Training
-```````````````````````````````````````````````
-First, use the following command to generate a Compose YAML file for the Link Prediction training on OGB-MAG graph.
-
-.. code-block:: bash
-
-    python3 generate_sagemaker_docker_compose.py \
-            --aws-access-key <<AWS_ACCESS_KEY>> \
-            --aws-secret-access-key <AWS_SECRET_ACCESS_KEY> \
-            --aws-session-token <AWS_SESSION_TOKEN> \
-            --num-instances 3 \
-            --image <GRAPHSTORM_DOCKER_IMAGE> \
-            --graph-data-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p \
-            --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG>/map_lp.yaml \
-            --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL> \
-            --graph-name ogbn-mag \
-            --task-type link_prediction \
-            --num-layers 1 \
-            --fanout 10 \
-            --hidden-size 128 \
-            --backend gloo \
-            --batch-size 128
-
-The above command will create a Docker Compose file named ``docker-compose-<task-type>-<num-instances>-train.yaml``, which we can then use to launch the job.
-
-As our Docker Compose will use a Docker network, named ``gsf-network``, for inter-container communications, users need to run the following command to create the network before luanch Docker Compose.
-
-.. code-block:: bash
-
-    docker network create "gsf-network"
-
-Then, use the following command to run the Link Prediction training on OGB-MAG graph.
-
-.. code-block:: bash
-
-    docker compose -f docker-compose-link_prediction-3-train.yaml up
-
-Running the above command will launch 3 instances of the image, configured with the command and env vars that emulate a SageMaker execution environment and run the ``sagemaker_train.py`` script.
-
-.. Note:: The containers actually interact with S3, so the provided AWS assess key, security access key, and session token should be valid for access S3 bucket.
-
-Run GraphStorm on Docker Compose for Inference
-```````````````````````````````````````````````
-The ``generate_sagemaker_docker_compose.py`` can build Compose file for the inference task with the same arguments as for training, and in addition, but add a new argument, ``--inference``. The below command create the Compose file for the Link Prediction inference on OGB-MAG graph.
-
-.. code-block:: bash
-
-    python3 generate_sagemaker_docker_compose.py \
-            --aws-access-key <<AWS_ACCESS_KEY>> \
-            --aws-secret-access-key <AWS_SECRET_ACCESS_KEY> \
-            --aws-session-token <AWS_SESSION_TOKEN> \
-            --num-instances 3 \
-            --image <GRAPHSTORM_DOCKER_IMAGE> \
-            --graph-data-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p \
-            --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG>/map_lp.yaml \
-            --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL> \
-            --graph-name ogbn-mag \
-            --task-type link_prediction \
-            --num-layers 1 \
-            --fanout 10 \
-            --hidden-size 128 \
-            --backend gloo \
-            --batch-size 128 \
-            --inference
-
-The command will create a Docker compose file named ``docker-compose-<task-type>-<num-instances>-infer.yaml``. And then, we can use the same command to spin up the inference job.
-
-.. code-block:: bash
-
-    docker compose -f docker-compose-link_prediction-3-infer.yaml up
-
-Clean Up
-``````````````````
-To save computing resources, users can run the below command to clean up the Docker Compose environment.
-
-.. code-block:: bash
-
-    docker compose -f docker-compose-file down
 
 Legacy image building instructions
 ``````````````````````````````````
