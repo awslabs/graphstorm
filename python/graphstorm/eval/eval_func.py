@@ -794,6 +794,7 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
             binary label indicators.
         weights: list
             A list of weights with the same number of classes in labels.
+            Default is None.
         beta: float or int
             Beta value of precision for getting recall. Should be in the range of (0, 1].
             Default is 1.0.
@@ -873,6 +874,7 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
             binary label indicators.
         weights: list
             A list of weights with the same number of classes in labels.
+            Default is None.
         beta: float or int
             Beta value of precision for getting recall. Should be in the range of (0, 1].
             Default is 1.0.
