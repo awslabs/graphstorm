@@ -135,18 +135,16 @@ class ClassificationMetrics:
             assert is_float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
                             "precision_at_recall evaluation metric for classification " \
                             f"must end with an integer or float, but get {metric}"
-            assert (float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) > 0
-                    and float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]) <= 1), \
+            assert 0 < float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1, \
                 "The beta in precision_at_recall evaluation metric must be in (0, 1], " \
-                f"but get {float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:])}."
+                f"but get {float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:])}."
         elif metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
             assert is_float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
                             "recall_at_precision evaluation metric for classification " \
                             f"must end with an integer or float, but get {metric}"
-            assert (float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) > 0
-                    and float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+            assert 0 < float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1, \
                 "The beta in recall_at_precision evaluation metric must be in (0, 1], " \
-                f"but get {float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:])}."
+                f"but get {float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:])}."
         else:
             assert metric in self.supported_metrics, \
                 f"Metric {metric} not supported for classification"
