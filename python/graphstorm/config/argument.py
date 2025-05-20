@@ -3101,33 +3101,33 @@ class GSConfig:
                         if metric.startswith(SUPPORTED_HIT_AT_METRICS):
                             assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                                 "hit_at_k evaluation metric for classification " \
-                                f"must end with an integer, but get {eval_metric}."
+                                f"must end with an integer, but get {metric}."
                         elif metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
                             assert is_float(
                                 metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
                                 "recall_at_precision_beta evaluation metric for classification " \
-                                f"must end with an integer or float, but get {eval_metric}."
-                            assert (0 < float(eval_metric[
+                                f"must end with an integer or float, but get {metric}."
+                            assert (0 < float(metric[
                                           len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
                                 "The beta in recall_at_precision_beta evaluation metric must be " \
                                 "in (0, 1], but get {}.".format(
-                                    float(eval_metric[
+                                    float(metric[
                                           len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]))
                         elif metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
                             assert is_float(
                                 metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
                                 "precision_at_recall_beta evaluation metric for classification " \
-                                f"must end with an integer or float, but get {eval_metric}."
-                            assert (0 < float(eval_metric[
+                                f"must end with an integer or float, but get {metric}."
+                            assert (0 < float(metric[
                                           len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
                                 "The beta in precision_at_recall_beta evaluation metric must be " \
                                 "in (0, 1], but get {}.".format(
-                                    float(eval_metric[
+                                    float(metric[
                                           len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]))
                         elif metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
                             assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
                                 'fscore_at_beta evaluation metric for classification ' \
-                                f'must end with an integer or float, but get {eval_metric}.'
+                                f'must end with an integer or float, but get {metric}.'
                         else:
                             assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
                                 f"Classification evaluation metric should be " \
