@@ -68,7 +68,7 @@ from .config import get_mttask_id
 from .config import (TaskInfo,
                      FeatureGroup)
 
-from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
+from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name, get_rank
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -2212,19 +2212,21 @@ class GSConfig:
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
                 if num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                    warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
-                                  "loss is deprecated and will be removed "
-                                  "in future versions.",
-                                  DeprecationWarning)
+                    if get_rank() == 0:
+                        warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                                    "loss is deprecated and will be removed "
+                                    "in future versions.",
+                                    DeprecationWarning)
                 else:
                     assert num_classes > 1, \
                         "num_classes for classification tasks must be 2 or greater."
         else:
             if self._num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
-                              "loss is deprecated and will be removed "
-                              "in future versions.",
-                              DeprecationWarning)
+                if get_rank() == 0:
+                    warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                                "loss is deprecated and will be removed "
+                                "in future versions.",
+                                DeprecationWarning)
             else:
                 assert self._num_classes > 1, \
                     "num_classes for classification tasks must be 2 or greater."
