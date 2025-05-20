@@ -3069,10 +3069,8 @@ class GSConfig:
                             eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS) + 1:]), \
                         "recall_at_precision_beta evaluation metric for classification " \
                         f"must end with an integer or float, but get {eval_metric}."
-                        assert (float(eval_metric[
-                                      len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) > 0
-                                and float(eval_metric[
-                                          len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+                        assert (0 < float(eval_metric[
+                                      len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
                             "The beta in recall_at_precision_beta evaluation metric must be in " \
                             "(0, 1], but get " \
                             f"{float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:])}."
@@ -3081,10 +3079,8 @@ class GSConfig:
                             eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]), \
                             "precision_at_recall_beta evaluation metric for classification " \
                             f"must end with an integer or float, but get {eval_metric}."
-                        assert (float(eval_metric[
-                                      len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) > 0
-                                and float(eval_metric[
-                                          len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
+                        assert (0 < float(eval_metric[
+                                      len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
                             "The beta in precision_at_recall_beta evaluation metric must be in " \
                             "(0, 1], but get " \
                             f"{float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:])}."
@@ -3111,10 +3107,8 @@ class GSConfig:
                                 metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
                                 "recall_at_precision_beta evaluation metric for classification " \
                                 f"must end with an integer or float, but get {eval_metric}."
-                            assert (float(eval_metric[
-                                          len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) > 0
-                                    and float(eval_metric[
-                                            len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+                            assert (0 < float(eval_metric[
+                                          len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
                                 "The beta in recall_at_precision_beta evaluation metric must be " \
                                 "in (0, 1], but get {}.".format(
                                     float(eval_metric[
@@ -3124,10 +3118,8 @@ class GSConfig:
                                 metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
                                 "precision_at_recall_beta evaluation metric for classification " \
                                 f"must end with an integer or float, but get {eval_metric}."
-                            assert (float(eval_metric[
-                                          len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) > 0
-                                    and float(eval_metric[
-                                            len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
+                            assert (0 < float(eval_metric[
+                                          len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
                                 "The beta in precision_at_recall_beta evaluation metric must be " \
                                 "in (0, 1], but get {}.".format(
                                     float(eval_metric[

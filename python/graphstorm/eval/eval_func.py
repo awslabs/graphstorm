@@ -803,7 +803,7 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
         -------
         float: The precision_at_recall score.
     """
-    assert beta > 0 and beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
+    assert 0 < beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
@@ -839,8 +839,8 @@ def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
         idx = np.searchsorted(recall_sorted_asc, beta) - 1
         if idx < 0:
             logging.warning(
-                f"WARNING: could not find a corresponding precision score given beta {beta}. "
-                f"Return 0 for precision@recall instead.")
+                "WARNING: could not find a corresponding precision score given beta %s. "
+                "Return 0 for precision@recall instead.", beta)
             return 0.
 
         new_beta = recall_sorted_asc[idx]
@@ -883,7 +883,7 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
         -------
         float: The precision_at_recall score.
     """
-    assert beta > 0 and beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
+    assert 0 < beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
 
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
@@ -923,8 +923,8 @@ def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
                 break
         if new_beta is None:
             logging.warning(
-                f"WARNING: could not find a corresponding recall score given beta {beta}. "
-                f"Return 0 for recall@precision instead.")
+                "WARNING: could not find a corresponding recall score given beta %s. "
+                "Return 0 for recall@precision instead.", beta)
             return 0.
 
         # returns the maximum recall at precision == new_beta
