@@ -73,7 +73,8 @@ from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name, get_rank
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
 from ..eval import SUPPORTED_LINK_PREDICTION_METRICS
-from ..eval import SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS
+from ..eval import (SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS,
+                    SUPPORTED_RECALL_AT_PRECISION_METRICS, SUPPORTED_PRECISION_AT_RECALL_METRICS)
 from ..eval import is_float
 
 from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -323,13 +324,13 @@ class GSConfig:
             mask_fields = task_config["mask_fields"]
             assert len(mask_fields) == 3, \
                 "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
-                f"but get {mask_fields}"
+                f"but get {mask_fields}."
         else:
             mask_fields = (None, None, None)
 
         task_weight = task_config["task_weight"] \
             if "task_weight" in task_config else 1.0
-        assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
+        assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}."
 
         batch_size = self.batch_size \
             if "batch_size" not in task_config else task_config["batch_size"]
@@ -3064,7 +3065,27 @@ class GSConfig:
                     if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
                         assert eval_metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                             "hit_at_k evaluation metric for classification " \
-                            f"must end with an integer, but get {eval_metric}"
+                            f"must end with an integer, but get {eval_metric}."
+                    elif eval_metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+                        assert is_float(
+                            eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS) + 1:]), \
+                        "recall_at_precision_beta evaluation metric for classification " \
+                        f"must end with an integer or float, but get {eval_metric}."
+                        assert (0 < float(eval_metric[
+                                      len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+                            "The beta in recall_at_precision_beta evaluation metric must be in " \
+                            "(0, 1], but get " \
+                            f"{float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:])}."
+                    elif eval_metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+                        assert is_float(
+                            eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]), \
+                            "precision_at_recall_beta evaluation metric for classification " \
+                            f"must end with an integer or float, but get {eval_metric}."
+                        assert (0 < float(eval_metric[
+                                      len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
+                            "The beta in precision_at_recall_beta evaluation metric must be in " \
+                            "(0, 1], but get " \
+                            f"{float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:])}."
                     elif eval_metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
                         assert is_float(eval_metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
                             'fscore_at_beta evaluation metric for classification ' \
@@ -3073,7 +3094,7 @@ class GSConfig:
                         assert eval_metric in SUPPORTED_CLASSIFICATION_METRICS, \
                             f"Classification evaluation metric should be " \
                             f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                            f"but get {self._eval_metric}."
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
@@ -3082,11 +3103,33 @@ class GSConfig:
                         if metric.startswith(SUPPORTED_HIT_AT_METRICS):
                             assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                                 "hit_at_k evaluation metric for classification " \
-                                f"must end with an integer, but get {eval_metric}."
+                                f"must end with an integer, but get {metric}."
+                        elif metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+                            assert is_float(
+                                metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
+                                "recall_at_precision_beta evaluation metric for classification " \
+                                f"must end with an integer or float, but get {metric}."
+                            assert (0 < float(metric[
+                                          len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+                                "The beta in recall_at_precision_beta evaluation metric must be " \
+                                "in (0, 1], but get {}.".format(
+                                    float(metric[
+                                          len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]))
+                        elif metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+                            assert is_float(
+                                metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
+                                "precision_at_recall_beta evaluation metric for classification " \
+                                f"must end with an integer or float, but get {metric}."
+                            assert (0 < float(metric[
+                                          len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
+                                "The beta in precision_at_recall_beta evaluation metric must be " \
+                                "in (0, 1], but get {}.".format(
+                                    float(metric[
+                                          len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]))
                         elif metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
                             assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
                                 'fscore_at_beta evaluation metric for classification ' \
-                                f'must end with an integer or float, but get {eval_metric}.'
+                                f'must end with an integer or float, but get {metric}.'
                         else:
                             assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
                                 f"Classification evaluation metric should be " \
@@ -3108,7 +3151,7 @@ class GSConfig:
                     assert eval_metric in SUPPORTED_REGRESSION_METRICS, \
                         f"Regression evaluation metric should be " \
                         f"in {SUPPORTED_REGRESSION_METRICS}, " \
-                        f"but get {self._eval_metric}"
+                        f"but get {self._eval_metric}."
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
@@ -3117,7 +3160,7 @@ class GSConfig:
                         assert metric in SUPPORTED_REGRESSION_METRICS, \
                             f"Regression evaluation metric should be " \
                             f"in {SUPPORTED_REGRESSION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                            f"but get {self._eval_metric}."
                         eval_metric.append(metric)
                 else:
                     assert False, "Regression evaluation metric " \
@@ -3136,12 +3179,12 @@ class GSConfig:
                     if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
                         assert eval_metric[len(SUPPORTED_HIT_AT_METRICS) + 1:].isdigit(), \
                             "hit_at_k evaluation metric for link prediction " \
-                            f"must end with an integer, but get {eval_metric}"
+                            f"must end with an integer, but get {eval_metric}."
                     else:
                         assert eval_metric in SUPPORTED_LINK_PREDICTION_METRICS, \
                             f"Link prediction evaluation metric should be " \
                             f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                            f"but get {self._eval_metric}."
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
@@ -3150,12 +3193,12 @@ class GSConfig:
                         if metric.startswith(SUPPORTED_HIT_AT_METRICS):
                             assert metric[len(SUPPORTED_HIT_AT_METRICS) + 1:].isdigit(), \
                                 "hit_at_k evaluation metric for link prediction " \
-                                f"must end with an integer, but get {metric}"
+                                f"must end with an integer, but get {metric}."
                         else:
                             assert metric in SUPPORTED_LINK_PREDICTION_METRICS, \
                                 f"Link prediction evaluation metric should be " \
                                 f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                                f"but get {self._eval_metric}"
+                                f"but get {self._eval_metric}."
                         eval_metric.append(metric)
                 else:
                     assert False, "Link prediction evaluation metric " \
