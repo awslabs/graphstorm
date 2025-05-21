@@ -95,6 +95,7 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
     }]
 
     Parameters:
+    ------------
         gconstruct_conf_list: dict
             GConstruct Config Dict for either node or edge
         type_name: str
@@ -102,6 +103,7 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
         structure_type: str
             One of "Node" or "Edge"
     Return:
+    -------
         dict: merged gconstruct config
     """
     conf_list = []
@@ -167,9 +169,11 @@ def merge_payload_input(payload_input_list):
         }
     }]
     Parameters:
+    ------------
         payload_input_list: list of dict
             input payload
     Return:
+    -------
         dict: merged payload input
     """
     merged_data_temp = {}
@@ -232,8 +236,8 @@ def merge_payload_input(payload_input_list):
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
     """ Process json payload node input
 
-    We need to process all node data before we can process edge data. Return node id mapping
-    and node feature data.
+    Nodes must be processed before edges, as edges needs to do the node mapping.
+    This function initializes all unique node mapping and do feature transformation.
 
     The node conf in the payload is defined as follows:
     {
@@ -243,9 +247,18 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
             "<feat_name>": [feat_val]
         }
     }
-    Return:
+    Parameters:
+    ------------
+        gconstruct_node_conf_list: dict
+            GConstruct node configuration.
+        payload_node_conf_list: dict
+            Payload node configuration.
+    Returns:
+    -------
         node_id_map: {str_node_id: int_node_id}
+            A mapping from original node string ID to unique integer IDs.
         node_data: {nfeat_name: edge_feat_np_array}
+            A structured collection of transformed features for each feature name.
     """
     node_id_map = {}
     node_data = {}
@@ -292,24 +305,31 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
 
 def map_node_id(str_node_list, node_id_map, node_type):
     """ Mapping node string id into int id
-    str_node_list: list
-        The original string type node id list.
-    node_id_map: dict of dict
-        The node id mapping for each node type in the format of
-        {node_type: {str_node_id: int_node_id}}.
-    node_type: str
-        The node type string.
+    Parameter:
+        str_node_list: list
+            The original string type node id list.
+        node_id_map: dict of dict
+            The node id mapping for each node type in the format of
+            {node_type: {str_node_id: int_node_id}}.
+        node_type: str
+            The node type string.
+    Return:
+    -------
+        int_node_list: list
+            Mapping result in integer node id list.
     """
     type_node_id_map = node_id_map[node_type]
     int_node_list = [type_node_id_map.get(val) for val in str_node_list]
+    assert None not in int_node_list, \
+        "All the src_node_ids/dest_node_ids need to be defined in the Nodes Mapping"
     return int_node_list
 
 
 def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list, node_id_map):
     """ Process json payload edge data
-
-    The edge conf in the edge payload json file could be like following. Return
-    edges info definition and edge feature data.
+     1. Maps 'src_node_id' and 'dest_node_id' to integer IDs and stores edges infor.
+     2. Transforms the input edge features based on the configuration.
+     Returns the edge information definition and the transformed edge feature data.
 
     {
         "edge_type": "<edge type>",
@@ -320,9 +340,20 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
         }
     }
 
-    Return:
+    Parameters:
+    ------------
+        gconstruct_edge_conf_list: dict
+            GConstruct node configuration.
+        payload_edge_conf_list: dict
+            Payload Edge configuration.
+        node_id_map: dict
+            A mapping from original node string ID to unique integer IDs.
+    Returns:
+    -------
         edges: {etype: (src_np_array, dst_np_array)}
+            Edges information with mapped integer IDs.
         edge_data: {efeat_name: edge_feat_np_array}
+            Edge features with transformed data.
     """
     edges = {}
     edge_data = {}
@@ -406,7 +437,7 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     unique_node_types_set = {node['node_type'] for node in gconstruct_confs["nodes"]}
     unique_edge_types_set = {tuple(edge['relation']) for edge in gconstruct_confs["edges"]}
 
-    node_feat_type = set()
+    node_feature_keys_by_type = {}
     for node_conf in request_json_payload["graph"]["nodes"]:
         assert "node_type" in node_conf, \
             "The 'node' field in the JSON request must include a 'node_type' field."
@@ -417,15 +448,27 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
         assert "node_id" in node_conf, \
             "The 'node' field in the JSON request must include a 'node_id' field."
         if "features" in node_conf:
-            if node_conf["node_type"] not in node_feat_type:
-                node_feat_type.add(node_conf["node_type"])
+            assert isinstance(node_conf["features"], dict), \
+                "The 'features' field in the JSON request must be a dictionary."
+            # Expect all node features block have the same feature schema
+            current_node_feature_keys = set(node_conf["features"].keys())
+            if node_type not in node_feature_keys_by_type:
+                node_feature_keys_by_type[node_type] = current_node_feature_keys
+            else:
+                expected_keys = node_feature_keys_by_type[node_type]
+                assert current_node_feature_keys == expected_keys, \
+                    (f"Inconsistent feature keys for node_type '{node_type}'. "
+                     f"Node ID: '{node_conf.get('node_id', 'N/A')}'. "
+                     f"Expected keys: {sorted(list(expected_keys))}. "
+                     f"Got keys: {sorted(list(current_node_feature_keys))}.")
     assert all(
-        node_config.get("node_type") not in node_feat_type or "features" in node_config
+        node_config.get("node_type") not in node_feature_keys_by_type
+        or "features" in node_config
         for node_config in request_json_payload["graph"]["nodes"]
     ), ("Validation Failed: Some nodes have the 'features' key "
         "while others of the same type do not.")
 
-    edge_feat_type = set()
+    edge_feature_keys_by_type = {}
     for edge_conf in request_json_payload["graph"]["edges"]:
         assert "edge_type" in edge_conf, \
             "The 'edge_type' field in the JSON request must include a 'edge_type' field."
@@ -438,16 +481,23 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
         assert "dest_node_id" in edge_conf, \
             "The 'edge' field in the JSON request must include a 'dest_node_id' field."
         if "features" in edge_conf:
-            if tuple(edge_conf["edge_type"]) not in edge_feat_type:
-                edge_feat_type.add(tuple(edge_conf["edge_type"]))
+            assert isinstance(edge_conf["features"], dict), \
+                "The 'features' field in the JSON request must be a dictionary."
+            # Expect all node features block have the same feature schema
+            current_edge_feature_keys = set(edge_conf["features"].keys())
+            if tuple(edge_type) not in edge_feature_keys_by_type:
+                edge_feature_keys_by_type[tuple(edge_type)] = current_edge_feature_keys
+            else:
+                expected_keys = edge_feature_keys_by_type[tuple(edge_type)]
+                assert current_edge_feature_keys == expected_keys, \
+                    f"Inconsistent feature keys for edge_type '{edge_type}'"
 
     assert all(
-        tuple(edge_config.get("edge_type")) not in edge_feat_type or "features" in edge_config
+        tuple(edge_config.get("edge_type")) not in edge_feature_keys_by_type
+        or "features" in edge_config
         for edge_config in request_json_payload["graph"]["edges"]
     ), ("Validation Failed: Some edges have the 'features' key "
         "while others of the same type do not.")
-
-    return True
 
 
 def process_json_payload_graph(request_json_payload, gconstruct_config):
@@ -464,11 +514,21 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
     }
 
     Parameters:
+    ------------
     request_json_payload: dict
         Json payload in request.
-
     gconstruct_config: dict
         Input Gconstruct config file
+        
+    Returns:
+    --------
+    dict
+        {
+            STATUS: HTTP Response Code
+            MSG: Response Message
+            GRAPH: Built DGLGraph
+            NODE_MAPPING: str-to-int node id mapping
+        }
     """
     with open(gconstruct_config, 'r', encoding="utf8") as json_file:
         gconstruct_confs = json.load(json_file)
