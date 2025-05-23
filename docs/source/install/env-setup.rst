@@ -23,7 +23,7 @@ Prerequisites
 1. **Linux OS**: The current version of GraphStorm supports Linux-based operating systems. GraphStorm
 has been tested on Ubuntu 20.04, 22.04 and AL2023.
 
-2. **Python3**: The current version of GraphStorm requires Python version **3.8**.
+2. **Python3**: The current version of GraphStorm requires Python version **3.8** to **3.11**.
 
 3. (Optional) GraphStorm supports **Nvidia GPUs**.
 
@@ -69,7 +69,7 @@ Users can use ``pip`` or ``pip3`` to install GraphStorm.
 Clone GraphStorm codebase (Optional)
 ..........................................
 The GraphStorm repository includes a set of scripts, tools, and examples, which can facilitate the use of the
-library.
+framework.
 
 * **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include example configuration yaml files that are used in GraphStorm documentations and tutorials and can be used as a starting point for
 your own training configuration.
@@ -97,7 +97,7 @@ Prerequisites
 1. **Docker**: You need to install Docker in your environment following
 `Docker documentation <https://docs.docker.com/engine/install/>`_.
 
-Using Docker's convenience script you can install the Docker on a Linux machine using:
+Using Docker's convenience script you can install Docker on a Linux machine:
 
 .. code-block:: bash
 
@@ -264,7 +264,7 @@ Push the image to Amazon Elastic Container Registry (ECR)
 
 Once you build the image, you can use the ``push_graphstorm_image.sh`` script to push the image
 to an `Amazon ECR <https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html>`_ repository.
-ECR allows you to easily store, manage, and deploy container images
+ECR allows you to easily store, manage, and deploy container images.
 
 This will allow you to use the image in SageMaker jobs using SageMaker Bring-Your-Own-Container, or to launch
 EC2 clusters.
@@ -285,7 +285,7 @@ In addition to ``-e/--environment``, the script supports several optional argume
 * ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
 * ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
 * ``-i, --image``         Docker image name, default is 'graphstorm'.
-* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
+* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>", e.g. ``sagemaker-gpu``.
 * ``-x, --verbose``       Print script debug info (set -x)
 
 Examples:
