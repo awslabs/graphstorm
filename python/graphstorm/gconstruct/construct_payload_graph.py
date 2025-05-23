@@ -19,8 +19,13 @@ import torch as th
 
 from .transform import parse_feat_ops, process_features, preprocess_features
 from .utils import update_two_phase_feat_ops
+from .payload_utils import (BaseApplicationError, MissingValError,
+                            InvalidFeatTypeError,
+                            DGLCreateError, MisMatchedTypeError,
+                            MissingColumnError, MisMatchedFeatureError)
 
 STATUS = "status_code"
+ERROR_CODE = "error_code"
 MSG = "message"
 GRAPH = "graph"
 NODE_MAPPING = "node_mapping"
@@ -44,7 +49,9 @@ def prepare_data(input_data, feat_ops):
     -------
     dict : A dict of feature info.
     """
-    assert feat_ops is not None, "feat_ops must exist when prepare_data is called."
+    if feat_ops is None:
+        raise MissingValError(value_name="feat_ops",
+                              input_name="prepare_data function call")
     feat_info = preprocess_features(input_data, feat_ops)
 
     # update_two_phase_feat_ops function expects an input dictionary indexed by integers
@@ -272,8 +279,8 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
                 if 'features' in gconstruct_node_conf else (None, [], {}, [])
         # Always do single process feature transformation as there is only one payload input
         if feat_ops is not None:
-            assert "features" in node_conf, \
-                "features need to be defined in the payload"
+            if "features" not in node_conf:
+                raise MissingValError("features", "node payload")
             input_feat = node_conf["features"]
             # Input features raw data should be numpy array type
             for key, val in input_feat.items():
@@ -319,8 +326,8 @@ def map_node_id(str_node_list, node_id_map, node_type):
     """
     type_node_id_map = node_id_map[node_type]
     int_node_list = [type_node_id_map.get(val) for val in str_node_list]
-    assert None not in int_node_list, \
-        "All the src_node_ids/dest_node_ids need to be defined in the Nodes Mapping"
+    if None in int_node_list:
+        raise MissingValError("src_node_ids/dest_node_ids", "Node Mapping")
     return int_node_list
 
 
@@ -380,8 +387,8 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
 
         # Always do single process feature transformation as there is only payload input
         if feat_ops is not None:
-            assert "features" in edge_conf, \
-                "Features need to be defined in the payload"
+            if "features" not in edge_conf:
+                raise MissingValError("features", "edge payload")
             input_feat = edge_conf["features"]
             # Input features raw data should be numpy array type
             for key, val in input_feat.items():
@@ -426,77 +433,77 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     gconstruct_confs: dict
         GConstruct configuration JSON object.
     """
-    assert "graph" in request_json_payload, \
-        "The JSON request must include a 'graph' object field."
-    assert "nodes" in request_json_payload["graph"], \
-        "The 'graph' field in the JSON request must include a 'nodes' field."
-    assert "edges" in request_json_payload["graph"], \
-        "The 'graph' field in the JSON request must include an 'edges' field."
+    if "graph" not in request_json_payload:
+        raise MissingColumnError("graph", "JSON request payload")
+    if "nodes" not in request_json_payload["graph"]:
+        raise MissingColumnError("nodes", "JSON request payload graph field")
+    if "edges" not in request_json_payload["graph"]:
+        raise MissingColumnError("edges", "JSON request payload graph field")
 
     unique_node_types_set = {node['node_type'] for node in gconstruct_confs["nodes"]}
     unique_edge_types_set = {tuple(edge['relation']) for edge in gconstruct_confs["edges"]}
 
     node_feature_keys_by_type = {}
     for node_conf in request_json_payload["graph"]["nodes"]:
-        assert "node_type" in node_conf, \
-            "The 'node' field in the JSON request must include a 'node_type' field."
+        if "node_type" not in node_conf:
+            raise MissingColumnError("node_type", "JSON request payload graph nodes field")
         node_type = node_conf["node_type"]
-        assert node_type in unique_node_types_set, \
-            (f"The node type {node_type} is not defined in the graph used during model training. "
-             f"Please check the payload contents.")
-        assert "node_id" in node_conf, \
-            "The 'node' field in the JSON request must include a 'node_id' field."
+        if node_type not in unique_node_types_set:
+            raise MisMatchedTypeError(structure_type="node type", type_name=node_type)
+        if "node_id" not in node_conf:
+            raise MissingColumnError("node_id", "JSON request payload graph nodes field")
         if "features" in node_conf:
-            assert isinstance(node_conf["features"], dict), \
-                "The 'features' field in the JSON request must be a dictionary."
+            if not isinstance(node_conf["features"], dict):
+                raise InvalidFeatTypeError()
             # Expect all node features block have the same feature schema
             current_node_feature_keys = set(node_conf["features"].keys())
             if node_type not in node_feature_keys_by_type:
                 node_feature_keys_by_type[node_type] = current_node_feature_keys
             else:
                 expected_keys = node_feature_keys_by_type[node_type]
-                assert current_node_feature_keys == expected_keys, \
-                    (f"Inconsistent feature keys for node_type '{node_type}'. "
-                     f"Node ID: '{node_conf.get('node_id', 'N/A')}'. "
-                     f"Expected keys: {sorted(list(expected_keys))}. "
-                     f"Got keys: {sorted(list(current_node_feature_keys))}.")
-    assert all(
-        node_config.get("node_type") not in node_feature_keys_by_type
-        or "features" in node_config
-        for node_config in request_json_payload["graph"]["nodes"]
-    ), ("Validation Failed: Some nodes have the 'features' key "
-        "while others of the same type do not.")
+                if current_node_feature_keys != expected_keys:
+                    raise MisMatchedFeatureError(structural_type="node type",
+                                                  id_name=node_conf.get('node_id', 'N/A'),
+                                                  expected_keys=sorted(list(expected_keys)),
+                                                  actual_keys=sorted(list(current_node_feature_keys)))
+    for node_config in request_json_payload["graph"]["nodes"]:
+        node_type = node_config.get("node_type")
+        if node_type in node_feature_keys_by_type and "features" not in node_config:
+            raise MissingColumnError("features",
+                        f"certain JSON request payload graph nodes field for node type {node_type}")
 
     edge_feature_keys_by_type = {}
     for edge_conf in request_json_payload["graph"]["edges"]:
-        assert "edge_type" in edge_conf, \
-            "The 'edge_type' field in the JSON request must include a 'edge_type' field."
+        if "edge_type" not in edge_conf:
+            raise MissingColumnError("edge_type", "JSON request payload graph edges field")
         edge_type = edge_conf["edge_type"]
-        assert tuple(edge_type) in unique_edge_types_set, \
-            (f"The edge type {edge_type} is not defined in the graph used during model training. "
-             f"Please check the payload contents.")
-        assert "src_node_id" in edge_conf, \
-            "The 'edge' field in the JSON request must include a 'src_node_id' field."
-        assert "dest_node_id" in edge_conf, \
-            "The 'edge' field in the JSON request must include a 'dest_node_id' field."
+        if tuple(edge_type) not in unique_edge_types_set:
+            raise MisMatchedTypeError(structure_type="edge type", type_name=tuple(edge_type))
+        if "src_node_id" not in edge_conf:
+            raise MissingColumnError("src_node_id", "JSON request payload graph edges field")
+        if "dest_node_id" not in edge_conf:
+            raise MissingColumnError("dest_node_id", "JSON request payload graph edges field")
+        src_node_id, dest_node_id = edge_conf["src_node_id"], edge_conf["dest_node_id"]
         if "features" in edge_conf:
-            assert isinstance(edge_conf["features"], dict), \
-                "The 'features' field in the JSON request must be a dictionary."
+            if not isinstance(edge_conf["features"], dict):
+                raise InvalidFeatTypeError()
             # Expect all node features block have the same feature schema
             current_edge_feature_keys = set(edge_conf["features"].keys())
             if tuple(edge_type) not in edge_feature_keys_by_type:
                 edge_feature_keys_by_type[tuple(edge_type)] = current_edge_feature_keys
             else:
                 expected_keys = edge_feature_keys_by_type[tuple(edge_type)]
-                assert current_edge_feature_keys == expected_keys, \
-                    f"Inconsistent feature keys for edge_type '{edge_type}'"
+                if current_edge_feature_keys != expected_keys:
+                    raise MisMatchedFeatureError(structural_type="edge type",
+                                             id_name=(src_node_id, dest_node_id),
+                                             expected_keys=sorted(list(expected_keys)),
+                                             actual_keys=sorted(list(current_edge_feature_keys)))
 
-    assert all(
-        tuple(edge_config.get("edge_type")) not in edge_feature_keys_by_type
-        or "features" in edge_config
-        for edge_config in request_json_payload["graph"]["edges"]
-    ), ("Validation Failed: Some edges have the 'features' key "
-        "while others of the same type do not.")
+    for edge_config in request_json_payload["graph"]["edges"]:
+        edge_type = tuple(edge_config.get("edge_type"))
+        if edge_type in edge_feature_keys_by_type and "features" not in edge_config:
+            raise MissingColumnError("features",
+                    f"certain JSON request payload graph edges field for edge type {tuple(edge_type)}")
 
 
 def process_json_payload_graph(request_json_payload, graph_construct_config):
@@ -532,36 +539,42 @@ def process_json_payload_graph(request_json_payload, graph_construct_config):
     # Verify JSON payload request
     try:
         verify_payload_conf(request_json_payload, graph_construct_config)
-    except AssertionError as assert_error:
-        error_message = str(assert_error)
-        return {STATUS: 400, MSG: error_message}
+    except BaseApplicationError as payload_error:
+        error_message = str(payload_error)
+        error_code = payload_error.get_error_code()
+        return {STATUS: 400, ERROR_CODE: error_code, MSG: error_message}
 
     # Process Node Data
     try:
         raw_node_id_maps, node_data = process_json_payload_nodes(graph_construct_config["nodes"],
                                                request_json_payload["graph"]["nodes"])
         num_nodes_dict = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
-    except AssertionError as assert_error:
-        error_message = str(assert_error)
-        return {STATUS: 400, MSG: error_message}
+    except BaseApplicationError as payload_error:
+        error_message = str(payload_error)
+        error_code = payload_error.get_error_code()
+        return {STATUS: 400, ERROR_CODE: error_code, MSG: error_message}
 
     # Process Edge Data
     try:
         edges, edge_data = process_json_payload_edges(graph_construct_config["edges"],
                                 request_json_payload["graph"]["edges"], raw_node_id_maps)
-    except AssertionError as assert_error:
-        error_message = str(assert_error)
-        return {STATUS: 400, MSG: error_message}
+    except BaseApplicationError as payload_error:
+        error_message = str(payload_error)
+        error_code = payload_error.get_error_code()
+        return {STATUS: 400, ERROR_CODE: error_code, MSG: error_message}
 
-    g = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
+    try:
+        g = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
 
-    # Assign node/edge features
-    for ntype in node_data:
-        for name, ndata in node_data[ntype].items():
-            g.nodes[ntype].data[name] = th.tensor(ndata)
-    for etype in edge_data:
-        for name, edata in edge_data[etype].items():
-            g.edges[etype].data[name] = th.tensor(edata)
+        # Assign node/edge features
+        for ntype in node_data:
+            for name, ndata in node_data[ntype].items():
+                g.nodes[ntype].data[name] = th.tensor(ndata)
+        for etype in edge_data:
+            for name, edata in edge_data[etype].items():
+                g.edges[etype].data[name] = th.tensor(edata)
 
-    return {STATUS: 200, MSG: "successful build payload graph",
-            GRAPH: g, NODE_MAPPING: raw_node_id_maps}
+        return {STATUS: 200, MSG: "successful build payload graph",
+                GRAPH: g, NODE_MAPPING: raw_node_id_maps}
+    except DGLCreateError as e:
+        return {STATUS: 400, ERROR_CODE: e.get_error_code(), MSG: str(e)}

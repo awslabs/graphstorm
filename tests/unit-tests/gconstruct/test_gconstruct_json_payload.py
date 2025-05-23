@@ -24,6 +24,7 @@ from graphstorm.gconstruct.construct_payload_graph import (process_json_payload_
                                             process_json_payload_nodes,
                                             verify_payload_conf,
                                             STATUS, MSG, GRAPH, NODE_MAPPING)
+from graphstorm.gconstruct.payload_utils import BaseApplicationError
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 gconstruct_file_path = os.path.join(_ROOT, "../../end2end-tests/"
@@ -65,6 +66,7 @@ def check_heterogeneous_graph(dgl_hg):
 
 def test_process_json_payload_graph():
     response = process_json_payload_graph(json_payload, gconstruct_confs)
+    print(response)
     assert response[STATUS] == 200
     assert MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
@@ -183,7 +185,7 @@ def test_merge_payloads():
 def test_verify_payload_conf():
     # Case 1: Empty Input Conf
     input_conf = {}
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 2: Empty Node Conf
@@ -192,7 +194,7 @@ def test_verify_payload_conf():
             "edges": []
         }
     }
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 3: Empty Edge Conf
@@ -201,37 +203,37 @@ def test_verify_payload_conf():
             "nodes": []
         }
     }
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 4: All nodes should have node_type
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["nodes"][0]["node_type"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 5: All nodes should have node_id
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["nodes"][0]["node_id"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 6: All edges should have edge_type
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][0]["edge_type"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 7: All edges should have src_node_id
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][0]["src_node_id"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 8: All edges should have dest_node_id
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][0]["dest_node_id"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 9: All nodes should have consistency on features
@@ -251,13 +253,13 @@ def test_verify_payload_conf():
     # },
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["nodes"][1]["features"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 10: All edges should have consistency on features
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][1]["features"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 11: All nodes should have same feature name
@@ -283,11 +285,11 @@ def test_verify_payload_conf():
     # },
     input_conf = copy.deepcopy(json_payload)
     input_conf["graph"]["nodes"][1]["features"]["feat_err"] = [0.1]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
     # Case 12: All edges should have same feature name
     input_conf = copy.deepcopy(json_payload)
     input_conf["graph"]["edges"][1]["features"]["feat_err"] = [0.1]
-    with pytest.raises(AssertionError):
+    with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
