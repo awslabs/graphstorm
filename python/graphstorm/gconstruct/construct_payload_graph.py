@@ -13,7 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import json
 import numpy as np
 import dgl
 import torch as th
@@ -541,7 +540,7 @@ def process_json_payload_graph(request_json_payload, graph_construct_config):
     try:
         raw_node_id_maps, node_data = process_json_payload_nodes(graph_construct_config["nodes"],
                                                request_json_payload["graph"]["nodes"])
-        num_nodes = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
+        num_nodes_dict = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
     except AssertionError as assert_error:
         error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
@@ -554,7 +553,7 @@ def process_json_payload_graph(request_json_payload, graph_construct_config):
         error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
 
-    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    g = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
 
     # Assign node/edge features
     for ntype in node_data:
