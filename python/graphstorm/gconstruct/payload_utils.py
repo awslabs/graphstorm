@@ -109,6 +109,7 @@ class MisMatchedTypeError(BaseApplicationError):
 
 
 class MisMatchedFeatureError(BaseApplicationError):
+    """Raised when a required node/edge id has mismatched feature name."""
     message_template = ("Non-existed feature keys for {structural_type} {id_name}, "
                         "Expected Keys: {expected_keys}, Got Keys: {actual_keys}.")
     error_code = "MISMATCHED_FEATURE_ERROR"
