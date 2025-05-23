@@ -463,9 +463,9 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
                 expected_keys = node_feature_keys_by_type[node_type]
                 if current_node_feature_keys != expected_keys:
                     raise MisMatchedFeatureError(structural_type="node type",
-                                                  id_name=node_conf.get('node_id', 'N/A'),
-                                                  expected_keys=sorted(list(expected_keys)),
-                                                  actual_keys=sorted(list(current_node_feature_keys)))
+                                                id_name=node_conf.get('node_id', 'N/A'),
+                                                expected_keys=sorted(list(expected_keys)),
+                                                actual_keys=sorted(list(current_node_feature_keys)))
     for node_config in request_json_payload["graph"]["nodes"]:
         node_type = node_config.get("node_type")
         if node_type in node_feature_keys_by_type and "features" not in node_config:
@@ -503,7 +503,8 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
         edge_type = tuple(edge_config.get("edge_type"))
         if edge_type in edge_feature_keys_by_type and "features" not in edge_config:
             raise MissingColumnError("features",
-                    f"certain JSON request payload graph edges field for edge type {tuple(edge_type)}")
+                    f"certain JSON request payload graph edges field "
+                    f"for edge type {tuple(edge_type)}")
 
 
 def process_json_payload_graph(request_json_payload, graph_construct_config):
