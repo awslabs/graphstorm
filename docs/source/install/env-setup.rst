@@ -21,22 +21,18 @@ Prerequisites
 ...............
 
 1. **Linux OS**: The current version of GraphStorm supports Linux-based operating systems. GraphStorm
-has been tested on Ubuntu 20.04, 22.04 and AL2023.
-
+   has been tested on Ubuntu 20.04, 22.04 and AL2023.
 2. **Python3**: The current version of GraphStorm requires Python version **3.8** to **3.11**.
-
 3. (Optional) GraphStorm supports **Nvidia GPUs**.
 
 Install Dependencies
 .....................
 
 GraphStorm requires ``PyTorch>=1.13.0`` and ``DGL>=1.1.3``.
-
-We recommend users to install PyTorch v2.3.0 and DGL v2.3.0 for best compatibility.
-
+We recommend using PyTorch v2.3.0 and DGL v2.3.0 for best compatibility.
 For users who have to use older DGL versions, please refer to `install GraphStorm with DGL 1.1.3 <https://graphstorm.readthedocs.io/en/v0.4/install/env-setup.html#install-graphstorm>`_.
 
-For Nvidia GPU environment:
+For Nvidia GPU environment you can install PyTorch and DGL using:
 
 .. code-block:: bash
 
@@ -48,7 +44,7 @@ For Nvidia GPU environment:
     pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cu121
     pip install dgl==2.3.0+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html
 
-For CPU environment:
+And for CPU environment use:
 
 .. code-block:: bash
 
@@ -59,7 +55,7 @@ For CPU environment:
 Install GraphStorm
 ...................
 
-Users can use ``pip`` or ``pip3`` to install GraphStorm.
+After you install PyTorch and DGL, use ``pip`` to install GraphStorm:
 
 .. code-block:: bash
 
@@ -71,8 +67,9 @@ Clone GraphStorm codebase (Optional)
 The GraphStorm repository includes a set of scripts, tools, and examples, which can facilitate the use of the
 framework.
 
-* **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include example configuration yaml files that are used in GraphStorm documentations and tutorials and can be used as a starting point for
-your own training configuration.
+* **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include example configuration yaml files that are used in
+  GraphStorm documentations and tutorials and can be used as a starting point for
+  your own training configuration.
 * **graphstorm/examples** includes use-case specific examples, such as temporal graph learning, using SageMaker Pipelines, or performing graph-level predictions with GraphStorm.
 * **graphstorm/tools** includes utilities for GraphStorm, such as data sanity checks for partitioned graph data.
 * **graphstorm/sagemaker** has fully-fledged launch scripts to help your run GraphStorm jobs on Amazon SageMaker and create and execute SageMaker Pipelines.
@@ -210,8 +207,8 @@ Or to build and tag an image to run ParMETIS with EC2 instances:
 See ``bash docker/build_graphstorm_image.sh --help``
 for more information.
 
-Create a GraphStorm Container
-..............................
+Launch a GraphStorm Container
+.............................
 
 Once you have built the image, you can launch a local container to run test jobs.
 
@@ -219,15 +216,22 @@ If your host has access to a GPU run the following command:
 
 .. code:: bash
 
-    docker run --gpus all --network=host --rm -v /dev/shm:/dev/shm/ -d --name gs-test graphstorm:local-gpu
+    docker run --gpus all --network=host --rm -v /dev/shm:/dev/shm/ -it --name gs-test graphstorm:local-gpu /bin/bash
 
 Or if using a CPU-only host:
 
 .. code:: bash
 
-    docker run --network=host -v /dev/shm:/dev/shm/ --rm -d --name gs-test graphstorm:local-cpu
+    docker run --network=host -v /dev/shm:/dev/shm/ --rm -it --name gs-test graphstorm:local-cpu /bin/bash
 
-This command will create a GraphStorm container, named ``gs-test`` and run the container as a daemon.
+This command will create a GraphStorm container, named ``gs-test`` and attach a bash shell to it.
+
+If successful, the command prompt will change to the container's, like
+
+.. code-block:: console
+
+    root@<ip-address>:/#
+
 
 .. note::
 
@@ -236,28 +240,10 @@ This command will create a GraphStorm container, named ``gs-test`` and run the c
     that you allocate enough shared memory to the container. You can also set the shared memory
     using e.g. ``--shm-size 4gb``.
 
-To connect to the running container use the following command:
-
-.. code:: bash
-
-    docker container exec -it gs-test /bin/bash
-
-If successful, the command prompt will change to the container's, like
-
-.. code-block:: console
-
-    root@<ip-address>:/#
-
 .. note::
 
-    If you are planning to run GraphStorm in a local cluster, specific instruction for running GraphStorm with an NFS shared filesystem is given in :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>`.
-
-After exiting (Ctrl+D) you can stop the container using
-
-.. code:: bash
-
-    docker container kill gs-test
-
+    If you are planning to run GraphStorm in a local cluster, specific instruction for running
+    GraphStorm with an NFS shared filesystem is given in :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>`.
 
 Push the image to Amazon Elastic Container Registry (ECR)
 ---------------------------------------------------------
