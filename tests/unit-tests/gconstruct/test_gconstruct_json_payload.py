@@ -63,9 +63,8 @@ def check_heterogeneous_graph(dgl_hg):
         assert th.equal(dest_actual, th.tensor([0, 1]))
 
 
-def test_process_json_payload_graph(tmp_path):
-    response = process_json_payload_graph(json_payload_file_path,
-                               gconstruct_file_path)
+def test_process_json_payload_graph():
+    response = process_json_payload_graph(json_payload, gconstruct_confs)
     assert response[STATUS] == 200
     assert MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
@@ -79,17 +78,14 @@ def test_process_json_payload_graph(tmp_path):
     edge_feat_gconstruct_confs["edges"][0]["features"] = [{
             "feature_col": "rate"
     }]
-    with open(os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"), 'w') as f:
-        json.dump(edge_feat_gconstruct_confs, f, indent=4)
-    response = process_json_payload_graph(json_payload_file_path,
-                                          os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"))
+    response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
     dgl_hg = response[GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
         assert "rate" in dgl_hg.edges[etype].data
 
 
-def test_with_two_phase_transformation(tmp_path):
+def test_with_two_phase_transformation():
     # Node Feature Transformation
     two_phase_gconstruct_confs = copy.deepcopy(gconstruct_confs)
     two_phase_gconstruct_confs["nodes"][0]["features"] = [{
@@ -98,10 +94,7 @@ def test_with_two_phase_transformation(tmp_path):
                           "max_val": 2,
                           "min_val": -2}
     }]
-    with open(os.path.join(tmp_path, "/two_phase_gconstruct_confs.json"), 'w') as f:
-        json.dump(two_phase_gconstruct_confs, f, indent=4)
-    response = process_json_payload_graph(json_payload_file_path,
-                               os.path.join(tmp_path, "/two_phase_gconstruct_confs.json"))
+    response = process_json_payload_graph(json_payload, two_phase_gconstruct_confs)
     assert response[STATUS] == 200
     assert MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
@@ -118,27 +111,21 @@ def test_with_two_phase_transformation(tmp_path):
                           "max_val": 2,
                           "min_val": -2}
     }]
-    with open(os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"), 'w') as f:
-        json.dump(edge_feat_gconstruct_confs, f, indent=4)
-    response = process_json_payload_graph(json_payload_file_path,
-                                          os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"))
+    response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
     dgl_hg = response[GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
         assert "rate" in dgl_hg.edges[etype].data
 
 
-def test_with_after_merge_transformation(tmp_path):
+def test_with_after_merge_transformation():
     # Node Feature Transformation
     after_merge_gconstruct_conf = copy.deepcopy(gconstruct_confs)
     after_merge_gconstruct_conf["nodes"][2]["features"] = [{
             "feature_col": "feat",
             "transform": {"name": "rank_gauss"}
     }]
-    with open(os.path.join(tmp_path, "/after_merge_gconstruct_conf.json"), 'w') as f:
-        json.dump(after_merge_gconstruct_conf, f, indent=4)
-    response = process_json_payload_graph(json_payload_file_path,
-                               os.path.join(tmp_path, "/after_merge_gconstruct_conf.json"))
+    response = process_json_payload_graph(json_payload, after_merge_gconstruct_conf)
     assert response[STATUS] == 200
     assert MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
@@ -153,10 +140,7 @@ def test_with_after_merge_transformation(tmp_path):
             "feature_col": "rate",
             "transform": {"name": "rank_gauss"}
     }]
-    with open(os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"), 'w') as f:
-        json.dump(edge_feat_gconstruct_confs, f, indent=4)
-    response = process_json_payload_graph(json_payload_file_path,
-                                          os.path.join(tmp_path, "/edge_feat_gconstruct_confs.json"))
+    response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
     dgl_hg = response[GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
@@ -197,12 +181,12 @@ def test_merge_payloads():
 
 
 def test_verify_payload_conf():
-    # Empty Input Conf
+    # Case 1: Empty Input Conf
     input_conf = {}
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # Empty Node Conf
+    # Case 2: Empty Node Conf
     input_conf = {
         "graph": {
             "edges": []
@@ -211,7 +195,7 @@ def test_verify_payload_conf():
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # Empty Edge Conf
+    # Case 3: Empty Edge Conf
     input_conf = {
         "graph": {
             "nodes": []
@@ -220,44 +204,90 @@ def test_verify_payload_conf():
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # All nodes should have node_type
+    # Case 4: All nodes should have node_type
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["nodes"][0]["node_type"]
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # All nodes should have node_id
+    # Case 5: All nodes should have node_id
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["nodes"][0]["node_id"]
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # All edges should have edge_type
+    # Case 6: All edges should have edge_type
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][0]["edge_type"]
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # All edges should have src_node_id
+    # Case 7: All edges should have src_node_id
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][0]["src_node_id"]
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # All edges should have dest_node_id
+    # Case 8: All edges should have dest_node_id
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][0]["dest_node_id"]
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # All nodes should have consistency on features
+    # Case 9: All nodes should have consistency on features
+    # Raise error for case
+    # {
+    #     "node_type": "user",
+    #     "features": {
+    #         "feat": [
+    #             -0.0032965524587780237, -0.1
+    #         ]
+    #     },
+    #     "node_id": "u1"
+    # },
+    # {
+    #     "node_type": "user",
+    #     "node_id": "u2"
+    # },
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["nodes"][1]["features"]
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)
 
-    # All edges should have consistency on features
+    # Case 10: All edges should have consistency on features
     input_conf = copy.deepcopy(json_payload)
     del input_conf["graph"]["edges"][1]["features"]
+    with pytest.raises(AssertionError):
+        verify_payload_conf(input_conf, gconstruct_confs)
+
+    # Case 11: All nodes should have same feature name
+    # Raise error for different feature name
+    # Raise error for case
+    # {
+    #     "node_type": "user",
+    #     "features": {
+    #         "feat": [
+    #             -0.0032965524587780237, -0.1
+    #         ]
+    #     },
+    #     "node_id": "u1"
+    # },
+    # {
+    #     "node_type": "user",
+    #     "features": {
+    #         "feat_err": [
+    #             -0.0032965524587780237, -0.1
+    #         ]
+    #     },
+    #     "node_id": "u2"
+    # },
+    input_conf = copy.deepcopy(json_payload)
+    input_conf["graph"]["nodes"][1]["features"]["feat_err"] = [0.1]
+    with pytest.raises(AssertionError):
+        verify_payload_conf(input_conf, gconstruct_confs)
+
+    # Case 12: All edges should have same feature name
+    input_conf = copy.deepcopy(json_payload)
+    input_conf["graph"]["edges"][1]["features"]["feat_err"] = [0.1]
     with pytest.raises(AssertionError):
         verify_payload_conf(input_conf, gconstruct_confs)

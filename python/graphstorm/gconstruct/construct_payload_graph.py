@@ -500,7 +500,7 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
         "while others of the same type do not.")
 
 
-def process_json_payload_graph(request_json_payload, gconstruct_config):
+def process_json_payload_graph(request_json_payload, graph_construct_config):
     """ Construct DGLGraph from json payload.
 
     The json payload is expected to have input format like:
@@ -517,7 +517,7 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
     ------------
     request_json_payload: dict
         Json payload in request.
-    gconstruct_config: dict
+    graph_construct_config: dict
         Input Gconstruct config file
         
     Returns:
@@ -530,23 +530,17 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
             NODE_MAPPING: str-to-int node id mapping
         }
     """
-    with open(gconstruct_config, 'r', encoding="utf8") as json_file:
-        gconstruct_confs = json.load(json_file)
-
-    with open(request_json_payload, 'r', encoding="utf8") as json_file:
-        json_payload_confs = json.load(json_file)
-
     # Verify JSON payload request
     try:
-        verify_payload_conf(json_payload_confs, gconstruct_confs)
+        verify_payload_conf(request_json_payload, graph_construct_config)
     except AssertionError as assert_error:
         error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
 
     # Process Node Data
     try:
-        raw_node_id_maps, node_data = process_json_payload_nodes(gconstruct_confs["nodes"],
-                                               json_payload_confs["graph"]["nodes"])
+        raw_node_id_maps, node_data = process_json_payload_nodes(graph_construct_config["nodes"],
+                                               request_json_payload["graph"]["nodes"])
         num_nodes = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
     except AssertionError as assert_error:
         error_message = str(assert_error)
@@ -554,8 +548,8 @@ def process_json_payload_graph(request_json_payload, gconstruct_config):
 
     # Process Edge Data
     try:
-        edges, edge_data = process_json_payload_edges(gconstruct_confs["edges"],
-                                json_payload_confs["graph"]["edges"], raw_node_id_maps)
+        edges, edge_data = process_json_payload_edges(graph_construct_config["edges"],
+                                request_json_payload["graph"]["edges"], raw_node_id_maps)
     except AssertionError as assert_error:
         error_message = str(assert_error)
         return {STATUS: 400, MSG: error_message}
