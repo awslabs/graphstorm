@@ -21,7 +21,8 @@ Prerequisites
 ...............
 
 1. **Linux OS**: The current version of GraphStorm supports Linux-based operating systems. GraphStorm
-   has been tested on Ubuntu 20.04, 22.04 and AL2023.
+   has been tested on Ubuntu 20.04, 22.04 and
+   `Amazon Linux 2023 <https://docs.aws.amazon.com/linux/al2023/ug/what-is-amazon-linux.html>`_.
 2. **Python3**: The current version of GraphStorm requires Python version **3.8** to **3.11**.
 3. (Optional) GraphStorm supports **Nvidia GPUs**.
 
@@ -74,6 +75,8 @@ framework.
 * **graphstorm/tools** includes utilities for GraphStorm, such as data sanity checks for partitioned graph data.
 * **graphstorm/sagemaker** has fully-fledged launch scripts to help your run GraphStorm jobs on Amazon SageMaker and create and execute SageMaker Pipelines.
 
+.. TODO: Need to add further documentation for scripts under tools/
+
 You can clone the GraphStorm repository to get access to these tools and examples:
 
 .. code-block:: bash
@@ -86,7 +89,7 @@ Setup GraphStorm Docker Environment
 -----------------------------------
 
 Running GraphStorm within a Docker container will allow you to have a reproducible environment to run
-examples without affecting your local Python environment.
+examples without affecting your local environment.
 
 Prerequisites
 ...............
@@ -115,7 +118,9 @@ Using Docker's convenience script you can install Docker on a Linux machine:
         # Log out and back in for the changes to take effect
 
 2. (Optional) GraphStorm supports **Nvidia GPUs** for GPU-based training and inference. To launch
-containers with GPU support you need the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_. If using AWS `Deep Learning AMI GPU`, the Nvidia Container Toolkit comes preinstalled.
+containers with GPU support you need the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
+If using the `AWS Deep Learning AMI <https://docs.aws.amazon.com/dlami/latest/devguide/what-is-dlami.html>`_,
+the Nvidia Container Toolkit comes preinstalled.
 
 .. _build_docker:
 
@@ -163,7 +168,7 @@ using the ``-e/--environment`` argument. The supported environments
 are ``sagemaker`` to run jobs on Amazon SageMaker and ``local`` to run jobs
 on local instances, like a custom cluster of EC2 instances.
 
-For example, can use the following commands to build the local image
+For example, you can use the following commands to build the local image
 with GPU support:
 
 .. code-block:: bash
@@ -256,11 +261,11 @@ This will allow you to use the image in SageMaker jobs using SageMaker Bring-You
 EC2 clusters.
 
 The script requires you to provide the intended execution environment again using
-the ``-e/--environment`` argument,
-and by default will create a repository named ``graphstorm`` in the ``us-east-1`` region,
-on the default AWS account ``aws-cli`` is configured for,
-and push the image tagged as ``<environment>-<device>``.
-The script will try to create a new ECR repository if one doesn't already exist.
+the ``-e/--environment`` argument.
+By default it will create a repository named ``graphstorm`` in the ``us-east-1`` region,
+on the default AWS account ``aws-cli`` is configured for.
+It tags the image as ``<environment>-<device>``, creates a new ECR repository if one
+doesn't exist, and pushes the image to it.
 
 In addition to ``-e/--environment``, the script supports several optional arguments, for a full list use
 ``bash push_graphstorm_image.sh --help``. We list the most important below:
@@ -279,6 +284,4 @@ Examples:
 .. code-block:: bash
 
     # Push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu'
-    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu
-    # Push the ParMETIS-capable image you previously built to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu-parmetis'
-    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu --suffix "-parmetis"
+    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" --account "123456789012" --device cpu
