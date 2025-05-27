@@ -55,9 +55,9 @@ GraphStorm is a graph machine learning (GML) framework designed for enterprise u
 Getting Started
 ----------------
 
-For beginners, please first start with the :ref:`Setup GraphStorm with pip Packages<setup_pip>`. This tutorial covers how to set up a GraphStorm Standalone mode environment for quick start.
+For beginners, please first start with :ref:`setting up GraphStorm in your local environment <setup_pip>`. This tutorial covers how to install GraphStorm in a local Python environment.
 
-Once successfully set up the GraphStorm running environment,
+Once you have successfully set up GraphStorm:
 
 - follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to use GraphStorm Command Line Interfaces (CLIs) to run examples based on GraphStorm built-in data and models, hence getting familiar with GraphStorm CLIs for training and inference.
 - follow the :ref:`Use Your Own Graph Data Tutorial<use-own-data>` to prepare your own graph data for using GraphStorm model training and inference pipelines or APIs.
@@ -81,7 +81,7 @@ Similar as the documentations of distributed graph construction, the distributed
 GraphStorm APIs User Guide
 ---------------------------
 
-The released GraphStorm APIs list the major components that can help users to develop GraphStorm-like GML pipelines, or customize components such as GNN models, training conctrolers for their specific needs.
+The released GraphStorm APIs list the major components that can help users to develop GraphStorm-like GML pipelines, or customize components such as GNN models, for their specific needs.
 
 To help users use these APIs, GraphStorm also released a set of Jupyter notebooks at :ref:`GraphStorm API Programming Example Notebooks<programming-examples>`. By running these notebooks, users can explore some APIs, learn how to use APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements.
 
@@ -101,4 +101,4 @@ Practical and Advanced Guides
 Contribution
 -------------
 GraphStorm is free software; you can redistribute it and/or modify it under the terms of the Apache License 2.0. We welcome contributions.
-Join us on `GitHub <https://github.com/awslabs/graphstorm>`_.
+Join us on `our repository on GitHub <https://github.com/awslabs/graphstorm>`_.
