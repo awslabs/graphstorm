@@ -60,7 +60,7 @@ class BaseApplicationError(Exception):
 
 
 class DGLCreateError(BaseApplicationError):
-    """Raised when a required parameter is missing."""
+    """Raised when DGL Graph is failed to create."""
     message_template = "Failure during creating DGLGraph."
     error_code: str = "DGL_CREATE_ERROR"
 
@@ -69,7 +69,7 @@ class DGLCreateError(BaseApplicationError):
 
 
 class InvalidFeatTypeError(BaseApplicationError):
-    """Raised when a required parameter is missing."""
+    """Raised when the features field is missing."""
     message_template = ("The 'features' field in the JSON payload "
                         "request must be a dictionary.")
     error_code: str = "INVALID_FEATURE_TYPE"
@@ -79,7 +79,7 @@ class InvalidFeatTypeError(BaseApplicationError):
 
 
 class MissingValError(BaseApplicationError):
-    """Raised when a required parameter is missing."""
+    """Raised when a value is missing."""
     message_template = "Missing required {value_name} in {input_name}."
     error_code: str = "MISSING_VALUE_ERROR"
 
@@ -89,7 +89,7 @@ class MissingValError(BaseApplicationError):
 
 
 class MissingColumnError(BaseApplicationError):
-    """Raised when a required parameter is missing."""
+    """Raised when a required column is missing."""
     message_template = "Missing required column: {column_name} in {input_name}."
     error_code: str = "MISSING_COLUMN_ERROR"
 

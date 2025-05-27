@@ -31,6 +31,7 @@ GRAPH = "graph"
 NODE_MAPPING = "node_mapping"
 PROCESS_INDEX = 0
 
+
 def prepare_data(input_data, feat_ops):
     """ Prepare phase one data for two-phase feature transformation.
 
