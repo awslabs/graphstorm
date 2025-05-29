@@ -136,7 +136,15 @@ def get_mttask_id(task_type, ntype=None, etype=None, label=None):
         elif isinstance(etype, tuple):
             task_id.append("_".join(etype))
         elif isinstance(etype, list): # a list of etypes
-            task_id.append("__".join(["_".join(et) for et in etype]))
+            etype_info = "__".join(["_".join(et) for et in etype])
+            # In case the task id is too long, trim it
+            # Set the max etype information into 64
+            # Add a hash information to avoid task id naming conflict
+            if len(etype_info) > 64:
+                id_hash = str(hash(etype_info))
+                etype_info = etype_info[:64] + id_hash[:8]
+
+            task_id.append(etype_info)
         else:
             raise TypeError(f"Unknown etype format: {etype}. Must be a string " \
                             "or a tuple of strings or a list of tuples of strings.")
