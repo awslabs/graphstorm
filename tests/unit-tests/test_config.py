@@ -21,6 +21,7 @@ import yaml
 import math
 import tempfile
 import pytest
+import hashlib
 from argparse import Namespace
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
@@ -94,9 +95,11 @@ def test_get_mttask_id():
     task_type = "link_prediction"
     ntype = None
     etype = [("type0", "r0", "type1"), ("type0", "1"*64, "type2")]
-    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    hasher = hashlib.sha256()
     etype_info = "__".join(["_".join(et) for et in etype])
-    etype_info = etype_info[:64] + str(hash(etype_info))[:8]
+    hasher.update(etype_info.encode('utf-8'))
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    etype_info = etype_info[:64] + hasher.hexdigest()[:8]
     assert task_id == "-".join([task_type, etype_info])
 
 def check_failure(config, field):

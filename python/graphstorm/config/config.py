@@ -17,6 +17,7 @@
 """
 import dataclasses
 import typing
+import hashlib
 from typing import List
 
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
@@ -141,7 +142,9 @@ def get_mttask_id(task_type, ntype=None, etype=None, label=None):
             # Set the max etype information into 64
             # Add a hash information to avoid task id naming conflict
             if len(etype_info) > 64:
-                id_hash = str(hash(etype_info))
+                hasher = hashlib.sha256()
+                hasher.update(etype_info.encode('utf-8'))
+                id_hash = hasher.hexdigest()
                 etype_info = etype_info[:64] + id_hash[:8]
 
             task_id.append(etype_info)
