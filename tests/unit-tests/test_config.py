@@ -21,6 +21,7 @@ import yaml
 import math
 import tempfile
 import pytest
+import hashlib
 from argparse import Namespace
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
@@ -54,6 +55,52 @@ from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_TRANSE_L1_DECODER,
                                BUILTIN_LP_TRANSE_L2_DECODER)
 from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+from graphstorm.config.config import get_mttask_id
+
+def test_get_mttask_id():
+    # node classification task
+    task_type = "node_classification"
+    ntype = "type0"
+    etype = None
+    label = "label"
+
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    assert task_id == "-".join([task_type, ntype, label])
+
+    # edge classification task
+    task_type = "edge_classification"
+    ntype = None
+    etype = ("type0", "r0", "type1")
+    label = "label"
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    assert task_id == "-".join([task_type, "_".join(etype), label])
+
+    # link prediction task
+    task_type = "link_prediction"
+    ntype = None
+    etype = [("type0", "r0", "type1")]
+    label = None
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    etype_info = "__".join(["_".join(et) for et in etype])
+    assert task_id == "-".join([task_type, etype_info])
+
+    task_type = "link_prediction"
+    ntype = None
+    etype = [("type0", "r0", "type1"), ("type0", "r0", "type2")]
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    etype_info = "__".join(["_".join(et) for et in etype])
+    assert task_id == "-".join([task_type, etype_info])
+
+    # the etypes are too long
+    task_type = "link_prediction"
+    ntype = None
+    etype = [("type0", "r0", "type1"), ("type0", "1"*64, "type2")]
+    hasher = hashlib.sha256()
+    etype_info = "__".join(["_".join(et) for et in etype])
+    hasher.update(etype_info.encode('utf-8'))
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    etype_info = etype_info[:64] + hasher.hexdigest()[:8]
+    assert task_id == "-".join([task_type, etype_info])
 
 def check_failure(config, field):
     has_error = False
