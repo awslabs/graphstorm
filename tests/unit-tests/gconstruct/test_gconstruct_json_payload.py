@@ -66,7 +66,6 @@ def check_heterogeneous_graph(dgl_hg):
 
 def test_process_json_payload_graph():
     response = process_json_payload_graph(json_payload, gconstruct_confs)
-    print(response)
     assert response[STATUS] == 200
     assert MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}

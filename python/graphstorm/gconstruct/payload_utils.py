@@ -104,7 +104,7 @@ class MisMatchedTypeError(BaseApplicationError):
                         "in graph construction config.")
     error_code = "MISMATCHED_COLUMN_ERROR"
 
-    def __init__(self, structure_type, **kwargs):
+    def __init__(self, structure_type, type_name, **kwargs):
         super().__init__(structure_type=structure_type, type_name=type_name, **kwargs)
 
 

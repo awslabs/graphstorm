@@ -200,8 +200,8 @@ def merge_payload_input(payload_input_list):
         elif "edge_type" in item and "src_node_id" in item and "dest_node_id" in item:
             structure_type = "edge"
             # List can not be hashed
-            type_name = (item["edge_type"][0] + "-" + item["edge_type"][1] +
-                         "-" + item["edge_type"][2])
+            type_name = (item["edge_type"][0] + "<>" + item["edge_type"][1] +
+                         "<>" + item["edge_type"][2])
             col_name = "edge_type"
             current_ids["src_node_id"] = item["src_node_id"]
             current_ids["dest_node_id"] = item["dest_node_id"]
@@ -236,7 +236,7 @@ def merge_payload_input(payload_input_list):
     # Convert Edge Type back to a list
     for item in final_merged_list:
         if "edge_type" in item:
-            item["edge_type"] = item["edge_type"].split("-")
+            item["edge_type"] = item["edge_type"].split("<>")
     return final_merged_list
 
 
