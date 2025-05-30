@@ -21,11 +21,7 @@ from abc import ABC, abstractmethod
 
 import dgl
 import torch as th
-
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
-
-from graphstorm.gconstruct import verify_confs
-
+from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
 HOMO_GRAPH_TYPE = 'homogeneous'
 HETE_GRAPH_TYPE = 'heterogeneous'
