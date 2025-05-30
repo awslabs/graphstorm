@@ -65,8 +65,8 @@ def get_static_feats(input_feats, ts_feat_names, ts_size):
     2: all types of time series features have the same time series size.
     
     So, the overall feature tensor is a concatination of static features + time series features.
-    For example, we have a 4d static feature, and two time series features, each of which has 24d.
-    Then overall the feature size is 4 + 2 * 24 = 32d. In the overall feature tensor the first 4d
+    For example, we have a 4d static feature, and two time series features, each of which has 14d.
+    Then overall the feature size is 4 + 2 * 14 = 32d. In the overall feature tensor the first 4d
     are static features, and the rest 28d are time series features.
 
     Return:
@@ -566,7 +566,8 @@ class NodePredictionInferrer4TS(GSgnnNodePredictionInferrer):
               return_proba=True,
               save_embed_format="pytorch",
               init_step=0,
-              infer_steps=14):
+              infer_steps=14,
+              use_ar=True):
         """
         New arguments
         --------------
@@ -596,30 +597,38 @@ class NodePredictionInferrer4TS(GSgnnNodePredictionInferrer):
         # This customized inferer only handle the first ntype for inference.
         infer_ntype = list(loader.target_nidx.keys())[0]
 
-        # get all demands features
-        inventory_nfeats = g.nodes[infer_ntype].data['inventory_amounts']
-        th_inventory_nfeats = inventory_nfeats[th.arange(inventory_nfeats.shape[0])]
+        if use_ar:
+            # get all demands features
+            inventory_nfeats = g.nodes[infer_ntype].data['inventory_amounts']
+            th_inventory_nfeats = inventory_nfeats[th.arange(inventory_nfeats.shape[0])]
 
-        predict_results = None
-        for predict_step in range(init_step, (init_step + infer_steps)):
+            predict_results = None
+            for predict_step in range(init_step, (init_step + infer_steps)):
+                res = node_mini_batch_gnn_predict(self._model, loader, return_proba,
+                                                    return_label=False, use_ar=True,
+                                                    predict_step=predict_step)
+                preds = res[0]
+
+                replace_step = predict_step + window_size
+                # Replace the next step inventory_amounts with the predicitons
+                th_inventory_nfeats[:, replace_step] = preds[infer_ntype].squeeze()
+                inventory_nfeats[th.arange(th_inventory_nfeats.shape[0])] = th_inventory_nfeats
+                g.nodes[infer_ntype].data['inventory_amounts'] = inventory_nfeats
+
+                if predict_results is None:
+                    predict_results = preds[infer_ntype]
+                else:
+                    predict_results = th.concat([predict_results, preds[infer_ntype]], dim=-1)
+
+            total_predict_results = {infer_ntype: predict_results}
+        else:
             res = node_mini_batch_gnn_predict(self._model, loader, return_proba,
-                                                return_label=False, use_ar=True,
-                                                predict_step=predict_step)
-            preds = res[0]
+                                              return_label=False, use_ar=False,
+                                              predict_step=init_step)
+            print(res[0][infer_ntype])
+            total_predict_results = res[0]
 
-            replace_step = predict_step + window_size
-            # Replace the next step inventory_amounts with the predicitons
-            th_inventory_nfeats[:, replace_step] = preds[infer_ntype].squeeze()
-            inventory_nfeats[th.arange(th_inventory_nfeats.shape[0])] = th_inventory_nfeats
-            g.nodes[infer_ntype].data['inventory_amounts'] = inventory_nfeats
-
-            if predict_results is None:
-                predict_results = preds[infer_ntype]
-            else:
-                predict_results = th.concat([predict_results, preds[infer_ntype]], dim=-1)
-
-        total_predict_results = {infer_ntype: predict_results}
-
+        # save prediction results
         nid_shuffler = None
         g = loader.data.g
 
