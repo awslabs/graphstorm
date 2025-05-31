@@ -27,6 +27,8 @@ from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
 
 from ..utils import sys_tracker, get_rank, barrier
+from ..dataloading.dataset import (prepare_batch_input,
+                                   prepare_blocks_edge_feats)
 
 class GSgnnNodePredictionInferrer(GSInferrer):
     """ Inferrer for node prediction tasks.
@@ -168,3 +170,54 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             save_node_prediction_results(shuffled_preds, save_prediction_path)
         barrier()
         sys_tracker.check('save predictions')
+
+class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
+    """ Inferrer for real-time node prediction tasks on SageMaker endpoints.
+
+    ``GSGnnNodePredictionRealtimeInferrer`` defines the ``infer()`` method that performs
+    *** works:
+
+    1. Extract one batch using the given dataloader;
+    2. Prepare input node and edge features;
+    3. Compute inference results for nodes with target node type and return the results.
+
+    Parameters
+    ----------
+    model: GSgnnNodeModelBase
+        The GNN model for node prediction, which could be a model class inherited from the
+        ``GSgnnNodeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
+        and the ``GSgnnNodeModelInterface`` class.
+
+    Returns
+    -------
+    predictions: dict
+        The inference results in the format of {ntype: tensor}.
+    """
+
+    def infer(self,
+              g,
+              dataloader,
+              infer_ntypes,
+              nfeat_fields,
+              efeat_fields,
+              return_proba=True):
+
+        self._model.eval()
+
+        all_nodes = []
+        all_blocks = []
+        for input_nodes, _, blocks in dataloader:
+            all_nodes = input_nodes
+            all_blocks = blocks
+
+        n_h = prepare_batch_input(g, all_nodes, feat_field=nfeat_fields)
+        e_hs = prepare_blocks_edge_feats(g, all_blocks, feat_field=efeat_fields)
+
+        logits, _ = self._model.predict(all_blocks, n_h, e_hs, all_nodes,
+                                        return_proba=return_proba)
+
+        predictions = {}
+        for ntype in infer_ntypes:
+            predictions[ntype] = logits[ntype].cpu().detach().numpy()
+
+        return predictions

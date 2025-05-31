@@ -16,236 +16,375 @@
     GraphStorm Built-in Node Classification Real-time Inference Entry Point.
 """
 
-import os
 import json
-import dgl
+import os
+import logging
+from argparse import Namespace
 from datetime import datetime as dt
 
-import torch as th
+from dgl.dataloading import MultiLayerFullNeighborSampler, DataLoader
 import numpy as np
-import pandas as pd
+import torch as th
 
 import graphstorm as gs
 from graphstorm.config import GSConfig
-from argparse import Namespace
+from graphstorm.gconstruct import (process_json_payload_graph,
+                                   STATUS,
+                                   ERROR_CODE,
+                                   MSG,
+                                   GRAPH,
+                                   NODE_MAPPING)
+from graphstorm.dataloading.metadata import (GSMetadataDglDistGraph,
+                                             load_metadata_from_json)
+from graphstorm.inference import GSGnnNodePredictionRealtimeInferrer
 
 
 # Set seed to ensure prediction results constantly
 th.manual_seed(6553865)
 np.random.seed(6553865)
 
+# Global variables to be initialized during model loading
+CONFIG_JSON = None
+MODEL_YAML = None
+# Global variables as keys
+DATA = 'data'
+TARGETS = 'targets'
+RESULTS = 'results'
+
+
+# ================== Utility functions ================== #
+def generate_target_mismatch_results(target_nid):
+    """ Generate the results for mismatching a target node ID.
+
+    This function provide a standard error result dictionary for the target node ID because
+    the given target node ID does not exist in the given subgraph.
+    """
+    result = {}
+    result[STATUS] = '403'
+    result[MSG] = f'The target node ID: {target_nid} does not existing in the given graph.'
+    result[DATA] = None
+    result[TARGETS] = None
+    return result
+
 
 # ================== SageMaker real-time entry point functions ================== #
-
 def input_fn(request_body, request_content_type='application/json'):
     """ Preprocessing request_body that is in JSON format.
+    
+    #TODO: add the API specification url here:
 
-    According to GraphStorm real-time inference API specification, 
+    According to GraphStorm real-time inference API specification, the payload is like:
+
+    {
+        "version": "gs-realtime-v0.1",
+        "gml_task": "node_classification",
+        "graph": {
+            "nodes": [
+                {
+                    "node_type": "author",
+                    "features": {
+                        "feat": [
+                            0.011269339360296726,
+                            ......
+                        ]
+                    },
+                    "node_id": "a4444"
+                },
+                {
+                    "node_type": "author",
+                    "features": {
+                        "feat": [
+                            -0.0032965524587780237,
+                            .....
+                        ]
+                    },
+                    "node_id": "s39"
+                }
+            ],
+            "edges": [
+                {
+                    "edge_type": [
+                        "author",
+                        "writing",
+                        "paper"
+                    ],
+                    "features": {},
+                    "src_node_id": "p4463",
+                    "dest_node_id": "p4463"
+                },
+                ......
+            ]
+        },
+        "targets": [
+            {
+                "node_type": "paper",
+                "node_id": "p4463"
+            },
+            or 
+            {
+                "edge_type": [
+                        "paper",
+                        "citing",
+                        "paper"
+                    ]
+                "src_node_id": "p3551",
+                "dest_node_id": "p3551"
+            }
+        ]
+    }
+
     Parameters
     ----------
     request_body: JSON object
         The JSON object in the request. The JSON object contains the subgraph for inference.
-    :param request_content_type:
-    :return:
+    request_content_type: str
+        String to indicate what is the format of the payload. For GraphStorm built-in real-time
+        input function, the format should be 'application/json'.
+
+    Return
+    -------
+    dgl_graph: DGLGraph
+        A DGL graph for inference. For GraphStorm built-in inference pipeline, the graph is a
+        `DGLGraph` instance.
+    target_dict: 
     """
-    print('--START processing input data... ')
 
-    # --------------------- receive request ------------------------------------------------ #
-    input_data = json.loads(request_body)
-
+    logging.info('-- START processing input data... ')
     s_t = dt.now()
 
-    version = input_data.get('version', None)
-    gml_task = input_data.get('gml_task', None)
-    targets = input_data.get('targets', None)
-    graph = input_data.get('graph', None)
+    payload_data = json.loads(request_body)
 
-    print(version)
-    print(gml_task)
-    task_type = 'node'
-    if 'edge' in gml_task or 'link' in gml_task:
-        task_type = 'edge'
-        target_type = targets[0]['edge_type']
-    else:
-        target_type = targets[0]['node_type']
+    result = {}
 
-    print(f'The type of {task_type} is {target_type}')
+    # general checks of the payload, while other checks will be in the payload processing
+    version = payload_data.get('version', None)
+    gml_task = payload_data.get('gml_task', None)
+    targets = payload_data.get('targets', None)
 
-    # ==== procssing input graph json to DGL graph with node/edge features ====
+    # 1. check if the payload is for a NC task
+    if gml_task is None or gml_task != 'node_classification':
+        result[STATUS] = '421'
+        result[MSG] = f'This endpoint is for node classification, but got task {gml_task}.'
+        result[DATA] = None
+        result[TARGETS] = None
+        return result
+    # 2. check if the targets field is provided
+    if targets is None or len(targets)==0:
+        result[STATUS] = '401'
+        result[MSG] = f'The input payload missed the required \"targets\" field.'
+        result[DATA] = None
+        result[TARGETS] = None
+        return result
 
-    # processing node data
-    nodes = graph.get('nodes', None)
-    assert nodes is not None, 'Some error code and message here'
+    # payload processing to generate DGL graph
+    global CONFIG_JSON
+    resp = process_json_payload_graph(payload_data, CONFIG_JSON)
 
-    type_node_dfs = {}
-    for type_nodes in nodes:
-        # processing one type of nodes, generate new interger node id and save
-        # the mapping file
-        node_df = pd.DataFrame()
+    if resp[STATUS] == 400:
+        # TODO handle different erros
+        result[STATUS] = '400'
+        result[MSG] = f'Something is wrong in the given subgraph.'
+        result[DATA] = None
+        result[TARGETS] = None
+        return result
+    elif resp[STATUS] == 200:   # succeeded
+        dgl_graph = resp[GRAPH]
+        raw_node_id_maps = resp[NODE_MAPPING]
 
-        # generating int node ids
-        str_org_node_ids = type_nodes['node_ids']
-        int_node_ids = np.arange(len(str_org_node_ids))
-
-        node_df['node_id'] = str_org_node_ids
-        node_df['nid'] = int_node_ids
-
-        for key, vals in type_nodes['features'].items():
-            if key in ['node_type', 'node_ids']:
-                continue
-            else:
-                node_df[key] = vals
-
-        type_node_dfs[type_nodes['node_type']] = node_df
-
-    # processing edge data
-    edges = graph.get('edges', None)
-    assert edges is not None,  'Some error code and message here'
-
-    type_edge_dfs = {}
-    edge_feat_dfs = {}
-    for type_edges in edges:
-        src_ntype, etype, dst_ntype = type_edges['edge_type']
-
-        # process source and destination node ids to build DGL input edge lists
-        edge_df = pd.DataFrame()
-        str_org_src_ids = type_edges['src_node_ids']
-        str_org_dst_ids = type_edges['dest_node_ids']
-        edge_df['src_node_id'] = str_org_src_ids
-        edge_df['dst_node_id'] = str_org_dst_ids
-
-        # mapping orginal node ids to int ones
-        edge_df = pd.merge(edge_df, type_node_dfs[src_ntype][['node_id','nid']],
-                           left_on='src_node_id', right_on='node_id')
-        edge_df.rename(columns={'nid': 'src_nid'}, inplace=True)
-        edge_df = pd.merge(edge_df, type_node_dfs[dst_ntype][['node_id','nid']],
-                           left_on='dst_node_id', right_on='node_id')
-        edge_df.rename(columns={'nid': 'dst_nid'}, inplace=True)
-
-        # edge_df = edge_df[['src_nid', 'dst_nid']]
-        type_edge_dfs[(src_ntype, etype, dst_ntype)] = (th.from_numpy(edge_df['src_nid'].to_numpy()),
-                                                        th.from_numpy(edge_df['dst_nid'].to_numpy()))
-
-        # process edge features if have
-        feat_df = pd.DataFrame()
-        for key, vals in type_edges['features'].items():
-            if key in ['edge_type', 'src_node_ids', 'dest_node_ids']:
-                continue
-            else:
-                feat_df[key] = vals
-            if feat_df.shape[0] > 0:
-                edge_feat_dfs[(src_ntype, etype, dst_ntype)] = feat_df
-
-    # Build DGL graph and assign features to nodes/edges if have
-    dgl_graph = dgl.heterograph(type_edge_dfs)
-
-    for ntype, node_df in type_node_dfs.items():
-        nfeat_cols = [col for col in node_df.columns if col not in ['node_id', 'nid']]
-        for nfeat_col in nfeat_cols:
-            np_vals = np.stack(node_df[nfeat_col].values)
-            dgl_graph.nodes[ntype].data[nfeat_col] = th.from_numpy(np_vals)
-
-    for etype, feat_df in edge_feat_dfs.items():
-        for efeat_col in feat_df.columns:
-            np_vals = np.stack(feat_df[efeat_col].values)
-            dgl_graph.edges[etype].data[efeat_col] = th.from_numpy(np_vals)
-
-    # ==== get the target node ids and convert to new node ids ====
-    # so far only handle the first target id set.
+    # mapping the targets, a list of node objects, to new graph node IDs
     target_dict = {}
-    if task_type == 'node':
-        target_ntype = targets[0]['node_type']
-        target_nids = targets[0]['node_ids']
-        node_df = type_node_dfs[target_ntype]
-        target_df = node_df[node_df['node_id'].isin(target_nids)]
-        target_df = target_df[['node_id', 'nid']]
-        target_dict['target_ntype'] = target_ntype
-        target_dict['target_df'] = target_df
-    else:
-        pass
+    for target in targets:
+        target_ntype = target['node_type']
+        target_nid = target['node_id']
 
-    # print(dgl_graph.ndata)
-    # print(dgl_graph.edata)
+        if target_ntype in target_dict:
+            orig_target_nids = target_dict[target_ntype][0]
+            orig_target_nids.append(target_nid)
+            graph_target_nids = target_dict[target_ntype][1]
+            # target id is not in the subgraph
+            if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
+                result = generate_target_mismatch_results(target_nid)
+                return result
+            else:
+                graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
+                graph_target_nids.append(graph_target_nid)
+        else:
+            orig_target_nids = []
+            orig_target_nids.append(target_nid)
+            graph_target_nids = []
+            # target id is not in the subgraph
+            if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
+                result = generate_target_mismatch_results(target_nid)
+                return result
+            else:
+                graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
+                graph_target_nids.append(graph_target_nid)
+                target_dict[target_ntype] = (orig_target_nids, graph_target_nids)
+
+    result[STATUS] = '200'
+    result[MSG] = f'The payload is successfully processed.'
+    result[DATA] = dgl_graph
+    result[TARGETS] = target_dict
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)
-    print(f'--input_fn: used {diff_t} ms ...')
+    logging.info(f'--input_fn: used {diff_t} ms ...')
 
-    return dgl_graph, target_dict
+    return result
 
 
 def model_fn(model_dir):
-    """
-    """
-    print('--START model loading... ')
+    """ Load GraphStorm trained model artifacts.
 
+    GraphStorm model artifacts include three major files:
+    1. The trained GraphStorm model. For inductive model, it will be the `model.pt` file.
+    2. The model configuration YAML file, which should be the one generated by each training job.
+    3. The graph configuration JSON file, which should be the one generated by the gconstruct or
+       GSProcessing operation.
+    These components should be packed in a tar file that SageMaker will download and unzip to the
+    given `model_dir`, like,
+    
+    - model_dir
+        |- model.pt
+        |- acm_nc.yaml
+        |- new_acm_config.json
+
+    Parameters
+    ----------
+    model_dir: str
+        The SageMaker model directory. In theory, it should be "/opt/ml/model/".
+
+    Returns
+    -------
+    model: GraphStorm model
+        A GraphStorm model loaded and recreated from model artifacts.
+    """
+    logging.info('--START model loading... ')
     s_t = dt.now()
 
+    # find the name of artifact file names, assuming there is only one type file packed
+    # TODO(Jian) find an alternative to extract the two file names from deployment scripts.
+    model_file = None
+    yaml_file = None
+    json_file = None
+    files = os.listdir(model_dir)
+    for file in files:
+        if file.endswith('.pt') or file.endswith('.pth') or file.endswith('.bin'):
+            model_file = file
+        if file.endswith('.yaml'):
+            yaml_file = file
+        elif file.endswith('.json'):
+            json_file = file
+        else:
+            continue
+
+    # check if required artifacts exist
+    assert model_file is not None, f'Missing model file, e.g., \"model.pt\", in the tar file.'
+    assert yaml_file is not None, f'Missing model configuration YAML file in the tar file.' 
+    assert json_file is not None, f'Missing graph configuration JSON file in the tar file.'
+
+    # load and recreate the trained model
     gs.initialize()
-    args = Namespace(yaml_config_file=os.path.join(model_dir, 'acm_nc.yaml'), local_rank=0)
-    config = GSConfig(args)
-    # load the dummy distributed graph
-    # TODO: should get the graph name from either user's input argument or by autmatically
-    #       extracted from JSON file.
-    dummy_g = dgl.distributed.DistGraph('acm', \
-                                        part_config=os.path.join(model_dir, 'acm_gs_1p/acm.json'))
-    # rebuild the model
-    # TODO: should like gsf.py to check what kind of models we need to create
-    model = gs.create_builtin_node_gnn_model(dummy_g, config, train_task=False)
-    model.restore_model(config.restore_model_path)
+
+    args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)
+    model_config = GSConfig(args)
+
+    # record the model config for later used in the predict_fn() funciton.
+    global MODEL_YAML
+    MODEL_YAML = model_config
+
+    # create a metadata graph for model generation
+    global CONFIG_JSON
+    with open(os.path.join(model_dir, json_file), 'r') as f:
+        CONFIG_JSON = json.load(f)
+
+    metadata = load_metadata_from_json(CONFIG_JSON)
+    metadata_g = GSMetadataDglDistGraph(metadata)
+
+    # use GraphStorm built-in function to create the model and reload 
+    model = gs.create_builtin_node_gnn_model(metadata_g, model_config, train_task=False)
+    model.restore_model(os.path.join(model_dir, model_file))
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)
-    print(f'--model_fn: used {diff_t} ms ...')
+    logging.info(f'--model_fn: used {diff_t} ms ...')
 
-    print(model)
+    logging.info(model)
 
     return model
 
 
 def predict_fn(input_data, model):
-    """ Make prediction
+    """ Make prediction on the given subgraph for the given targets with the loaded model.
+    
+    Parameters
+    ----------
+    input_data: dict
+        The input data in the format of a dict, e.g., {'status': 200, 'message': 'something',
+        'data': dgl_graph, 'targets': target_dict}. The target_dict is a dictionary whose keys
+        are target node types, and keys are tuples where the 1st element is a list of the
+        original node IDs, and the 2nd element is a list of the new DGL graph integer IDs.
+    model: GraphStorm model
+        A GraphStorm model loaded from the model_fn() function.
     """
-    print('--START model prediction... ')
-
+    logging.info('--START prediction... ')
     s_t = dt.now()
 
-    dgl_graph, target_dict = input_data
+    res = {}
+    # Handle payload errors
+    if input_data[STATUS] != 200:
+        res[STATUS] = input_data[STATUS]
+        res[MSG] = input_data[MSG]
+        res[RESULTS] = {}
+        return res
+
+    # extract the data
+    dgl_graph = input_data[GRAPH]
+    target_dict = input_data[TARGETS]
 
     # sample input graph to build blocks
-    ntype = target_dict['target_ntype']
-    target_df = target_dict['target_df']
-    nids = th.from_numpy(target_df['nid'].to_numpy())
-    print(nids)
-    target_nid = {ntype: nids}
+    target_nids = {}
+    batch_size = 0
+    for ntype, (_, dgl_nids) in target_dict.items():
+        target_nids[ntype] = dgl_nids
+        if len(dgl_nids) > batch_size:
+            batch_size = len(dgl_nids)
 
-    sampler = dgl.dataloading.MultiLayerFullNeighborSampler(2)
-    size = nids.shape[0]
-    dataloader = dgl.dataloading.DataLoader(dgl_graph, target_nid, sampler,
-                                            batch_size=size, shuffle=False,
-                                            drop_last=False)
-    all_nodes = []
-    all_blocks = []
-    for input_nodes, _, blocks in dataloader:
-        all_nodes = input_nodes
-        all_blocks = blocks
+    # TODO(Jian), replace this with a built-in inferrer class.
+    global MODEL_YAML
+    model_config = MODEL_YAML
 
-    nfeat_fields = {'author': ['feat'],
-                    'paper': ['feat'],
-                    'subject': ['feat']}
-    n_h = prepare_batch_input(dgl_graph, all_nodes, feat_field=nfeat_fields)
-    e_hs = []
-    model.eval()
-    logits, _ = model.predict(all_blocks, n_h, e_hs, all_nodes,
-                              return_proba=True)
-    predictions = logits[ntype][nids].cpu().detach().numpy()
+    try:
+        inferrer = GSGnnNodePredictionRealtimeInferrer(model)
 
-    res = {'target_ntype': ntype,
-           'target_nid_raw': target_df['node_id'].to_numpy().tolist(),
-           'target_predictions': predictions.tolist()}
+        sampler = MultiLayerFullNeighborSampler(model_config.num_layers)
+        dataloader = DataLoader(dgl_graph, target_nids, sampler,
+                                batch_size=batch_size, shuffle=False,
+                                drop_last=False)
+        predictions = inferrer.infer(dgl_graph, dataloader, list(target_dict.keys()),
+                                    model_config.node_feat_names, 
+                                    model_config.edge_feat_names)
+        results = []
+        for ntype, preds in predictions.items():
+            (orig_nids, dgl_nids) = target_dict[ntype]
+            preds_in_orig = preds[dgl_nids].tolist()
+            for orig_nid, pred_in_orig in zip(orig_nids, preds_in_orig):
+                results['node_type'] = ntype
+                results['node_id'] = orig_nid
+                results['prediction'] = pred_in_orig                
+    except Exception as e:
+        res[STATUS] = 500
+        res[MSG] = 'Generic server error. Please try later, or ask your administrators.'
+        res[RESULTS] = {}
+        return res
+
+    res = {}
+    res[STATUS] = 200
+    res[MSG] = 'The request is successfully proceeded. '
+    res[RESULTS] = results
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)
-    print(f'--predict_fn: used {diff_t} ms ...')
+    logging.info(f'--predict_fn: used {diff_t} ms ...')
 
     return res
