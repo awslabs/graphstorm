@@ -10,25 +10,32 @@ else
     GSF_HOME="$1"
 fi
 
-# process argument 2: docker image type, default is GPU
+# process argument 2: docker image device type, default is GPU
 if [ -z "$2" ]; then
     DEVICE_TYPE="gpu"
 else
     DEVICE_TYPE="$2"
 fi
 
-# process argument 3: docker image name, default is graphstorm
+# process argument 3: docker image type, options include training, infer. Default is training
 if [ -z "$3" ]; then
-    IMAGE_NAME="graphstorm"
+    IMAGGE_TYPE="train"
 else
-    IMAGE_NAME="$3"
+    IMAGE_TYPE="$3"
 fi
 
-# process argument 4: image's tag name, default is sm
+# process argument 4: docker image name, default is graphstorm
 if [ -z "$4" ]; then
+    IMAGE_NAME="graphstorm"
+else
+    IMAGE_NAME="$4"
+fi
+
+# process argument 5: image's tag name, default is sm
+if [ -z "$5" ]; then
     TAG="sm"
 else
-    TAG="$4"
+    TAG="$5"
 fi
 
 # Copy scripts and tools codes to the docker folder
@@ -38,19 +45,32 @@ cp -r "${GSF_HOME}/python" code/graphstorm/
 cp -r "${GSF_HOME}/sagemaker" code/graphstorm/sagemaker
 cp -r "${GSF_HOME}/docker/sagemaker/build_artifacts" build_artifacts
 
-# Build OSS docker for EC2 instances that an pull ECR docker images
-DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${DEVICE_TYPE}"
-
-echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
-
 # Log in to ECR to pull Docker image
 aws ecr get-login-password --region us-east-1 \
         | docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 
+if [ $IMAGE_TYPE = "train" ] || [ $IMAGE_TYPE = "infer" ]; then
+    if [ $IMAGE_TYPE = "train" ]; then
+        DOCKER_FILE="${GSF_HOME}/docker/sagemaker/Dockerfile.sm"
+    else
+        DOCKER_FILE="${GSF_HOME}/docker/sagemaker/Dockerfile-infer.sm"
+    fi
+else
+    echo "Image type can only be \"train\" or \"infer\", but got \""$IMAGE_TYPE"\""
+    # remove the temporary code folder
+    rm -rf code
+    exit 1
+fi
+
+# Build OSS docker for SageMaker that an pull ECR docker images
+DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${IMAGE_TYPE}-${DEVICE_TYPE}"
+
+echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
+
 if [ $DEVICE_TYPE = "gpu" ] || [ $DEVICE_TYPE = "cpu" ]; then
     # Use Buildkit to avoid pulling both CPU and GPU images
     DOCKER_BUILDKIT=1 docker build --build-arg DEVICE=$DEVICE_TYPE \
-        -f "${GSF_HOME}/docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
+        -f $DOCKER_FILE . -t $DOCKER_FULLNAME
 else
     echo "Device type can only be \"gpu\" or \"cpu\", but got \""$DEVICE_TYPE"\""
     # remove the temporary code folder

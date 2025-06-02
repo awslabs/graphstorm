@@ -56,6 +56,29 @@ def convert_tensor_to_list_arrays(tensor):
     return list_array
 
 
+def add_str_prefix(ntype, node_ids, num_prefix=1):
+    """ Add the first N letter as prefix to integer node ids to form string node ids
+    """
+    if isinstance(node_ids, th.Tensor):
+        return np.array([f'{ntype[:num_prefix]}{i}' for i in node_ids.numpy()])
+    else:
+        return np.array([f'{ntype[:num_prefix]}{i}' for i in node_ids])
+
+
+def convert_to_lists(values):
+    """ Conver values to lists for JSON serializers.
+    
+    values could be torch Tensors or numpy ndarray.
+    """
+    if isinstance(values, th.Tensor):
+        values = values.numpy()
+
+    if isinstance(values, np.ndarray):
+        values = values.tolist()
+    
+    return values
+
+
 def create_acm_raw_data(graph,
                         text_feat=None,
                         output_path=None):
@@ -92,17 +115,12 @@ def create_acm_raw_data(graph,
     # generate node dataframe: we use the graph node ids and node name as node_type
     node_list = []
 
-    # extract the first letter of each node type name as the prefix
-    node_prefix_dict = {}
-    for ntype in graph.ntypes:
-        node_prefix_dict[ntype] = ntype[0]
-
     for ntype in graph.ntypes:
         node_dict = {}
         # generate the id column
         node_ids = graph.nodes(ntype)
         # pad a prefix before each node id
-        str_node_ids = np.array([f'{node_prefix_dict[ntype]}{i}' for i in node_ids.numpy()])
+        str_node_ids = add_str_prefix(ntype, node_ids)
         
         node_dict['node_id'] = str_node_ids
 
@@ -136,8 +154,8 @@ def create_acm_raw_data(graph,
         # generate the ids columns for both source nodes and destination nodes
         src_ids, dst_ids = graph.edges(etype=(src_ntype, etype, dst_ntype))
         # pad a prefix before each node id
-        str_src_ids = np.array([f'{node_prefix_dict[src_ntype]}{i}' for i in src_ids.numpy()])
-        str_dst_ids = np.array([f'{node_prefix_dict[dst_ntype]}{i}' for i in dst_ids.numpy()])
+        str_src_ids = add_str_prefix(src_ntype, src_ids)
+        str_dst_ids = add_str_prefix(dst_ntype, dst_ids)
         edge_dict['source_id'] = str_src_ids
         edge_dict['dest_id'] = str_dst_ids
         
@@ -356,9 +374,10 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
     pvc = data['PvsC'].tocsr()
     p_selected = pvc.tocoo()
     # generate labels
+    target_ntype = 'paper'
     labels = pvc.indices
     labels = th.tensor(labels).long()
-    graph_acm.nodes['paper'].data['label'] = labels
+    graph_acm.nodes[target_ntype].data['label'] = labels
 
     # generate train/val/test split and assign them to the paper nodes
     if is_split:
@@ -414,6 +433,270 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
     return graph_acm, text_feat
 
 
+def create_acm_sub_graph(graph, num_targets=2, num_hops=2, fanout=20):
+    """ Generate a subgraph with a few randomly selected target nodes from the given graph.
+    
+    For real-time inference example, this function will generate a subgraph based on a few
+    randomly selected target nodes. The number of target nodes is specified by the num_targets
+    input argument.
+
+    The detailed method of subgraph extraction is based on full neighbor sampling in at least
+    two hops or greater with the num_hos argument.
+
+    """
+    assert num_targets > 0 and num_targets < 10, 'The number of target nodes should be greater ' \
+                                                 'than 0 and less than 10, but got {num_targets}.'
+    assert num_hops >= 2, f'Must have at least two hops to sample a subgraph, but got {num_hops}.'
+    assert fanout > 0
+
+    # Give ('paper', 'citing', 'paper') edge type categorical features for different tasks
+    cates = [i for i in range(1, 17, 3)]
+    num_pvp_edges = graph.num_edges(('paper', 'citing', 'paper'))
+    graph.edges[('paper', 'citing', 'paper')].data['cate_feat'] = \
+        th.from_numpy(np.random.choice(cates, num_pvp_edges))
+
+    print(graph.edges[('paper', 'citing', 'paper')].data)
+
+    # find one node type having labels associated
+    target_ntype = None
+    for ntype in graph.ntypes:
+        # use 'label' to check if an ntype is a target ntype. Assume at least one ntype has
+        if 'label' in graph.nodes[ntype].data.keys():
+            # use the last one for target ntype
+            target_ntype = ntype
+
+    assert target_ntype is not None, 'The given graph should have at least one node type ' \
+                                     'with label associated, but got None.'
+    # get target nids
+    nids = np.random.choice(np.arange(graph.num_nodes(target_ntype)), [num_targets], replace=False)
+    target_nid = {target_ntype: nids}
+    target_labels = graph.nodes[target_ntype].data['label'][nids]
+
+    sampler = dgl.dataloading.NeighborSampler([fanout] * num_hops)
+    dataloader = dgl.dataloading.DataLoader(g, target_nid, sampler,
+        batch_size=num_targets, shuffle=True, drop_last=False)
+
+    all_nodes = []
+    for input_nodes, _, blocks in dataloader:
+        # as batch size equals to num_targets, will only have one batch
+        all_nodes = input_nodes
+
+    if len(all_nodes) > 0:
+        subgraph = dgl.node_subgraph(graph, all_nodes)
+
+    return subgraph, target_nid, target_labels
+    
+
+def convert_graph_to_json(graph, target_ids, target_labels=None):
+    """ convert a DGL graph into a JSON object following GraphStorm real-time API specifications
+    
+    This function provide a utility method to generate the JSON object for real-time inference
+    requests. Detailed JSON specification can be found in GraphStorm real-time inference user
+    guide.
+    TODO(james): provide the document link here.
+    
+    ** This JSON specification sets one node or edge in one object. **
+    """
+    graph_json = {}
+    graph_json['version'] = 'gs-realtime-v0.1'
+    graph_json['gml_task'] = 'node_classification'
+    graph_json['graph'] = {'nodes':[], 'edges':[]}
+    graph_json['targets'] = {}
+
+    # iterate each node type and convert nodes to json objects
+    nodes = []
+    for ntype in graph.ntypes:
+        # initialize the node list of this node type
+        ntype_nodes = [{'node_type': ntype, 'features': {}} for _ in range(graph.num_nodes(ntype))]
+        for key, vals in graph.nodes[ntype].data.items():
+            if key == dgl.NID:
+                org_nids = graph.nodes[ntype].data[dgl.NID]
+                str_org_nids = add_str_prefix(ntype, org_nids)
+                assert str_org_nids.shape[0] == len(ntype_nodes), 'The number of node ids should ' \
+                                                                  'equal to the number of nodes.'
+                for i, str_org_id in enumerate(str_org_nids):
+                    ntype_nodes[i]['node_id'] = str_org_id
+            elif key == 'label':
+                continue
+            else:
+                assert vals.shape[0] == len(ntype_nodes), 'The number of features should equal ' \
+                                                          'to the number of nodes.'
+                for i, val in enumerate(vals):
+                    ntype_nodes[i]['features'][key] = convert_to_lists(val)
+        nodes.extend(ntype_nodes)
+
+    # set graph json node objects
+    graph_json['graph']['nodes'] = nodes
+
+    # iterate each edge type and convert edges to json objects
+    edges = []
+    for src_ntype, etype, dst_ntype in graph.canonical_etypes:
+        # initialize the edges of this edge type
+        etype_edges =[{'edge_type':(src_ntype, etype, dst_ntype), 'features': {}} for _ in \
+                        range(graph.num_edges(etype=(src_ntype, etype, dst_ntype)))]
+        # extract src node ids and dst node ids
+        src_nids, dst_nids, _ = graph.edges(form='all', etype=(src_ntype, etype, dst_ntype))
+        org_src_nids = graph.nodes[src_ntype].data[dgl.NID][src_nids]
+        org_dst_nids = graph.nodes[dst_ntype].data[dgl.NID][dst_nids]
+        str_org_src_nids = add_str_prefix(src_ntype, org_src_nids)
+        str_org_dst_nids = add_str_prefix(dst_ntype, org_dst_nids)
+        # set node ids to node objects
+        assert str_org_src_nids.shape[0] == len(etype_edges), 'The number of source nodes should' \
+                                                              ' equal to the number of edges.'
+        assert str_org_dst_nids.shape[0] == len(etype_edges), 'The number of destination nodes ' \
+                                                              'should equal to the number of ' \
+                                                              'edges.'
+        for i, (str_org_src_nid, str_org_dst_nid) in enumerate(zip(str_org_src_nids,
+                                                                   str_org_dst_nids)):
+            etype_edges[i]['src_node_id'] = str_org_src_nid
+            etype_edges[i]['dest_node_id'] = str_org_dst_nid
+        # set features of edge if there is
+        for key, vals in graph.edges[(src_ntype, etype, dst_ntype)].data.items():
+            if key in ['label', dgl.EID]:
+                continue
+            else:
+                assert vals.shape[0] == len(etype_edges), 'The number of features should equal ' \
+                                                          'to the number of edges.'
+                for i, val in enumerate(vals):
+                    etype_edges[i]['features'][key] = convert_to_lists(val)
+
+        edges.extend(etype_edges)
+    
+    # set graph json edge object
+    graph_json['graph']['edges'] = edges
+
+    # process targets
+    targets = []
+    for key, ids in target_ids.items():
+        if isinstance(key, str):
+            # node type
+            str_ids = add_str_prefix(key, ids)
+            for str_id in str_ids:
+                node = {
+                    'node_type': key,
+                    'node_id': str_id
+                }
+                targets.append(node)
+        elif isinstance(key, tuple) and len(key) == 3:
+            # edge type
+            assert len(ids[0]) == 2, 'The edge ids should be a list of two-element tuples.'
+            src_ids, dst_ids = ids
+            str_src_ids = add_str_prefix(key[0], src_ids)
+            str_dst_ids = add_str_prefix(key[2], dst_ids)
+            for str_src_id, str_dst_id in zip(str_src_ids, str_dst_ids):
+                edge = {
+                    'edge_type': key,
+                    'src_node_id': str_src_id,
+                    'dest_node_id': str_dst_id
+                }
+                targets.append(edge)
+        else:
+            continue
+    
+    # set target objects
+    assert len(targets) > 0, 'For inference, there must be some target nodes or edges, but got 0.'
+    graph_json['targets'] = targets
+
+    return graph_json
+
+
+def convert_graph_to_json_vec(graph, target_ids, target_labels=None):
+    """ convert a DGL graph into a JSON object following GraphStorm real-time API specifications
+    
+    This function provide a utility method to generate the JSON object for real-time inference
+    requests. Detailed JSON specification can be found in GraphStorm real-time inference user
+    guide.
+    TODO(james): provide the document link here.
+
+    ** This JSON specification sets one node or edge TYPE in one object with vectorization. **
+    """
+    graph_json = {}
+    graph_json['version'] = 'gs-realtime-v0.1'
+    graph_json['gml_task'] = 'node_classification'
+    graph_json['graph'] = {'nodes':[], 'edges':[]}
+    graph_json['targets'] = {}
+
+    # iterate each node type and convert nodes to a json object
+    type_nodes = []
+    for ntype in graph.ntypes:
+        type_node = {}
+        type_node['node_type'] = ntype
+        type_node['features'] = {}
+
+        for key, vals in graph.nodes[ntype].data.items():
+            if key == dgl.NID:
+                org_nids = graph.nodes[ntype].data[dgl.NID]
+                str_org_nids = add_str_prefix(ntype, org_nids)
+                type_node['node_ids'] = convert_to_lists(str_org_nids)
+            elif key == 'label':
+                continue
+            else:
+                type_node['features'][key] = convert_to_lists(vals)
+        type_nodes.append(type_node)
+
+    # add type_nodes to graph json object
+    graph_json['graph']['nodes'] = type_nodes
+    
+    # iterate each edge type and convert edges to a json object
+    type_edges = []
+    for src_ntype, etype, dst_ntype in graph.canonical_etypes:
+        type_edge = {}
+        type_edge['edge_type'] = (src_ntype, etype, dst_ntype)
+        type_edge['features'] = {}
+
+        # extract src node ids and dst node ids
+        src_nids, dst_nids, _ = graph.edges(form='all', etype=(src_ntype, etype, dst_ntype))
+        org_src_nids = graph.nodes[src_ntype].data[dgl.NID][src_nids]
+        org_dst_nids = graph.nodes[dst_ntype].data[dgl.NID][dst_nids]
+        str_org_src_nids = add_str_prefix(src_ntype, org_src_nids)
+        str_org_dst_nids = add_str_prefix(dst_ntype, org_dst_nids)
+        type_edge['src_node_ids'] = convert_to_lists(str_org_src_nids)
+        type_edge['dest_node_ids'] = convert_to_lists(str_org_dst_nids)
+
+        for key, vals in graph.edges[(src_ntype, etype, dst_ntype)].data.items():
+            if key in ['label', dgl.EID]:
+                continue
+            else:
+                type_edge['features'][key] = convert_to_lists(vals)
+
+        type_edges.append(type_edge)
+
+    # add type_edges to graph json object
+    graph_json['graph']['edges'] = type_edges
+
+    # process targets
+    targets = []
+    for key, ids in target_ids.items():
+        if isinstance(key, str):
+            # node type
+            str_ids = add_str_prefix(key, ids)
+            type_node = {
+                    'node_type': key,
+                    'node_ids': convert_to_lists(str_ids)
+                }
+            targets.append(type_node)
+        elif isinstance(key, tuple) and len(key) == 3:
+            # edge type
+            assert len(ids[0]) == 2, 'The edge ids should be a list of two-element tuples.'
+            src_ids, dst_ids = ids
+            str_src_ids = add_str_prefix(key[0], src_ids)
+            str_dst_ids = add_str_prefix(key[2], dst_ids)
+            type_edge = {
+                    'edge_type': key,
+                    'src_node_ids': convert_to_lists(str_src_ids),
+                    'dest_node_ids': convert_to_lists(str_dst_ids)
+                }
+            targets.append(type_edge)
+        else:
+            continue
+    
+    # set target objects
+    assert len(targets) > 0, 'For inference, there must be some target nodes or edges, but got 0.'
+    graph_json['targets'] = targets
+
+    return graph_json
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Prepare ACM data for using GraphStorm")
     
@@ -421,12 +704,14 @@ if __name__ == '__main__':
                         help="The path of folder to store downloaded ACM raw data")
     parser.add_argument('--dataset-name', type=str, default='acm',
                         help="The given name of the graph. Default: \'acm\'.")
-    parser.add_argument('--output-type', type=str, choices=['dgl', 'raw', 'raw_w_text'], default='raw',
+    parser.add_argument('--output-type', type=str,
+                        choices=['dgl', 'raw', 'raw_w_text', 'subg_json'], default='raw',
                         help="The output graph data type. It could be in DGL heterogeneous graph \
                               that can be used for partition; Or in a specific raw format that \
-                              could be used for the GraphStorm\'s graph construction script; Or in \
-                              raw format and also include text contexts on all three node types.\
-                              Default is \'raw\'.")
+                              could be used for the GraphStorm\'s graph construction script; Or \
+                              in raw format and also include text contexts on all three node \
+                              types; Or a subgraph in JSON format sampled by two target nodes \
+                              randomly selected. Default is \'raw\'.")
     parser.add_argument('--output-path', type=str, required=True,
                         help="The path of folder to store processed ACM data.")
 
@@ -453,3 +738,13 @@ if __name__ == '__main__':
         create_acm_raw_data(graph=g,
                             text_feat=text_feat,
                             output_path=args.output_path)
+    elif args.output_type == 'subg_json':
+        g, _ = create_acm_dgl_graph(dowload_path=args.download_path,
+                                    is_split=False,
+                                    dataset_name=args.dataset_name)
+        subgraph, target_nid, target_labels = create_acm_sub_graph(g, num_targets=2)
+        subgraph_json = convert_graph_to_json(subgraph, target_nid, target_labels)
+
+        subgraph_json_path = os.path.join(args.output_path, args.dataset_name+'_subg.json')
+        with open(subgraph_json_path, 'w') as f:
+            json.dump(subgraph_json, f, indent=4)

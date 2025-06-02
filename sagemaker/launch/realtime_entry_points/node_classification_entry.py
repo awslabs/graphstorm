@@ -17,27 +17,23 @@
 """
 
 import json
-import os
 import logging
+import os
+import traceback
 from argparse import Namespace
 from datetime import datetime as dt
 
-from dgl.dataloading import MultiLayerFullNeighborSampler, DataLoader
 import numpy as np
 import torch as th
+from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
 
 import graphstorm as gs
 from graphstorm.config import GSConfig
-from graphstorm.gconstruct import (process_json_payload_graph,
-                                   STATUS,
-                                   ERROR_CODE,
-                                   MSG,
-                                   GRAPH,
-                                   NODE_MAPPING)
 from graphstorm.dataloading.metadata import (GSMetadataDglDistGraph,
                                              load_metadata_from_json)
+from graphstorm.gconstruct import (ERROR_CODE, GRAPH, MSG, NODE_MAPPING,
+                                   STATUS, process_json_payload_graph)
 from graphstorm.inference import GSGnnNodePredictionRealtimeInferrer
-
 
 # Set seed to ensure prediction results constantly
 th.manual_seed(6553865)
@@ -152,6 +148,8 @@ def input_fn(request_body, request_content_type='application/json'):
     logging.info('-- START processing input data... ')
     s_t = dt.now()
 
+    logging.debug(request_body)
+
     payload_data = json.loads(request_body)
 
     result = {}
@@ -163,14 +161,14 @@ def input_fn(request_body, request_content_type='application/json'):
 
     # 1. check if the payload is for a NC task
     if gml_task is None or gml_task != 'node_classification':
-        result[STATUS] = '421'
+        result[STATUS] = 421
         result[MSG] = f'This endpoint is for node classification, but got task {gml_task}.'
         result[DATA] = None
         result[TARGETS] = None
         return result
     # 2. check if the targets field is provided
     if targets is None or len(targets)==0:
-        result[STATUS] = '401'
+        result[STATUS] = 401
         result[MSG] = f'The input payload missed the required \"targets\" field.'
         result[DATA] = None
         result[TARGETS] = None
@@ -182,8 +180,8 @@ def input_fn(request_body, request_content_type='application/json'):
 
     if resp[STATUS] == 400:
         # TODO handle different erros
-        result[STATUS] = '400'
-        result[MSG] = f'Something is wrong in the given subgraph.'
+        result[STATUS] = 400
+        result[MSG] = f'Something is wrong in the given subgraph: {resp}'
         result[DATA] = None
         result[TARGETS] = None
         return result
@@ -221,7 +219,7 @@ def input_fn(request_body, request_content_type='application/json'):
                 graph_target_nids.append(graph_target_nid)
                 target_dict[target_ntype] = (orig_target_nids, graph_target_nids)
 
-    result[STATUS] = '200'
+    result[STATUS] = 200
     result[MSG] = f'The payload is successfully processed.'
     result[DATA] = dgl_graph
     result[TARGETS] = target_dict
@@ -248,6 +246,8 @@ def model_fn(model_dir):
         |- model.pt
         |- acm_nc.yaml
         |- new_acm_config.json
+        |- code
+            |- node_classification_entry.py
 
     Parameters
     ----------
@@ -259,7 +259,7 @@ def model_fn(model_dir):
     model: GraphStorm model
         A GraphStorm model loaded and recreated from model artifacts.
     """
-    logging.info('--START model loading... ')
+    logging.info('-- START model loading... ')
     s_t = dt.now()
 
     # find the name of artifact file names, assuming there is only one type file packed
@@ -269,7 +269,7 @@ def model_fn(model_dir):
     json_file = None
     files = os.listdir(model_dir)
     for file in files:
-        if file.endswith('.pt') or file.endswith('.pth') or file.endswith('.bin'):
+        if file.endswith('.bin'):
             model_file = file
         if file.endswith('.yaml'):
             yaml_file = file
@@ -303,13 +303,15 @@ def model_fn(model_dir):
 
     # use GraphStorm built-in function to create the model and reload 
     model = gs.create_builtin_node_gnn_model(metadata_g, model_config, train_task=False)
-    model.restore_model(os.path.join(model_dir, model_file))
+    model.restore_model(model_dir)
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)
     logging.info(f'--model_fn: used {diff_t} ms ...')
 
-    logging.info(model)
+    logging.debug(model)
+    logging.debug(CONFIG_JSON)
+    logging.debug(MODEL_YAML)
 
     return model
 
@@ -327,7 +329,7 @@ def predict_fn(input_data, model):
     model: GraphStorm model
         A GraphStorm model loaded from the model_fn() function.
     """
-    logging.info('--START prediction... ')
+    logging.info('-- START prediction... ')
     s_t = dt.now()
 
     res = {}
@@ -339,7 +341,7 @@ def predict_fn(input_data, model):
         return res
 
     # extract the data
-    dgl_graph = input_data[GRAPH]
+    dgl_graph = input_data[DATA]
     target_dict = input_data[TARGETS]
 
     # sample input graph to build blocks
@@ -362,26 +364,32 @@ def predict_fn(input_data, model):
                                 batch_size=batch_size, shuffle=False,
                                 drop_last=False)
         predictions = inferrer.infer(dgl_graph, dataloader, list(target_dict.keys()),
-                                    model_config.node_feat_names, 
-                                    model_config.edge_feat_names)
-        results = []
+                                    model_config.node_feat_name, 
+                                    model_config.edge_feat_name)
+
+        pred_list = []
         for ntype, preds in predictions.items():
             (orig_nids, dgl_nids) = target_dict[ntype]
             preds_in_orig = preds[dgl_nids].tolist()
+            pred_res = {}
             for orig_nid, pred_in_orig in zip(orig_nids, preds_in_orig):
-                results['node_type'] = ntype
-                results['node_id'] = orig_nid
-                results['prediction'] = pred_in_orig                
+                pred_res['node_type'] = ntype
+                pred_res['node_id'] = orig_nid
+                pred_res['prediction'] = pred_in_orig
+
+                pred_list.append(pred_res)
     except Exception as e:
+        logging.error(traceback.format_exc())
         res[STATUS] = 500
-        res[MSG] = 'Generic server error. Please try later, or ask your administrators.'
+        res[MSG] = 'Generic server error. Please contact with your administrators ' + \
+                   f'for this error: {traceback.format_exc()}'
         res[RESULTS] = {}
         return res
 
     res = {}
     res[STATUS] = 200
     res[MSG] = 'The request is successfully proceeded. '
-    res[RESULTS] = results
+    res[RESULTS] = pred_list
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)

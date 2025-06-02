@@ -211,7 +211,7 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             all_blocks = blocks
 
         n_h = prepare_batch_input(g, all_nodes, feat_field=nfeat_fields)
-        e_hs = prepare_blocks_edge_feats(g, all_blocks, feat_field=efeat_fields)
+        e_hs = prepare_blocks_edge_feats(g, all_blocks, efeat_fields)
 
         logits, _ = self._model.predict(all_blocks, n_h, e_hs, all_nodes,
                                         return_proba=return_proba)
