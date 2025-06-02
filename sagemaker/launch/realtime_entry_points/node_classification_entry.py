@@ -371,11 +371,12 @@ def predict_fn(input_data, model):
         for ntype, preds in predictions.items():
             (orig_nids, dgl_nids) = target_dict[ntype]
             preds_in_orig = preds[dgl_nids].tolist()
-            pred_res = {}
             for orig_nid, pred_in_orig in zip(orig_nids, preds_in_orig):
-                pred_res['node_type'] = ntype
-                pred_res['node_id'] = orig_nid
-                pred_res['prediction'] = pred_in_orig
+                pred_res = {
+                    'node_type': ntype,
+                    'node_id': orig_nid,
+                    'prediction': pred_in_orig
+                }
 
                 pred_list.append(pred_res)
     except Exception as e:
