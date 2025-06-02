@@ -17,7 +17,7 @@ else
     DEVICE_TYPE="$2"
 fi
 
-# process argument 3: docker image type, options include training, infer. Default is training
+# process argument 3: docker image type, options include training, infer. Default is train
 if [ -z "$3" ]; then
     IMAGGE_TYPE="train"
 else
