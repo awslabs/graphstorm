@@ -40,7 +40,7 @@ ENTRY_FOLDER_NAME = 'realtime_entry_points'
 ENTRY_FILE_NAMES = {
     SUPPORTED_REALTIME_INFER_NC_TASK: 'node_classification_entry.py'
     }
-DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
+DEFAULT_GS_MODLE_FILE_NAME = 'model.bin'
 
 
 def run_job(input_args):
