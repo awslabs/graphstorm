@@ -728,9 +728,9 @@ class GSgnnData():
     def get_node_infer_set(self, ntypes, mask="test_mask"):
         """ Get inference node set for the given node types under the given mask.
 
-        If the mask exists in ``g.nodes[ntype].data``, the inference set
-        is collected based on the mask.
-        If not exist, the entire node set are treated as the inference set.
+        If the mask exists in ``g.nodes[ntype].data``, include only nodes in the mask
+        during inference.
+        If such a mask does not exist, run inference on the entire node set.
 
         Parameters
         __________
@@ -742,7 +742,8 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned inference node indexes.
+        dict[str, Tensor]:
+            Mapping from node type to indices of nodes to run inference on.
         """
         g = self._g
         pb = g.get_partition_book()
@@ -759,12 +760,17 @@ class GSgnnData():
                 infer_idx = dgl.distributed.node_split(g.nodes[ntype].data[msk],
                                                        pb, ntype=ntype, force_even=True,
                                                        node_trainer_ids=node_trainer_ids)
-                logging.info("%s contains %s, we will do inference based on the mask",
-                             ntype, msk)
+                logging.info(
+                    ("Node type '%s' contains mask named '%s', "
+                    "we will do inference based on the mask"),
+                    ntype, msk
+                )
             else:
                 # We will do inference on the entire edge set
-                logging.info("%s does not contains %s" + \
-                        "We will do inference on the entire node set.", ntype, msk)
+                logging.info(
+                    ("Node type '%s' does not contain mask named '%s'. "
+                    "We will do inference on the entire node set."),
+                    ntype, msk)
                 infer_idx = dgl.distributed.node_split(
                     th.full((g.num_nodes(ntype),), True, dtype=th.bool),
                     pb, ntype=ntype, force_even=True,
