@@ -334,8 +334,12 @@ class GSConfig:
                             section[key] = attr_value
                             break
                     else:
-                        # If not found in any section, add to the first section
-                        next(iter(yaml_config['gsf'].values()))[key] = attr_value
+                        # If not found in any section, add to its own `runtime` section
+                        if 'runtime' not in yaml_config['gsf']:
+                            yaml_config['gsf']['runtime'] = {}
+                        yaml_config['gsf']['runtime'].update({key: attr_value})
+                else:
+                    raise ValueError("GraphStorm configuration needs a 'gsf' section")
 
         # Try to save to model output location
         try:

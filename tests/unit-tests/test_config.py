@@ -34,7 +34,8 @@ from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                                       BUILTIN_LP_LOSS_BPR,
                                       BUILTIN_REGRESSION_LOSS_MSE,
-                                      BUILTIN_REGRESSION_LOSS_SHRINKAGE)
+                                      BUILTIN_REGRESSION_LOSS_SHRINKAGE,
+                                      COMBINED_CONFIG_FILENAME)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -2268,6 +2269,7 @@ def test_save_combined_config():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # Create a basic config file
         create_basic_config(Path(tmpdirname), 'combined_test')
+        save_model_path = os.path.join(tmpdirname, "model")
 
         # Create args with an override
         args = Namespace(
@@ -2275,22 +2277,54 @@ def test_save_combined_config():
             local_rank=0,
             # Set save_model_path to trigger combined config saving
             save_model_path=os.path.join(tmpdirname, "model"),
-            lr=0.02  # Override the lr value from the yaml
+            lr=0.02,  # Override the lr, fanout values from the yaml
+            fanout="15,10",
         )
 
-        # Create config
-        config = GSConfig(args)
+        # Create GSConfig, this will also create the updated yaml file
+        _ = GSConfig(args)
 
-        # Call save_combined_config
-        output_path = os.path.join(tmpdirname, "combined_config.yaml")
-        config._save_combined_config(output_path)
+        # Updated config should exist under the save model path
+        updated_yaml = os.path.join(save_model_path, COMBINED_CONFIG_FILENAME)
 
         # Verify the file exists
-        assert os.path.exists(output_path)
+        assert os.path.exists(updated_yaml)
 
         # Load the saved config and verify it contains the overridden value
-        with open(output_path, 'r') as f:
-            saved_config = yaml.safe_load(f)
+        with open(updated_yaml, 'r') as f:
+            updated_config = yaml.safe_load(f)
 
-        # Check that the lr value was updated
-        assert saved_config['gsf']['hyperparam']['lr'] == 0.02
+        # Check that the existing arg values were updated, under their existing section
+        assert updated_config['gsf']['hyperparam']['lr'] == 0.02
+        assert updated_config['gsf']['gnn']['fanout'] == "15,10"
+
+def test_save_combined_new_argument():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+        save_model_path = os.path.join(tmpdirname, "model")
+
+        # Create args with an override, where the new arg did not exist in the original yaml
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            # Set save_model_path to trigger combined config saving
+            save_model_path=save_model_path,
+            wd_l2norm=0.0001  # Insert a new runtime value that did not exist in the yaml
+        )
+
+        # Create GSConfig, this will also create the updated yaml file
+        _ = GSConfig(args)
+
+        # Updated config should exist under the save model path
+        updated_yaml = os.path.join(save_model_path, COMBINED_CONFIG_FILENAME)
+
+        # Verify the file exists
+        assert os.path.exists(updated_yaml)
+
+        # Load the saved config and verify it contains the overridden value
+        with open(updated_yaml, 'r') as f:
+            updated_config = yaml.safe_load(f)
+
+        # Check that the wd_l2norm value was added to the 'runtime' key
+        assert updated_config['gsf']['runtime']['wd_l2norm'] == 0.0001
