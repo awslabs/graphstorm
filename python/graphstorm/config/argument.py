@@ -21,49 +21,48 @@ import sys
 import argparse
 import math
 import logging
+import warnings
+from typing import Any, Dict
 
 import yaml
 import torch as th
 import torch.nn.functional as F
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
-from .config import BUILTIN_GNN_ENCODER
-from .config import BUILTIN_ENCODER
-from .config import SUPPORTED_BACKEND
-from .config import BUILTIN_EDGE_FEAT_MP_OPS
-from .config import (BUILTIN_LP_LOSS_FUNCTION,
-                     BUILTIN_LP_LOSS_CROSS_ENTROPY,
-                     BUILTIN_LP_LOSS_CONTRASTIVELOSS,
-                     BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
-                     BUILTIN_CLASS_LOSS_FUNCTION,
-                     BUILTIN_REGRESSION_LOSS_MSE,
-                     BUILTIN_REGRESSION_LOSS_FUNCTION)
-
-from .config import BUILTIN_TASK_NODE_CLASSIFICATION
-from .config import BUILTIN_TASK_NODE_REGRESSION
-from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
-from .config import BUILTIN_TASK_EDGE_REGRESSION
-from .config import (BUILTIN_TASK_LINK_PREDICTION,
-                     LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
-from .config import (BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
-                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
-from .config import BUILTIN_GNN_NORM
-from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
-from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
-from .config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
-from .config import SUPPORTED_TASK_TRACKER
-
-from .config import SUPPORTED_TASKS
-
-from .config import BUILTIN_LP_DISTMULT_DECODER
-from .config import SUPPORTED_LP_DECODER
-from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
-                     GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
-
-from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
-                     GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
-from .config import get_mttask_id
-from .config import TaskInfo
+from .config import (
+    # Encoders
+    BUILTIN_ENCODER, BUILTIN_GNN_ENCODER,
+    # Backends
+    SUPPORTED_BACKEND,
+    # Edge feature operations
+    BUILTIN_EDGE_FEAT_MP_OPS,
+    # Loss functions
+    BUILTIN_CLASS_LOSS_CROSS_ENTROPY, BUILTIN_CLASS_LOSS_FUNCTION,
+    BUILTIN_LP_LOSS_CONTRASTIVELOSS, BUILTIN_LP_LOSS_CROSS_ENTROPY, BUILTIN_LP_LOSS_FUNCTION,
+    BUILTIN_REGRESSION_LOSS_FUNCTION, BUILTIN_REGRESSION_LOSS_MSE,
+    # Tasks
+    BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
+    BUILTIN_TASK_LINK_PREDICTION, BUILTIN_TASK_NODE_CLASSIFICATION,
+    BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
+    BUILTIN_TASK_RECONSTRUCT_NODE_FEAT, LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
+    SUPPORTED_TASKS,
+    # Filenames
+    COMBINED_CONFIG_FILENAME,
+    # GNN normalization
+    BUILTIN_GNN_NORM,
+    # Early stopping strategies
+    EARLY_STOP_AVERAGE_INCREASE_STRATEGY, EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
+    # Task tracking
+    GRAPHSTORM_SAGEMAKER_TASK_TRACKER, SUPPORTED_TASK_TRACKER,
+    # Link prediction
+    BUILTIN_LP_DISTMULT_DECODER, GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
+    GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS, SUPPORTED_LP_DECODER,
+    # Model layers
+    GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_DECODER_LAYER,
+    GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS,
+    # Utility functions and classes
+    TaskInfo, get_mttask_id
+)
 
 from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 
@@ -222,6 +221,12 @@ class GSConfig:
         else:
             self._multi_tasks = None
 
+        # If model output is configured, save the updated config as a yaml file there
+        if hasattr(self, "_save_model_path") and self._save_model_path:
+            combined_output_path = os.path.join(self._save_model_path, COMBINED_CONFIG_FILENAME)
+            self._save_combined_config(combined_output_path)
+
+
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
         if 'lm_model' in configuration:
@@ -304,6 +309,52 @@ class GSConfig:
         """
         for key, val in configuration.items():
             setattr(self, f"_{key}", val)
+
+    def _save_combined_config(self, output_path: str):
+        """Save a YAML file that combines the input YAML with runtime args.
+
+        Parameters:
+        -----------
+        output_path : str
+            Path where to save the config.
+        """
+        # Get the original YAML content
+        yaml_config = self.load_yaml_config(self.yaml_paths)
+
+        # Update with runtime args (all attributes starting with '_')
+        for attr_name, attr_value in vars(self).items():
+            if attr_name.startswith('_') and not attr_name.startswith('__'):
+                # Extract the key without the underscore
+                key = attr_name[1:]
+
+                # Find the appropriate section to update
+                if 'gsf' in yaml_config:
+                    for section in yaml_config['gsf'].values():
+                        if isinstance(section, dict) and key in section:
+                            section[key] = attr_value
+                            break
+                    else:
+                        # If not found in any section, add to the first section
+                        next(iter(yaml_config['gsf'].values()))[key] = attr_value
+
+        # Try to save to model output location
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            # Save the combined config
+            with open(output_path, 'w', encoding="utf-8") as f:
+                yaml.dump(yaml_config, f, default_flow_style=False)
+
+            logging.info("Saved combined configuration to %s", output_path)
+        except FileNotFoundError:
+            warnings.warn(
+                f"Could not save config: directory {os.path.dirname(output_path)} not accessible")
+        except PermissionError:
+            warnings.warn(f"Could not save config: permission denied for {output_path}")
+        except Exception as e: # pylint: disable=broad-exception-caught
+            warnings.warn(f"Could not save config: {str(e)}")
+
 
     def _parse_general_task_config(self, task_config):
         """ Parse the genral task info
@@ -628,7 +679,7 @@ class GSConfig:
         logging.debug("Multi-task learning with %d tasks", len(tasks))
         self._multi_tasks = tasks
 
-    def load_yaml_config(self, yaml_path):
+    def load_yaml_config(self, yaml_path) -> Dict[str, Any]:
         """Helper function to load a yaml config file"""
         with open(yaml_path, "r", encoding='utf-8') as stream:
             try:
@@ -3635,5 +3686,3 @@ def _add_distill_args(parser):
     group.add_argument("--max-distill-step", type=int, default=argparse.SUPPRESS,
                        help="The maximum of training step for each node type for distillation")
     return parser
-
-# Users can add their own udf parser

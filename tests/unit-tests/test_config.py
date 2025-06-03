@@ -13,18 +13,18 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import os, sys
-from pathlib import Path
-from tempfile import tempdir
 import json
-import yaml
 import math
+import os
+import sys
 import tempfile
+import yaml
 from argparse import Namespace
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+from pathlib import Path
 
 import dgl
 import torch as th
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from graphstorm.config import GSConfig
 from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
@@ -2263,19 +2263,34 @@ def test_multi_task_config():
         assert efr_config.eval_metric[0] == "rmse"
         assert efr_config.batch_size == 64
 
-if __name__ == '__main__':
-    test_multi_task_config()
-    test_id_mapping_file()
-    test_load_basic_info()
-    test_gnn_info()
-    test_load_io_info()
-    test_train_info()
-    test_rgcn_info()
-    test_rgat_info()
-    test_node_class_info()
-    test_node_regress_info()
-    test_edge_class_info()
-    test_lp_info()
 
-    test_lm()
-    test_check_node_lm_config()
+def test_save_combined_config():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+
+        # Create args with an override
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            # Set save_model_path to trigger combined config saving
+            save_model_path=os.path.join(tmpdirname, "model"),
+            lr=0.02  # Override the lr value from the yaml
+        )
+
+        # Create config
+        config = GSConfig(args)
+
+        # Call save_combined_config
+        output_path = os.path.join(tmpdirname, "combined_config.yaml")
+        config._save_combined_config(output_path)
+
+        # Verify the file exists
+        assert os.path.exists(output_path)
+
+        # Load the saved config and verify it contains the overridden value
+        with open(output_path, 'r') as f:
+            saved_config = yaml.safe_load(f)
+
+        # Check that the lr value was updated
+        assert saved_config['gsf']['hyperparam']['lr'] == 0.02
