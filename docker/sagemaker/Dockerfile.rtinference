@@ -1,0 +1,68 @@
+# Docker file for building a docker image for running GraphStorm code on Amazon SageMaker
+# Note: Distributed graph partition will use another docker image which will come soon.
+
+ARG DEVICE=gpu
+ARG TORCH_VERSION=2.3.0
+ARG SOURCE
+
+FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker} as branch-gpu
+ENV dev_type=GPU
+ARG TORCH_VERSION
+
+# Unistall preset Pytorch packages
+RUN pip3 uninstall -y torchdata torch torchvision torchaudio
+
+# Pip install GraphStorm to install dependencies
+RUN pip3 install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple graphstorm==0.4.1
+
+# Install Pytorch to fit DGL GraphBolt requirements
+RUN pip3 install torchdata==0.9.0 pydantic
+RUN pip3 install torch==${TORCH_VERSION} torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install DGL GPU version
+RUN pip3 install dgl==2.5.0+cu121 -f https://data.dgl.ai/wheels-internal/torch-2.3/cu121/repo.html && rm -rf /root/.cache
+
+FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-cpu-py311-ubuntu20.04-sagemaker} as branch-cpu
+ENV dev_type=CPU
+ARG TORCH_VERSION
+
+# Unistall preset Pytorch packages
+RUN pip3 uninstall -y torchdata torch torchvision torchaudio
+
+# Pip install GraphStorm to install dependencies
+RUN pip3 install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple graphstorm==0.4.1
+
+# Install Pytorch to fit DGL GraphBolt requirements
+RUN pip3 install torchdata==0.9.0 pydantic
+RUN pip3 install torch==${TORCH_VERSION} torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Install DGL CPU version
+RUN pip3 install dgl==2.5.0 -f https://data.dgl.ai/wheels-internal/torch-2.3/repo.html && rm -rf /root/.cache
+
+FROM branch-${DEVICE} AS final
+
+LABEL maintainer="Amazon AI Graph ML team"
+
+# Install MPI etc needed by DistDGL
+RUN apt-get update; apt-get install -y --no-install-recommends libopenmpi-dev \
+    build-essential software-properties-common; add-apt-repository ppa:ubuntu-toolchain-r/test; \
+    apt-get update; apt-get upgrade libstdc++6 -y && rm -rf /var/lib/apt/lists/*
+
+# /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
+# TODO(xiangsx): change to pip install when PIP package is available
+COPY code/graphstorm/ /opt/ml/code/graphstorm/
+ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
+
+RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
+
+RUN mkdir /opt/ml/model/code/
+RUN cp /opt/ml/code/graphstorm/sagemaker_infer/* /opt/ml/code/
+
+# Download DGL source code
+RUN cd /root; git clone --branch v${TORCH_VERSION} --single-branch https://github.com/dmlc/dgl.git
+
+# Un-comment if we prefer a local DGL distribution
+# COPY dgl /root/dgl
+ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
+
+ENV PATH="/opt/ml/code:${PATH}"
