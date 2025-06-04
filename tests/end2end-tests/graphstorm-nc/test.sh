@@ -95,6 +95,12 @@ error_and_exit $?
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph, mlp layer between GNN layer: 1"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --use-mini-batch-infer false --num-ffn-layers-in-gnn 1 --save-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model
 
+# Ensure a file named GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml was created under --save-model-path
+if [ ! -f ./models/movielen_100k/train_val/movielen_100k_ngnn_model/GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml ]; then
+    echo "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml was not created"
+    exit 1
+fi
+
 error_and_exit $?
 
 python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-1/
