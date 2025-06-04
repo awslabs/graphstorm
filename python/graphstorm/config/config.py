@@ -105,7 +105,7 @@ SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER,
 # Filename constants
 
 # Filename for output yaml, updated with runtime args
-COMBINED_CONFIG_FILENAME = "GRAPHSTORM_RUNTIME_UPDATE_TRAINING_CONFIG.yaml"
+COMBINED_CONFIG_FILENAME = "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml"
 
 ################ Task info data classes ############################
 def get_mttask_id(task_type, ntype=None, etype=None, label=None):

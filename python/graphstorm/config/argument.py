@@ -334,7 +334,7 @@ class GSConfig:
                             section[key] = attr_value
                             break
                     else:
-                        # If not found in any section, add to its own `runtime` section
+                        # If not found in any section, add to the `runtime` section
                         if 'runtime' not in yaml_config['gsf']:
                             yaml_config['gsf']['runtime'] = {}
                         yaml_config['gsf']['runtime'].update({key: attr_value})

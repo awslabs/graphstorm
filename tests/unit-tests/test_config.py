@@ -2314,7 +2314,9 @@ def test_save_combined_new_argument():
         )
 
         # Create GSConfig, this will also create the updated yaml file
-        _ = GSConfig(args)
+        gs_config = GSConfig(args)
+        # Ensure the new runtime value was added to the config
+        assert gs_config.wd_l2norm == 0.0001
 
         # Updated config should exist under the save model path
         updated_yaml = os.path.join(save_model_path, COMBINED_CONFIG_FILENAME)
