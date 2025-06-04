@@ -18,6 +18,7 @@
 import os
 import tempfile
 import shutil
+import json
 import numpy as np
 import multiprocessing as mp
 import torch.distributed as dist
@@ -26,6 +27,10 @@ from unittest.mock import patch, MagicMock
 import torch as th
 import dgl
 import pytest
+from numpy.testing import assert_equal, assert_almost_equal
+from transformers import AutoTokenizer
+from torch.utils.data import DataLoader
+
 from data_utils import (
     generate_dummy_dist_graph,
     generate_special_dummy_dist_graph_for_efeat_gnn,
@@ -77,10 +82,473 @@ from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
 from graphstorm.dataloading.utils import modify_fanout_for_target_etype
 from graphstorm.dataloading.utils import trim_data
+from graphstorm.dataloading.metadata import (GSGraphMetadata,
+                                             GSMetadataDglDistGraph,
+                                             load_metadata_from_json)
 
-from numpy.testing import assert_equal, assert_almost_equal
-from transformers import AutoTokenizer
-from torch.utils.data import DataLoader
+def build_gcons_json_example():
+    """ An new JSON file created by gconstruct command.
+
+    This JSON is a real example of the ACM example dataset.
+    """
+    conf = {
+        "version": "gconstruct-v0.1",
+        "nodes": [
+            {
+                "node_type": "author",
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/nodes/author.parquet"
+                ],
+                "node_id_col": "node_id",
+                "features": [
+                    {
+                        "feature_col": "feat",
+                        "feature_name": "feat",
+                        "feature_dim": [
+                            256
+                        ]
+                    }
+                ]
+            },
+            {
+                "node_type": "paper",
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/nodes/paper.parquet"
+                ],
+                "node_id_col": "node_id",
+                "features": [
+                    {
+                        "feature_col": "feat",
+                        "feature_name": "feat",
+                        "feature_dim": [
+                            256
+                        ]
+                    }
+                ],
+                "labels": [
+                    {
+                        "label_col": "label",
+                        "task_type": "classification",
+                        "split_pct": [
+                            0.8,
+                            0.1,
+                            0.1
+                        ],
+                        "label_stats_type": "frequency_cnt"
+                    }
+                ]
+            },
+            {
+                "node_type": "subject",
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/nodes/subject.parquet"
+                ],
+                "node_id_col": "node_id",
+                "features": [
+                    {
+                        "feature_col": "feat",
+                        "feature_name": "feat",
+                        "feature_dim": [
+                            256
+                        ]
+                    }
+                ]
+            }
+        ],
+        "edges": [
+            {
+                "relation": [
+                    "author",
+                    "writing",
+                    "paper"
+                ],
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/edges/author_writing_paper.parquet"
+                ],
+                "source_id_col": "source_id",
+                "dest_id_col": "dest_id"
+            },
+            {
+                "relation": [
+                    "paper",
+                    "cited",
+                    "paper"
+                ],
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/edges/paper_cited_paper.parquet"
+                ],
+                "source_id_col": "source_id",
+                "dest_id_col": "dest_id"
+            },
+            {
+                "relation": [
+                    "paper",
+                    "citing",
+                    "paper"
+                ],
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/edges/paper_citing_paper.parquet"
+                ],
+                "source_id_col": "source_id",
+                "dest_id_col": "dest_id",
+                "features": [
+                    {
+                        "feature_col": "cate_feat",
+                        "feature_name": "cate_feat",
+                        "transform": {
+                            "name": "to_categorical",
+                            "mapping": {
+                                "C_1": 0,
+                                "C_10": 1,
+                                "C_13": 2,
+                                "C_16": 3,
+                                "C_4": 4,
+                                "C_7": 5
+                            }
+                        },
+                        "feature_dim": [
+                            6
+                        ]
+                    }
+                ],
+                "labels": [
+                    {
+                        "task_type": "link_prediction",
+                        "split_pct": [
+                            0.8,
+                            0.1,
+                            0.1
+                        ]
+                    }
+                ]
+            },
+            {
+                "relation": [
+                    "paper",
+                    "is-about",
+                    "subject"
+                ],
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/edges/paper_is-about_subject.parquet"
+                ],
+                "source_id_col": "source_id",
+                "dest_id_col": "dest_id"
+            },
+            {
+                "relation": [
+                    "paper",
+                    "written-by",
+                    "author"
+                ],
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/edges/paper_written-by_author.parquet"
+                ],
+                "source_id_col": "source_id",
+                "dest_id_col": "dest_id"
+            },
+            {
+                "relation": [
+                    "subject",
+                    "has",
+                    "paper"
+                ],
+                "format": {
+                    "name": "parquet"
+                },
+                "files": [
+                    "/tmp/acm_raw/edges/subject_has_paper.parquet"
+                ],
+                "source_id_col": "source_id",
+                "dest_id_col": "dest_id"
+            }
+        ],
+        "is_homogeneous": "false"
+    }
+
+    return conf
+
+def build_gsproc_json_example():
+    """ An new JSON file created by GSProcessing command.
+
+    This JSON is a real example of the ACM example dataset.
+    """
+    conf = {
+        "graph": {
+            "nodes": [
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "nodes/author.parquet"
+                        ]
+                    },
+                    "type": "author",
+                    "column": "node_id",
+                    "features": [
+                        {
+                            "column": "feat",
+                            "name": "feat",
+                            "transformation": {
+                                "name": "no-op"
+                            },
+                            "dim": [
+                                256
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "nodes/paper.parquet"
+                        ]
+                    },
+                    "type": "paper",
+                    "column": "node_id",
+                    "features": [
+                        {
+                            "column": "feat",
+                            "name": "feat",
+                            "transformation": {
+                                "name": "no-op"
+                            },
+                            "dim": [
+                                256
+                            ]
+                        }
+                    ],
+                    "labels": [
+                        {
+                            "column": "label",
+                            "type": "classification",
+                            "split_rate": {
+                                "train": 0.8,
+                                "val": 0.1,
+                                "test": 0.1
+                            }
+                        }
+                    ]
+                },
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "nodes/subject.parquet"
+                        ]
+                    },
+                    "type": "subject",
+                    "column": "node_id",
+                    "features": [
+                        {
+                            "column": "feat",
+                            "name": "feat",
+                            "transformation": {
+                                "name": "no-op"
+                            },
+                            "dim": [
+                                256
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "edges": [
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "edges/author_writing_paper.parquet"
+                        ]
+                    },
+                    "source": {
+                        "column": "source_id",
+                        "type": "author"
+                    },
+                    "dest": {
+                        "column": "dest_id",
+                        "type": "paper"
+                    },
+                    "relation": {
+                        "type": "writing"
+                    }
+                },
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "edges/paper_cited_paper.parquet"
+                        ]
+                    },
+                    "source": {
+                        "column": "source_id",
+                        "type": "paper"
+                    },
+                    "dest": {
+                        "column": "dest_id",
+                        "type": "paper"
+                    },
+                    "relation": {
+                        "type": "cited"
+                    }
+                },
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "edges/paper_citing_paper.parquet"
+                        ]
+                    },
+                    "source": {
+                        "column": "source_id",
+                        "type": "paper"
+                    },
+                    "dest": {
+                        "column": "dest_id",
+                        "type": "paper"
+                    },
+                    "relation": {
+                        "type": "citing"
+                    },
+                    "features": [
+                        {
+                            "column": "cate_feat",
+                            "name": "cate_feat",
+                            "transformation": {
+                                "name": "categorical",
+                                "kwargs": {}
+                            },
+                            "dim": [
+                                6
+                            ],
+                            "precomputed_transformation": {
+                                "string_indexer_labels_arrays": [
+                                    [
+                                        "C_16",
+                                        "C_4",
+                                        "C_7",
+                                        "C_1",
+                                        "C_10",
+                                        "C_13"
+                                    ]
+                                ],
+                                "cols": [
+                                    "cate_feat"
+                                ],
+                                "per_col_label_to_one_hot_idx": {
+                                    "cate_feat": {
+                                        "C_1": 3,
+                                        "C_10": 4,
+                                        "C_13": 5,
+                                        "C_4": 1,
+                                        "C_16": 0,
+                                        "C_7": 2
+                                    }
+                                },
+                                "transformation_name": "DistCategoryTransformation"
+                            }
+                        }
+                    ],
+                    "labels": [
+                        {
+                            "column": "",
+                            "type": "link_prediction",
+                            "split_rate": {
+                                "train": 0.8,
+                                "val": 0.1,
+                                "test": 0.1
+                            }
+                        }
+                    ]
+                },
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "edges/paper_is-about_subject.parquet"
+                        ]
+                    },
+                    "source": {
+                        "column": "source_id",
+                        "type": "paper"
+                    },
+                    "dest": {
+                        "column": "dest_id",
+                        "type": "subject"
+                    },
+                    "relation": {
+                        "type": "is-about"
+                    }
+                },
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "edges/paper_written-by_author.parquet"
+                        ]
+                    },
+                    "source": {
+                        "column": "source_id",
+                        "type": "paper"
+                    },
+                    "dest": {
+                        "column": "dest_id",
+                        "type": "author"
+                    },
+                    "relation": {
+                        "type": "written-by"
+                    }
+                },
+                {
+                    "data": {
+                        "format": "parquet",
+                        "files": [
+                            "edges/subject_has_paper.parquet"
+                        ]
+                    },
+                    "source": {
+                        "column": "source_id",
+                        "type": "subject"
+                    },
+                    "dest": {
+                        "column": "dest_id",
+                        "type": "paper"
+                    },
+                    "relation": {
+                        "type": "has"
+                    }
+                }
+            ],
+            "is_homogeneous": "false"
+        },
+        "version": "gsprocessing-v1.0"
+    }
+
+    return conf
 
 def get_nonzero(mask):
     mask = mask[0:len(mask)]
@@ -2649,48 +3117,187 @@ def test_GSgnnTranData_small_val_test():
         assert p0.exitcode == 0
         assert p1.exitcode == 0
 
+def test_GSGraphMetadata():
+    """ Test the GSGraphMetadata class.
+    GSGraphMetadata contains graph structure information and feature information, without real
+    graph data. Here will test
+    1. correct intialization
+    2. correct retrieval
+    3. incorrect intialization, raise Assertion errors.
+    """
+    # Test case 1: normal cases
+    #       1.1 initialize with only structure information
+    gtype_hetero = 'heterogeneous'
+    ntypes_hetero = ['ntype1', 'ntype2', 'ntype3']
+    etypes_hetero = [('ntype1', 'etype1', 'ntype2'), ('ntype2','etype2', 'ntype3')]
+
+    gmd = GSGraphMetadata(gtype=gtype_hetero,
+                          ntypes=ntypes_hetero,
+                          etypes=etypes_hetero)
+    assert not gmd.is_homo()
+    assert gmd.get_ntypes() == ntypes_hetero
+    assert gmd.get_etypes() == etypes_hetero
+    # predefined ntype shoud be in the metadata
+    assert all([gmd.has_ntype(ntype) for ntype in ntypes_hetero])
+    assert all([gmd.has_etype(etype) for etype in etypes_hetero])
+    # not predefined types should return False
+    assert not gmd.has_ntype('an_ntype')
+    assert not gmd.has_etype('an_etype')
+    # predefined netype should not have any feature name
+    assert all([gmd.get_nfeat_all_dims(ntype) is None for ntype in ntypes_hetero])
+    assert all([gmd.get_nfeat_all_dims(etype) is None for etype in etypes_hetero])
+
+    #       1.2 initialize with node and edge feature information
+    nfeat_dims = {ntype: {'nfeat1': [4, 7]} for ntype in ntypes_hetero}
+    efeat_dims = {etype: {'efeat1': [8]} for etype in etypes_hetero}
+    gmd = GSGraphMetadata(gtype=gtype_hetero,
+                          ntypes=ntypes_hetero,
+                          etypes=etypes_hetero,
+                          nfeat_dims=nfeat_dims,
+                          efeat_dims=efeat_dims)
+    # only test feature info as others have been tested in the case 1.1
+    assert all([gmd.get_nfeat_all_dims(ntype)=={'nfeat1': [4, 7]} for ntype in ntypes_hetero])
+    assert all([gmd.get_efeat_all_dims(etype)=={'efeat1': [8]} for etype in etypes_hetero])
+
+    #TODO(Jian) 1.3 test to_json and to_string
+
+    #TODO(Jian) 1.4 test homogeneous graph
+
+    #TODO(Jian) Test case 2: abnormal cases
+   
+    # Test case 3: load JSON to be a GSGraphMetadata instance
+    #       3.1 load gconst JSON
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        config_json = build_gcons_json_example()
+        with open(os.path.join(tmpdirname, 'gconstruct_acm_output_config.json'), "w") as f:
+            json.dump(config_json, f, indent=4)
+
+        with open(os.path.join(tmpdirname, 'gconstruct_acm_output_config.json'), "r") as f:
+            gcon_config = json.load(f)
+
+        gmd = load_metadata_from_json(gcon_config)
+        expected_ntypes = ['author', 'paper', 'subject']
+        expected_etypes = [('author', 'writing', 'paper'),
+                           ('paper', 'cited', 'paper'),
+                           ('paper', 'citing', 'paper'),
+                           ('paper', 'is-about', 'subject'),
+                           ('paper', 'written-by', 'author'),
+                           ('subject', 'has', 'paper')]
+        assert not gmd.is_homo()
+        assert sorted(gmd.get_ntypes()) == sorted(expected_ntypes)
+        assert set(gmd.get_etypes()) == set(expected_etypes)
+        # predefined ntype shoud be in the metadata
+        assert all([gmd.has_ntype(ntype) for ntype in expected_ntypes])
+        assert all([gmd.has_etype(etype) for etype in expected_etypes])
+        # not predefined types should return False
+        assert not gmd.has_ntype('an_ntype')
+        assert not gmd.has_etype('an_etype')
+
+        expected_nfeat_dims = {
+            'author': {'feat':[256]},
+            'paper': {'feat':[256]},
+            'subject': {'feat':[256]}
+        }
+        expected_efeat_dims = {
+            ('author', 'writing', 'paper'): None,
+            ('paper', 'cited', 'paper'): None,
+            ('paper', 'citing', 'paper'): {'cate_feat':[6]},
+            ('paper', 'is-about', 'subject'): None,
+            ('paper', 'written-by', 'author'): None,
+            ('subject', 'has', 'paper'): None
+        }
+        # test feature info
+        assert all([gmd.get_nfeat_all_dims(ntype)==nfeat_dims \
+                    for ntype, nfeat_dims in expected_nfeat_dims.items()])
+        assert all([gmd.get_efeat_all_dims(etype)==efeat_dims \
+                    for etype, efeat_dims in expected_efeat_dims.items()])
+
+
+def test_GSMetadataDglDistGraph():
+    """
+    The GSMetadataDglDistGraph is a superset of GSMetadataGraph, DGMetadataDglGraph. So will
+    only test this class.
+    """
+    # Test case 1: normal case
+    #       1.1 create a heterogeneous metadata dgl distributed graph
+    gtype_hetero = 'heterogeneous'
+    ntypes_hetero = ['ntype1', 'ntype2', 'ntype3']
+    etypes_hetero = [('ntype1', 'etype1', 'ntype2'), ('ntype2','etype2', 'ntype3')]
+    nfeat_dims = {ntype: {'nfeat1': [4, 7]} for ntype in ntypes_hetero}
+    efeat_dims = {etype: {'efeat1': [8]} for etype in etypes_hetero}
+
+    gmd = GSGraphMetadata(gtype=gtype_hetero,
+                          ntypes=ntypes_hetero,
+                          etypes=etypes_hetero,
+                          nfeat_dims=nfeat_dims,
+                          efeat_dims=efeat_dims)
+    md_dist_g = GSMetadataDglDistGraph(gmd, device='cpu')
+    # properties check
+    assert md_dist_g.ntypes == ntypes_hetero
+    assert md_dist_g.etypes == [can_etype[1] for can_etype in etypes_hetero]
+    assert md_dist_g.canonical_etypes == etypes_hetero
+    assert md_dist_g.device() == 'cpu'
+    assert not md_dist_g.is_homogeneous()
+
+    # node and edge feature name check
+    assert all([list(md_dist_g.nodes[ntype].data.keys())==['nfeat1'] for ntype in ntypes_hetero])
+    assert all([list(md_dist_g.edges[etype].data.keys())==['efeat1'] for etype in etypes_hetero])
+    # node and edge feature dimension check
+    assert all([list(md_dist_g.nodes[ntype].data['nfeat1'].shape)==[0,4,7] for ntype in ntypes_hetero])
+    assert all([list(md_dist_g.edges[etype].data['efeat1'].shape)==[0,8] for etype in etypes_hetero])
+
+    # TODO(Jian)       1.2 test no feature metadata graphs
+    
+    # TODO(Jian)       1.3 test homogenous metadata graphs
+
+    # TODO(Jian)       2 abnormal test cases
+
+
 if __name__ == '__main__':
-    test_GSgnnTranData_small_val_test()
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnMultiTaskDataLoader()
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
-    test_edge_fixed_dst_negative_sample_gen_neg_pairs()
-    test_hard_edge_dst_negative_sample_generate_complex_case()
-    test_hard_edge_dst_negative_sample_generate()
-    test_inbatch_joint_neg_sampler(10, 20)
+    # test_GSgnnTranData_small_val_test()
+    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    # test_GSgnnMultiTaskDataLoader()
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
+    # test_edge_fixed_dst_negative_sample_gen_neg_pairs()
+    # test_hard_edge_dst_negative_sample_generate_complex_case()
+    # test_hard_edge_dst_negative_sample_generate()
+    # test_inbatch_joint_neg_sampler(10, 20)
 
-    test_np_dataloader_len(11)
-    test_ep_dataloader_len(11)
-    test_lp_dataloader_len(11)
+    # test_np_dataloader_len(11)
+    # test_ep_dataloader_len(11)
+    # test_lp_dataloader_len(11)
 
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnData()
-    test_GSgnnData2()
-    test_GSgnnData_edge_feat()
-    test_GSgnnData_edge_feat2()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    # test_GSgnnData()
+    # test_GSgnnData2()
+    # test_GSgnnData_edge_feat()
+    # test_GSgnnData_edge_feat2()
+    # test_lp_dataloader()
+    # test_edge_dataloader()
+    # test_node_dataloader()
+    # test_node_dataloader_reconstruct()
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
+    # test_prepare_input()
+    # test_modify_fanout_for_target_etype()
 
-    test_distill_sampler_get_file(num_files=7)
-    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
-        infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 7, True)
+    # test_distill_sampler_get_file(num_files=7)
+    # test_DistillDistributedFileSampler(num_files=7, is_train=True, \
+    #     infinite=False, shuffle=True)
+    # test_DistillDataloaderGenerator("gloo", 7, True)
 
-    test_GSgnnTrainData_homogeneous()
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
-    test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
-    test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
+    # test_GSgnnTrainData_homogeneous()
+    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
+    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
+    # test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
+    # test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
+
+    test_GSGraphMetadata()
+    test_GSMetadataDglDistGraph()

@@ -154,6 +154,23 @@ def prepare_batch_edge_input(g, input_edges,
                 feat[etype] = th.cat(feats, dim=1)
     return feat
 
+def prepare_blocks_edge_feats(g, input_blocks, efeat_fields, device='cpu'):
+    block_edge_input_feats = []
+    for block in input_blocks:
+        input_edges = {}
+        for etype in block.canonical_etypes:
+            if block.num_edges(etype) == 0:
+                continue
+            eid = block.edges[etype].data[dgl.EID]
+            input_edges[etype] = eid
+        edge_feat = prepare_batch_edge_input(g, input_edges, dev=device,
+                                             feat_field=efeat_fields)
+        # if no edge feature, will return an empty dict, also add
+        block_edge_input_feats.append(edge_feat)
+
+    return block_edge_input_feats
+
+
 class GSgnnData():
     """ The GraphStorm data class.
 
