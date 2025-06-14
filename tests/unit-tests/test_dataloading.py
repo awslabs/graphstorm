@@ -3119,8 +3119,9 @@ def test_GSgnnTranData_small_val_test():
 
 def test_GSGraphMetadata():
     """ Test the GSGraphMetadata class.
+
     GSGraphMetadata contains graph structure information and feature information, without real
-    graph data. Here will test
+    graph data. Here will test:
     1. correct intialization
     2. correct retrieval
     3. incorrect intialization, raise Assertion errors.
@@ -3159,12 +3160,136 @@ def test_GSGraphMetadata():
     assert all([gmd.get_nfeat_all_dims(ntype)=={'nfeat1': [4, 7]} for ntype in ntypes_hetero])
     assert all([gmd.get_efeat_all_dims(etype)=={'efeat1': [8]} for etype in etypes_hetero])
 
-    #TODO(Jian) 1.3 test to_json and to_string
+    #       1.3 test to_dict and to_string
+    gmd_dict = gmd.to_dict()
 
-    #TODO(Jian) 1.4 test homogeneous graph
+    assert gmd_dict['graph_type'] == gtype_hetero
+    nodes = gmd_dict['nodes']
+    assert all([nodes[i]['node_type'] == ntype for i, ntype in enumerate(ntypes_hetero)])
+    assert all([node['features'] == [{'feat_name': 'nfeat1', 'feat_dim': [4, 7]}] for node in nodes])
+    edges = gmd_dict['edges']
+    assert all([edges[i]['source_node_type'] == can_etype[0] \
+                and edges[i]['etype'] == can_etype[1]
+                and edges[i]['destination_node_type'] == can_etype[2] \
+                    for i, can_etype in enumerate(etypes_hetero)])
+    assert all([edge['features'] == [{'feat_name': 'efeat1', 'feat_dim': [8]}] for edge in edges])
 
-    #TODO(Jian) Test case 2: abnormal cases
-   
+    assert gmd.to_string() == '{\'graph_type\': \'heterogeneous\', \'nodes\': [{\'node_type\': \'ntype1\', ' + \
+                              '\'features\': [{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}, ' + \
+                              '{\'node_type\': \'ntype2\', \'features\': [{\'feat_name\': \'nfeat1\', ' + \
+                              '\'feat_dim\': [4, 7]}]}, {\'node_type\': \'ntype3\', \'features\': ' + \
+                              '[{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}], \'edges\': ' + \
+                              '[{\'source_node_type\': \'ntype1\', \'etype\': \'etype1\', ' + \
+                              '\'destination_node_type\': \'ntype2\', \'features\': [{\'feat_name\': ' + \
+                              '\'efeat1\', \'feat_dim\': [8]}]}, {\'source_node_type\': \'ntype2\', ' + \
+                              '\'etype\': \'etype2\', \'destination_node_type\': \'ntype3\', \'features\': ' + \
+                              '[{\'feat_name\': \'efeat1\', \'feat_dim\': [8]}]}]}'
+
+    #       1.4 test homogeneous graph with string for node type and tuple for edge type
+    gtype_homo = 'homogeneous'
+    ntypes_homo = 'ntype1'
+    etypes_homo = ('ntype1', 'etype1', 'ntype1')
+    nfeat_dims = {ntype: {'nfeat1': [4, 7]} for ntype in [ntypes_homo]}
+    efeat_dims = {etype: {'efeat1': [8]} for etype in [etypes_homo]}
+
+    gmd = GSGraphMetadata(gtype=gtype_homo,
+                          ntypes=ntypes_homo,
+                          etypes=etypes_homo,
+                          nfeat_dims=nfeat_dims,
+                          efeat_dims=efeat_dims)
+    assert gmd.is_homo()
+    assert gmd.get_ntypes() == [ntypes_homo]
+    assert gmd.get_etypes() == [etypes_homo]
+    assert all([gmd.has_ntype(ntype) for ntype in [ntypes_homo]])
+    assert all([gmd.has_etype(etype) for etype in [etypes_homo]])
+    assert all([gmd.get_nfeat_all_dims(ntype)=={'nfeat1': [4, 7]} for ntype in [ntypes_homo]])
+    assert all([gmd.get_efeat_all_dims(etype)=={'efeat1': [8]} for etype in [etypes_homo]])
+
+
+    #       Test case 2: abnormal cases
+    #       2.1 Not supported graph types
+    gtype_error = 'hypergraph'
+    with pytest.raises(AssertionError, match='Graph types can only be in .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_error,
+                              ntypes=None,
+                              etypes=None)
+
+    #       2.2 node types are not list or a single string
+    gtype_hetero = 'heterogeneous'
+    ntypes_hetero = {'ntype1', 'ntype2'}
+    with pytest.raises(AssertionError, match='Node types should be in a list of strings or a single .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=None)
+
+    #       2.3 edge type are not list or a single tuple with 3 elements
+    gtype_hetero = 'heterogeneous'
+    ntypes_hetero = ['ntype1', 'ntype2', 'ntype3']
+    etypes_hetero_error1 = {('ntype1', 'etype1', 'ntype2'), ('ntype2','etype2', 'ntype3')}
+    with pytest.raises(AssertionError, match='Edge types should be in a list .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero_error1)
+    etypes_hetero_error2 = ('etype1')
+    with pytest.raises(AssertionError, match='Edge types should be in a list .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero_error2)
+    etypes_hetero_error3 = [('ntype1', 'etype1', 'ntype2'), ('etype2')]
+    with pytest.raises(AssertionError, match='Edge types should be in a list .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero_error3)
+    etypes_hetero_error4 = [('ntype1', 'etype1', 'ntype2'), ['ntype2','etype2', 'ntype3']]
+    with pytest.raises(AssertionError, match='Edge types should be in a list .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero_error4)
+
+    #       2.4 node feature dimension must be a dictionary, whose keys are string and values
+    #           are another dictionaries with feature name strings as keys and dimension lists
+    #           as values.
+    gtype_hetero = 'heterogeneous'
+    ntypes_hetero = ['ntype1', 'ntype2', 'ntype3']
+    etypes_hetero = [('ntype1', 'etype1', 'ntype2'), ('ntype2','etype2', 'ntype3')]
+    nfeat_dims_error1 = [[4, 7] for ntype in ntypes_hetero]
+    with pytest.raises(AssertionError, match='The node feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              nfeat_dims=nfeat_dims_error1)
+    nfeat_dims_error2 = {i: {'nfeat1': [4, 7]} for i, ntype in enumerate(ntypes_hetero)}
+    with pytest.raises(AssertionError, match='The node feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              nfeat_dims=nfeat_dims_error2)
+    nfeat_dims_error3 = {ntype: {i: [4, 7]} for i, ntype in enumerate(ntypes_hetero)}
+    with pytest.raises(AssertionError, match='The node feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              nfeat_dims=nfeat_dims_error3)
+    nfeat_dims_error4 = {ntype: {'nfeat1': 4} for i, ntype in enumerate(ntypes_hetero)}
+    with pytest.raises(AssertionError, match='The node feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              nfeat_dims=nfeat_dims_error4)
+    
+    #       2.5 edge feature dimension must be a dictionary, whose keys are 3-element tuples and
+    #           values are another dictionarieswith feature name strings as keys and dimension lists
+    #           as values.
+    efeat_dims_error1 = {etype: {'efeat1': [8]} for etype in etypes_hetero}
+    with pytest.raises(AssertionError, match='The node feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              efeat_dims=efeat_dims_error1)
+
+
+    efeat_dims_error1 = {etype: {'efeat1': [8]} for etype in etypes_hetero}
+
     # Test case 3: load JSON to be a GSGraphMetadata instance
     #       3.1 load gconst JSON
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -3215,8 +3340,8 @@ def test_GSGraphMetadata():
 
 def test_GSMetadataDglDistGraph():
     """
-    The GSMetadataDglDistGraph is a superset of GSMetadataGraph, DGMetadataDglGraph. So will
-    only test this class.
+    The GSMetadataDglDistGraph is a superset of GSMetadataGraph, and DGMetadataDglGraph. So will
+    only test GSMetadataDglDistGraph class.
     """
     # Test case 1: normal case
     #       1.1 create a heterogeneous metadata dgl distributed graph
@@ -3300,4 +3425,4 @@ if __name__ == '__main__':
     # test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
 
     test_GSGraphMetadata()
-    test_GSMetadataDglDistGraph()
+    # test_GSMetadataDglDistGraph()

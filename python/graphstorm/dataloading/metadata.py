@@ -75,10 +75,13 @@ class GSGraphMetadata():
         self._gtype = gtype
 
         assert (isinstance(ntypes, list) and all([isinstance(ntype, str) for ntype in ntypes])) \
-            or isinstance(ntypes, str), 'Node types should be in a list of strings or a single' + \
+            or isinstance(ntypes, str), 'Node types should be in a list of strings or a single ' + \
             f'string, but got {ntypes}.'
         # TODO(Jian): add sanity check about that the node type should be 1 for homogeneous graphs
-        self._ntypes = ntypes
+        if isinstance(ntypes, str):
+            self._ntypes = [ntypes]
+        else:
+            self._ntypes = ntypes
 
         assert (isinstance(etypes, list) and all([isinstance(can_etype, tuple) for can_etype in \
             etypes]) and all([len(can_etype)==3 for can_etype in etypes])) or \
@@ -86,7 +89,10 @@ class GSGraphMetadata():
                 'of tuples each of which has three strings to indicate source node type, ' + \
                 'edge type, destination node type, or in a single tuple, but got {etypes}.'
         # TODO(Jian): add sanity check about that the edge type should be 1 for homogeneous graphs
-        self._etypes = etypes
+        if isinstance(etypes, tuple):
+            self._etypes = [etypes]
+        else:
+            self._etypes = etypes
 
         if nfeat_dims is not None:
             assert isinstance(nfeat_dims, dict) and all([isinstance(key, str) for key in \
@@ -119,6 +125,8 @@ class GSGraphMetadata():
                 f'types in edge feature dimensions: {efeat_dims} are not in the edge type ' + \
                 f'list: {etypes}.'
         self._efeat_dims = efeat_dims
+
+    #TODO: sanity checks
 
     # getters
     def is_homo(self):
@@ -217,6 +225,7 @@ class GSGraphMetadata():
 
         return efeat_all_dims
 
+    # output functions
     def to_dict(self):
         """ Convert the graph metadata into a dictionary.
 
