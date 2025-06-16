@@ -19,7 +19,6 @@
 import logging
 from abc import ABC, abstractmethod
 
-import dgl
 import torch as th
 from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
@@ -74,7 +73,7 @@ class GSGraphMetadata():
             f'{SUPPORT_GPAPH_TYPES}, but got {gtype}.'
         self._gtype = gtype
 
-        assert (isinstance(ntypes, list) and all([isinstance(ntype, str) for ntype in ntypes])) \
+        assert (isinstance(ntypes, list) and all(isinstance(ntype, str) for ntype in ntypes)) \
             or isinstance(ntypes, str), 'Node types should be in a list of strings or a single ' + \
             f'string, but got {ntypes}.'
         # TODO(Jian): add sanity check about that the node type should be 1 for homogeneous graphs
@@ -83,8 +82,8 @@ class GSGraphMetadata():
         else:
             self._ntypes = ntypes
 
-        assert (isinstance(etypes, list) and all([isinstance(can_etype, tuple) for can_etype in \
-            etypes]) and all([len(can_etype)==3 for can_etype in etypes])) or \
+        assert (isinstance(etypes, list) and all(isinstance(can_etype, tuple) for can_etype in \
+            etypes) and all(len(can_etype)==3 for can_etype in etypes)) or \
             (isinstance(etypes, tuple) and len(etypes)==3), 'Edge types should be in a list ' + \
                 'of tuples each of which has three strings to indicate source node type, ' + \
                 'edge type, destination node type, or in a single tuple, but got {etypes}.'
@@ -107,33 +106,33 @@ class GSGraphMetadata():
                 f'list: {self._ntypes}.'
 
         if nfeat_dims is not None:
-            assert isinstance(nfeat_dims, dict) and all([isinstance(key, str) for key in \
-                nfeat_dims.keys()]) and all([isinstance(val, dict) for val in \
-                nfeat_dims.values()]) and all([isinstance(val_key, str) for val in \
-                nfeat_dims.values() for val_key in val.keys()]) and all( \
-                [isinstance(val_val, list) for val in nfeat_dims.values() for val_val in \
-                val.values()]), 'The node feature dimensions should be a dictionary, whose ' + \
+            assert isinstance(nfeat_dims, dict) and all(isinstance(key, str) for key in \
+                nfeat_dims.keys()) and all(isinstance(val, dict) for val in \
+                nfeat_dims.values()) and all(isinstance(val_key, str) for val in \
+                nfeat_dims.values() for val_key in val.keys()) and all( \
+                isinstance(val_val, list) for val in nfeat_dims.values() for val_val in \
+                val.values()), 'The node feature dimensions should be a dictionary, whose ' + \
                     'keys are node type strings, and values are dictionaries whose keys are ' + \
                     'node feature name strings, and values are lists of feature dimenions, ' + \
                     'but got {nfeat_dims}.'
-            assert all([ntype in self._ntypes for ntype in nfeat_dims.keys()]), 'Some node ' + \
+            assert all(ntype in self._ntypes for ntype in nfeat_dims.keys()), 'Some node ' + \
                 f'types in node feature dimensions: {nfeat_dims} are not in the node type ' + \
                 f'list: {ntypes}.'
         self._nfeat_dims = nfeat_dims
 
         if efeat_dims is not None:
-            assert isinstance(efeat_dims, dict) and all([isinstance(key, tuple) for key in \
-                efeat_dims.keys()]) and all([len(key)==3 for key in efeat_dims.keys()]) and \
-                all([isinstance(val, dict) for val in efeat_dims.values()]) and all( \
-                [isinstance(val_key, str) for val in efeat_dims.values() for val_key in \
-                val.keys()]) and all([isinstance(val_val, list) for val in efeat_dims.values() \
-                for val_val in val.values()]), 'The edge feature dimensions should be a ' + \
+            assert isinstance(efeat_dims, dict) and all(isinstance(key, tuple) for key in \
+                efeat_dims.keys()) and all(len(key)==3 for key in efeat_dims.keys()) and \
+                all(isinstance(val, dict) for val in efeat_dims.values()) and all( \
+                isinstance(val_key, str) for val in efeat_dims.values() for val_key in \
+                val.keys()) and all(isinstance(val_val, list) for val in efeat_dims.values() \
+                for val_val in val.values()), 'The edge feature dimensions should be a ' + \
                     'dictionary, whose keys are canonical edge types (tuples, each of which ' + \
                     'include three strings to indicate source node type, edge type, ' + \
                     'destination node type), and values are dictionaries whose keys are ' + \
                     'edge feature name strings, and values are lists of feature dimenions, ' + \
                     'but got {efeat_dims}.'
-            assert all([etype in self._etypes for etype in efeat_dims.keys()]), 'Some edge ' + \
+            assert all(etype in self._etypes for etype in efeat_dims.keys()), 'Some edge ' + \
                 f'types in edge feature dimensions: {efeat_dims} are not in the edge type ' + \
                 f'list: {etypes}.'
         self._efeat_dims = efeat_dims
@@ -297,11 +296,11 @@ class GSGraphMetadata():
                 node['features'] = nfeats
             else:
                 node['features'] = []
-            
+
             nodes.append(node)
 
         metadata_dict["nodes"] = nodes
-        
+
         edges = []
         for src_ntype, etype, dst_ntype in self._etypes:
             edge = {
@@ -340,7 +339,7 @@ class GSGraphMetadata():
 
 # ============ Metadata Graph Classes ============ #
 class GSMetadataGraph(ABC):
-    """ 
+    """ Abstract class as the base of metadata graphs.
     """
     def __init__(self, graph_metadata):
         self._graph_metadata = graph_metadata
@@ -350,14 +349,12 @@ class GSMetadataGraph(ABC):
     def ntypes(self):
         """ Get the node type list property
         """
-        pass
 
     @property
     @abstractmethod
     def etypes(self):
         """ Get the edge type list property.
         """
-        pass
 
     def gtype(self):
         """ Get the metadata graph type.
@@ -368,7 +365,6 @@ class GSMetadataGraph(ABC):
     def device(self):
         """ Get the device where metadata graph is located.
         """
-        pass
 
 
 class GSMetadataDglGraph(GSMetadataGraph):
@@ -490,11 +486,11 @@ class GSMetadataDglGraph(GSMetadataGraph):
         ------
         dict : the dictionary of nodes and their DataView classes.
         """
-        logging.warning(f'This {self.__class__.__name__} is a metadata graph that simulates ' + \
-            'a DGL graph without actual graph structure, i.e., nodes and edges, but meta ' + \
-            'information, e.g., node types, edge types, and node or edge feature names. You ' + \
-            'can use the \".nodes[ntype].data\" or \".nodes[ntype].data[nfeat_name]\" ' + \
-            'interface to retrieve nodes\' data information.')
+        logging.warning('This %s', self.__class__.__name__ + 'is a metadata graph that '  + \
+            'simulates a DGL graph without actual graph structure, i.e., nodes and edges, ' + \
+            'but meta information, e.g., node types, edge types, and node or edge feature ' + \
+            'name. You can use the \".nodes[ntype].data\" or ' + \
+            '\".nodes[ntype].data[nfeat_name]\" interface to retrieve nodes\' data information.')
         return self._nodes
 
     @property
@@ -509,11 +505,11 @@ class GSMetadataDglGraph(GSMetadataGraph):
         ------
         dict : the dictionary of edges and their DataView classes.
         """
-        logging.warning(f'This {self.__class__.__name__} is a metadata graph that simulates ' + \
-            'a DGL graph without actual graph structure, i.e., nodes and edges, but meta ' + \
-            'information, e.g., node types, edge types, and node or edge feature names. You ' + \
-            'can use the \".edges[etype].data\" or \".edges[etype].data[efeat_name]\" ' + \
-            'interface to retrieve edges\' data information.')
+        logging.warning('This %s', self.__class__.__name__ + ' is a metadata graph that '  + \
+            'simulates a DGL graph without actual graph structure, i.e., nodes and edges, ' + \
+            'but meta information, e.g., node types, edge types, and node or edge feature ' + \
+            'names. You can use the \".edges[etype].data\" or ' + \
+            '\".edges[etype].data[efeat_name]\" interface to retrieve edges\' data information.')
         return self._edges
 
     def is_homogeneous(self):
@@ -553,8 +549,8 @@ class GSMetadataDglGraph(GSMetadataGraph):
 class DglDataViewSimulation():
     """ Simulation of the DGL NodeView and EdgeView class.
 
-    This class provides a simple interface of DGL NodeView/EdgeView class, i.e., it only provides the
-    `data` interface for retrieving node/edge feature data.
+    This class provides a simple interface of DGL NodeView/EdgeView class, i.e., it only provides
+    the `data` interface for retrieving node/edge feature data.
     
     The `data` property is a dictionary to host feature names with their corresponding tensors.
     """
@@ -580,9 +576,6 @@ class GSMetadataDglDistGraph(GSMetadataDglGraph):
     cannot provide. Therefore, this metadata graph will raise NotImplementedError to let
     callers know this metadata graph cannot be used for DGL distributed graph.
     """
-    def __init__(self, graph_metadata, device='cpu'):
-        super().__init__(graph_metadata, device)
-
     # provides the two distributed graph APIs
     def get_node_partition_policy(self, ntype):
         """ Retrieve the node partition policy of the given node type.
