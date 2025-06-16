@@ -88,11 +88,23 @@ class GSGraphMetadata():
             (isinstance(etypes, tuple) and len(etypes)==3), 'Edge types should be in a list ' + \
                 'of tuples each of which has three strings to indicate source node type, ' + \
                 'edge type, destination node type, or in a single tuple, but got {etypes}.'
-        # TODO(Jian): add sanity check about that the edge type should be 1 for homogeneous graphs
+
         if isinstance(etypes, tuple):
             self._etypes = [etypes]
         else:
             self._etypes = etypes
+
+        # sanity check of homogeneous graphs
+        if self._gtype == HOMO_GRAPH_TYPE:
+            assert len(self._ntypes) == 1 and len(self._etypes), 'For a homogeneous graph, ' + \
+                f'number of node types and edge types should be 1, but got {len(self._ntypes)}' + \
+                f' node types, and {len(self._etypes)} edge types.'
+
+        # sanity check if node types in edge types exist in node type list
+        for src_ntype, _, dst_ntype in self._etypes:
+            assert (src_ntype in self._ntypes) and ((dst_ntype in self._ntypes)), 'Some node ' + \
+                f'types {src_ntype} and {dst_ntype} do not exist in the given node type ' + \
+                f'list: {self._ntypes}.'
 
         if nfeat_dims is not None:
             assert isinstance(nfeat_dims, dict) and all([isinstance(key, str) for key in \
@@ -115,7 +127,7 @@ class GSGraphMetadata():
                 all([isinstance(val, dict) for val in efeat_dims.values()]) and all( \
                 [isinstance(val_key, str) for val in efeat_dims.values() for val_key in \
                 val.keys()]) and all([isinstance(val_val, list) for val in efeat_dims.values() \
-                for val_val in val.values()]), 'Edge feature dimensions should be a ' + \
+                for val_val in val.values()]), 'The edge feature dimensions should be a ' + \
                     'dictionary, whose keys are canonical edge types (tuples, each of which ' + \
                     'include three strings to indicate source node type, edge type, ' + \
                     'destination node type), and values are dictionaries whose keys are ' + \
@@ -125,8 +137,6 @@ class GSGraphMetadata():
                 f'types in edge feature dimensions: {efeat_dims} are not in the edge type ' + \
                 f'list: {etypes}.'
         self._efeat_dims = efeat_dims
-
-    #TODO: sanity checks
 
     # getters
     def is_homo(self):
@@ -379,8 +389,10 @@ class GSMetadataDglGraph(GSMetadataGraph):
                        f'{self._graph_metadata.get_etypes()} edge types.'
 
             # convert node type and edge type to DGL's default name, `_N` and (`_N`, `_E`, `_N`)
+            homo_ntype = self._graph_metadata.get_ntypes()[0]
+            homo_etype = self._graph_metadata.get_etypes()[0]
             self._ntypes = [DEFAULT_NTYPE]
-            self._etypes = [DEFAULT_ETYPE]
+            self._etypes = [(DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE)]
         else:
             self._ntypes = self._graph_metadata.get_ntypes()
             self._etypes = self._graph_metadata.get_etypes()
@@ -394,22 +406,38 @@ class GSMetadataDglGraph(GSMetadataGraph):
 
             # if the metadata include node feature information, create an empty tensor
             # according to the feature dimensions.
-            if self._graph_metadata.get_nfeat_all_dims(ntype) is not None:
-                nfeat_all_dims = self._graph_metadata.get_nfeat_all_dims(ntype)
-                for nfeat_name, dims in nfeat_all_dims.items():
-                    dims.insert(0, 0)
-                    self._nodes[ntype].data[nfeat_name] = th.empty(dims, device=device)
+            if self._graph_metadata.is_homo():
+                if self._graph_metadata.get_nfeat_all_dims(homo_ntype) is not None:
+                    nfeat_all_dims = self._graph_metadata.get_nfeat_all_dims(homo_ntype)
+
+                    for nfeat_name, dims in nfeat_all_dims.items():
+                        dims.insert(0, 0)
+                        self._nodes[ntype].data[nfeat_name] = th.empty(dims, device=device)
+            else:
+                if self._graph_metadata.get_nfeat_all_dims(ntype) is not None:
+                    nfeat_all_dims = self._graph_metadata.get_nfeat_all_dims(ntype)
+
+                    for nfeat_name, dims in nfeat_all_dims.items():
+                        dims.insert(0, 0)
+                        self._nodes[ntype].data[nfeat_name] = th.empty(dims, device=device)
 
         for can_etype in self._etypes:
             self._edges[can_etype] = DglDataViewSimulation()
 
             # if the metadata include edge feature information, create an empty tensor
             # according to the feature dimensions.
-            if self._graph_metadata.get_efeat_all_dims(can_etype) is not None:
-                efeat_all_dims = self._graph_metadata.get_efeat_all_dims(can_etype)
-                for efeat_name, dims in efeat_all_dims.items():
-                    dims.insert(0, 0)
-                    self._edges[can_etype].data[efeat_name] = th.empty(dims)
+            if self._graph_metadata.is_homo():
+                if self._graph_metadata.get_efeat_all_dims(homo_etype) is not None:
+                    efeat_all_dims = self._graph_metadata.get_efeat_all_dims(homo_etype)
+                    for efeat_name, dims in efeat_all_dims.items():
+                        dims.insert(0, 0)
+                        self._edges[can_etype].data[efeat_name] = th.empty(dims, device=device)
+            else:
+                if self._graph_metadata.get_efeat_all_dims(can_etype) is not None:
+                    efeat_all_dims = self._graph_metadata.get_efeat_all_dims(can_etype)
+                    for efeat_name, dims in efeat_all_dims.items():
+                        dims.insert(0, 0)
+                        self._edges[can_etype].data[efeat_name] = th.empty(dims, device=device)
 
 
     # Implementations of abstract methods
@@ -493,19 +521,21 @@ class GSMetadataDglGraph(GSMetadataGraph):
         """
         return self._graph_metadata.is_homo()
 
+    @property
     def ndata(self):
         """ Provide an interface for retrieving node data in a homogeneous metadata graph.
 
         This interface is for homogeneous graphs only, and the node type should be `_N`, which is
-        defined by dgl's `dgl.NID` constant.
+        defined by dgl's DEFAULT_NTYPE constant.
         """
         if not self.is_homogeneous():
             logging.warning('Only homogeneous metadata graphs support the \"ndata\" ' + \
                 'interface, but got a heterogeneous metadata graph.')
             return None
         else:
-            return self.nodes[dgl.NID].data
+            return self._nodes[DEFAULT_NTYPE].data
 
+    @property
     def edata(self):
         """ Provide an interface for retrieving edge data in a homogeneous metadata graph.
 
@@ -517,7 +547,7 @@ class GSMetadataDglGraph(GSMetadataGraph):
                 'interface, but got a heterogeneous metadata graph.')
             return None
         else:
-            return self.edges[(dgl.NID, dgl.EID, dgl.NID)].data
+            return self._edges[(DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE)].data
 
 
 class DglDataViewSimulation():
@@ -673,8 +703,14 @@ def config_json_sanity_check(config_json):
     if config_version.startswith('gconstruct'):
         assert 'is_homogeneous' in config_json, 'A \"is_homogeneous\" field must be defined ' + \
             'in the configuration JSON object.'
+        is_homo = config_json['is_homogeneous']
+        assert is_homo in ['True', 'true', 'False', 'false'], 'The ' + \
+            'value of \"is_homogeneous\" can only be \"True\", \"true\", \"False\", or ' + \
+            f'\"false\", but got {is_homo}.'
+
         assert 'nodes' in config_json, 'A \"nodes\" field must be defined in the configuration' + \
             'JSON object.'
+        assert len(config_json['nodes']) > 0, 'Need at least one node in the \"nodes\" object.'
         ntypes = []
         for node_obj in config_json['nodes']:
             assert 'node_type' in node_obj, 'A \"node_type" field must be defined in a node ' + \
@@ -687,12 +723,16 @@ def config_json_sanity_check(config_json):
                         'defined in a feature obejct.'
                     assert 'feature_dim' in feat_obj, 'A \"feature_dim\" field must be ' + \
                         'defined in a feature obejct.'
+                    feat_dim = feat_obj['feature_dim']
+                    assert isinstance(feat_dim, list), 'Values of ' + \
+                        f'\"feature_dim\" field must be a list, but got {feat_dim}.'
         # check duplicates in node types
         assert len(ntypes) == len(set(ntypes)), 'There are duplicated node types in the ' + \
             'nodes object: {ntypes}.'
 
         assert 'edges' in config_json, 'An \"edges\" field must be defined in the ' + \
             'configuration JSON object.'
+        assert len(config_json['edges']) > 0, 'Need at least one edge in the \"edges\" object.'
         etypes = []
         for edge_obj in config_json['edges']:
             assert 'relation' in edge_obj, 'A \"relation\" field must be defined in an ' + \
@@ -705,34 +745,48 @@ def config_json_sanity_check(config_json):
                         'defined in a feature obejct.'
                     assert 'feature_dim' in feat_obj, 'A \"feature_dim\" field must be ' + \
                         'defined in a feature obejct.'
+                    feat_dim = feat_obj['feature_dim']
+                    assert isinstance(feat_dim, list), 'Values of ' + \
+                        f'\"feature_dim\" field must be a list, but got {feat_dim}.'
         # check duplicates in edge types
         assert len(etypes) == len(set(etypes)), 'There are duplicated edge types in the ' + \
             'edges object: {etypes}.'
     elif config_version.startswith('gsprocessing'):
         assert 'graph' in config_json, 'A \"graph\" field must be defined in the ' + \
             'configuration JSON object.'
-        graph_obj = config_json['grapg']
+        graph_obj = config_json['graph']
 
         assert 'is_homogeneous' in graph_obj, 'An \"is_homogeneous\" field must be defined ' + \
             'in the configuration JSON object.'
+        is_homo = graph_obj['is_homogeneous']
+        assert is_homo in ['True', 'true', 'False', 'false'], 'The ' + \
+            'value of \"is_homogeneous\" can only be \"True\", \"true\", \"False\", or ' + \
+            f'\"false\", but got {is_homo}.'
 
         assert 'nodes' in graph_obj, 'A \"nodes\" field must be defined in the graph object.'
+        assert len(graph_obj['nodes']) > 0, 'Need at least one node in the \"nodes\" object.'
 
         ntypes = []
         for node_obj in graph_obj['nodes']:
             assert 'type' in node_obj, 'A \"type\" field must be defined in the node object.'
+            ntypes.append(node_obj['type'])
 
             if 'features' in node_obj:
                 for feat_obj in node_obj['features']:
                     assert 'name' in feat_obj, 'A \"name\" field must be ' + \
                         'defined in a feature obejct.'
-                    assert 'dim' in feat_obj, 'A \"feature_dim\" field must be ' + \
+                    assert 'dim' in feat_obj, 'A \"dim\" field must be ' + \
                         'defined in a feature obejct.'
+                    feat_dim = feat_obj['dim']
+                    assert isinstance(feat_dim, list), 'Values of ' + \
+                        f'\"dim\" field must be a list, but got {feat_dim}.'
         # check duplicates in node types
         assert len(ntypes) == len(set(ntypes)), 'There are duplicated node types in the ' + \
             'nodes object: {ntypes}.'
 
         assert 'edges' in graph_obj, 'An \"edges\" field must be defined in the graph object.'
+        assert len(graph_obj['edges']) > 0, 'Need at least one edge in the \"edges\" object.'
+
         etypes = []
         for edge_obj in graph_obj['edges']:
             assert 'source' in edge_obj, 'A \"source\" field must be defined in the edge object.'
@@ -740,20 +794,26 @@ def config_json_sanity_check(config_json):
                 'source object.'
 
             assert 'dest' in edge_obj, 'A \"dest\" field must be defined in the edge object.'
-            assert 'type' in edge_obj['source'], 'A \"type\" field must be defined in the ' + \
+            assert 'type' in edge_obj['dest'], 'A \"type\" field must be defined in the ' + \
                 'dest object.'
 
             assert 'relation' in edge_obj, 'A \"relation\" field must be defined in the edge ' + \
                 'object.'
-            assert 'type' in edge_obj['source'], 'A \"type\" field must be defined in the ' + \
+            assert 'type' in edge_obj['relation'], 'A \"type\" field must be defined in the ' + \
                 'relation object.'
 
-            if 'features' in node_obj:
-                for feat_obj in node_obj['features']:
+            etypes.append((edge_obj['source']['type'], edge_obj['relation']['type'], \
+                           edge_obj['dest']['type']))
+
+            if 'features' in edge_obj:
+                for feat_obj in edge_obj['features']:
                     assert 'name' in feat_obj, 'A \"name\" field must be ' + \
                         'defined in a feature obejct.'
-                    assert 'dim' in feat_obj, 'A \"feature_dim\" field must be ' + \
+                    assert 'dim' in feat_obj, 'A \"dim\" field must be ' + \
                         'defined in a feature obejct.'
+                    feat_dim = feat_obj['dim']
+                    assert isinstance(feat_dim, list), 'Values of ' + \
+                        f'\"dim\" field must be a list, but got {feat_dim}.'
         # check duplicates in edge types
         assert len(etypes) == len(set(etypes)), 'There are duplicated edge types in the ' + \
             'edges object: {etypes}.'
@@ -813,7 +873,7 @@ def load_metadata_from_json(config_json):
                     feat_dims[feat_obj['feature_name']] = feat_obj['feature_dim']
                 efeat_dims[tuple(edge_obj['relation'])] = feat_dims
     else:
-        graph_obj = config_json['grapg']
+        graph_obj = config_json['graph']
         is_homo = graph_obj['is_homogeneous'] in ['True', 'true']
 
         # parse node types

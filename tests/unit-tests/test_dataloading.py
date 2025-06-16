@@ -30,6 +30,7 @@ import pytest
 from numpy.testing import assert_equal, assert_almost_equal
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
+from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
 from data_utils import (
     generate_dummy_dist_graph,
@@ -84,6 +85,7 @@ from graphstorm.dataloading.utils import modify_fanout_for_target_etype
 from graphstorm.dataloading.utils import trim_data
 from graphstorm.dataloading.metadata import (GSGraphMetadata,
                                              GSMetadataDglDistGraph,
+                                             config_json_sanity_check,
                                              load_metadata_from_json)
 
 def build_gcons_json_example():
@@ -3280,18 +3282,262 @@ def test_GSGraphMetadata():
     #       2.5 edge feature dimension must be a dictionary, whose keys are 3-element tuples and
     #           values are another dictionarieswith feature name strings as keys and dimension lists
     #           as values.
-    efeat_dims_error1 = {etype: {'efeat1': [8]} for etype in etypes_hetero}
-    with pytest.raises(AssertionError, match='The node feature dimensions should be .* but got'):
+    efeat_dims_error1 = [etype for etype in etypes_hetero]
+    with pytest.raises(AssertionError, match='The edge feature dimensions should be .* but got'):
         gmd = GSGraphMetadata(gtype=gtype_hetero,
                               ntypes=ntypes_hetero,
                               etypes=etypes_hetero,
                               efeat_dims=efeat_dims_error1)
+    efeat_dims_error2 = {i: {'efeat1': [8]} for i, etype in enumerate(etypes_hetero)}
+    with pytest.raises(AssertionError, match='The edge feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              efeat_dims=efeat_dims_error2)
+    efeat_dims_error3 = {etype: {i: [8]} for i, etype in enumerate(etypes_hetero)}
+    with pytest.raises(AssertionError, match='The edge feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              efeat_dims=efeat_dims_error3)
+    efeat_dims_error4 = {etype: {'efeat1': 8} for i, etype in enumerate(etypes_hetero)}
+    with pytest.raises(AssertionError, match='The edge feature dimensions should be .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero,
+                              efeat_dims=efeat_dims_error4)
 
+    #       2.6 sanity checks
+    with pytest.raises(AssertionError, match='For a homogeneous graph, .* but got'):
+        gmd = GSGraphMetadata(gtype=gtype_homo,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero)
 
-    efeat_dims_error1 = {etype: {'efeat1': [8]} for etype in etypes_hetero}
+    ntypes_hetero = ['ntype1', 'ntype2', 'ntype3']
+    etypes_hetero_error = [('ntype1', 'etype1', 'ntype2'), ('ntype2','etype2', 'ntype4')]
+    with pytest.raises(AssertionError, match='Some node types .* do not exist in the'):
+        gmd = GSGraphMetadata(gtype=gtype_hetero,
+                              ntypes=ntypes_hetero,
+                              etypes=etypes_hetero_error)
 
-    # Test case 3: load JSON to be a GSGraphMetadata instance
-    #       3.1 load gconst JSON
+def test_config_json_santiy_check():
+    """ Test the sanity check of config json contents
+    """
+    # gsconstruct json
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json.pop('version')
+    with pytest.raises(AssertionError, match='A \"version\" field must be defined in the'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json.pop('is_homogeneous')
+    with pytest.raises(AssertionError, match='A \"is_homogeneous\" field must be defined'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['is_homogeneous'] = 'Yes'
+    with pytest.raises(AssertionError, match='The value of \"is_homogeneous\" can only be'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json.pop('nodes')
+    with pytest.raises(AssertionError, match='A \"nodes\" field must be defined in'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['nodes'] = []
+    with pytest.raises(AssertionError, match='Need at least one node in the \"nodes\" object'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['nodes'][0].pop('node_type')
+    with pytest.raises(AssertionError, match='A \"node_type" field must be defined in a node'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['nodes'][0]['features'][0].pop('feature_name')
+    with pytest.raises(AssertionError, match='A \"feature_name\" field must be'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['nodes'][0]['features'][0].pop('feature_dim')
+    with pytest.raises(AssertionError, match='A \"feature_dim\" field must be'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['nodes'][0]['features'][0]['feature_dim'] = 16
+    with pytest.raises(AssertionError, match='Values of \"feature_dim\" field must be a list'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['nodes'][-1]['node_type'] = gcont_config_json['nodes'][0]['node_type']
+    with pytest.raises(AssertionError, match='There are duplicated node types in the'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json.pop('edges')
+    with pytest.raises(AssertionError, match='An \"edges\" field must be defined in'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['edges'][0].pop('relation')
+    with pytest.raises(AssertionError, match='A \"relation\" field must be defined in an'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['edges'][2]['features'][0].pop('feature_name')
+    with pytest.raises(AssertionError, match='A \"feature_name\" field must be'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['edges'][2]['features'][0].pop('feature_dim')
+    with pytest.raises(AssertionError, match='A \"feature_dim\" field must be'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['edges'][2]['features'][0]['feature_dim'] = 16
+    with pytest.raises(AssertionError, match='Values of \"feature_dim\" field must be a list'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['edges'][-1]['relation'] = gcont_config_json['edges'][0]['relation']
+    with pytest.raises(AssertionError, match='There are duplicated edge types in the'):
+        config_json_sanity_check(gcont_config_json)
+
+    # gsprocessing json
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json.pop('version')
+    with pytest.raises(AssertionError, match='A \"version\" field must be defined in the'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json.pop('graph')
+    with pytest.raises(AssertionError, match='A \"graph\" field must be defined in the'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph'].pop('is_homogeneous')
+    with pytest.raises(AssertionError, match='An \"is_homogeneous\" field must be defined'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['is_homogeneous'] = 'No'
+    with pytest.raises(AssertionError, match='The value of \"is_homogeneous\" can only be'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph'].pop('nodes')
+    with pytest.raises(AssertionError, match='A \"nodes\" field must be defined'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['nodes'] = []
+    with pytest.raises(AssertionError, match='Need at least one node in the \"nodes\" object.'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['nodes'][0].pop('type')
+    with pytest.raises(AssertionError, match='A \"type\" field must be defined in the node'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['nodes'][0]['features'][0].pop('name')
+    with pytest.raises(AssertionError, match='A \"name\" field must be defined in a feature'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['nodes'][0]['features'][0].pop('dim')
+    with pytest.raises(AssertionError, match='A \"dim\" field must be defined in a feature'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['nodes'][0]['features'][0]['dim'] = 16
+    with pytest.raises(AssertionError, match='Values of \"dim\" field must be a list'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['nodes'][0]['type'] = gsproc_config_json['graph']['nodes'][-1]['type']
+    with pytest.raises(AssertionError, match='There are duplicated node types in the'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph'].pop('edges')
+    with pytest.raises(AssertionError, match='An \"edges\" field must be defined'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'] = []
+    with pytest.raises(AssertionError, match='Need at least one edge in the \"edges\" object.'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][0].pop('source')
+    with pytest.raises(AssertionError, match='A \"source\" field must be defined in'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][0]['source'].pop('type')
+    with pytest.raises(AssertionError, match='A \"type\" field must be defined in the source'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][0].pop('dest')
+    with pytest.raises(AssertionError, match='A \"dest\" field must be defined in'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][0]['dest'].pop('type')
+    with pytest.raises(AssertionError, match='A \"type\" field must be defined in the dest'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][0].pop('relation')
+    with pytest.raises(AssertionError, match='A \"relation\" field must be defined in'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][0]['relation'].pop('type')
+    with pytest.raises(AssertionError, match='A \"type\" field must be defined in the relation'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][2]['features'][0].pop('name')
+    with pytest.raises(AssertionError, match='A \"name\" field must be defined in a feature'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][2]['features'][0].pop('dim')
+    with pytest.raises(AssertionError, match='A \"dim\" field must be defined in a feature'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][2]['features'][0]['dim'] = 16
+    with pytest.raises(AssertionError, match='Values of \"dim\" field must be a list'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gsproc_config_json = build_gsproc_json_example()
+    gsproc_config_json['graph']['edges'][0]['source']['type'] = \
+        gsproc_config_json['graph']['edges'][-1]['source']['type']
+    gsproc_config_json['graph']['edges'][0]['dest']['type'] = \
+        gsproc_config_json['graph']['edges'][-1]['dest']['type']
+    gsproc_config_json['graph']['edges'][0]['relation']['type'] = \
+        gsproc_config_json['graph']['edges'][-1]['relation']['type']
+    with pytest.raises(AssertionError, match='There are duplicated edge types in the'):
+        config_json_sanity_check(gsproc_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['version'] = 'another_version'
+    with pytest.raises(NotImplementedError, match='GSGraphMetadata can only be loaded'):
+        config_json_sanity_check(gcont_config_json)
+
+def test_load_metadata_from_json():
+    """ Test the load function of json to mateadata.
+    
+    All field and value checks are done via the config json sanity check function. So will
+    test normal cases only.
+    """
+    # Test case 1: load JSON to be a GSGraphMetadata instance
+    #       1.1 load gconst JSON
     with tempfile.TemporaryDirectory() as tmpdirname:
         config_json = build_gcons_json_example()
         with open(os.path.join(tmpdirname, 'gconstruct_acm_output_config.json'), "w") as f:
@@ -3337,17 +3583,77 @@ def test_GSGraphMetadata():
         assert all([gmd.get_efeat_all_dims(etype)==efeat_dims \
                     for etype, efeat_dims in expected_efeat_dims.items()])
 
+    #       1.2 load gsproc json
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        config_json = build_gsproc_json_example()
+        with open(os.path.join(tmpdirname, 'gsprocess_acm_output_config.json'), "w") as f:
+            json.dump(config_json, f, indent=4)
+
+        with open(os.path.join(tmpdirname, 'gsprocess_acm_output_config.json'), "r") as f:
+            gcon_config = json.load(f)
+
+        gmd = load_metadata_from_json(gcon_config)
+        expected_ntypes = ['author', 'paper', 'subject']
+        expected_etypes = [('author', 'writing', 'paper'),
+                           ('paper', 'cited', 'paper'),
+                           ('paper', 'citing', 'paper'),
+                           ('paper', 'is-about', 'subject'),
+                           ('paper', 'written-by', 'author'),
+                           ('subject', 'has', 'paper')]
+        assert not gmd.is_homo()
+        assert sorted(gmd.get_ntypes()) == sorted(expected_ntypes)
+        assert set(gmd.get_etypes()) == set(expected_etypes)
+        # predefined ntype shoud be in the metadata
+        assert all([gmd.has_ntype(ntype) for ntype in expected_ntypes])
+        assert all([gmd.has_etype(etype) for etype in expected_etypes])
+        # not predefined types should return False
+        assert not gmd.has_ntype('an_ntype')
+        assert not gmd.has_etype('an_etype')
+
+        expected_nfeat_dims = {
+            'author': {'feat':[256]},
+            'paper': {'feat':[256]},
+            'subject': {'feat':[256]}
+        }
+        expected_efeat_dims = {
+            ('author', 'writing', 'paper'): None,
+            ('paper', 'cited', 'paper'): None,
+            ('paper', 'citing', 'paper'): {'cate_feat':[6]},
+            ('paper', 'is-about', 'subject'): None,
+            ('paper', 'written-by', 'author'): None,
+            ('subject', 'has', 'paper'): None
+        }
+        # test feature info
+        assert all([gmd.get_nfeat_all_dims(ntype)==nfeat_dims \
+                    for ntype, nfeat_dims in expected_nfeat_dims.items()])
+        assert all([gmd.get_efeat_all_dims(etype)==efeat_dims \
+                    for etype, efeat_dims in expected_efeat_dims.items()])
 
 def test_GSMetadataDglDistGraph():
     """
     The GSMetadataDglDistGraph is a superset of GSMetadataGraph, and DGMetadataDglGraph. So will
-    only test GSMetadataDglDistGraph class.
+    test GSMetadataDglDistGraph class.
     """
     # Test case 1: normal case
-    #       1.1 create a heterogeneous metadata dgl distributed graph
+    #       1.1 create a heterogeneous metadata dgl distributed graph w/t features
     gtype_hetero = 'heterogeneous'
     ntypes_hetero = ['ntype1', 'ntype2', 'ntype3']
     etypes_hetero = [('ntype1', 'etype1', 'ntype2'), ('ntype2','etype2', 'ntype3')]
+
+    gmd = GSGraphMetadata(gtype=gtype_hetero,
+                          ntypes=ntypes_hetero,
+                          etypes=etypes_hetero)
+    md_dist_g = GSMetadataDglDistGraph(gmd, device='cpu')
+    # properties check
+    assert md_dist_g.ntypes == ntypes_hetero
+    assert md_dist_g.etypes == [can_etype[1] for can_etype in etypes_hetero]
+    assert md_dist_g.canonical_etypes == etypes_hetero
+    assert md_dist_g.device() == 'cpu'
+    assert not md_dist_g.is_homogeneous()
+    assert all([md_dist_g.nodes[ntype].data=={} for ntype in ntypes_hetero])
+    assert all([md_dist_g.edges[etype].data=={} for etype in etypes_hetero])
+
+    # TODO(Jian)       1.2 test metadata graphs w/ features
     nfeat_dims = {ntype: {'nfeat1': [4, 7]} for ntype in ntypes_hetero}
     efeat_dims = {etype: {'efeat1': [8]} for etype in etypes_hetero}
 
@@ -3357,13 +3663,6 @@ def test_GSMetadataDglDistGraph():
                           nfeat_dims=nfeat_dims,
                           efeat_dims=efeat_dims)
     md_dist_g = GSMetadataDglDistGraph(gmd, device='cpu')
-    # properties check
-    assert md_dist_g.ntypes == ntypes_hetero
-    assert md_dist_g.etypes == [can_etype[1] for can_etype in etypes_hetero]
-    assert md_dist_g.canonical_etypes == etypes_hetero
-    assert md_dist_g.device() == 'cpu'
-    assert not md_dist_g.is_homogeneous()
-
     # node and edge feature name check
     assert all([list(md_dist_g.nodes[ntype].data.keys())==['nfeat1'] for ntype in ntypes_hetero])
     assert all([list(md_dist_g.edges[etype].data.keys())==['efeat1'] for etype in etypes_hetero])
@@ -3371,58 +3670,91 @@ def test_GSMetadataDglDistGraph():
     assert all([list(md_dist_g.nodes[ntype].data['nfeat1'].shape)==[0,4,7] for ntype in ntypes_hetero])
     assert all([list(md_dist_g.edges[etype].data['efeat1'].shape)==[0,8] for etype in etypes_hetero])
 
-    # TODO(Jian)       1.2 test no feature metadata graphs
-    
-    # TODO(Jian)       1.3 test homogenous metadata graphs
+    #       1.3 test homogenous metadata graphs
+    gtype_homo = 'homogeneous'
+    ntypes_homo = 'ntype1'
+    etypes_homo = ('ntype1', 'etype1', 'ntype1')
+    gmd = GSGraphMetadata(gtype=gtype_homo,
+                          ntypes=ntypes_homo,
+                          etypes=etypes_homo)
+    md_dist_g = GSMetadataDglDistGraph(gmd, device='cpu')
+    # properties check
+    assert md_dist_g.ntypes == [DEFAULT_NTYPE]
+    assert md_dist_g.etypes == [DEFAULT_ETYPE]
+    assert md_dist_g.canonical_etypes == [(DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE)]
+    assert md_dist_g.device() == 'cpu'
+    assert md_dist_g.is_homogeneous()
+    assert md_dist_g.ndata == {}
+    assert md_dist_g.edata == {}
 
-    # TODO(Jian)       2 abnormal test cases
+    # special ndata and edata properties
+    nfeat_dims = {ntypes_homo: {'nfeat1': [4, 7]}}
+    efeat_dims = {etypes_homo: {'efeat1': [8]}}
+
+    gmd = GSGraphMetadata(gtype=gtype_homo,
+                          ntypes=ntypes_homo,
+                          etypes=etypes_homo,
+                          nfeat_dims=nfeat_dims,
+                          efeat_dims=efeat_dims)
+    md_dist_g = GSMetadataDglDistGraph(gmd, device='cpu')
+    assert list(md_dist_g.ndata['nfeat1'].shape) == [0, 4, 7]
+    assert list(md_dist_g.edata['efeat1'].shape) == [0, 8]
+
+    #       1.4 Unsupported APIs
+    with pytest.raises(NotImplementedError, match='The .* the \"get_node_partition_policy\"'):
+        md_dist_g.get_node_partition_policy(DEFAULT_NTYPE)
+
+    with pytest.raises(NotImplementedError, match='The .* the \"get_partition_book\"'):
+        md_dist_g.get_partition_book()
 
 
 if __name__ == '__main__':
-    # test_GSgnnTranData_small_val_test()
-    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    # test_GSgnnMultiTaskDataLoader()
-    # test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
-    # test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
-    # test_edge_fixed_dst_negative_sample_gen_neg_pairs()
-    # test_hard_edge_dst_negative_sample_generate_complex_case()
-    # test_hard_edge_dst_negative_sample_generate()
-    # test_inbatch_joint_neg_sampler(10, 20)
+    test_GSgnnTranData_small_val_test()
+    test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    test_GSgnnMultiTaskDataLoader()
+    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
+    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
+    test_edge_fixed_dst_negative_sample_gen_neg_pairs()
+    test_hard_edge_dst_negative_sample_generate_complex_case()
+    test_hard_edge_dst_negative_sample_generate()
+    test_inbatch_joint_neg_sampler(10, 20)
 
-    # test_np_dataloader_len(11)
-    # test_ep_dataloader_len(11)
-    # test_lp_dataloader_len(11)
+    test_np_dataloader_len(11)
+    test_ep_dataloader_len(11)
+    test_lp_dataloader_len(11)
 
-    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    # test_GSgnnData()
-    # test_GSgnnData2()
-    # test_GSgnnData_edge_feat()
-    # test_GSgnnData_edge_feat2()
-    # test_lp_dataloader()
-    # test_edge_dataloader()
-    # test_node_dataloader()
-    # test_node_dataloader_reconstruct()
-    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    test_GSgnnData()
+    test_GSgnnData2()
+    test_GSgnnData_edge_feat()
+    test_GSgnnData_edge_feat2()
+    test_lp_dataloader()
+    test_edge_dataloader()
+    test_node_dataloader()
+    test_node_dataloader_reconstruct()
+    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    # test_prepare_input()
-    # test_modify_fanout_for_target_etype()
+    test_prepare_input()
+    test_modify_fanout_for_target_etype()
 
-    # test_distill_sampler_get_file(num_files=7)
-    # test_DistillDistributedFileSampler(num_files=7, is_train=True, \
-    #     infinite=False, shuffle=True)
-    # test_DistillDataloaderGenerator("gloo", 7, True)
+    test_distill_sampler_get_file(num_files=7)
+    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
+        infinite=False, shuffle=True)
+    test_DistillDataloaderGenerator("gloo", 7, True)
 
-    # test_GSgnnTrainData_homogeneous()
-    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
-    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
-    # test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
-    # test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
+    test_GSgnnTrainData_homogeneous()
+    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
+    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
+    test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
+    test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
 
     test_GSGraphMetadata()
-    # test_GSMetadataDglDistGraph()
+    test_config_json_santiy_check()
+    test_load_metadata_from_json()
+    test_GSMetadataDglDistGraph()
