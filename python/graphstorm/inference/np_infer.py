@@ -27,6 +27,8 @@ from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
 
 from ..utils import sys_tracker, get_rank, barrier
+from ..dataloading.dataset import (prepare_batch_input,
+                                   prepare_blocks_edge_feats)
 
 class GSgnnNodePredictionInferrer(GSInferrer):
     """ Inferrer for node prediction tasks.
@@ -168,3 +170,77 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             save_node_prediction_results(shuffled_preds, save_prediction_path)
         barrier()
         sys_tracker.check('save predictions')
+
+
+class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
+    """ Inferrer for real-time node prediction tasks on SageMaker endpoints.
+
+    .. versionadded:: 0.5
+        Add `GSGnnNodePredictionRealtimeInferrer` class in v0.5 to support real-time node-level
+        inference on Amazon SageMaker endpoints.
+
+    ``GSGnnNodePredictionRealtimeInferrer`` defines the ``infer()`` method that performs
+    three tasks:
+
+    1. Extract one batch using the given dataloader;
+    2. Prepare input node and edge features;
+    3. Compute inference results for nodes with target node type and return the results.
+
+    The real-time inferrer has three major differences from the node prediction offline inferrer:
+
+    1. directly setting and using a DGL graph as input to extract features.
+    2. using DGL dataloader, instead of GS dataloaders that rely on DGL distributed graphs.
+    3. no evaluation section as there is no label on real-time inference.
+
+    Parameters
+    ----------
+    g: dgl.heterograph
+        The inference graph data in the format of a DGL heterograph. For built-in inference
+        pipeline, this graph should be constructed by using methods in the
+        `gconstruct.construct_payload_graph.py` file.
+    dataloader: DGL dataloader
+        A DGL dataloader class, e.g., `DataLoader`.
+    infer_ntypes: list of string or a string
+        The list of the target node types. Or a single string of the target node type.
+    nfeat_fields: dict of {str: list}
+        The node feature fields in the format of a dict, whose keys are the node type names, and
+        values are lists of feature names.
+    efeat_fields: dict of {tuple: list}
+        The edge feature fields in the format of a dict, whose keys are the edge type name tuples,
+        and values are lists of feature names.
+    return_proba: boolean
+        If return probability of model predictions. Default is True.
+
+    Returns
+    -------
+    predictions: dict
+        The inference results in the format of {ntype: tensor}.
+    """
+
+    def infer(self,
+              g,
+              dataloader,
+              infer_ntypes,
+              nfeat_fields,
+              efeat_fields,
+              return_proba=True):
+        # set model to be in the evaluation mode
+        self._model.eval()
+        # extract one mini-batch blocks using the given DGL dataloader
+        all_nodes = []
+        all_blocks = []
+        for input_nodes, _, blocks in dataloader:
+            all_nodes = input_nodes
+            all_blocks = blocks
+        # extract node and edge features of the sampled blocks
+        n_h = prepare_batch_input(g, all_nodes, feat_field=nfeat_fields)
+        e_hs = prepare_blocks_edge_feats(g, all_blocks, efeat_fields)
+        # do predict on the blocks
+        logits, _ = self._model.predict(all_blocks, n_h, e_hs, all_nodes,
+                                        return_proba=return_proba)
+        # post processing to extract predictions on target node types
+        predictions = {}
+        for ntype in infer_ntypes:
+            predictions[ntype] = logits[ntype].cpu().detach().numpy()
+
+        return predictions

@@ -154,6 +154,31 @@ def prepare_batch_edge_input(g, input_edges,
                 feat[etype] = th.cat(feats, dim=1)
     return feat
 
+def prepare_blocks_edge_feats(g, input_blocks, efeat_fields, device='cpu'):
+    """ An individual function to prepare edge features for blocks.
+
+    .. versionadded:: 0.5
+        Separate this function from `GSgnnData` class in v0.5 to support real-time node-level
+        inference on Amazon SageMaker endpoints.
+    
+    This function is same as the built-in class function of `GSgnnData`. But can be directly
+    called for other APIs without initializing a `GSgnnData` class.
+    """
+    block_edge_input_feats = []
+    for block in input_blocks:
+        input_edges = {}
+        for etype in block.canonical_etypes:
+            if block.num_edges(etype) == 0:
+                continue
+            eid = block.edges[etype].data[dgl.EID]
+            input_edges[etype] = eid
+        edge_feat = prepare_batch_edge_input(g, input_edges, dev=device,
+                                             feat_field=efeat_fields)
+        # if no edge feature, will return an empty dict
+        block_edge_input_feats.append(edge_feat)
+
+    return block_edge_input_feats
+
 class GSgnnData():
     """ The GraphStorm data class.
 
@@ -425,6 +450,10 @@ class GSgnnData():
         .. versionadded:: 0.4.0
             Add ``get_blocks_edge_feat`` in 0.4.0 to support edge features in message passing.
 
+        .. versionchanged:: 0.5
+            Moved this function out of `GSgnnData` class in v0.5 to support real-time node-level
+            inference on Amazon SageMaker endpoints.
+
         Parameters
         ----------
         input_blocks : list of DGLblock
@@ -439,19 +468,8 @@ class GSgnnData():
         block_edge_input_feats: list of dict of Tensors
             The returned edge features for all blocks.
         """
-        block_edge_input_feats = []
-        for block in input_blocks:
-            input_edges = {}
-            for etype in block.canonical_etypes:
-                if block.num_edges(etype) == 0:
-                    continue
-                eid = block.edges[etype].data[dgl.EID]
-                input_edges[etype] = eid
-            edge_feat = self.get_edge_feats(input_edges, efeat_fields, device)
-            # if no edge feature, will return an empty dict, also add
-            block_edge_input_feats.append(edge_feat)
-
-        return block_edge_input_feats
+        # directly call the `prepare_blocks_edge_feats` function
+        return prepare_blocks_edge_feats(g, input_blocks, efeat_fields, device=device)
 
     def _check_ntypes(self, ntypes):
         """ Check the input ntype(s) and convert it into list of strs
