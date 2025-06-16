@@ -29,7 +29,11 @@ SUPPORT_GPAPH_TYPES = [HOMO_GRAPH_TYPE, HETE_GRAPH_TYPE]
 # ============ Graph Metadata Classes ============ #
 class GSGraphMetadata():
     """ Metadata class for saving and retrieving graph information.
-    
+
+    .. versionadded:: 0.5.0
+        Add ``GSGraphMetadata`` in 0.5.0 to support real-time inference on Amazon SageMaker
+        endpoints.
+
     Graph metadata contains general information of a graph, such as graph types, node types,
     edge types, and features. Such information could be used to generate lightweight graph
     instances without read in actual data, or to work as a source for retrieving.
@@ -340,6 +344,11 @@ class GSGraphMetadata():
 # ============ Metadata Graph Classes ============ #
 class GSMetadataGraph(ABC):
     """ Abstract class as the base of metadata graphs.
+
+    .. versionadded:: 0.5.0
+        Add ``GSMetadataGraph`` in 0.5.0 to support real-time inference on Amazon SageMaker
+        endpoints.
+
     """
     def __init__(self, graph_metadata):
         self._graph_metadata = graph_metadata
@@ -369,6 +378,11 @@ class GSMetadataGraph(ABC):
 
 class GSMetadataDglGraph(GSMetadataGraph):
     """ A metadata graph implementation for DGL Graph APIs
+
+    .. versionadded:: 0.5.0
+        Add ``GSMetadataDglGraph`` in 0.5.0 to support real-time inference on Amazon SageMaker
+        endpoints.
+
     """
     def __init__(self,
                  graph_metadata,
@@ -549,6 +563,10 @@ class GSMetadataDglGraph(GSMetadataGraph):
 class DglDataViewSimulation():
     """ Simulation of the DGL NodeView and EdgeView class.
 
+    .. versionadded:: 0.5.0
+        Add ``DglDataViewSimulation`` in 0.5.0 to support real-time inference on Amazon SageMaker
+        endpoints.
+
     This class provides a simple interface of DGL NodeView/EdgeView class, i.e., it only provides
     the `data` interface for retrieving node/edge feature data.
     
@@ -566,6 +584,10 @@ class DglDataViewSimulation():
 
 class GSMetadataDglDistGraph(GSMetadataDglGraph):
     """ A metadata graph implementation for DGL distributed graph APIs.
+
+    .. versionadded:: 0.5.0
+        Add ``GSMetadataDglDistGraph`` in 0.5.0 to support real-time inference on Amazon SageMaker
+        endpoints.
 
     This metadata graph only provides two DGL distributed graph APIs, i.e.,
 
@@ -600,6 +622,10 @@ class GSMetadataDglDistGraph(GSMetadataDglGraph):
 # ============ Metadata Graph Utilities ============ #
 def config_json_sanity_check(config_json):
     """ Function to check configuration JSON object for metadata creation.
+
+    .. versionadded:: 0.5.0
+        Add ``config_json_sanity_check`` in 0.5.0 to support real-time inference on Amazon
+        SageMaker endpoints.
 
     This function extends gconstruct's verify_configs() function in three major perspectives,
     and it is more rigorous than the verify_configs() to make sure contents are correct and
@@ -817,6 +843,10 @@ def config_json_sanity_check(config_json):
 
 def load_metadata_from_json(config_json):
     """ Create a GSGraphMetadata from a JSON object.
+
+    .. versionadded:: 0.5.0
+        Add ``load_metadata_from_json`` in 0.5.0 to support real-time inference on Amazon
+        SageMaker endpoints.
 
     This utility function convert the metadata JSON object to a GSGraphMetadata instance. The
     metadata JSON object comes from the GS gconstruct or GSProcessing command, which outputs the
