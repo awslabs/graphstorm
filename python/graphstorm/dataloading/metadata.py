@@ -173,7 +173,7 @@ class GSGraphMetadata():
 
         Return
         -------
-        bool: if the graph metadata contains the given node type.
+        bool: True if the graph metadata contains the given node type, false otherwise.
         """
         return ntype in self._ntypes
 
