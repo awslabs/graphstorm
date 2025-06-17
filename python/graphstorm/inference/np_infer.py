@@ -215,8 +215,8 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             The node feature fields in the format of a dict, whose keys are the node type names, and
             values are lists of feature names.
         efeat_fields: dict of {tuple: list}
-            The edge feature fields in the format of a dict, whose keys are the edge type name tuples,
-            and values are lists of feature names. Default is None.
+            The edge feature fields in the format of a dict, whose keys are the edge type name
+             tuples, and values are lists of feature names. Default is None.
         return_proba: boolean
             If return probability of model predictions. Default is True.
 
@@ -228,9 +228,8 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         assert isinstance(g, dgl.DGLGraph), 'The input graph of ' + \
             '\"GSGnnNodePredictionRealtimeInferrer\" must be an instance of dgl.DGLGraph, ' + \
             f'but got {type(g)}.'
-        assert isinstance(infer_ntypes, list) or isinstance(infer_ntypes, str), 'The value ' + \
-            'of \"infer_ntypes\" should be either a list of strings or a single string, but ' + \
-            f'got {infer_ntypes}.'
+        assert isinstance(infer_ntypes, (list, str)), 'The value of \"infer_ntypes\" ' + \
+            f'should be either a list of strings or a single string, but got {infer_ntypes}.'
         if isinstance(infer_ntypes, str):
             infer_ntypes = [infer_ntypes]
 
