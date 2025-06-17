@@ -2,7 +2,6 @@
 # Note: Distributed graph partition will use another docker image which will come soon.
 
 ARG DEVICE=gpu
-ARG TORCH_VERSION=2.3.0
 ARG SOURCE
 
 FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker} as branch-gpu
@@ -17,7 +16,7 @@ RUN pip3 install --index-url https://test.pypi.org/simple/ --extra-index-url htt
 
 # Install Pytorch to fit DGL GraphBolt requirements
 RUN pip3 install torchdata==0.9.0 pydantic
-RUN pip3 install torch==${TORCH_VERSION} torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+RUN pip3 install torch==2.3 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # Install DGL GPU version
 RUN pip3 install dgl==2.5.0+cu121 -f https://data.dgl.ai/wheels-internal/torch-2.3/cu121/repo.html && rm -rf /root/.cache
@@ -34,7 +33,7 @@ RUN pip3 install --index-url https://test.pypi.org/simple/ --extra-index-url htt
 
 # Install Pytorch to fit DGL GraphBolt requirements
 RUN pip3 install torchdata==0.9.0 pydantic
-RUN pip3 install torch==${TORCH_VERSION} torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+RUN pip3 install torch==2.3 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Install DGL CPU version
 RUN pip3 install dgl==2.5.0 -f https://data.dgl.ai/wheels-internal/torch-2.3/repo.html && rm -rf /root/.cache
@@ -54,9 +53,6 @@ COPY code/graphstorm/ /opt/ml/code/graphstorm/
 ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
 
 RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
-
-RUN mkdir /opt/ml/model/code/
-RUN cp /opt/ml/code/graphstorm/sagemaker_infer/* /opt/ml/code/
 
 # Download DGL source code
 RUN cd /root; git clone --branch v${TORCH_VERSION} --single-branch https://github.com/dmlc/dgl.git

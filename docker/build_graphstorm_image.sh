@@ -15,7 +15,7 @@ Available options:
 
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
--e, --environment   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
+-e, --environment   Image execution environment. Must be one of 'local', 'sagemaker' or 'sagemaker-endpoint'. Required.
 -d, --device        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
 -p, --path          Path to graphstorm root directory, default is one level above this script's location.
 -i, --image         Docker image name, default is 'graphstorm'.
@@ -90,7 +90,7 @@ parse_params() {
     done
 
     # check required params and arguments
-    [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [local|sagemaker]"
+    [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [local|sagemaker|sagemaker-endpoint]"
 
     return 0
 }
@@ -105,10 +105,10 @@ cleanup() {
 
 parse_params "$@"
 
-if [[ ${EXEC_ENV} == "local" || ${EXEC_ENV} == "sagemaker" ]]; then
+if [[ ${EXEC_ENV} == "local" || ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "sagemaker-endpoint" ]]; then
     : # Do nothing
 else
-    die "--environment parameter needs to be one of 'local' or 'sagemaker', got ${EXEC_ENV}"
+    die "--environment parameter needs to be one of 'local', 'sagemaker' or 'sagemaker-endpoint', got ${EXEC_ENV}"
 fi
 
 # Print build parameters
@@ -179,6 +179,15 @@ elif [[ $EXEC_ENV = "sagemaker" ]]; then
         SOURCE_IMAGE="763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker"
     elif [[ $DEVICE_TYPE = "cpu" ]]; then
         SOURCE_IMAGE="763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-cpu-py311-ubuntu20.04-sagemaker"
+    fi
+elif [[ $EXEC_ENV = "sagemaker-endpoint" ]]; then
+    DOCKERFILE="${GSF_HOME}/docker/sagemaker/Dockerfile.endpoint"
+    cp -r "${GSF_HOME}/sagemaker" "$CODE_DIR/graphstorm/sagemaker"
+
+    if [[ $DEVICE_TYPE = "gpu" ]]; then
+        SOURCE_IMAGE="763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker"
+    elif [[ $DEVICE_TYPE = "cpu" ]]; then
+        SOURCE_IMAGE="763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-cpu-py311-ubuntu20.04-sagemaker"
     fi
 fi
 
