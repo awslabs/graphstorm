@@ -38,12 +38,12 @@ class GSGraphMetadata():
     edge types, and features. Such information could be used to generate lightweight graph
     instances without read in actual data, or to work as a source for retrieving.
 
-    In addtion, the graph metadata is agnoistic to graph libraries, e.g., DGL and PyG.
+    In addition, the graph metadata is agonistic to graph libraries, e.g., DGL and PyG.
 
     Parameters
     ----------
     gtype: str
-        The type of a graph. Options include "homogeneous" and "heterogeneous". 
+        The type of a graph. Options include "homogeneous" and "heterogeneous".
     ntypes: list of str or str
         The node types that are in the format of a list, e.g., ["ntype1", "ntype2", ...], or
         a string for one node type only.
@@ -53,7 +53,7 @@ class GSGraphMetadata():
     nfeat_dims: dict of dict
         The node feature dimensions that are in the format of dictionary whose keys are node types,
         and keys are dictionaries too. These dictionaries' keys are feature names, and values are
-        the dimensions of the corresponding feature names, e.g., {'ntype1': {'feat1': [14], 
+        the dimensions of the corresponding feature names, e.g., {'ntype1': {'feat1': [14],
         'feat2':[12]}, 'ntype2': {'feat3': [4, 7]}}. Default is None.
     efeat_dims: dict of dict
         The edge feature dimensions that are in the format of dictionary whose keys are canonical
@@ -62,7 +62,7 @@ class GSGraphMetadata():
         {("ntype1", "etype1", "ntype2"): {'feat1': [4], 'feat2':[7]},
          ("ntype2", "etype2", "ntype3"): {'feat': [7, 14]}}. Default is None.
 
-    Note: The format of feature dimensions is a list of int withouth the sample numbers. For
+    Note: The format of feature dimensions is a list of int without the sample numbers. For
           example, a node feature tensor has shape (100, 4, 7) where the first dimension 100
           is the number of nodes.Metadata will only use the 2nd and 3rd dimensions and store them
           in the list, [4, 7], for this feature.
@@ -73,13 +73,13 @@ class GSGraphMetadata():
                  etypes,
                  nfeat_dims=None,
                  efeat_dims=None):
-        assert gtype in SUPPORT_GPAPH_TYPES, 'Graph types can only be in ' + \
-            f'{SUPPORT_GPAPH_TYPES}, but got {gtype}.'
+        assert gtype in SUPPORT_GPAPH_TYPES, (
+            f'Graph types can only be in {SUPPORT_GPAPH_TYPES}, but got {gtype}.')
         self._gtype = gtype
 
         assert (isinstance(ntypes, list) and all(isinstance(ntype, str) for ntype in ntypes)) \
-            or isinstance(ntypes, str), 'Node types should be in a list of strings or a single ' + \
-            f'string, but got {ntypes}.'
+            or isinstance(ntypes, str), (
+                f'Node types should be in a list of strings or a single string, but got {ntypes}.')
         # TODO(Jian): add sanity check about that the node type should be 1 for homogeneous graphs
         if isinstance(ntypes, str):
             self._ntypes = [ntypes]
@@ -88,9 +88,10 @@ class GSGraphMetadata():
 
         assert (isinstance(etypes, list) and all(isinstance(can_etype, tuple) for can_etype in \
             etypes) and all(len(can_etype)==3 for can_etype in etypes)) or \
-            (isinstance(etypes, tuple) and len(etypes)==3), 'Edge types should be in a list ' + \
-                'of tuples each of which has three strings to indicate source node type, ' + \
-                'edge type, destination node type, or in a single tuple, but got {etypes}.'
+            (isinstance(etypes, tuple) and len(etypes)==3), (
+                'Edge types should be in a list of tuples each of which '
+                'has three strings to indicate source node type, edge type, '
+                f'destination node type, or in a single tuple, but got {etypes}.')
 
         if isinstance(etypes, tuple):
             self._etypes = [etypes]
@@ -99,15 +100,16 @@ class GSGraphMetadata():
 
         # sanity check of homogeneous graphs
         if self._gtype == HOMO_GRAPH_TYPE:
-            assert len(self._ntypes) == 1 and len(self._etypes), 'For a homogeneous graph, ' + \
-                f'number of node types and edge types should be 1, but got {len(self._ntypes)}' + \
-                f' node types, and {len(self._etypes)} edge types.'
+            assert len(self._ntypes) == 1 and len(self._etypes), (
+                'For a homogeneous graph, number of node types '
+                'and edge types should be 1, but got '
+                f'{len(self._ntypes)} node types, and {len(self._etypes)} edge types.')
 
         # sanity check if node types in edge types exist in node type list
         for src_ntype, _, dst_ntype in self._etypes:
-            assert (src_ntype in self._ntypes) and ((dst_ntype in self._ntypes)), 'Some node ' + \
-                f'types {src_ntype} and {dst_ntype} do not exist in the given node type ' + \
-                f'list: {self._ntypes}.'
+            assert (src_ntype in self._ntypes) and ((dst_ntype in self._ntypes)), (
+                f'Some node types {src_ntype} and {dst_ntype} do not exist in the given node type '
+                f'list: {self._ntypes}.')
 
         if nfeat_dims is not None:
             assert isinstance(nfeat_dims, dict) and all(isinstance(key, str) for key in \
@@ -115,10 +117,10 @@ class GSGraphMetadata():
                 nfeat_dims.values()) and all(isinstance(val_key, str) for val in \
                 nfeat_dims.values() for val_key in val.keys()) and all( \
                 isinstance(val_val, list) for val in nfeat_dims.values() for val_val in \
-                val.values()), 'The node feature dimensions should be a dictionary, whose ' + \
-                    'keys are node type strings, and values are dictionaries whose keys are ' + \
-                    'node feature name strings, and values are lists of feature dimenions, ' + \
-                    'but got {nfeat_dims}.'
+                val.values()), ('The node feature dimensions should be a dictionary, whose '
+                    'keys are node type strings, and values are dictionaries whose keys are '
+                    'node feature name strings, and values are lists of feature dimensions, '
+                    f'but got {nfeat_dims}.')
             assert all(ntype in self._ntypes for ntype in nfeat_dims.keys()), 'Some node ' + \
                 f'types in node feature dimensions: {nfeat_dims} are not in the node type ' + \
                 f'list: {ntypes}.'
@@ -130,20 +132,21 @@ class GSGraphMetadata():
                 all(isinstance(val, dict) for val in efeat_dims.values()) and all( \
                 isinstance(val_key, str) for val in efeat_dims.values() for val_key in \
                 val.keys()) and all(isinstance(val_val, list) for val in efeat_dims.values() \
-                for val_val in val.values()), 'The edge feature dimensions should be a ' + \
-                    'dictionary, whose keys are canonical edge types (tuples, each of which ' + \
-                    'include three strings to indicate source node type, edge type, ' + \
-                    'destination node type), and values are dictionaries whose keys are ' + \
-                    'edge feature name strings, and values are lists of feature dimenions, ' + \
-                    'but got {efeat_dims}.'
-            assert all(etype in self._etypes for etype in efeat_dims.keys()), 'Some edge ' + \
-                f'types in edge feature dimensions: {efeat_dims} are not in the edge type ' + \
-                f'list: {etypes}.'
+                for val_val in val.values()), (
+                    'The edge feature dimensions should be a dictionary, whose keys are canonical '
+                    'edge types (tuples, each of which include three strings to indicate source '
+                    'node type, edge type, destination node type), and values are dictionaries '
+                    'whose keys are edge feature name strings, and values are lists of feature '
+                    f'dimensions, but got {efeat_dims}.')
+            assert all(etype in self._etypes for etype in efeat_dims.keys()), (
+                'Some edge types in edge feature dimensions: '
+                f'{efeat_dims} are not in the edge type '
+                f'list: {etypes}.')
         self._efeat_dims = efeat_dims
 
     # getters
     def is_homo(self):
-        """ Check if the grahp metadata is for a homogeneous graph.
+        """ Check if the graph metadata is for a homogeneous graph.
 
         Return
         -------
@@ -203,7 +206,7 @@ class GSGraphMetadata():
         Parameter
         ---------
         ntype: str
-            The ndge type name.
+            The node type name.
 
         Return
         -------
@@ -270,7 +273,7 @@ class GSGraphMetadata():
                 {
                     "source_node_type": "ntype1",
                     "edge_type": "etype1",
-                    "destiniation_node_type": "ntype2",
+                    "destination_node_type": "ntype2",
                     "features": [
                         {
                             "feat_name": "feat",
@@ -283,7 +286,7 @@ class GSGraphMetadata():
 
         Return
         -------
-        dict: the hiariechy structure of the graph metadata like the example above.
+        dict: the hierarchy structure of the graph metadata like the example above.
         """
         metadata_dict = {"graph_type": self._gtype}
         nodes = []
@@ -393,10 +396,10 @@ class GSMetadataDglGraph(GSMetadataGraph):
         # check homogeneous and convert node and edge node type string to DGL's default name
         if self._graph_metadata.is_homo():
             assert len(self._graph_metadata.get_ntypes()) == 1 and \
-                   len(self._graph_metadata.get_etypes()) == 1, 'As a homogeneous metadata ' + \
-                       'graph, the number of node types and edge types should be 1, but got' + \
-                       f'{self._graph_metadata.get_ntypes()} node types, and ' + \
-                       f'{self._graph_metadata.get_etypes()} edge types.'
+                   len(self._graph_metadata.get_etypes()) == 1, (
+                       'As a homogeneous metadata graph, the number of node types and edge types '
+                       f'should be 1, but got {self._graph_metadata.get_ntypes()} node types, and '
+                       f'{self._graph_metadata.get_etypes()} edge types.')
 
             # convert node type and edge type to DGL's default name, `_N` and (`_N`, `_E`, `_N`)
             homo_ntype = self._graph_metadata.get_ntypes()[0]
@@ -463,7 +466,7 @@ class GSMetadataDglGraph(GSMetadataGraph):
 
         In DGL, an edge type is a string to specify the type of edge. But this string could be
         same across various edge types. So it is recommended to use canonical edge type to give
-        a unique edge type identifier.        
+        a unique edge type identifier.
         """
         etypes = []
         for can_etype in self._etypes:
@@ -500,11 +503,13 @@ class GSMetadataDglGraph(GSMetadataGraph):
         ------
         dict : the dictionary of nodes and their DataView classes.
         """
-        logging.warning('This %s', self.__class__.__name__ + 'is a metadata graph that '  + \
-            'simulates a DGL graph without actual graph structure, i.e., nodes and edges, ' + \
-            'but meta information, e.g., node types, edge types, and node or edge feature ' + \
-            'name. You can use the \".nodes[ntype].data\" or ' + \
-            '\".nodes[ntype].data[nfeat_name]\" interface to retrieve nodes\' data information.')
+
+        logging.warning(('This %s is a metadata graph that simulates a DGL graph without '
+            'actual graph structure, i.e., nodes and edges, but meta information, e.g., node '
+            'types, edge types, and node or edge feature names. You can use the '
+            '".edges[etype].data" or ".edges[etype].data[efeat_name]" interface '
+            'to retrieve edges\' data information.'),
+            self.__class__.__name__)
         return self._nodes
 
     @property
@@ -519,11 +524,12 @@ class GSMetadataDglGraph(GSMetadataGraph):
         ------
         dict : the dictionary of edges and their DataView classes.
         """
-        logging.warning('This %s', self.__class__.__name__ + ' is a metadata graph that '  + \
-            'simulates a DGL graph without actual graph structure, i.e., nodes and edges, ' + \
-            'but meta information, e.g., node types, edge types, and node or edge feature ' + \
-            'names. You can use the \".edges[etype].data\" or ' + \
-            '\".edges[etype].data[efeat_name]\" interface to retrieve edges\' data information.')
+        logging.warning(('This %s is a metadata graph that simulates a DGL graph without '
+            'actual graph structure, i.e., nodes and edges, but meta information, e.g., node '
+            'types, edge types, and node or edge feature names. You can use the '
+            '".edges[etype].data" or ".edges[etype].data[efeat_name]" interface '
+            'to retrieve edges\' data information.'),
+            self.__class__.__name__)
         return self._edges
 
     def is_homogeneous(self):
@@ -539,8 +545,9 @@ class GSMetadataDglGraph(GSMetadataGraph):
         defined by dgl's DEFAULT_NTYPE constant.
         """
         if not self.is_homogeneous():
-            logging.warning('Only homogeneous metadata graphs support the \"ndata\" ' + \
-                'interface, but got a heterogeneous metadata graph.')
+            logging.warning(
+                'Only homogeneous metadata graphs support the "ndata" interface, but got a '
+                'heterogeneous metadata graph.')
             return None
         else:
             return self._nodes[DEFAULT_NTYPE].data
@@ -553,8 +560,9 @@ class GSMetadataDglGraph(GSMetadataGraph):
         (`_N`, `_E`, `_N`), which is defined by dgl's `dgl.NID` and `dgl.EID` constants.
         """
         if not self.is_homogeneous():
-            logging.warning('Only homogeneous metadata graphs support the \"edata\" ' + \
-                'interface, but got a heterogeneous metadata graph.')
+            logging.warning(
+                'Only homogeneous metadata graphs support the "edata" interface, but got a '
+                'heterogeneous metadata graph.')
             return None
         else:
             return self._edges[(DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE)].data
@@ -569,7 +577,7 @@ class DglDataViewSimulation():
 
     This class provides a simple interface of DGL NodeView/EdgeView class, i.e., it only provides
     the `data` interface for retrieving node/edge feature data.
-    
+
     The `data` property is a dictionary to host feature names with their corresponding tensors.
     """
     def __init__(self):
@@ -604,20 +612,20 @@ class GSMetadataDglDistGraph(GSMetadataDglGraph):
 
         Not implemented.
         """
-        raise NotImplementedError(f'The {self.__class__.__name__} class is a metadata graph ' + \
-            'to simulated a DGL distributed graph for special use cases, e.g., real-time ' + \
-            'inference model reloading. It does not provide the \"get_node_partition_policy\" ' + \
-            f'with given {ntype} interface.')
+        raise NotImplementedError(
+            f'The {self.__class__.__name__} class is a metadata graph to simulated a DGL '
+            'distributed graph for special use cases, e.g., real-time inference model reloading. '
+            f'It does not provide the "get_node_partition_policy" with given {ntype} interface.')
 
     def get_partition_book(self):
         """ Retrieve the overall node partition policy of distributed graph.
 
         Not implemented.
         """
-        raise NotImplementedError(f'The {self.__class__.__name__} class is a metadata graph ' + \
-            'to simulated a DGL distributed graph for special use cases, e.g., real-time ' + \
-            'inference model reloading. It does not provide the \"get_partition_book\" ' + \
-            'interface.')
+        raise NotImplementedError(
+            f'The {self.__class__.__name__} class is a metadata graph to simulated a DGL '
+            'distributed graph for special use cases, e.g., real-time inference model reloading. '
+            'It does not provide the "get_partition_book" interface.')
 
 # ============ Metadata Graph Utilities ============ #
 def config_json_sanity_check(config_json):
@@ -674,7 +682,7 @@ def config_json_sanity_check(config_json):
                 "nodes": [
                     {
                         "type": str,
-                        "column": str,         
+                        "column": str,
                         "data": {
                             "format": str,
                             "files": list[str]
@@ -715,130 +723,136 @@ def config_json_sanity_check(config_json):
 
     If the config JSON object missing required fields, will raise AssertionError.
     """
-    assert 'version' in config_json, 'A \"version\" field must be defined in the ' + \
-                                     'configuration JSON object.'
+    assert 'version' in config_json, (
+        'A "version" field must be defined in the configuration JSON object.')
     config_version = config_json['version']
 
     if config_version.startswith('gconstruct'):
-        assert 'is_homogeneous' in config_json, 'A \"is_homogeneous\" field must be defined ' + \
-            'in the configuration JSON object.'
+        assert 'is_homogeneous' in config_json, (
+            'A "is_homogeneous" field must be defined in the configuration JSON object.')
         is_homo = config_json['is_homogeneous']
-        assert is_homo in ['True', 'true', 'False', 'false'], 'The ' + \
-            'value of \"is_homogeneous\" can only be \"True\", \"true\", \"False\", or ' + \
-            f'\"false\", but got {is_homo}.'
+        assert is_homo in ['True', 'true', 'False', 'false'], (
+            'The value of "is_homogeneous" can only be "True", "true", "False", or '
+            f'"false", but got {is_homo}.')
 
-        assert 'nodes' in config_json, 'A \"nodes\" field must be defined in the configuration' + \
-            'JSON object.'
+        assert 'nodes' in config_json, (
+            'A "nodes" field must be defined in the configuration JSON object.')
         assert len(config_json['nodes']) > 0, 'Need at least one node in the \"nodes\" object.'
         ntypes = []
         for node_obj in config_json['nodes']:
-            assert 'node_type' in node_obj, 'A \"node_type" field must be defined in a node ' + \
-                'object under the \"nodes\" field.'
+            assert 'node_type' in node_obj, (
+                'A "node_type" field must be defined in a node object under the "nodes" field.')
             ntypes.append(node_obj['node_type'])
 
             if 'features' in node_obj:
                 for feat_obj in node_obj['features']:
-                    assert 'feature_name' in feat_obj, 'A \"feature_name\" field must be ' + \
-                        'defined in a feature obejct.'
-                    assert 'feature_dim' in feat_obj, 'A \"feature_dim\" field must be ' + \
-                        'defined in a feature obejct.'
+                    assert 'feature_name' in feat_obj, (
+                        'A "feature_name" field must be defined in a feature object.')
+                    assert 'feature_dim' in feat_obj, (
+                        'A "feature_dim" field must be defined in a feature object.')
                     feat_dim = feat_obj['feature_dim']
-                    assert isinstance(feat_dim, list), 'Values of ' + \
-                        f'\"feature_dim\" field must be a list, but got {feat_dim}.'
+                    assert isinstance(feat_dim, list), (
+                        f'Values of "feature_dim" field must be a list, but got {feat_dim}.')
         # check duplicates in node types
-        assert len(ntypes) == len(set(ntypes)), 'There are duplicated node types in the ' + \
-            'nodes object: {ntypes}.'
+        assert len(ntypes) == len(set(ntypes)), (
+            f'There are duplicated node types in the nodes object: {ntypes}.')
 
-        assert 'edges' in config_json, 'An \"edges\" field must be defined in the ' + \
-            'configuration JSON object.'
+        assert 'edges' in config_json, (
+            'An "edges" field must be defined in the configuration JSON object.')
         assert len(config_json['edges']) > 0, 'Need at least one edge in the \"edges\" object.'
         etypes = []
         for edge_obj in config_json['edges']:
-            assert 'relation' in edge_obj, 'A \"relation\" field must be defined in an ' + \
-                'edge obejct.'
+            assert 'relation' in edge_obj, (
+                'A "relation" field must be defined in an edge object.')
             etypes.append(tuple(edge_obj['relation']))
 
             if 'features' in edge_obj:
                 for feat_obj in edge_obj['features']:
-                    assert 'feature_name' in feat_obj, 'A \"feature_name\" field must be ' + \
-                        'defined in a feature obejct.'
-                    assert 'feature_dim' in feat_obj, 'A \"feature_dim\" field must be ' + \
-                        'defined in a feature obejct.'
+                    assert 'feature_name' in feat_obj, (
+                        'A "feature_name" field must be defined in a feature object.')
+                    assert 'feature_dim' in feat_obj, (
+                        'A "feature_dim" field must be defined in a feature object.')
                     feat_dim = feat_obj['feature_dim']
-                    assert isinstance(feat_dim, list), 'Values of ' + \
-                        f'\"feature_dim\" field must be a list, but got {feat_dim}.'
+                    assert isinstance(feat_dim, list), (
+                        f'Values of "feature_dim" field must be a list, but got {feat_dim}.')
         # check duplicates in edge types
-        assert len(etypes) == len(set(etypes)), 'There are duplicated edge types in the ' + \
-            'edges object: {etypes}.'
+        assert len(etypes) == len(set(etypes)), (
+            f'There are duplicated edge types in the edges object: {etypes}.')
     elif config_version.startswith('gsprocessing'):
-        assert 'graph' in config_json, 'A \"graph\" field must be defined in the ' + \
-            'configuration JSON object.'
+        assert 'graph' in config_json, (
+            'A "graph" field must be defined in the configuration JSON object.')
         graph_obj = config_json['graph']
 
-        assert 'is_homogeneous' in graph_obj, 'An \"is_homogeneous\" field must be defined ' + \
-            'in the configuration JSON object.'
+        assert 'is_homogeneous' in graph_obj, (
+            'An "is_homogeneous" field must be defined in the configuration JSON object.')
         is_homo = graph_obj['is_homogeneous']
-        assert is_homo in ['True', 'true', 'False', 'false'], 'The ' + \
-            'value of \"is_homogeneous\" can only be \"True\", \"true\", \"False\", or ' + \
-            f'\"false\", but got {is_homo}.'
+        assert is_homo in ['True', 'true', 'False', 'false'], (
+            'The value of "is_homogeneous" can only be "True", "true", "False", or '
+            f'"false", but got {is_homo}.')
 
-        assert 'nodes' in graph_obj, 'A \"nodes\" field must be defined in the graph object.'
+        assert 'nodes' in graph_obj, (
+            'A "nodes" field must be defined in the graph object.')
         assert len(graph_obj['nodes']) > 0, 'Need at least one node in the \"nodes\" object.'
 
         ntypes = []
         for node_obj in graph_obj['nodes']:
-            assert 'type' in node_obj, 'A \"type\" field must be defined in the node object.'
+            assert 'type' in node_obj, (
+                'A "type" field must be defined in the node object.')
             ntypes.append(node_obj['type'])
 
             if 'features' in node_obj:
                 for feat_obj in node_obj['features']:
-                    assert 'name' in feat_obj, 'A \"name\" field must be ' + \
-                        'defined in a feature obejct.'
-                    assert 'dim' in feat_obj, 'A \"dim\" field must be ' + \
-                        'defined in a feature obejct.'
+                    assert 'name' in feat_obj, (
+                        'A "name" field must be defined in a feature object.')
+                    assert 'dim' in feat_obj, (
+                        'A "dim" field must be defined in a feature object.')
                     feat_dim = feat_obj['dim']
-                    assert isinstance(feat_dim, list), 'Values of ' + \
-                        f'\"dim\" field must be a list, but got {feat_dim}.'
+                    assert isinstance(feat_dim, list), (
+                        f'Values of "dim" field must be a list, but got {feat_dim}.')
         # check duplicates in node types
-        assert len(ntypes) == len(set(ntypes)), 'There are duplicated node types in the ' + \
-            'nodes object: {ntypes}.'
+        assert len(ntypes) == len(set(ntypes)), (
+            'There are duplicated node types in the nodes object: {ntypes}.')
 
-        assert 'edges' in graph_obj, 'An \"edges\" field must be defined in the graph object.'
+        assert 'edges' in graph_obj, (
+            'An "edges" field must be defined in the graph object.')
         assert len(graph_obj['edges']) > 0, 'Need at least one edge in the \"edges\" object.'
 
         etypes = []
         for edge_obj in graph_obj['edges']:
-            assert 'source' in edge_obj, 'A \"source\" field must be defined in the edge object.'
-            assert 'type' in edge_obj['source'], 'A \"type\" field must be defined in the ' + \
-                'source object.'
+            assert 'source' in edge_obj, (
+                'A "source" field must be defined in the edge object.')
+            assert 'type' in edge_obj['source'], (
+                'A "type" field must be defined in the source object.')
 
-            assert 'dest' in edge_obj, 'A \"dest\" field must be defined in the edge object.'
-            assert 'type' in edge_obj['dest'], 'A \"type\" field must be defined in the ' + \
-                'dest object.'
+            assert 'dest' in edge_obj, (
+                'A "dest" field must be defined in the edge object.')
+            assert 'type' in edge_obj['dest'], (
+                'A "type" field must be defined in the dest object.')
 
-            assert 'relation' in edge_obj, 'A \"relation\" field must be defined in the edge ' + \
-                'object.'
-            assert 'type' in edge_obj['relation'], 'A \"type\" field must be defined in the ' + \
-                'relation object.'
+            assert 'relation' in edge_obj, (
+                'A "relation" field must be defined in the edge object.')
+            assert 'type' in edge_obj['relation'], (
+                'A "type" field must be defined in the relation object.')
 
             etypes.append((edge_obj['source']['type'], edge_obj['relation']['type'], \
                            edge_obj['dest']['type']))
 
             if 'features' in edge_obj:
                 for feat_obj in edge_obj['features']:
-                    assert 'name' in feat_obj, 'A \"name\" field must be ' + \
-                        'defined in a feature obejct.'
-                    assert 'dim' in feat_obj, 'A \"dim\" field must be ' + \
-                        'defined in a feature obejct.'
+                    assert 'name' in feat_obj, (
+                        'A "name" field must be defined in a feature object.')
+                    assert 'dim' in feat_obj, (
+                        'A "dim" field must be defined in a feature object.')
                     feat_dim = feat_obj['dim']
-                    assert isinstance(feat_dim, list), 'Values of ' + \
-                        f'\"dim\" field must be a list, but got {feat_dim}.'
+                    assert isinstance(feat_dim, list), (
+                        f'Values of "dim" field must be a list, but got {feat_dim}.')
         # check duplicates in edge types
-        assert len(etypes) == len(set(etypes)), 'There are duplicated edge types in the ' + \
-            'edges object: {etypes}.'
+        assert len(etypes) == len(set(etypes)), (
+            'There are duplicated edge types in the edges object: {etypes}.')
     else:
-        raise NotImplementedError('GSGraphMetadata can only be loaded from the JSON file ' + \
-            'generated by GraphStorm gconstruct or GSProcessing.')
+        raise NotImplementedError(
+            'GSGraphMetadata can only be loaded from the JSON file generated by GraphStorm '
+            'gconstruct or GSProcessing.')
 
 
 def load_metadata_from_json(config_json):
@@ -861,7 +875,7 @@ def load_metadata_from_json(config_json):
     Returns
     --------
     gs_metadata: GSGraphMetadata
-        A GraphStorm GSGraphMetadata class instance.    
+        A GraphStorm GSGraphMetadata class instance.
     """
     # do sanity check first, making sure no errors in the JSON object
     config_json_sanity_check(config_json)
