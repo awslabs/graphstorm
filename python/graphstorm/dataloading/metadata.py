@@ -50,7 +50,7 @@ class GSGraphMetadata():
     etypes: list of tuple or tuple
         The canonical edge types (three strings in a tuple) that are in the format of a list
         of tuples, e.g., [("ntype1", "etype1", "ntype2"), ...], or a tuple for one edge type only.
-    nfeat_dims: dict of dict
+    nfeat_dims: dict of dict, optional
         The node feature dimensions that are in the format of dictionary whose keys are node types,
         and keys are dictionaries too. These dictionaries' keys are feature names, and values are
         the dimensions of the corresponding feature names, e.g., {'ntype1': {'feat1': [14],
