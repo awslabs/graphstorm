@@ -58,7 +58,7 @@ class GSGraphMetadata():
     efeat_dims: dict of dict, optional
         The edge feature dimensions that are in the format of dictionary whose keys are canonical
         edge types, and keys are dictionaries too. These dictionaries' keys are feature names,
-        and values are the dimensions of the corresponding feature names, e.g.,
+        and values are the dimensions of the corresponding features, e.g.,
         {("ntype1", "etype1", "ntype2"): {'feat1': [4], 'feat2':[7]},
          ("ntype2", "etype2", "ntype3"): {'feat': [7, 14]}}. Default is None.
 
