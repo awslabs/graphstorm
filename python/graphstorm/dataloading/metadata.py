@@ -47,7 +47,7 @@ class GSGraphMetadata():
     ntypes: list of str or str
         The node types that are in the format of a list, e.g., ["ntype1", "ntype2", ...], or
         a string for one node type only.
-    etypes: list of tuple or tuple
+    etypes: list of tuples or a tuple
         The canonical edge types (three strings in a tuple) that are in the format of a list
         of tuples, e.g., [("ntype1", "etype1", "ntype2"), ...], or a tuple for one edge type only.
     nfeat_dims: dict of dict, optional
