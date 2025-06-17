@@ -163,6 +163,20 @@ def prepare_blocks_edge_feats(g, input_blocks, efeat_fields, device='cpu'):
     
     This function is same as the built-in class function of `GSgnnData`. But can be directly
     called for other APIs without initializing a `GSgnnData` class.
+
+    Parameters
+    ----------
+    input_blocks : list of DGLblock
+        The input blocks with edge features to be extracted.
+    efeat_fields: string or dict of list of strings
+        The edge feature fields to be extracted.
+    device : Pytorch device
+        The device where the returned edge features are stored.
+
+    Returns
+    -------
+    block_edge_input_feats: list of dict of Tensors
+        The returned edge features for all blocks.
     """
     block_edge_input_feats = []
     for block in input_blocks:
