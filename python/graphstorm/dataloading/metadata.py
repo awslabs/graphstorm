@@ -225,7 +225,7 @@ class GSGraphMetadata():
         """
         Parameter
         ---------
-        etype: str
+        etype: (str, str, str)
             The edge type name in a three element tuple.
 
         Return
