@@ -528,7 +528,7 @@ class GSMetadataDglGraph(GSMetadataGraph):
             'actual graph structure, i.e., nodes and edges, but meta information, e.g., node '
             'types, edge types, and node or edge feature names. You can use the '
             '".edges[etype].data" or ".edges[etype].data[efeat_name]" interface '
-            'to retrieve edges\' data information.'),
+            'to retrieve edge\' data information.'),
             self.__class__.__name__)
         return self._edges
 
