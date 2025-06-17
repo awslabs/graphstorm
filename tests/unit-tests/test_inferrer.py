@@ -15,6 +15,7 @@
 """
 
 from pathlib import Path
+import pytest
 import os
 import yaml
 import tempfile
@@ -24,6 +25,7 @@ from argparse import Namespace
 import numpy as np
 import torch as th
 from unittest.mock import patch
+from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
 
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
@@ -37,7 +39,8 @@ from graphstorm.dataloading import (GSgnnNodeDataLoader,
 from graphstorm.inference import (GSgnnMultiTaskLearningInferrer,
                                   GSgnnNodePredictionInferrer,
                                   GSgnnEdgePredictionInferrer,
-                                  GSgnnLinkPredictionInferrer)
+                                  GSgnnLinkPredictionInferrer,
+                                  GSGnnNodePredictionRealtimeInferrer)
 from graphstorm.model import LinkPredictDistMultDecoder
 from graphstorm import (create_builtin_node_gnn_model,
                         create_builtin_edge_gnn_model,
@@ -52,7 +55,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 
 from numpy.testing import assert_raises, assert_equal
-from data_utils import generate_dummy_dist_graph
+from data_utils import generate_dummy_dist_graph, generate_dummy_hetero_graph
 
 from util import (DummyGSgnnData,
                   DummyGSgnnEncoderModel,
@@ -1674,15 +1677,90 @@ def test_hgt_infer_lp4ef():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_realtime_infer_np():
+    """ Test real-time node prediction inferrer.
+
+    The real-time inferrer is different from offline inferrers in three perspectives:
+    1. use a DGL heterograph as one input for feature extraction.
+    2. use a DGL dataloader rather than GS dataloaders.
+    3. no code for setting and evaluating performance.
+    """
+    
+    #   Test case 1: normal pipeline
+    # build a DGLGraph
+    g = generate_dummy_hetero_graph(gen_mask=False, is_random=False)
+
+    # set targets: node type "n1" has "label" as labels
+    infer_ntypes = ['n1']
+    num_targets = 2
+    infer_nids = {ntype: [i for i in range(num_targets)] for ntype in infer_ntypes}
+
+    # initialize a nc model
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        create_nc_config(Path(tmpdirname), 'gnn_nc.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+
+    model = create_builtin_node_gnn_model(g, config, True)
+
+    # initialize a real-time np inferrer
+    inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+
+    # initialize a DGL dataloader
+    sampler = MultiLayerFullNeighborSampler(config.num_layers)
+    dataloader = DataLoader(g, infer_nids, sampler,
+                            batch_size=10, shuffle=False,
+                            drop_last=False)
+
+    # do inference
+    pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
+
+    assert all(infer_ntype in pred for infer_ntype in infer_ntypes)
+    assert all(pred[infer_ntype].shape == (num_targets, config.num_classes) \
+        for infer_ntype in infer_ntypes)
+
+    #   Test case 2: abnormal case
+    #       2.1 invalid input graph
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    setup_device(0)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+    model = create_builtin_node_gnn_model(gdata.g, config, True)
+    inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+
+    # do inference, should trigger error
+    with pytest.raises(AssertionError, match='The input graph of .*'):
+        pred = inferrer.infer(gdata.g, dataloader, infer_ntypes, config.node_feat_name)
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+    #       2.2 infer ntypes do not in prediction results
+    infer_ntypes = 'n2'
+    model = create_builtin_node_gnn_model(g, config, True)
+    inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+    with pytest.raises(AssertionError, match='.* is not in the set of prediction ntypes'):
+        pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
+
 
 if __name__ == '__main__':
-    test_mtask_infer()
+    # test_mtask_infer()
 
-    test_inferrer_setup_evaluator()
+    # test_inferrer_setup_evaluator()
 
-    test_rgcn_infer_nc4ef()
-    test_rgcn_infer_ec4ef()
-    test_rgcn_infer_lp4ef()
-    test_hgt_infer_nc4ef()
-    test_hgt_infer_ec4ef()
-    test_hgt_infer_lp4ef()
+    # test_rgcn_infer_nc4ef()
+    # test_rgcn_infer_ec4ef()
+    # test_rgcn_infer_lp4ef()
+    # test_hgt_infer_nc4ef()
+    # test_hgt_infer_ec4ef()
+    # test_hgt_infer_lp4ef()
+
+    test_realtime_infer_np()

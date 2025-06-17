@@ -17,6 +17,7 @@
 """
 import time
 import logging
+import dgl
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_shuffled_node_embeddings
@@ -179,51 +180,60 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         Add `GSGnnNodePredictionRealtimeInferrer` class in v0.5 to support real-time node-level
         inference on Amazon SageMaker endpoints.
 
-    ``GSGnnNodePredictionRealtimeInferrer`` defines the ``infer()`` method that performs
-    three tasks:
-
-    1. Extract one batch using the given dataloader;
-    2. Prepare input node and edge features;
-    3. Compute inference results for nodes with target node type and return the results.
-
     The real-time inferrer has three major differences from the node prediction offline inferrer:
 
     1. directly setting and using a DGL graph as input to extract features.
     2. using DGL dataloader, instead of GS dataloaders that rely on DGL distributed graphs.
     3. no evaluation section as there is no label on real-time inference.
-
-    Parameters
-    ----------
-    g: dgl.heterograph
-        The inference graph data in the format of a DGL heterograph. For built-in inference
-        pipeline, this graph should be constructed by using methods in the
-        `gconstruct.construct_payload_graph.py` file.
-    dataloader: DGL dataloader
-        A DGL dataloader class, e.g., `DataLoader`.
-    infer_ntypes: list of string or a string
-        The list of the target node types. Or a single string of the target node type.
-    nfeat_fields: dict of {str: list}
-        The node feature fields in the format of a dict, whose keys are the node type names, and
-        values are lists of feature names.
-    efeat_fields: dict of {tuple: list}
-        The edge feature fields in the format of a dict, whose keys are the edge type name tuples,
-        and values are lists of feature names.
-    return_proba: boolean
-        If return probability of model predictions. Default is True.
-
-    Returns
-    -------
-    predictions: dict
-        The inference results in the format of {ntype: tensor}.
     """
-
     def infer(self,
               g,
               dataloader,
               infer_ntypes,
               nfeat_fields,
-              efeat_fields,
+              efeat_fields=None,
               return_proba=True):
+        """
+        ``GSGnnNodePredictionRealtimeInferrer`` defines the ``infer()`` method that performs
+        three tasks:
+
+        1. Extract one batch using the given dataloader;
+        2. Prepare input node and edge features;
+        3. Compute inference results for nodes with target node type and return the results.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The inference graph data in the format of a DGL heterograph. For built-in inference
+            pipeline, this graph should be constructed by using methods in the
+            `gconstruct.construct_payload_graph.py` file.
+        dataloader: DGL dataloader
+            A DGL dataloader class for node prediction, e.g., `DataLoader`.
+        infer_ntypes: list of string or a string
+            The list of the target node types. Or a single string of the target node type.
+        nfeat_fields: dict of {str: list}
+            The node feature fields in the format of a dict, whose keys are the node type names, and
+            values are lists of feature names.
+        efeat_fields: dict of {tuple: list}
+            The edge feature fields in the format of a dict, whose keys are the edge type name tuples,
+            and values are lists of feature names. Default is None.
+        return_proba: boolean
+            If return probability of model predictions. Default is True.
+
+        Returns
+        -------
+        predictions: dict
+            The inference results in the format of {str: tensor}.
+        """
+        assert isinstance(g, dgl.DGLGraph), 'The input graph of ' + \
+            '\"GSGnnNodePredictionRealtimeInferrer\" must be an instance of dgl.DGLGraph, ' + \
+            f'but got {type(g)}.'
+        assert isinstance(infer_ntypes, list) or isinstance(infer_ntypes, str), 'The value ' + \
+            'of \"infer_ntypes\" should be either a list of strings or a single string, but ' + \
+            f'got {infer_ntypes}.'
+        if isinstance(infer_ntypes, str):
+            infer_ntypes = [infer_ntypes]
+
         # set model to be in the evaluation mode
         self._model.eval()
         # extract one mini-batch blocks using the given DGL dataloader
@@ -234,13 +244,18 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             all_blocks = blocks
         # extract node and edge features of the sampled blocks
         n_h = prepare_batch_input(g, all_nodes, feat_field=nfeat_fields)
-        e_hs = prepare_blocks_edge_feats(g, all_blocks, efeat_fields)
+        if efeat_fields:
+            e_hs = prepare_blocks_edge_feats(g, all_blocks, efeat_fields)
+        else:
+            e_hs = prepare_blocks_edge_feats(g, all_blocks, None)
         # do predict on the blocks
         logits, _ = self._model.predict(all_blocks, n_h, e_hs, all_nodes,
                                         return_proba=return_proba)
         # post processing to extract predictions on target node types
         predictions = {}
         for ntype in infer_ntypes:
+            assert ntype in logits, \
+                f"{ntype} is not in the set of prediction ntypes {list(logits.keys())}."
             predictions[ntype] = logits[ntype].cpu().detach().numpy()
 
         return predictions
