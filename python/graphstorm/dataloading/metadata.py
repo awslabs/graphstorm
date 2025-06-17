@@ -36,7 +36,7 @@ class GSGraphMetadata():
 
     Graph metadata contains general information of a graph, such as graph types, node types,
     edge types, and features. Such information could be used to generate lightweight graph
-    instances without read in actual data, or to work as a source for retrieving.
+    instances without read in actual data, i.e., DistDGLGraph or DGLGraph, or to work as a source for retrieving.
 
     In addition, the graph metadata is agonistic to graph libraries, e.g., DGL and PyG.
 
