@@ -469,7 +469,7 @@ class GSgnnData():
             The returned edge features for all blocks.
         """
         # directly call the `prepare_blocks_edge_feats` function
-        return prepare_blocks_edge_feats(g, input_blocks, efeat_fields, device=device)
+        return prepare_blocks_edge_feats(self._g, input_blocks, efeat_fields, device=device)
 
     def _check_ntypes(self, ntypes):
         """ Check the input ntype(s) and convert it into list of strs
