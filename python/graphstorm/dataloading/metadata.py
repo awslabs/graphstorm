@@ -196,7 +196,7 @@ class GSGraphMetadata():
 
         Return
         -------
-        bool: if the graph metadata contains the given edge type.
+        bool: True if the graph metadata contains the given edge type, false otherwise.
         """
         return etype in self._etypes
 
