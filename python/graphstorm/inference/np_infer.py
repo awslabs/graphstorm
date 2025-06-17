@@ -251,7 +251,7 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         # do predict on the blocks
         logits, _ = self._model.predict(all_blocks, n_h, e_hs, all_nodes,
                                         return_proba=return_proba)
-        # post processing to extract predictions on target node types
+        # post processing to extract predictions on inference node types
         predictions = {}
         for ntype in infer_ntypes:
             assert ntype in logits, \
