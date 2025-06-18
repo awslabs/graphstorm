@@ -354,8 +354,8 @@ class GSGraphFromMetadata(ABC):
     """ Abstract class as the base of graphs built from metadata.
 
     .. versionadded:: 0.5.0
-        Add ``GSGraphFromMetadata`` in 0.5.0 to support real-time inference on Amazon SageMaker
-        endpoints.
+        Add ``GSGraphFromMetadata`` in 0.5.0 to support lightweight graph construction using
+        graph metadata only.
 
     """
     def __init__(self, graph_metadata):
@@ -388,8 +388,8 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
     """ A graph from metadata implementation for simulating DGLGraph APIs
 
     .. versionadded:: 0.5.0
-        Add ``GSDglGraphFromMetadata`` in 0.5.0 to support real-time inference on Amazon SageMaker
-        endpoints.
+        Add ``GSDglGraphFromMetadata`` in 0.5.0 to support lightweight DGL graph construction
+        using graph metadata only.
 
     """
     def __init__(self,
@@ -506,8 +506,8 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
         logging.warning(('This %s is a metadata graph that simulates a DGL graph without '
             'actual graph structure, i.e., nodes and edges, but meta information, e.g., node '
             'types, edge types, and node or edge feature names. You can use the '
-            '".nodes[ntype].data" or ".nodes[ntype].data[efeat_name]" interface '
-            'to retrieve node\' data information.'),
+            '".nodes[ntype].data" or ".nodes[ntype].data[efeat_name]" interface to retrieve '
+            'node data information.'),
             self.__class__.__name__)
         return self._nodes
 
@@ -526,8 +526,8 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
         logging.warning(('This %s is a metadata graph that simulates a DGL graph without '
             'actual graph structure, i.e., nodes and edges, but meta information, e.g., node '
             'types, edge types, and node or edge feature names. You can use the '
-            '".edges[etype].data" or ".edges[etype].data[efeat_name]" interface '
-            'to retrieve edge\' data information.'),
+            '".edges[etype].data" or ".edges[etype].data[efeat_name]" interface to retrieve '
+            'edge data information.'),
             self.__class__.__name__)
         return self._edges
 
@@ -593,8 +593,8 @@ class GSDglDistGraphFromMetadata(GSDglGraphFromMetadata):
     """ A metadata graph implementation for DGL distributed graph APIs.
 
     .. versionadded:: 0.5.0
-        Add ``GSMetadataDglDistGraph`` in 0.5.0 to support real-time inference on Amazon SageMaker
-        endpoints.
+        Add ``GSMetadataDglDistGraph`` in 0.5.0 to support lightweight DGL distributed graph
+        construction using graph metadata only.
 
     This metadata graph only provides two DGL distributed graph APIs, i.e.,
 
