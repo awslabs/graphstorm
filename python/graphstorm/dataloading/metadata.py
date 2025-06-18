@@ -507,8 +507,8 @@ class GSMetadataDglGraph(GSMetadataGraph):
         logging.warning(('This %s is a metadata graph that simulates a DGL graph without '
             'actual graph structure, i.e., nodes and edges, but meta information, e.g., node '
             'types, edge types, and node or edge feature names. You can use the '
-            '".edges[etype].data" or ".edges[etype].data[efeat_name]" interface '
-            'to retrieve edges\' data information.'),
+            '".nodes[ntype].data" or ".nodes[ntype].data[efeat_name]" interface '
+            'to retrieve node\' data information.'),
             self.__class__.__name__)
         return self._nodes
 
