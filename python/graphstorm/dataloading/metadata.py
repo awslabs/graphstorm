@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Graph Metadata classes and metadata graph classes.
+    Graph Metadata classes and graph from metadata classes.
 """
 
 import logging
@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 import torch as th
 from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
+METADATA_VERSION = 'metadata_v0.1'
 HOMO_GRAPH_TYPE = 'homogeneous'
 HETE_GRAPH_TYPE = 'heterogeneous'
 SUPPORT_GPAPH_TYPES = [HOMO_GRAPH_TYPE, HETE_GRAPH_TYPE]
@@ -36,14 +37,15 @@ class GSGraphMetadata():
 
     Graph metadata contains general information of a graph, such as graph types, node types,
     edge types, and features. Such information could be used to generate lightweight graph
-    instances without read in actual data, i.e., DistDGLGraph or DGLGraph, or to work as a source for retrieving.
+    instances without read in actual data, i.e., DistDGLGraph or DGLGraph, or to work as a
+    source for graph metadata retrieving.
 
     In addition, the graph metadata is agonistic to graph libraries, e.g., DGL and PyG.
 
     Parameters
     ----------
     gtype: str
-        The type of a graph. Options include "homogeneous" and "heterogeneous".
+        The type of the graph. Can only be "homogeneous" or "heterogeneous".
     ntypes: list of str or str
         The node types that are in the format of a list, e.g., ["ntype1", "ntype2", ...], or
         a string for one node type only.
@@ -64,8 +66,8 @@ class GSGraphMetadata():
 
     Note: The format of feature dimensions is a list of int without the sample numbers. For
           example, a node feature tensor has shape (100, 4, 7) where the first dimension 100
-          is the number of nodes.Metadata will only use the 2nd and 3rd dimensions and store them
-          in the list, [4, 7], for this feature.
+          is the number of nodes. Metadata will only use the 2nd and 3rd dimensions and store
+          them in the list, [4, 7], for this feature.
     """
     def __init__(self,
                  gtype,
@@ -145,7 +147,7 @@ class GSGraphMetadata():
         self._efeat_dims = efeat_dims
 
     # getters
-    def is_homo(self):
+    def is_homogeneous(self):
         """ Check if the graph metadata is for a homogeneous graph.
 
         Return
@@ -250,6 +252,7 @@ class GSGraphMetadata():
 
         The dictionary will be like:
         {
+            "version": "metadata_v0.1",
             "graph_type": "heterogeneous",
             "nodes": [
                 {
@@ -288,19 +291,21 @@ class GSGraphMetadata():
         -------
         dict: the hierarchy structure of the graph metadata like the example above.
         """
+        metadata_dict = {"version": METADATA_VERSION}
         metadata_dict = {"graph_type": self._gtype}
         nodes = []
         for ntype in self._ntypes:
             node = {"node_type": ntype}
-            if ntype in self._nfeat_dims:
-                nfeats = []
-                for feat_name, feat_dim in self._nfeat_dims[ntype].items():
-                    nfeat_dim = {
-                        "feat_name": feat_name,
-                        "feat_dim": feat_dim
-                        }
-                    nfeats.append(nfeat_dim)
-                node['features'] = nfeats
+            if self._nfeat_dims:
+                if ntype in self._nfeat_dims:
+                    nfeats = []
+                    for feat_name, feat_dim in self._nfeat_dims[ntype].items():
+                        nfeat_dim = {
+                            "feat_name": feat_name,
+                            "feat_dim": feat_dim
+                            }
+                        nfeats.append(nfeat_dim)
+                    node['features'] = nfeats
             else:
                 node['features'] = []
 
@@ -315,15 +320,16 @@ class GSGraphMetadata():
                 "etype": etype,
                 "destination_node_type": dst_ntype
             }
-            if (src_ntype, etype, dst_ntype) in self._efeat_dims:
-                efeats = []
-                for feat_name, feat_dim in self._efeat_dims[(src_ntype, etype, dst_ntype)].items():
-                    efeat_dim = {
-                        "feat_name": feat_name,
-                        "feat_dim": feat_dim
-                        }
-                    efeats.append(efeat_dim)
-                edge['features'] = efeats
+            if self._efeat_dims:
+                if (src_ntype, etype, dst_ntype) in self._efeat_dims:
+                    efeats = []
+                    for feat_name, feat_dim in self._efeat_dims[(src_ntype, etype, dst_ntype)].items():
+                        efeat_dim = {
+                            "feat_name": feat_name,
+                            "feat_dim": feat_dim
+                            }
+                        efeats.append(efeat_dim)
+                    edge['features'] = efeats
             else:
                 edge['features'] = []
 
@@ -394,7 +400,7 @@ class GSMetadataDglGraph(GSMetadataGraph):
         self._device = device
 
         # check homogeneous and convert node and edge node type string to DGL's default name
-        if self._graph_metadata.is_homo():
+        if self._graph_metadata.is_homogeneous():
             assert len(self._graph_metadata.get_ntypes()) == 1 and \
                    len(self._graph_metadata.get_etypes()) == 1, (
                        'As a homogeneous metadata graph, the number of node types and edge types '
@@ -419,7 +425,7 @@ class GSMetadataDglGraph(GSMetadataGraph):
 
             # if the metadata include node feature information, create an empty tensor
             # according to the feature dimensions.
-            if self._graph_metadata.is_homo():
+            if self._graph_metadata.is_homogeneous():
                 if self._graph_metadata.get_nfeat_all_dims(homo_ntype) is not None:
                     nfeat_all_dims = self._graph_metadata.get_nfeat_all_dims(homo_ntype)
 
@@ -439,7 +445,7 @@ class GSMetadataDglGraph(GSMetadataGraph):
 
             # if the metadata include edge feature information, create an empty tensor
             # according to the feature dimensions.
-            if self._graph_metadata.is_homo():
+            if self._graph_metadata.is_homogeneous():
                 if self._graph_metadata.get_efeat_all_dims(homo_etype) is not None:
                     efeat_all_dims = self._graph_metadata.get_efeat_all_dims(homo_etype)
                     for efeat_name, dims in efeat_all_dims.items():
