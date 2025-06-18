@@ -182,7 +182,10 @@ elif [[ $EXEC_ENV = "sagemaker" ]]; then
     fi
 elif [[ $EXEC_ENV = "sagemaker-endpoint" ]]; then
     DOCKERFILE="${GSF_HOME}/docker/sagemaker/Dockerfile.endpoint"
+    rsync -a --exclude="*.pyc" --exclude="*.pyo" --exclude="*.pyd" \
+        "${GSF_HOME}/python" "$CODE_DIR/graphstorm/"
     cp -r "${GSF_HOME}/sagemaker" "$CODE_DIR/graphstorm/sagemaker"
+    cp -r "${GSF_HOME}/docker/sagemaker/build_artifacts" "$BUILD_DIR"
 
     if [[ $DEVICE_TYPE = "gpu" ]]; then
         SOURCE_IMAGE="763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker"

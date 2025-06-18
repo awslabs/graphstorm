@@ -8,14 +8,16 @@ FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.
 ENV dev_type=GPU
 ARG TORCH_VERSION
 
-# Unistall preset Pytorch packages
+# Uninstall preset Pytorch packages
 RUN pip3 uninstall -y torchdata torch torchvision torchaudio
 
-# Pip install GraphStorm to install dependencies
-RUN pip3 install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple graphstorm==0.4.1
-
-# Install Pytorch to fit DGL GraphBolt requirements
-RUN pip3 install torchdata==0.9.0 pydantic
+# Install Dependencies to fit DGL GraphBolt requirements
+RUN pip3 install \
+        torchdata==0.9.0 \
+        pydantic==2.7.1 \
+        transformers==4.47.1 \
+        ogb==1.3.6 \
+    && rm -rf /root/.cache
 RUN pip3 install torch==2.3 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # Install DGL GPU version
@@ -25,14 +27,16 @@ FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.
 ENV dev_type=CPU
 ARG TORCH_VERSION
 
-# Unistall preset Pytorch packages
+# Uninstall preset Pytorch packages
 RUN pip3 uninstall -y torchdata torch torchvision torchaudio
 
-# Pip install GraphStorm to install dependencies
-RUN pip3 install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple graphstorm==0.4.1
-
-# Install Pytorch to fit DGL GraphBolt requirements
-RUN pip3 install torchdata==0.9.0 pydantic
+# Install Dependencies to fit DGL GraphBolt requirements
+RUN pip3 install \
+        torchdata==0.9.0 \
+        pydantic==2.7.1 \
+        transformers==4.47.1 \
+        ogb==1.3.6 \
+    && rm -rf /root/.cache
 RUN pip3 install torch==2.3 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Install DGL CPU version
@@ -55,7 +59,7 @@ ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
 RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
 
 # Download DGL source code
-RUN cd /root; git clone --branch v${TORCH_VERSION} --single-branch https://github.com/dmlc/dgl.git
+RUN cd /root; git clone --branch 2.5.x --single-branch https://github.com/dmlc/dgl.git
 
 # Un-comment if we prefer a local DGL distribution
 # COPY dgl /root/dgl

@@ -197,9 +197,6 @@ class GSConfig:
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
 
         multi_task_config = None
-        if 'multi_task_learning' in configuration['gsf']:
-            multi_task_config = configuration['gsf']['multi_task_learning']
-            del configuration['gsf']['multi_task_learning']
 
         self.set_attributes(configuration)
         # Override class attributes using command-line arguments
