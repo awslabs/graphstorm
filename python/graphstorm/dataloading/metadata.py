@@ -32,8 +32,8 @@ class GSGraphMetadata():
     """ Metadata class for saving and retrieving graph information.
 
     .. versionadded:: 0.5.0
-        Add ``GSGraphMetadata`` in 0.5.0 to support real-time inference on Amazon SageMaker
-        endpoints.
+        Add ``GSGraphMetadata`` in 0.5.0 to build lightweight graph APIs that store metadata of
+        graphs.
 
     Graph metadata contains general information of a graph, such as graph types, node types,
     edge types, and features. Such information could be used to generate lightweight graph
@@ -55,8 +55,8 @@ class GSGraphMetadata():
     nfeat_dims: dict of dict, optional
         The node feature dimensions that are in the format of dictionary whose keys are node types,
         and keys are dictionaries too. These dictionaries' keys are feature names, and values are
-        the dimensions of the corresponding feature names, e.g., {'ntype1': {'feat1': [14],
-        'feat2':[12]}, 'ntype2': {'feat3': [4, 7]}}. Default is None.
+        the dimensions of the corresponding features, e.g., {'ntype1': {'feat1': [14], 'feat2':[12]},
+        'ntype2': {'feat3': [4, 7]}}. Default is None.
     efeat_dims: dict of dict, optional
         The edge feature dimensions that are in the format of dictionary whose keys are canonical
         edge types, and keys are dictionaries too. These dictionaries' keys are feature names,
@@ -64,10 +64,10 @@ class GSGraphMetadata():
         {("ntype1", "etype1", "ntype2"): {'feat1': [4], 'feat2':[7]},
          ("ntype2", "etype2", "ntype3"): {'feat': [7, 14]}}. Default is None.
 
-    Note: The format of feature dimensions is a list of int without the sample numbers. For
-          example, a node feature tensor has shape (100, 4, 7) where the first dimension 100
-          is the number of nodes. Metadata will only use the 2nd and 3rd dimensions and store
-          them in the list, [4, 7], for this feature.
+    Note: The format of feature dimensions is a list of integers excluding the number of samples
+          (the number of rows). For example, a node feature tensor has shape (100, 4, 7) where
+          the first dimension, 100, is the number of nodes. Metadata will only use the 2nd and
+          3rd dimensions and store them in the list, [4, 7], for this feature.
     """
     def __init__(self,
                  gtype,
@@ -82,7 +82,6 @@ class GSGraphMetadata():
         assert (isinstance(ntypes, list) and all(isinstance(ntype, str) for ntype in ntypes)) \
             or isinstance(ntypes, str), (
                 f'Node types should be in a list of strings or a single string, but got {ntypes}.')
-        # TODO(Jian): add sanity check about that the node type should be 1 for homogeneous graphs
         if isinstance(ntypes, str):
             self._ntypes = [ntypes]
         else:
@@ -102,10 +101,9 @@ class GSGraphMetadata():
 
         # sanity check of homogeneous graphs
         if self._gtype == HOMO_GRAPH_TYPE:
-            assert len(self._ntypes) == 1 and len(self._etypes), (
-                'For a homogeneous graph, number of node types '
-                'and edge types should be 1, but got '
-                f'{len(self._ntypes)} node types, and {len(self._etypes)} edge types.')
+            assert len(self._ntypes) == 1 and len(self._etypes) == 1, (
+                'For a homogeneous graph, number of node types and edge types should be 1, but '
+                f'got {len(self._ntypes)} node types, and {len(self._etypes)} edge types.')
 
         # sanity check if node types in edge types exist in node type list
         for src_ntype, _, dst_ntype in self._etypes:
@@ -114,36 +112,36 @@ class GSGraphMetadata():
                 f'list: {self._ntypes}.')
 
         if nfeat_dims is not None:
+            assert all(ntype in self._ntypes for ntype in nfeat_dims.keys()), ('Some node ' \
+                f'types in node feature dimensions: {nfeat_dims} are not in the node type ' \
+                f'list: {ntypes}.')
             assert isinstance(nfeat_dims, dict) and all(isinstance(key, str) for key in \
-                nfeat_dims.keys()) and all(isinstance(val, dict) for val in \
-                nfeat_dims.values()) and all(isinstance(val_key, str) for val in \
-                nfeat_dims.values() for val_key in val.keys()) and all( \
-                isinstance(val_val, list) for val in nfeat_dims.values() for val_val in \
-                val.values()), ('The node feature dimensions should be a dictionary, whose '
-                    'keys are node type strings, and values are dictionaries whose keys are '
-                    'node feature name strings, and values are lists of feature dimensions, '
-                    f'but got {nfeat_dims}.')
-            assert all(ntype in self._ntypes for ntype in nfeat_dims.keys()), 'Some node ' + \
-                f'types in node feature dimensions: {nfeat_dims} are not in the node type ' + \
-                f'list: {ntypes}.'
+                nfeat_dims.keys()), ('The node feature dimensions should be a dictionary, ' \
+                    f'whose keys are node type strings, but got {nfeat_dims}.')
+            assert all(isinstance(val, dict) for val in nfeat_dims.values()) and \
+                all(isinstance(val_key, str) for val in nfeat_dims.values() for val_key \
+                in val.keys()) and all(isinstance(val_val, list) for val in nfeat_dims.values() \
+                for val_val in val.values()), ('The node feature dimension dictionary\'s ' \
+                    'values must have a string as the dictionary key, and a list of feature ' \
+                    f'dimensions as the value, but got {nfeat_dims}.')
         self._nfeat_dims = nfeat_dims
 
         if efeat_dims is not None:
+            assert all(etype in self._etypes for etype in efeat_dims.keys()), (
+                f'Some edge types in edge feature dimensions: {efeat_dims} are not in the ' \
+                f'edge type list: {etypes}.')
             assert isinstance(efeat_dims, dict) and all(isinstance(key, tuple) for key in \
-                efeat_dims.keys()) and all(len(key)==3 for key in efeat_dims.keys()) and \
-                all(isinstance(val, dict) for val in efeat_dims.values()) and all( \
+                efeat_dims.keys()) and all(len(key)==3 for key in efeat_dims.keys()), ( \
+                    'The edge feature dimensions should be a dictionary, whose keys are ' \
+                    'canonical edge types (tuples, each of which include three strings to ' \
+                    'indicate source node type, edge type, destination node type), but got ' \
+                    f'{efeat_dims}.')
+            assert all(isinstance(val, dict) for val in efeat_dims.values()) and all( \
                 isinstance(val_key, str) for val in efeat_dims.values() for val_key in \
                 val.keys()) and all(isinstance(val_val, list) for val in efeat_dims.values() \
-                for val_val in val.values()), (
-                    'The edge feature dimensions should be a dictionary, whose keys are canonical '
-                    'edge types (tuples, each of which include three strings to indicate source '
-                    'node type, edge type, destination node type), and values are dictionaries '
-                    'whose keys are edge feature name strings, and values are lists of feature '
-                    f'dimensions, but got {efeat_dims}.')
-            assert all(etype in self._etypes for etype in efeat_dims.keys()), (
-                'Some edge types in edge feature dimensions: '
-                f'{efeat_dims} are not in the edge type '
-                f'list: {etypes}.')
+                for val_val in val.values()), ('The edge feature dimension dictionary\'s ' \
+                    'values must have a string as the key of dictionary, and a list of ' \
+                    f'feature dimensions as the value, but got {efeat_dims}.')
         self._efeat_dims = efeat_dims
 
     # getters
@@ -289,7 +287,8 @@ class GSGraphMetadata():
 
         Return
         -------
-        dict: the hierarchy structure of the graph metadata like the example above.
+        metadata_dict: dict
+            The hierarchy structure of the graph metadata like the example above.
         """
         metadata_dict = {"version": METADATA_VERSION}
         metadata_dict = {"graph_type": self._gtype}
@@ -351,11 +350,11 @@ class GSGraphMetadata():
 
 
 # ============ Metadata Graph Classes ============ #
-class GSMetadataGraph(ABC):
-    """ Abstract class as the base of metadata graphs.
+class GSGraphFromMetadata(ABC):
+    """ Abstract class as the base of graphs built from metadata.
 
     .. versionadded:: 0.5.0
-        Add ``GSMetadataGraph`` in 0.5.0 to support real-time inference on Amazon SageMaker
+        Add ``GSGraphFromMetadata`` in 0.5.0 to support real-time inference on Amazon SageMaker
         endpoints.
 
     """
@@ -385,11 +384,11 @@ class GSMetadataGraph(ABC):
         """
 
 
-class GSMetadataDglGraph(GSMetadataGraph):
-    """ A metadata graph implementation for DGL Graph APIs
+class GSDglGraphFromMetadata(GSGraphFromMetadata):
+    """ A graph from metadata implementation for simulating DGLGraph APIs
 
     .. versionadded:: 0.5.0
-        Add ``GSMetadataDglGraph`` in 0.5.0 to support real-time inference on Amazon SageMaker
+        Add ``GSDglGraphFromMetadata`` in 0.5.0 to support real-time inference on Amazon SageMaker
         endpoints.
 
     """
@@ -401,12 +400,6 @@ class GSMetadataDglGraph(GSMetadataGraph):
 
         # check homogeneous and convert node and edge node type string to DGL's default name
         if self._graph_metadata.is_homogeneous():
-            assert len(self._graph_metadata.get_ntypes()) == 1 and \
-                   len(self._graph_metadata.get_etypes()) == 1, (
-                       'As a homogeneous metadata graph, the number of node types and edge types '
-                       f'should be 1, but got {self._graph_metadata.get_ntypes()} node types, and '
-                       f'{self._graph_metadata.get_etypes()} edge types.')
-
             # convert node type and edge type to DGL's default name, `_N` and (`_N`, `_E`, `_N`)
             homo_ntype = self._graph_metadata.get_ntypes()[0]
             homo_etype = self._graph_metadata.get_etypes()[0]
@@ -541,7 +534,7 @@ class GSMetadataDglGraph(GSMetadataGraph):
     def is_homogeneous(self):
         """ Check if the metadata graph is a homogeneous one.
         """
-        return self._graph_metadata.is_homo()
+        return self._graph_metadata.is_homogeneous()
 
     @property
     def ndata(self):
@@ -596,7 +589,7 @@ class DglDataViewSimulation():
         return self._data
 
 
-class GSMetadataDglDistGraph(GSMetadataDglGraph):
+class GSDglDistGraphFromMetadata(GSDglGraphFromMetadata):
     """ A metadata graph implementation for DGL distributed graph APIs.
 
     .. versionadded:: 0.5.0

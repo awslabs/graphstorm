@@ -3137,7 +3137,7 @@ def test_GSGraphMetadata():
     gmd = GSGraphMetadata(gtype=gtype_hetero,
                           ntypes=ntypes_hetero,
                           etypes=etypes_hetero)
-    assert not gmd.is_homo()
+    assert not gmd.is_homogeneous()
     assert gmd.get_ntypes() == ntypes_hetero
     assert gmd.get_etypes() == etypes_hetero
     # predefined ntype shoud be in the metadata
@@ -3199,7 +3199,7 @@ def test_GSGraphMetadata():
                           etypes=etypes_homo,
                           nfeat_dims=nfeat_dims,
                           efeat_dims=efeat_dims)
-    assert gmd.is_homo()
+    assert gmd.is_homogeneous()
     assert gmd.get_ntypes() == [ntypes_homo]
     assert gmd.get_etypes() == [etypes_homo]
     assert all([gmd.has_ntype(ntype) for ntype in [ntypes_homo]])
@@ -3554,7 +3554,7 @@ def test_load_metadata_from_json():
                            ('paper', 'is-about', 'subject'),
                            ('paper', 'written-by', 'author'),
                            ('subject', 'has', 'paper')]
-        assert not gmd.is_homo()
+        assert not gmd.is_homogeneous()
         assert sorted(gmd.get_ntypes()) == sorted(expected_ntypes)
         assert set(gmd.get_etypes()) == set(expected_etypes)
         # predefined ntype shoud be in the metadata
@@ -3600,7 +3600,7 @@ def test_load_metadata_from_json():
                            ('paper', 'is-about', 'subject'),
                            ('paper', 'written-by', 'author'),
                            ('subject', 'has', 'paper')]
-        assert not gmd.is_homo()
+        assert not gmd.is_homogeneous()
         assert sorted(gmd.get_ntypes()) == sorted(expected_ntypes)
         assert set(gmd.get_etypes()) == set(expected_etypes)
         # predefined ntype shoud be in the metadata
@@ -3709,50 +3709,50 @@ def test_GSMetadataDglDistGraph():
 
 
 if __name__ == '__main__':
-    test_GSgnnTranData_small_val_test()
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnMultiTaskDataLoader()
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
-    test_edge_fixed_dst_negative_sample_gen_neg_pairs()
-    test_hard_edge_dst_negative_sample_generate_complex_case()
-    test_hard_edge_dst_negative_sample_generate()
-    test_inbatch_joint_neg_sampler(10, 20)
+    # test_GSgnnTranData_small_val_test()
+    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    # test_GSgnnMultiTaskDataLoader()
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
+    # test_edge_fixed_dst_negative_sample_gen_neg_pairs()
+    # test_hard_edge_dst_negative_sample_generate_complex_case()
+    # test_hard_edge_dst_negative_sample_generate()
+    # test_inbatch_joint_neg_sampler(10, 20)
 
-    test_np_dataloader_len(11)
-    test_ep_dataloader_len(11)
-    test_lp_dataloader_len(11)
+    # test_np_dataloader_len(11)
+    # test_ep_dataloader_len(11)
+    # test_lp_dataloader_len(11)
 
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnData()
-    test_GSgnnData2()
-    test_GSgnnData_edge_feat()
-    test_GSgnnData_edge_feat2()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    # test_GSgnnData()
+    # test_GSgnnData2()
+    # test_GSgnnData_edge_feat()
+    # test_GSgnnData_edge_feat2()
+    # test_lp_dataloader()
+    # test_edge_dataloader()
+    # test_node_dataloader()
+    # test_node_dataloader_reconstruct()
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
+    # test_prepare_input()
+    # test_modify_fanout_for_target_etype()
 
-    test_distill_sampler_get_file(num_files=7)
-    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
-        infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 7, True)
+    # test_distill_sampler_get_file(num_files=7)
+    # test_DistillDistributedFileSampler(num_files=7, is_train=True, \
+    #     infinite=False, shuffle=True)
+    # test_DistillDataloaderGenerator("gloo", 7, True)
 
-    test_GSgnnTrainData_homogeneous()
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
-    test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
-    test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
+    # test_GSgnnTrainData_homogeneous()
+    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
+    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
+    # test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
+    # test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
 
     test_GSGraphMetadata()
     test_config_json_santiy_check()
