@@ -13,18 +13,18 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import os, sys
-from pathlib import Path
-from tempfile import tempdir
 import json
-import yaml
 import math
+import os
+import sys
 import tempfile
+import yaml
 from argparse import Namespace
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+from pathlib import Path
 
 import dgl
 import torch as th
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from graphstorm.config import GSConfig
 from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
@@ -34,7 +34,8 @@ from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                                       BUILTIN_LP_LOSS_BPR,
                                       BUILTIN_REGRESSION_LOSS_MSE,
-                                      BUILTIN_REGRESSION_LOSS_SHRINKAGE)
+                                      BUILTIN_REGRESSION_LOSS_SHRINKAGE,
+                                      COMBINED_CONFIG_FILENAME)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -2263,19 +2264,69 @@ def test_multi_task_config():
         assert efr_config.eval_metric[0] == "rmse"
         assert efr_config.batch_size == 64
 
-if __name__ == '__main__':
-    test_multi_task_config()
-    test_id_mapping_file()
-    test_load_basic_info()
-    test_gnn_info()
-    test_load_io_info()
-    test_train_info()
-    test_rgcn_info()
-    test_rgat_info()
-    test_node_class_info()
-    test_node_regress_info()
-    test_edge_class_info()
-    test_lp_info()
 
-    test_lm()
-    test_check_node_lm_config()
+def test_save_combined_config():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+        save_model_path = os.path.join(tmpdirname, "model")
+
+        # Create args with an override
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            # Set save_model_path to trigger combined config saving
+            save_model_path=os.path.join(tmpdirname, "model"),
+            lr=0.02,  # Override the lr, fanout values from the yaml
+            fanout="15,10",
+        )
+
+        # Create GSConfig, this will also create the updated yaml file
+        _ = GSConfig(args)
+
+        # Updated config should exist under the save model path
+        updated_yaml = os.path.join(save_model_path, COMBINED_CONFIG_FILENAME)
+
+        # Verify the file exists
+        assert os.path.exists(updated_yaml)
+
+        # Load the saved config and verify it contains the overridden value
+        with open(updated_yaml, 'r') as f:
+            updated_config = yaml.safe_load(f)
+
+        # Check that the existing arg values were updated, under their existing section
+        assert updated_config['gsf']['hyperparam']['lr'] == 0.02
+        assert updated_config['gsf']['gnn']['fanout'] == "15,10"
+
+def test_save_combined_new_argument():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+        save_model_path = os.path.join(tmpdirname, "model")
+
+        # Create args with an override, where the new arg did not exist in the original yaml
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            # Set save_model_path to trigger combined config saving
+            save_model_path=save_model_path,
+            wd_l2norm=0.0001  # Insert a new runtime value that did not exist in the yaml
+        )
+
+        # Create GSConfig, this will also create the updated yaml file
+        gs_config = GSConfig(args)
+        # Ensure the new runtime value was added to the config
+        assert gs_config.wd_l2norm == 0.0001
+
+        # Updated config should exist under the save model path
+        updated_yaml = os.path.join(save_model_path, COMBINED_CONFIG_FILENAME)
+
+        # Verify the file exists
+        assert os.path.exists(updated_yaml)
+
+        # Load the saved config and verify it contains the overridden value
+        with open(updated_yaml, 'r') as f:
+            updated_config = yaml.safe_load(f)
+
+        # Check that the wd_l2norm value was added to the 'runtime' key
+        assert updated_config['gsf']['runtime']['wd_l2norm'] == 0.0001
