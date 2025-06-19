@@ -112,9 +112,6 @@ class GSGraphMetadata():
                 f'list: {self._ntypes}.')
 
         if nfeat_dims is not None:
-            assert all(ntype in self._ntypes for ntype in nfeat_dims.keys()), ('Some node ' \
-                f'types in node feature dimensions: {nfeat_dims} are not in the node type ' \
-                f'list: {ntypes}.')
             assert isinstance(nfeat_dims, dict) and all(isinstance(key, str) for key in \
                 nfeat_dims.keys()), ('The node feature dimensions should be a dictionary, ' \
                     f'whose keys are node type strings, but got {nfeat_dims}.')
@@ -124,12 +121,14 @@ class GSGraphMetadata():
                 for val_val in val.values()), ('The node feature dimension dictionary\'s ' \
                     'values must have a string as the dictionary key, and a list of feature ' \
                     f'dimensions as the value, but got {nfeat_dims}.')
+            # need to make sure the input argument format is correct first, and then can test
+            # the contents
+            assert all(ntype in self._ntypes for ntype in nfeat_dims.keys()), ('Some node ' \
+                f'types in node feature dimensions: {nfeat_dims} are not in the node type ' \
+                f'list: {ntypes}.')
         self._nfeat_dims = nfeat_dims
 
         if efeat_dims is not None:
-            assert all(etype in self._etypes for etype in efeat_dims.keys()), (
-                f'Some edge types in edge feature dimensions: {efeat_dims} are not in the ' \
-                f'edge type list: {etypes}.')
             assert isinstance(efeat_dims, dict) and all(isinstance(key, tuple) for key in \
                 efeat_dims.keys()) and all(len(key)==3 for key in efeat_dims.keys()), ( \
                     'The edge feature dimensions should be a dictionary, whose keys are ' \
@@ -142,6 +141,11 @@ class GSGraphMetadata():
                 for val_val in val.values()), ('The edge feature dimension dictionary\'s ' \
                     'values must have a string as the key of dictionary, and a list of ' \
                     f'feature dimensions as the value, but got {efeat_dims}.')
+            # need to make sure the input argument format is correct first, and then can test
+            # the contents
+            assert all(etype in self._etypes for etype in efeat_dims.keys()), (
+                f'Some edge types in edge feature dimensions: {efeat_dims} are not in the ' \
+                f'edge type list: {etypes}.')
         self._efeat_dims = efeat_dims
 
     # getters
@@ -404,7 +408,7 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
             homo_ntype = self._graph_metadata.get_ntypes()[0]
             homo_etype = self._graph_metadata.get_etypes()[0]
             self._ntypes = [DEFAULT_NTYPE]
-            self._etypes = [(DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE)]
+            self._etypes = [DEFAULT_ETYPE]
         else:
             self._ntypes = self._graph_metadata.get_ntypes()
             self._etypes = self._graph_metadata.get_etypes()
@@ -564,7 +568,7 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
                 'heterogeneous metadata graph.')
             return None
         else:
-            return self._edges[(DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE)].data
+            return self._edges[DEFAULT_ETYPE].data
 
 
 class DglDataViewSimulation():

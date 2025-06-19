@@ -58,4 +58,6 @@ from .sampler import DistributedFileSampler
 
 from .metadata import (GSGraphMetadata,
                        GSDglGraphFromMetadata,
-                       GSDglDistGraphFromMetadata)
+                       GSDglDistGraphFromMetadata,
+                       config_json_sanity_check,
+                       load_metadata_from_json)
