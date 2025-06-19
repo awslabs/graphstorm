@@ -55,8 +55,8 @@ class GSGraphMetadata():
     nfeat_dims: dict of dict, optional
         The node feature dimensions that are in the format of dictionary whose keys are node types,
         and keys are dictionaries too. These dictionaries' keys are feature names, and values are
-        the dimensions of the corresponding features, e.g., {'ntype1': {'feat1': [14], 'feat2':[12]},
-        'ntype2': {'feat3': [4, 7]}}. Default is None.
+        the dimensions of the corresponding features, e.g., {'ntype1': {'feat1': [14],
+        'feat2':[12]}, 'ntype2': {'feat3': [4, 7]}}. Default is None.
     efeat_dims: dict of dict, optional
         The edge feature dimensions that are in the format of dictionary whose keys are canonical
         edge types, and keys are dictionaries too. These dictionaries' keys are feature names,
@@ -326,7 +326,8 @@ class GSGraphMetadata():
             if self._efeat_dims:
                 if (src_ntype, etype, dst_ntype) in self._efeat_dims:
                     efeats = []
-                    for feat_name, feat_dim in self._efeat_dims[(src_ntype, etype, dst_ntype)].items():
+                    for feat_name, feat_dim in \
+                        self._efeat_dims[(src_ntype, etype, dst_ntype)].items():
                         efeat_dim = {
                             "feat_name": feat_name,
                             "feat_dim": feat_dim
