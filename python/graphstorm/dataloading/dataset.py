@@ -465,7 +465,7 @@ class GSgnnData():
             Add ``get_blocks_edge_feat`` in 0.4.0 to support edge features in message passing.
 
         .. versionchanged:: 0.5
-            Moved this function out of `GSgnnData` class in v0.5 to support real-time node-level
+            Moved the implementatino of this function out of `GSgnnData` class in v0.5 to support real-time node-level
             inference on Amazon SageMaker endpoints.
 
         Parameters
