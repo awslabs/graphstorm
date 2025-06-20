@@ -177,7 +177,7 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
     """ Inferrer for real-time node prediction tasks on SageMaker endpoints.
 
     .. versionadded:: 0.5
-        Add `GSGnnNodePredictionRealtimeInferrer` class in v0.5 to support real-time node-level
+        Add `GSGnnNodePredictionRealtimeInferrer` class to support real-time node-level
         inference on Amazon SageMaker endpoints.
 
     The real-time inferrer has three major differences from the node prediction offline inferrer:
