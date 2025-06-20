@@ -466,7 +466,7 @@ class GSgnnData():
 
         .. versionchanged:: 0.5
             Moved the implementatino of this function out of `GSgnnData` class in v0.5 to support real-time node-level
-            inference on Amazon SageMaker endpoints.
+            inference.
 
         Parameters
         ----------
