@@ -15,43 +15,37 @@
 
     Various dataloaders for the GSF
 """
-import math
+import importlib.metadata
 import inspect
 import logging
-import importlib.metadata
-from packaging import version
+import math
+
 import dgl
 import torch as th
-from torch.utils.data import DataLoader
 import torch.distributed as dist
+from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
+from packaging import version
 
-from ..utils import get_device, is_distributed, get_backend
-from .utils import (verify_label_field,
-                    verify_node_feat_fields,
-                    verify_edge_feat_fields)
-
-from .sampler import (LocalUniform,
-                      JointUniform,
-                      GlobalUniform,
-                      JointLocalUniform,
-                      InbatchJointUniform,
-                      FastMultiLayerNeighborSampler,
-                      DistributedFileSampler,
-                      GSHardEdgeDstNegativeSampler,
-                      GSFixedEdgeDstNegativeSampler)
-from .utils import trim_data, modify_fanout_for_target_etype
+from ..utils import get_backend, get_device, is_distributed
 from .dataset import GSDistillData
+from .sampler import (DistributedFileSampler, FastMultiLayerNeighborSampler,
+                      GlobalUniform, GSFixedEdgeDstNegativeSampler,
+                      GSHardEdgeDstNegativeSampler, InbatchJointUniform,
+                      JointLocalUniform, JointUniform, LocalUniform)
+from .utils import (modify_fanout_for_target_etype, trim_data,
+                    verify_edge_feat_fields, verify_label_field,
+                    verify_node_feat_fields)
 
 dgl_version = importlib.metadata.version("dgl")
 if version.parse(dgl_version).base_version <= version.parse("2.3.0").base_version:
     # Backward compatible with DGL 2.3 or lower.
-    from dgl.dataloading import DistDataLoader
-    from dgl.dataloading import EdgeCollator
+    from dgl.dataloading import DistDataLoader, EdgeCollator
     from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 else:
     # Compatible with DGL 2.4+ or higher.
     from dgl.distributed import DistDataLoader
-    from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
+    from dgl.distributed.dist_dataloader import (EdgeCollator,
+                                                 _remove_kwargs_dist)
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
 class _ReconstructedNeighborSampler():
@@ -1789,6 +1783,106 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         """
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
+
+class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
+    """ Mini-batch dataloader for real-time node infernce task
+
+    .. versionadded:: 0.5
+        Add `GSgnnRealtimeInferNodeDataLoader` class to support node-level dataloader used for
+        real-time inference.
+
+    This dataloader wraps DGL's DataLoader for real-time inference in GraphStorm. It will use DGL's
+    `MultiLayerFullNeighborSampler` samper to extract all nodes from the given subgraph because
+    during real-time inference, it is unclear if data providers have done fanout sampling or not
+    when building the subgraph payload.
+    
+    This class extends from the ``GSgnnNodeDataLoaderBase`` class so that it will be compatible
+    with other dataloaders.
+
+    Parameters
+    -----------
+    dataset: DGLGraph
+        A DGLGraph instance.
+    target_idx : dict of Tensors
+        The target node indexes for prediction.
+    batch_size: int
+        Mini-batch size.
+    node_feats: str, list of str or dict of list of str
+        Node feature fileds in three possible formats:
+
+            - string: All nodes have the same feature name.
+            - list of string: All nodes have the same list of features.
+            - dict of list of string: Each node type have different set of node features.
+
+    edge_feats: str, list of str or dict of list of str
+        Edge feature fileds in three possible formats:
+
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
+            - dict of list of string: Each edge type have different set of edge features.
+
+        Default: None.
+    """
+    def __init__(self,
+                 dataset,
+                 target_idx,
+                 num_layers,
+                 batch_size,
+                 node_feats=None,
+                 edge_feats=None):
+        assert isinstance(dataset, dgl.DGLGraph), ('The \"dataset\" should be a DGLGraph ' \
+            f'instance, but got {dataset}.')
+        assert isinstance(target_idx, dict), ('The \"target_idx\" should be a dictionary, ' \
+            f'but got {target_idx}.')
+        for ntype in target_idx:
+            assert ntype in dataset.ntypes, (f'node type {ntype} does not exist in the graph.')
+
+        # set dummy label fields using "label" string
+        label_field = "label"
+
+        super().__init__(dataset,
+                         target_idx,
+                         fanout=[-1],
+                         label_field=label_field,
+                         node_feats=node_feats,
+                         edge_feats=edge_feats)
+
+        self.dataloader = self._prepare_dataloader(dataset, target_idx, num_layers, batch_size)
+
+    def _prepare_dataloader(self, g, target_idx, num_layers, batch_size):
+        """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader. 
+        """
+        sampler = MultiLayerFullNeighborSampler(num_layers)
+
+        device = get_device() \
+            if is_distributed() and get_backend() == "nccl" else th.device('cpu')
+
+        dataloader = DataLoader(g, target_idx, sampler, device=device, batch_size=batch_size,
+                                shuffle=False, drop_last=False)
+        return dataloader
+
+    def __iter__(self):
+        """ Returns an iterator object of the dataloader
+        """
+        self.dataloader = iter(self.dataloader)
+        return self
+
+    def __next__(self):
+        """ Return a mini-batch data for node tasks.
+        """
+        return self.dataloader.__next__()
+
+    def __len__(self):
+        """ Return the length (number of mini-batches) of the dataloader.
+
+        For real-time inference, all targets will be processed once. So, the length will be one.
+
+        Returns
+        -------
+        int: length
+        """
+        # TODO(Jian), provide meaningful length if the number of targets is relatively large.
+        return 1
 
 
 ####################### Multi-task Dataloader ####################

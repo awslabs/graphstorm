@@ -178,11 +178,11 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
 
     .. versionadded:: 0.5
         Add `GSGnnNodePredictionRealtimeInferrer` class to support real-time node-level
-        inference on Amazon SageMaker endpoints.
+        inference.
 
     The real-time inferrer has three major differences from the node prediction offline inferrer:
 
-    1. directly setting and using a DGL graph as input to extract features.
+    1. setting and using a DGLGraph, instead of DistGrahp, as the source to extract features.
     2. using DGL dataloader, instead of GS dataloaders that rely on DGL distributed graphs.
     3. no evaluation section as there is no label on real-time inference.
     """
@@ -207,8 +207,9 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             The inference graph data in the format of a DGL heterograph. For built-in inference
             pipeline, this graph should be constructed by using methods in the
             `gconstruct.construct_payload_graph.py` file.
-        dataloader: DGL dataloader
-            A DGL dataloader class for node prediction, e.g., `DataLoader`.
+        dataloader: DGL dataloader or GSgnnRealtimeInferNodeDataLoader
+            A GSgnnRealtimeInferNodeDataLoader class for node prediction, or a DGL dataloader class,
+            e.g., `DataLoader`.
         infer_ntypes: list of string or a string
             The list of the target node types. Or a single string of the target node type.
         nfeat_fields: dict of {str: list}

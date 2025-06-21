@@ -35,6 +35,7 @@ from .dataloading import (GSgnnEdgeDataLoaderBase,
                           GSgnnLinkPredictionDataLoaderBase,
                           GSgnnNodeDataLoaderBase)
 from .dataloading import GSgnnMultiTaskDataLoader
+from .dataloading import GSgnnRealtimeInferNodeDataLoader
 
 from .dataset import GSgnnData
 
