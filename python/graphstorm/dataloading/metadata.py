@@ -343,15 +343,15 @@ class GSGraphMetadata():
 
         return metadata_dict
 
-    def __repr__(self) -> str: 
+    def __repr__(self) -> str:
         """Formal object representation for debugging
         """
         attrs = ', '.join(f"{k}={v!r}" for k, v in self.__dict__.items())
         return f"{self.__class__.__name__}({attrs})"
 
-    def __str__(self) -> str: 
+    def __str__(self) -> str:
         """Informal object representation for readability
-        
+
         Display a dictionary of the metedata attributes.
         """
         metadata_dict = self.to_dict()
@@ -371,7 +371,7 @@ class GSGraphFromMetadata(ABC):
     graph_metadata: GSGraphMetadata
         An instance of GSGraphMetadata class.
     """
-    def __init__(self, graph_metadata):
+    def __init__(self, graph_metadata: GSGraphMetadata):
         self._graph_metadata = graph_metadata
 
     @property
@@ -644,8 +644,7 @@ def config_json_sanity_check(config_json):
     """ Function to check configuration JSON object for metadata creation.
 
     .. versionadded:: 0.5.0
-        Add ``config_json_sanity_check`` in 0.5.0 to support real-time inference on Amazon
-        SageMaker endpoints.
+        Add ``config_json_sanity_check`` in 0.5.0 to support real-time inference.
 
     This function extends gconstruct's verify_configs() function in three major perspectives,
     and it is more rigorous than the verify_configs() to make sure contents are correct and
