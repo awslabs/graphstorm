@@ -343,12 +343,16 @@ class GSGraphMetadata():
 
         return metadata_dict
 
-    def to_string(self):
-        """ Convert the graph metadata to a simple dictionary string.
+    def __repr__(self) -> str: 
+        """Formal object representation for debugging
+        """
+        attrs = ', '.join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
 
-        Return
-        -------
-        str: string of the graph metadata dictionary.
+    def __str__(self) -> str: 
+        """Informal object representation for readability
+        
+        Display a dictionary of the metedata attributes.
         """
         metadata_dict = self.to_dict()
         return str(metadata_dict)
@@ -362,6 +366,10 @@ class GSGraphFromMetadata(ABC):
         Add ``GSGraphFromMetadata`` in 0.5.0 to support lightweight graph construction using
         graph metadata only.
 
+    Parameters
+    ----------
+    graph_metadata: GSGraphMetadata
+        An instance of GSGraphMetadata class.
     """
     def __init__(self, graph_metadata):
         self._graph_metadata = graph_metadata
@@ -552,7 +560,7 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
             logging.warning(
                 'Only homogeneous metadata graphs support the "ndata" interface, but got a '
                 'heterogeneous metadata graph.')
-            return None
+            return {}
         else:
             return self._nodes[DEFAULT_NTYPE].data
 
@@ -561,13 +569,13 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
         """ Provide an interface for retrieving edge data in a homogeneous metadata graph.
 
         This interface is for homogeneous graphs only, and the edge type should be
-        (`_N`, `_E`, `_N`), which is defined by dgl's `dgl.NID` and `dgl.EID` constants.
+        (`_N`, `_E`, `_N`), which is defined by DGL constants.
         """
         if not self.is_homogeneous():
             logging.warning(
                 'Only homogeneous metadata graphs support the "edata" interface, but got a '
                 'heterogeneous metadata graph.')
-            return None
+            return {}
         else:
             return self._edges[DEFAULT_ETYPE].data
 

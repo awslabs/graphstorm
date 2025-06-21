@@ -23,16 +23,6 @@ import pytest
 from numpy.testing import assert_equal, assert_almost_equal
 from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
-# from data_utils import (
-#     generate_dummy_dist_graph,
-#     generate_special_dummy_dist_graph_for_efeat_gnn,
-#     generate_dummy_dist_graph_reconstruct,
-#     generate_dummy_dist_graph_homogeneous_failure_graph,
-#     generate_dummy_dist_graph_multi_task,
-#     create_distill_data,
-#     SIZE_DICT
-# )
-
 from graphstorm.dataloading import (GSGraphMetadata,
                                     GSDglDistGraphFromMetadata,
                                     config_json_sanity_check,
@@ -765,16 +755,23 @@ def test_GSGraphMetadata():
                     for i, can_etype in enumerate(etypes_hetero)])
     assert all([edge['features'] == [{'feat_name': 'efeat1', 'feat_dim': [8]}] for edge in edges])
 
-    assert gmd.to_string() == '{\'graph_type\': \'heterogeneous\', \'nodes\': [{\'node_type\': \'ntype1\', ' + \
-                              '\'features\': [{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}, ' + \
-                              '{\'node_type\': \'ntype2\', \'features\': [{\'feat_name\': \'nfeat1\', ' + \
-                              '\'feat_dim\': [4, 7]}]}, {\'node_type\': \'ntype3\', \'features\': ' + \
-                              '[{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}], \'edges\': ' + \
-                              '[{\'source_node_type\': \'ntype1\', \'etype\': \'etype1\', ' + \
-                              '\'destination_node_type\': \'ntype2\', \'features\': [{\'feat_name\': ' + \
-                              '\'efeat1\', \'feat_dim\': [8]}]}, {\'source_node_type\': \'ntype2\', ' + \
-                              '\'etype\': \'etype2\', \'destination_node_type\': \'ntype3\', \'features\': ' + \
-                              '[{\'feat_name\': \'efeat1\', \'feat_dim\': [8]}]}]}'
+    assert str(gmd) == '{\'graph_type\': \'heterogeneous\', \'nodes\': [{\'node_type\': \'ntype1\', ' + \
+                        '\'features\': [{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}, ' + \
+                        '{\'node_type\': \'ntype2\', \'features\': [{\'feat_name\': \'nfeat1\', ' + \
+                        '\'feat_dim\': [4, 7]}]}, {\'node_type\': \'ntype3\', \'features\': ' + \
+                        '[{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}], \'edges\': ' + \
+                        '[{\'source_node_type\': \'ntype1\', \'etype\': \'etype1\', ' + \
+                        '\'destination_node_type\': \'ntype2\', \'features\': [{\'feat_name\': ' + \
+                        '\'efeat1\', \'feat_dim\': [8]}]}, {\'source_node_type\': \'ntype2\', ' + \
+                        '\'etype\': \'etype2\', \'destination_node_type\': \'ntype3\', \'features\': ' + \
+                        '[{\'feat_name\': \'efeat1\', \'feat_dim\': [8]}]}]}'
+
+    assert repr(gmd) == ('GSGraphMetadata(_gtype=\'heterogeneous\', _ntypes=[\'ntype1\', \'ntype2\', '
+                        '\'ntype3\'], _etypes=[(\'ntype1\', \'etype1\', \'ntype2\'), '
+                        '(\'ntype2\', \'etype2\', \'ntype3\')], _nfeat_dims={\'ntype1\': {\'nfeat1\': '
+                        '[4, 7]}, \'ntype2\': {\'nfeat1\': [4, 7]}, \'ntype3\': {\'nfeat1\': '
+                        '[4, 7]}}, _efeat_dims={(\'ntype1\', \'etype1\', \'ntype2\'): {\'efeat1\': [8]}, '
+                        '(\'ntype2\', \'etype2\', \'ntype3\'): {\'efeat1\': [8]}})')
 
     #       1.4 test homogeneous graph with string for node type and tuple for edge type
     gtype_homo = 'homogeneous'
@@ -959,6 +956,7 @@ def test_config_json_santiy_check():
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()
+    # set two node types to be the same to test duplicated node types.
     gcont_config_json['nodes'][-1]['node_type'] = gcont_config_json['nodes'][0]['node_type']
     with pytest.raises(AssertionError, match='There are duplicated node types in the'):
         config_json_sanity_check(gcont_config_json)
@@ -989,6 +987,7 @@ def test_config_json_santiy_check():
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()
+    # set two edge types to be the same to test duplicated edge types.
     gcont_config_json['edges'][-1]['relation'] = gcont_config_json['edges'][0]['relation']
     with pytest.raises(AssertionError, match='There are duplicated edge types in the'):
         config_json_sanity_check(gcont_config_json)
