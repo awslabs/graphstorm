@@ -35,7 +35,8 @@ from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.dataloading import GSgnnData, GSgnnMultiTaskDataLoader
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
-                                    GSgnnLinkPredictionTestDataLoader)
+                                    GSgnnLinkPredictionTestDataLoader,
+                                    GSgnnRealtimeInferNodeDataLoader)
 from graphstorm.inference import (GSgnnMultiTaskLearningInferrer,
                                   GSgnnNodePredictionInferrer,
                                   GSgnnEdgePredictionInferrer,
@@ -1692,7 +1693,7 @@ def test_realtime_infer_np():
 
     # set targets: node type "n1" has "label" as labels
     infer_ntypes = ['n1']
-    num_targets = 2
+    num_targets = 14
     infer_nids = {ntype: [i for i in range(num_targets)] for ntype in infer_ntypes}
 
     # initialize a nc model
@@ -1707,11 +1708,8 @@ def test_realtime_infer_np():
     # initialize a real-time np inferrer
     inferrer = GSGnnNodePredictionRealtimeInferrer(model)
 
-    # initialize a DGL dataloader
-    sampler = MultiLayerFullNeighborSampler(config.num_layers)
-    dataloader = DataLoader(g, infer_nids, sampler,
-                            batch_size=10, shuffle=False,
-                            drop_last=False)
+    # initialize a GSgnnRealtimeInferNodeDataLoader, no need of batch_size now
+    dataloader = GSgnnRealtimeInferNodeDataLoader(g, infer_nids, num_layers=1)
 
     # do inference
     pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
@@ -1750,17 +1748,12 @@ def test_realtime_infer_np():
     with pytest.raises(AssertionError, match='.* is not in the set of prediction ntypes'):
         pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
 
+    #       2.3 dataloader is not a GSgnnRealtimeInferNodeDataLoader
+    sampler = MultiLayerFullNeighborSampler(1)
+    dataloader = DataLoader(g, infer_nids, sampler,
+                            batch_size=10, shuffle=False,
+                            drop_last=False)
+    inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+    with pytest.raises(AssertionError, match='The given dataloader should be .* but got'):
+        pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
 
-if __name__ == '__main__':
-    # test_mtask_infer()
-
-    # test_inferrer_setup_evaluator()
-
-    # test_rgcn_infer_nc4ef()
-    # test_rgcn_infer_ec4ef()
-    # test_rgcn_infer_lp4ef()
-    # test_hgt_infer_nc4ef()
-    # test_hgt_infer_ec4ef()
-    # test_hgt_infer_lp4ef()
-
-    test_realtime_infer_np()

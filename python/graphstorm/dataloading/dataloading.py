@@ -1805,31 +1805,13 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         A DGLGraph instance.
     target_idx : dict of Tensors
         The target node indexes for prediction.
-    batch_size: int
-        Mini-batch size.
-    node_feats: str, list of str or dict of list of str
-        Node feature fileds in three possible formats:
-
-            - string: All nodes have the same feature name.
-            - list of string: All nodes have the same list of features.
-            - dict of list of string: Each node type have different set of node features.
-
-    edge_feats: str, list of str or dict of list of str
-        Edge feature fileds in three possible formats:
-
-            - string: All edges have the same feature name.
-            - list of string: All edges have the same list of features.
-            - dict of list of string: Each edge type have different set of edge features.
-
-        Default: None.
+    num_layers: int
+        The number of layers dataloader will use as the number of hops for sampling. Default is 1.
     """
     def __init__(self,
                  dataset,
                  target_idx,
-                 num_layers,
-                 batch_size,
-                 node_feats=None,
-                 edge_feats=None):
+                 num_layers=1):
         assert isinstance(dataset, dgl.DGLGraph), ('The \"dataset\" should be a DGLGraph ' \
             f'instance, but got {dataset}.')
         assert isinstance(target_idx, dict), ('The \"target_idx\" should be a dictionary, ' \
@@ -1844,14 +1826,23 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
                          target_idx,
                          fanout=[-1],
                          label_field=label_field,
-                         node_feats=node_feats,
-                         edge_feats=edge_feats)
+                         node_feats=None,
+                         edge_feats=None)
 
-        self.dataloader = self._prepare_dataloader(dataset, target_idx, num_layers, batch_size)
+        self.dataloader = self._prepare_dataloader(dataset, target_idx, num_layers)
 
-    def _prepare_dataloader(self, g, target_idx, num_layers, batch_size):
+    def _prepare_dataloader(self, g, target_idx, num_layers):
         """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader. 
         """
+        # to shorten real-time inference time, here set the batch size to be the largest number
+        # of target indexes, so that only use one mini batch.
+        batch_size = 0
+        for _, idx in target_idx.items():
+            if len(idx) > batch_size:
+                batch_size = len(idx)
+
+        # use a full neighbor sampler because it is unclear if callers have done sampling when
+        # building the subgraph payload
         sampler = MultiLayerFullNeighborSampler(num_layers)
 
         device = get_device() \

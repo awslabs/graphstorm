@@ -30,6 +30,8 @@ from ..model.node_gnn import node_mini_batch_predict
 from ..utils import sys_tracker, get_rank, barrier
 from ..dataloading.dataset import (prepare_batch_input,
                                    prepare_blocks_edge_feats)
+from ..dataloading import GSgnnRealtimeInferNodeDataLoader
+
 
 class GSgnnNodePredictionInferrer(GSInferrer):
     """ Inferrer for node prediction tasks.
@@ -207,9 +209,8 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             The inference graph data in the format of a DGL heterograph. For built-in inference
             pipeline, this graph should be constructed by using methods in the
             `gconstruct.construct_payload_graph.py` file.
-        dataloader: DGL dataloader or GSgnnRealtimeInferNodeDataLoader
-            A GSgnnRealtimeInferNodeDataLoader class for node prediction, or a DGL dataloader class,
-            e.g., `DataLoader`.
+        dataloader: GSgnnRealtimeInferNodeDataLoader
+            A GSgnnRealtimeInferNodeDataLoader class for node prediction inference.
         infer_ntypes: list of string or a string
             The list of the target node types. Or a single string of the target node type.
         nfeat_fields: dict of {str: list}
@@ -226,18 +227,22 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         predictions: dict
             The inference results in the format of {str: tensor}.
         """
-        assert isinstance(g, dgl.DGLGraph), 'The input graph of ' + \
-            '\"GSGnnNodePredictionRealtimeInferrer\" must be an instance of dgl.DGLGraph, ' + \
-            f'but got {type(g)}.'
-        assert isinstance(infer_ntypes, (list, str)), 'The value of \"infer_ntypes\" ' + \
-            f'should be either a list of strings or a single string, but got {infer_ntypes}.'
+        assert isinstance(g, dgl.DGLGraph), ('The input graph of ' \
+            '\"GSGnnNodePredictionRealtimeInferrer\" must be an instance of dgl.DGLGraph, ' \
+            f'but got {type(g)}.')
+        assert isinstance(dataloader, GSgnnRealtimeInferNodeDataLoader), ('The given dataloader ' \
+            'should be a GSgnnRealtimeInferNodeDataLoader instance or its extensions, but ' \
+            f'got {dataloader}.')
+        assert isinstance(infer_ntypes, (list, str)), ('The value of \"infer_ntypes\" ' \
+            f'should be either a list of strings or a single string, but got {infer_ntypes}.')
         if isinstance(infer_ntypes, str):
             infer_ntypes = [infer_ntypes]
+        
 
         # set model to be in the evaluation mode
         self._model.eval()
-        # extract one mini-batch blocks using the given DGL dataloader
-        all_nodes = []
+        # extract one mini-batch blocks using the given dataloader
+        all_nodes = {}
         all_blocks = []
         for input_nodes, _, blocks in dataloader:
             all_nodes = input_nodes

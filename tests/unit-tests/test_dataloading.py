@@ -2659,19 +2659,19 @@ def test_realtime_infer_node_dataloader():
 
     target_idx = {'n1': th.arange(g.number_of_nodes('n1'))}
     batch_size = g.number_of_nodes('n1')
-    dataloader = GSgnnRealtimeInferNodeDataLoader(g, target_idx, num_layers=1, batch_size=batch_size)
+    dataloader = GSgnnRealtimeInferNodeDataLoader(g, target_idx, num_layers=1)
     assert len(dataloader) == 1
 
     src_idx_r0, dst_idx_r0 = g.edges(form='uv', etype=('n0', 'r0', 'n1'))
     src_idx_r1, dst_idx_r1 = g.edges(form='uv', etype=('n0', 'r1', 'n1'))
     all_src_idx = np.unique(np.concatenate([src_idx_r0, src_idx_r1]))
-    all_dst_idx = np.unique(np.concatenate([dst_idx_r0, dst_idx_r1]))
 
     all_nodes = []
     for input_nodes, seeds, blocks in dataloader:
         assert 'n0' in input_nodes
         assert input_nodes['n0'].shape[0] == len(all_src_idx)
         assert 'n1' in input_nodes
+        
         assert input_nodes['n1'].shape[0] == batch_size
         assert 'n1' in seeds
         assert len(blocks) == 1
@@ -2685,13 +2685,13 @@ def test_realtime_infer_node_dataloader():
     # Test case 2: fail to create due to using non-dict targets
     with pytest.raises(AssertionError, match='The \"target_idx\" should be a dictionary'):
         dataloader = GSgnnRealtimeInferNodeDataLoader(g, [th.arange(g.number_of_nodes('n1'))],
-                                                      num_layers=1, batch_size=batch_size)
+                                                      num_layers=1)
 
     # Test case 3: fail to create due to non-existing target ntype
     with pytest.raises(AssertionError, match='node type .* does not exist in the graph.'):
         dataloader = GSgnnRealtimeInferNodeDataLoader(g, 
                                                       {'n3': th.arange(g.number_of_nodes('n1'))},
-                                                      num_layers=1, batch_size=batch_size)
+                                                      num_layers=1)
 
     # Test case 4: fail to create due to using non-DGLGraph
     th.distributed.init_process_group(backend='gloo',
@@ -2706,14 +2706,13 @@ def test_realtime_infer_node_dataloader():
 
     # use a GSGnnData as an input
     with pytest.raises(AssertionError, match='The \"dataset\" should be a DGLGraph'):
-        dataloader = GSgnnRealtimeInferNodeDataLoader(np_data, target_idx, num_layers=1,
-                                                      batch_size=batch_size)
+        dataloader = GSgnnRealtimeInferNodeDataLoader(np_data, target_idx, num_layers=1)
 
     # use a distributed graph as an input
     g = np_data.g
     with pytest.raises(AssertionError, match='The \"dataset\" should be a DGLGraph'):
-        dataloader = GSgnnRealtimeInferNodeDataLoader(g, target_idx, num_layers=1,
-                                                      batch_size=batch_size)
+        dataloader = GSgnnRealtimeInferNodeDataLoader(g, target_idx, num_layers=1)
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
+
