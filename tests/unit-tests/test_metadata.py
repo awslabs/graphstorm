@@ -847,7 +847,7 @@ def test_GSGraphMetadata():
                               etypes=etypes_hetero,
                               nfeat_dims=nfeat_dims_error1)
     nfeat_dims_error2 = {i: {'nfeat1': [4, 7]} for i, ntype in enumerate(ntypes_hetero)}
-    with pytest.raises(AssertionError, match='The node feature dimensions should be .* but got'):
+    with pytest.raises(AssertionError, match='The key of node feature dimensions should be .* but got'):
         gmd = GSGraphMetadata(gtype=gtype_hetero,
                               ntypes=ntypes_hetero,
                               etypes=etypes_hetero,
@@ -875,7 +875,7 @@ def test_GSGraphMetadata():
                               etypes=etypes_hetero,
                               efeat_dims=efeat_dims_error1)
     efeat_dims_error2 = {i: {'efeat1': [8]} for i, etype in enumerate(etypes_hetero)}
-    with pytest.raises(AssertionError, match='The edge feature dimensions should be .* but got'):
+    with pytest.raises(AssertionError, match='The edge feature dimension dictionary\'s key .* but got'):
         gmd = GSGraphMetadata(gtype=gtype_hetero,
                               ntypes=ntypes_hetero,
                               etypes=etypes_hetero,
