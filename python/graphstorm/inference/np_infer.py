@@ -248,6 +248,8 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             all_nodes = input_nodes
             all_blocks = blocks
         # extract node and edge features of the sampled blocks
+        # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups 
+        #      instead of a list of strings
         n_h = prepare_batch_input(g, all_nodes, feat_field=nfeat_fields)
         if efeat_fields:
             e_hs = prepare_blocks_edge_feats(g, all_blocks, efeat_fields)
