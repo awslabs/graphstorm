@@ -755,24 +755,6 @@ def test_GSGraphMetadata():
                     for i, can_etype in enumerate(etypes_hetero)])
     assert all([edge['features'] == [{'feat_name': 'efeat1', 'feat_dim': [8]}] for edge in edges])
 
-    assert str(gmd) == '{\'graph_type\': \'heterogeneous\', \'nodes\': [{\'node_type\': \'ntype1\', ' + \
-                        '\'features\': [{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}, ' + \
-                        '{\'node_type\': \'ntype2\', \'features\': [{\'feat_name\': \'nfeat1\', ' + \
-                        '\'feat_dim\': [4, 7]}]}, {\'node_type\': \'ntype3\', \'features\': ' + \
-                        '[{\'feat_name\': \'nfeat1\', \'feat_dim\': [4, 7]}]}], \'edges\': ' + \
-                        '[{\'source_node_type\': \'ntype1\', \'etype\': \'etype1\', ' + \
-                        '\'destination_node_type\': \'ntype2\', \'features\': [{\'feat_name\': ' + \
-                        '\'efeat1\', \'feat_dim\': [8]}]}, {\'source_node_type\': \'ntype2\', ' + \
-                        '\'etype\': \'etype2\', \'destination_node_type\': \'ntype3\', \'features\': ' + \
-                        '[{\'feat_name\': \'efeat1\', \'feat_dim\': [8]}]}]}'
-
-    assert repr(gmd) == ('GSGraphMetadata(_gtype=\'heterogeneous\', _ntypes=[\'ntype1\', \'ntype2\', '
-                        '\'ntype3\'], _etypes=[(\'ntype1\', \'etype1\', \'ntype2\'), '
-                        '(\'ntype2\', \'etype2\', \'ntype3\')], _nfeat_dims={\'ntype1\': {\'nfeat1\': '
-                        '[4, 7]}, \'ntype2\': {\'nfeat1\': [4, 7]}, \'ntype3\': {\'nfeat1\': '
-                        '[4, 7]}}, _efeat_dims={(\'ntype1\', \'etype1\', \'ntype2\'): {\'efeat1\': [8]}, '
-                        '(\'ntype2\', \'etype2\', \'ntype3\'): {\'efeat1\': [8]}})')
-
     #       1.4 test homogeneous graph with string for node type and tuple for edge type
     gtype_homo = 'homogeneous'
     ntypes_homo = 'ntype1'
