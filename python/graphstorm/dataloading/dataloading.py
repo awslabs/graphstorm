@@ -23,7 +23,6 @@ import math
 import dgl
 import torch as th
 import torch.distributed as dist
-from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
 from packaging import version
 
 from ..utils import get_backend, get_device, is_distributed
@@ -39,10 +38,14 @@ from .utils import (modify_fanout_for_target_etype, trim_data,
 dgl_version = importlib.metadata.version("dgl")
 if version.parse(dgl_version).base_version <= version.parse("2.3.0").base_version:
     # Backward compatible with DGL 2.3 or lower.
-    from dgl.dataloading import DistDataLoader, EdgeCollator
+    from dgl.dataloading import (DistDataLoader,
+                                 EdgeCollator,
+                                 DataLoader,
+                                 MultiLayerFullNeighborSampler)
     from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 else:
     # Compatible with DGL 2.4+ or higher.
+    from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
     from dgl.distributed import DistDataLoader
     from dgl.distributed.dist_dataloader import (EdgeCollator,
                                                  _remove_kwargs_dist)
