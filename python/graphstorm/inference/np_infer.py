@@ -237,7 +237,6 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             f'should be either a list of strings or a single string, but got {infer_ntypes}.')
         if isinstance(infer_ntypes, str):
             infer_ntypes = [infer_ntypes]
-        
 
         # set model to be in the evaluation mode
         self._model.eval()
@@ -248,7 +247,7 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
             all_nodes = input_nodes
             all_blocks = blocks
         # extract node and edge features of the sampled blocks
-        # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups 
+        # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups
         #      instead of a list of strings
         n_h = prepare_batch_input(g, all_nodes, feat_field=nfeat_fields)
         if efeat_fields:
