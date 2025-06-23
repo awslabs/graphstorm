@@ -22,6 +22,7 @@ import math
 
 import dgl
 import torch as th
+from torch.utils.data import DataLoader
 import torch.distributed as dist
 from packaging import version
 
@@ -39,13 +40,10 @@ dgl_version = importlib.metadata.version("dgl")
 if version.parse(dgl_version).base_version <= version.parse("2.3.0").base_version:
     # Backward compatible with DGL 2.3 or lower.
     from dgl.dataloading import (DistDataLoader,
-                                 EdgeCollator,
-                                 DataLoader,
-                                 MultiLayerFullNeighborSampler)
+                                 EdgeCollator)
     from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 else:
     # Compatible with DGL 2.4+ or higher.
-    from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
     from dgl.distributed import DistDataLoader
     from dgl.distributed.dist_dataloader import (EdgeCollator,
                                                  _remove_kwargs_dist)
@@ -1845,14 +1843,16 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
                 batch_size = len(idx)
 
         # use a full neighbor sampler because it is unclear if callers have done sampling when
-        # building the subgraph payload
-        sampler = MultiLayerFullNeighborSampler(num_layers)
+        # building the subgraph payload.
+        sampler = dgl.dataloading.MultiLayerFullNeighborSampler(num_layers)
 
         device = get_device() \
             if is_distributed() and get_backend() == "nccl" else th.device('cpu')
 
-        dataloader = DataLoader(g, target_idx, sampler, device=device, batch_size=batch_size,
-                                shuffle=False, drop_last=False)
+        # Here to avoid naming conflict with torch Dataloader, use dgl name directly
+        dataloader = dgl.dataloading.DataLoader(g, target_idx, sampler, device=device,
+                                                batch_size=batch_size, shuffle=False,
+                                                drop_last=False)
         return dataloader
 
     def __iter__(self):
