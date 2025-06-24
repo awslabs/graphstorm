@@ -15,3 +15,5 @@
 
     Initial to import dataloading and dataset classes
 """
+
+from .construct_graph import verify_confs
