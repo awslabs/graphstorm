@@ -19,6 +19,13 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
+# Ensure a file named data_transform_new.json was created under --output-dir
+if [ ! -f ./movielen_100k_train_val_1p_4t/data_transform_new.json ]; then
+    echo "data_transform_new.json was not created during GConstruct"
+    exit 1
+fi
+
+
 python3 -m graphstorm.gconstruct.construct_graph \
 	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_small_val.json \
 	--num-processes 1 \

@@ -21,6 +21,7 @@ import logging
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
+from ..dataloading import GSgnnNodeDataLoader
 from ..model.node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
 from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model import do_full_graph_inference, GSgnnModelBase, GSgnnModel
@@ -34,7 +35,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
     ``GSgnnNodePredictionTrainer`` is used to train models for node prediction tasks,
     such as node classification and node regression. ``GSgnnNodePredictionTrainer``
-    defines two main functions: 
+    defines two main functions:
 
     * ``fit()``: performs the training for the model provided to this trainer
       when the object is initialized, and;
@@ -75,7 +76,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not a node model. Please implement GSgnnNodeModelBase."
 
-    def fit(self, train_loader, num_epochs,
+    def fit(self, train_loader: GSgnnNodeDataLoader, num_epochs,
             val_loader=None,
             test_loader=None,
             use_mini_batch_infer=True,
@@ -90,7 +91,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         This function performs the training for the given node prediction model.
         It iterates over the training batches provided by the ``train_loader``
         to compute the loss, and then performs the backward steps using trainer's
-        own optimizer. 
+        own optimizer.
 
         If an evaluator and a validation dataloader are added to this trainer, during
         training, the trainer will perform model evaluation in three cases:
@@ -116,7 +117,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             save model checkpoints.
             Default: None.
         save_model_frequency: int
-            The number of iterations to train the model before saving a model checkpoint. 
+            The number of iterations to train the model before saving a model checkpoint.
             Default: -1, meaning only save model after each epoch.
         save_perf_results_path: str
             The path of the file where the performance results are saved. Default: None.

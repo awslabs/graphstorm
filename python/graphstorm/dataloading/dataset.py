@@ -223,6 +223,7 @@ class GSgnnData():
         graph_name = get_graph_name(part_config)
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._graph_name = graph_name
+        self._input_graph_dir = os.path.dirname(os.path.abspath(part_config))
         # Note: node_feat_field and edge_feat_field are useful in three cases:
         # 1. WholeGraph: As the feature information is not stored in g,
         #    node_feat_field and edge_feat_field are used to tell GraphStorm

@@ -101,6 +101,13 @@ if [ ! -f ./models/movielen_100k/train_val/movielen_100k_ngnn_model/GRAPHSTORM_R
     exit 1
 fi
 
+# Ensure a file named data_transform_new.json was copied under --save-model-path
+if [ ! -f ./models/movielen_100k/train_val/movielen_100k_ngnn_model/data_transform_new.json ]; then
+    echo "data_transform_new.json was not copied from input data"
+    exit 1
+fi
+
+
 error_and_exit $?
 
 python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-1/
