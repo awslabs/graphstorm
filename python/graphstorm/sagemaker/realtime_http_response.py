@@ -64,11 +64,12 @@ class GSRealTimeInferenceResponseMessage:
         else:
             res["error"] = ''
         if self.data is not None:
-            res["results"] = self.data
+            res["data"] = self.data
         else:
-            res["results"] = {}
+            res["data"] = {}
         return res
 
+    @classmethod
     def success(cls, data):
         """
         Create a successful response with data.
@@ -79,6 +80,7 @@ class GSRealTimeInferenceResponseMessage:
             data = data
         )
 
+    @classmethod
     def missing_required_field(cls, field):
         """
         Create a response for missing required field errors (401).
@@ -92,6 +94,7 @@ class GSRealTimeInferenceResponseMessage:
             )
         )
 
+    @classmethod
     def missing_data_in_field(cls, field):
         """
         Create a response for missing data in a field (402).
@@ -104,6 +107,7 @@ class GSRealTimeInferenceResponseMessage:
             )
         )
 
+    @classmethod
     def mismatch_target_nid(cls, target_nid):
         """
         Create a response for target indexes are missing in the subgraph (403)
@@ -116,6 +120,7 @@ class GSRealTimeInferenceResponseMessage:
             )
         )
 
+    @classmethod
     def graph_construction_failure(cls, track):
         """
         Create a response for graph construction failures (411).
@@ -128,6 +133,7 @@ class GSRealTimeInferenceResponseMessage:
             )
         )
 
+    @classmethod
     def model_mismatch_error(cls, track):
         """
         Create a response for model/data mismatch errors (421).
@@ -140,6 +146,7 @@ class GSRealTimeInferenceResponseMessage:
             )
         )
 
+    @classmethod
     def internal_server_error(cls, detail):
         """
         Create a generic internal server error response (500).

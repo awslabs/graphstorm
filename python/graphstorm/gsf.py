@@ -123,7 +123,7 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
 from .dataloading import (GSgnnLinkPredictionTestDataLoader,
                           GSgnnLinkPredictionJointTestDataLoader,
                           GSgnnLinkPredictionPredefinedTestDataLoader)
-from .dataloading import (GSMetadataDglDistGraph,
+from .dataloading import (GSDglDistGraphFromMetadata,
                           load_metadata_from_json)
 from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
@@ -1392,7 +1392,7 @@ def restore_builtin_node_model4realtime(model_dir, json_file, yaml_file):
         config_json = json.load(f)
 
     metadata = load_metadata_from_json(config_json)
-    metadata_g = GSMetadataDglDistGraph(metadata)
+    metadata_g = GSDglDistGraphFromMetadata(metadata)
 
     # load model configuration from a YAML file
     args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)

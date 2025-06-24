@@ -15,7 +15,6 @@
 
 """
 
-import pytest
 from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as res_msg
 
 
@@ -23,7 +22,7 @@ def test_realtime_infer_res_msg():
     """ A simple unit test of the GSRealTimeInferenceResponseMessage
     """
     # success case
-    data = {"result": [42]}
+    data = {"results": [42]}
     resp = res_msg.success(data)
     assert resp.status_code == 200
     assert resp.message is not None
@@ -33,20 +32,19 @@ def test_realtime_infer_res_msg():
 
     # to_dict
     # Ensure that all output fields in to_dict match the instance attributes if present
-    resp = res_msg.success({"foo": "bar"})
+    resp = res_msg.success(data={"foo": "bar"})
     res = resp.to_dict()
     assert res["status_code"] == resp.status_code
     assert res["message"] == resp.message
     assert res["data"] == resp.data
-    # 'error' may not be present in a success response
-    assert "error" not in res or res["error"] is None
+    assert res["error"] == ''
 
     # missing required field case
     resp = res_msg.missing_required_field("node_features")
     assert resp.status_code == 401
     assert resp.message is None
     assert "node_features" in resp.error
-    assert resp.data is None
+    assert resp.data == {}
 
     # internal server error
     detail = "Unexpected exception"
@@ -54,7 +52,3 @@ def test_realtime_infer_res_msg():
     assert resp.status_code == 500
     assert resp.error is not None
     assert detail in resp.error
-
-
-if __name__ == '__main__':
-    test_realtime_infer_res_msg()
