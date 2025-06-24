@@ -2651,6 +2651,7 @@ def test_GSgnnTranData_small_val_test():
         assert p0.exitcode == 0
         assert p1.exitcode == 0
 
+
 def test_realtime_infer_node_dataloader():
     """ Test the real-time inference node dataloader
     """
@@ -2715,4 +2716,3 @@ def test_realtime_infer_node_dataloader():
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
-

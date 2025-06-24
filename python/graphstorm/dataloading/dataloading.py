@@ -22,9 +22,9 @@ import math
 
 import dgl
 import torch as th
-from torch.utils.data import DataLoader
 import torch.distributed as dist
 from packaging import version
+from torch.utils.data import DataLoader
 
 from ..utils import get_backend, get_device, is_distributed
 from .dataset import GSDistillData
@@ -39,8 +39,7 @@ from .utils import (modify_fanout_for_target_etype, trim_data,
 dgl_version = importlib.metadata.version("dgl")
 if version.parse(dgl_version).base_version <= version.parse("2.3.0").base_version:
     # Backward compatible with DGL 2.3 or lower.
-    from dgl.dataloading import (DistDataLoader,
-                                 EdgeCollator)
+    from dgl.dataloading import DistDataLoader, EdgeCollator
     from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 else:
     # Compatible with DGL 2.4+ or higher.
