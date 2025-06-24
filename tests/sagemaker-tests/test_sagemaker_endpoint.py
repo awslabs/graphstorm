@@ -1,5 +1,5 @@
 """
-    Copyright Contributors
+    Copyright 2025 Contributors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -12,8 +12,11 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-    GraphStorm SageMaker package
 """
+import os
+import tempfile
+import pytest
+from argparse import ArgumentTypeError
 
-from .realtime_http_response import GSRealTimeInferenceResponseMessage
+from realtime_entry_points.node_prediction_entry import (model_fn, input_fn, predict_fn)
+

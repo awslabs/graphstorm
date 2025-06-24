@@ -291,7 +291,7 @@ def predict_fn(input_data, model):
         'message': 'something', 'data': {'data': dgl_graph, 'targets': target_dict}}.
         The target_dict is a dictionary whose keys are target node types, and keys are tuples
         where the 1st element is a list of the original node IDs, and the 2nd element is a list
-        of the new DGL graph integer IDs. The input_data comes from the predict_fn functioin.
+        of the new DGL graph integer IDs. The input_data comes from the input_fn functioin.
     model: GraphStorm model
         A GraphStorm model loaded from the model_fn() function.
     """
@@ -299,7 +299,8 @@ def predict_fn(input_data, model):
     s_t = dt.now()
 
     res = {}
-    # Handle payload errors
+    # Handle payload errors from the input_fn
+    
     if input_data[STATUS] != 200:
         res[STATUS] = input_data[STATUS]
         res[MSG] = input_data[MSG]
