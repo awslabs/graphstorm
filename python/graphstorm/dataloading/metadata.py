@@ -145,7 +145,7 @@ class GSGraphMetadata():
                     f'dictionary\'s value should be a dictionary, but got {feat_dims}.')
                 for feat_name, dim_list in feat_dims.items():
                     assert isinstance(feat_name, str), ('The edge feature dimension ' \
-                        'dictionary\'s values should be dictionaries, whose keys are ' \
+                        object is a dictionary, whose keys are ' \
                         f'strings, but got the key {feat_name} for the {etype} node.')
                     assert isinstance(dim_list, list), ('The edge feature dimension ' \
                         'dictionary\'s values should be dictionaries, whose values are lists, ' \
