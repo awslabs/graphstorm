@@ -118,7 +118,7 @@ class GSGraphMetadata():
                 assert isinstance(ntype, str), ('The key of node feature dimensions should be ' \
                     f'a string, but got {ntype}.')
                 assert isinstance(feat_dims, dict), (f'The value of node feature dimension of  {ntype}' \
-                    f'should be a dictionary, but got {ntype}.')
+                    f'should be a dictionary, but got {feat_dims}.')
                 for feat_name, dim_list in feat_dims.items():
                     assert isinstance(feat_name, str), ('The node feature dimension ' \
                         'dictionary\'s values should be dictionaries, whose keys are ' \
