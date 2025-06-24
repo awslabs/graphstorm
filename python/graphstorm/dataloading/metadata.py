@@ -117,15 +117,15 @@ class GSGraphMetadata():
             for ntype, feat_dims in nfeat_dims.items():
                 assert isinstance(ntype, str), ('The key of node feature dimensions should be ' \
                     f'a string, but got {ntype}.')
-                assert isinstance(feat_dims, dict), (f'The value of node feature dimension of  {ntype}' \
-                    f'should be a dictionary, but got {feat_dims}.')
+                assert isinstance(feat_dims, dict), ('The value of node feature dimension of ' \
+                    f'{ntype} should be a dictionary, but got {feat_dims}.')
                 for feat_name, dim_list in feat_dims.items():
-                    assert isinstance(feat_name, str), ('The node feature dimension ' \
-                        'dictionary\'s values should be dictionaries, whose keys are ' \
-                        f'strings, but got the key {feat_name} for the {ntype} node.')
-                    assert isinstance(dim_list, list), ('The node feature dimension ' \
-                        'dictionary\'s values should be dictionaries, whose values are lists, ' \
-                        f'but got {dim_list} for the {ntype} node.')
+                    assert isinstance(feat_name, str), ('The feature dimension object ' \
+                        'should be a dictionary, whose keys are strings, but got ' \
+                        f'the key {feat_name} for the {ntype} node.')
+                    assert isinstance(dim_list, list), ('The feature dimension object ' \
+                        'should be a dictionary, whose values are lists, but got the ' \
+                        f'value {dim_list} for the {ntype} node.')
             # need to make sure the input argument format is correct first, and then can test
             # the contents
             assert all(ntype in self._ntypes for ntype in nfeat_dims.keys()), ('Some node ' \
@@ -137,19 +137,19 @@ class GSGraphMetadata():
             assert isinstance(efeat_dims, dict), ('The edge feature dimensions should be a ' \
                 f'dictionary, but got {efeat_dims}.')
             for etype, feat_dims in efeat_dims.items():
-                assert isinstance(etype, tuple) and len(etype)==3, ('The edge feature ' \
-                    'dimension dictionary\'s key should be a tuple, which includes three ' \
+                assert isinstance(etype, tuple) and len(etype)==3, ('The key of edge feature ' \
+                    'dimension dictionary should be a tuple, which includes three ' \
                     'strings to indicate source node type, relation type, destination node type), ' \
                     f'but got {etype}.')
-                assert isinstance(feat_dims, dict), ('The edge feature dimension ' \
-                    f'dictionary\'s value should be a dictionary, but got {feat_dims}.')
+                assert isinstance(feat_dims, dict), ('The value of edge feature dimension ' \
+                    f'dictionary should be a dictionary, but got {feat_dims}.')
                 for feat_name, dim_list in feat_dims.items():
-                    assert isinstance(feat_name, str), ('The edge feature dimension ' \
-                        object is a dictionary, whose keys are ' \
-                        f'strings, but got the key {feat_name} for the {etype} node.')
-                    assert isinstance(dim_list, list), ('The edge feature dimension ' \
-                        'dictionary\'s values should be dictionaries, whose values are lists, ' \
-                        f'but got {dim_list} for the {etype} node.')
+                    assert isinstance(feat_name, str), ('The feature dimension object ' \
+                        'should be a dictionary, whose keys are strings, but got the ' \
+                        f'key {feat_name} for the {etype} edge.')
+                    assert isinstance(dim_list, list), ('The feature dimension object ' \
+                        'should be a dictionary, whose values are lists, but got the ' \
+                        f'value {dim_list} for the {etype} edge.')
             # need to make sure the input argument format is correct first, and then can test
             # the contents
             assert all(etype in self._etypes for etype in efeat_dims.keys()), (
