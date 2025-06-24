@@ -18,7 +18,9 @@
 
 import os
 import logging
+import json
 import importlib.metadata
+from argparse import Namespace
 
 import numpy as np
 import dgl
@@ -37,19 +39,20 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
-                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
-from .config import (BUILTIN_LP_DOT_DECODER,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
+                     BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
                      BUILTIN_LP_ROTATE_DECODER,
                      BUILTIN_LP_TRANSE_L1_DECODER,
-                     BUILTIN_LP_TRANSE_L2_DECODER)
-from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                     BUILTIN_LP_TRANSE_L2_DECODER,
+                     BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_LP_LOSS_BPR,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL,
                      BUILTIN_REGRESSION_LOSS_MSE,
-                     BUILTIN_REGRESSION_LOSS_SHRINKAGE)
+                     BUILTIN_REGRESSION_LOSS_SHRINKAGE,
+                     GSConfig)
 from .eval.eval_func import (
     SUPPORTED_HIT_AT_METRICS,
     SUPPORTED_LINK_PREDICTION_METRICS)
@@ -120,7 +123,8 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
 from .dataloading import (GSgnnLinkPredictionTestDataLoader,
                           GSgnnLinkPredictionJointTestDataLoader,
                           GSgnnLinkPredictionPredefinedTestDataLoader)
-
+from .dataloading import (GSMetadataDglDistGraph,
+                          load_metadata_from_json)
 from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
@@ -1370,3 +1374,33 @@ def create_lp_evaluator(config):
                                 early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                 early_stop_rounds=config.early_stop_rounds,
                                 early_stop_strategy=config.early_stop_strategy)
+
+
+####################### Functions for real-time inference #############################
+def restore_builtin_node_model4realtime(model_dir, json_file, yaml_file):
+    """ restore the trained GraphStorm model for real-time node inference
+
+    The real-time node inference is supposed to occur inside a SageMaker real-time inference
+    endpoint where in a model path there is a `model.bin` file as the trained parameters, a
+    JSON file that store the metadata of graphs used during model training, and a YAML file
+    """
+    # intialize gsf environment first
+    initialize()
+
+    # create a metadata graph for a graph configuration JSON file
+    with open(os.path.join(model_dir, json_file), 'r') as f:
+        config_json = json.load(f)
+
+    metadata = load_metadata_from_json(config_json)
+    metadata_g = GSMetadataDglDistGraph(metadata)
+
+    # load model configuration from a YAML file
+    args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)
+    model_config = GSConfig(args)
+
+    # use GraphStorm built-in function to create the model and reload 
+    model = create_builtin_node_gnn_model(metadata_g, model_config, train_task=False)
+    model.restore_model(model_dir)
+
+    # return all three artifacts back to model_fn()
+    return model, config_json, model_config
