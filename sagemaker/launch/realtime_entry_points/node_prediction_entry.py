@@ -28,11 +28,9 @@ import torch as th
 from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
 
 import graphstorm as gs
-from graphstorm.config import GSConfig
-from graphstorm.dataloading.metadata import (GSMetadataDglDistGraph,
-                                             load_metadata_from_json)
 from graphstorm.gconstruct import (ERROR_CODE, GRAPH, MSG, NODE_MAPPING,
                                    STATUS, process_json_payload_graph)
+from graphstorm.dataloading import GSgnnRealtimeInferNodeDataLoader
 from graphstorm.inference import GSGnnNodePredictionRealtimeInferrer
 from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as res_msg
 
@@ -300,36 +298,29 @@ def predict_fn(input_data, model):
 
     res = {}
     # Handle payload errors from the input_fn
-    
-    if input_data[STATUS] != 200:
-        res[STATUS] = input_data[STATUS]
-        res[MSG] = input_data[MSG]
-        res[RESULTS] = {}
-        return res
+    if input_data.status_code != 200:
+        return input_data.to_dict()
 
     # extract the data
-    dgl_graph = input_data[DATA]
-    target_dict = input_data[TARGETS]
+    dgl_graph = input_data.data[DATA]
+    target_dict = input_data.data[TARGETS]
 
-    # sample input graph to build blocks
+    # extract the DGL graph nids from target ID mapping dict
     target_nids = {}
-    batch_size = 0
     for ntype, (_, dgl_nids) in target_dict.items():
         target_nids[ntype] = dgl_nids
-        if len(dgl_nids) > batch_size:
-            batch_size = len(dgl_nids)
 
     # Use load model configuration to intialize an inferrer
     global MODEL_YAML
     model_config = MODEL_YAML
 
     try:
+        # initialize a GS real-time inferrer
         inferrer = GSGnnNodePredictionRealtimeInferrer(model)
-        # Initialize a DGL Sampler and DataLoader for the inferrer
-        sampler = MultiLayerFullNeighborSampler(model_config.num_layers)
-        dataloader = DataLoader(dgl_graph, target_nids, sampler,
-                                batch_size=batch_size, shuffle=False,
-                                drop_last=False)
+        # initialize a GS real-time dataLoader
+        dataloader = GSgnnRealtimeInferNodeDataLoader(dgl_graph,
+                                                      target_nids,
+                                                      model_config.num_layers)
         predictions = inferrer.infer(dgl_graph, dataloader, list(target_dict.keys()),
                                      model_config.node_feat_name, 
                                      model_config.edge_feat_name)
@@ -348,19 +339,13 @@ def predict_fn(input_data, model):
                 pred_list.append(pred_res)
     except Exception as e:
         logging.error(traceback.format_exc())
-        res[STATUS] = 500
-        res[MSG] = 'Generic server error. Please contact with your administrators ' + \
-                   f'for this error: {traceback.format_exc()}'
-        res[RESULTS] = {}
-        return res
+        res = res_msg.internal_server_error(detail=e)
+        return res.to_dict()
 
-    res = {}
-    res[STATUS] = 200
-    res[MSG] = 'The request is successfully proceeded. '
-    res[RESULTS] = pred_list
+    res = res_msg.success(data={RESULTS: pred_list})
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)
     logging.info(f'--predict_fn: used {diff_t} ms ...')
 
-    return res
+    return res.to_dict()
