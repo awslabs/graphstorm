@@ -139,8 +139,8 @@ class GSGraphMetadata():
             for etype, feat_dims in efeat_dims.items():
                 assert isinstance(etype, tuple) and len(etype)==3, ('The key of edge feature ' \
                     'dimension dictionary should be a tuple, which includes three ' \
-                    'strings to indicate source node type, relation type, destination node type), ' \
-                    f'but got {etype}.')
+                    'strings to indicate source node type, relation type, destination node ' \
+                    f'type ), but got {etype}.')
                 assert isinstance(feat_dims, dict), ('The value of edge feature dimension ' \
                     f'dictionary should be a dictionary, but got {feat_dims}.')
                 for feat_name, dim_list in feat_dims.items():
