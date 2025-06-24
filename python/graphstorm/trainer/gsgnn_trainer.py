@@ -60,6 +60,7 @@ class GSgnnTrainer():
         self._optimizer = optimizer
         self._evaluator = None
         self._best_model_path = None
+        self._input_dir = None
 
         assert topk_model_to_save >= 0
         self._topklist = TopKList(topk_model_to_save)    # A list to store the top k best
