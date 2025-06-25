@@ -15,22 +15,21 @@
 
     Inferrer wrapper for node classification and regression.
 """
-import time
 import logging
+import time
+
 import dgl
 
-from .graphstorm_infer import GSInferrer
-from ..model.utils import save_shuffled_node_embeddings
-from ..model.utils import save_node_prediction_results
-from ..model.utils import NodeIDShuffler
-from ..model import do_full_graph_inference
-from ..model.node_gnn import node_mini_batch_gnn_predict
-from ..model.node_gnn import node_mini_batch_predict
-
-from ..utils import sys_tracker, get_rank, barrier
+from ..dataloading import GSgnnRealtimeInferNodeDataLoader
 from ..dataloading.dataset import (prepare_batch_input,
                                    prepare_blocks_edge_feats)
-from ..dataloading import GSgnnRealtimeInferNodeDataLoader
+from ..model import do_full_graph_inference
+from ..model.node_gnn import (node_mini_batch_gnn_predict,
+                              node_mini_batch_predict)
+from ..model.utils import (NodeIDShuffler, save_node_prediction_results,
+                           save_shuffled_node_embeddings)
+from ..utils import barrier, get_rank, sys_tracker
+from .graphstorm_infer import GSInferrer
 
 
 class GSgnnNodePredictionInferrer(GSInferrer):
@@ -241,21 +240,19 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         # set model to be in the evaluation mode
         self._model.eval()
         # extract one mini-batch blocks using the given dataloader
-        all_nodes = {}
-        all_blocks = []
-        for input_nodes, _, blocks in dataloader:
-            all_nodes = input_nodes
-            all_blocks = blocks
+        assert len(dataloader) == 1, ('Real-time inference do mini-batch computing once, but ' \
+            f'got the number of mini batch: {len(dataloader)}.')
+        input_nodes, _, blocks = next(iter(dataloader))
         # extract node and edge features of the sampled blocks
         # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups
         #      instead of a list of strings
-        n_h = prepare_batch_input(g, all_nodes, feat_field=nfeat_fields)
+        n_h = prepare_batch_input(g, input_nodes, feat_field=nfeat_fields)
         if efeat_fields:
-            e_hs = prepare_blocks_edge_feats(g, all_blocks, efeat_fields)
+            e_hs = prepare_blocks_edge_feats(g, blocks, efeat_fields)
         else:
-            e_hs = prepare_blocks_edge_feats(g, all_blocks, None)
+            e_hs = prepare_blocks_edge_feats(g, blocks, None)
         # do predict on the blocks
-        logits, _ = self._model.predict(all_blocks, n_h, e_hs, all_nodes,
+        logits, _ = self._model.predict(blocks, n_h, e_hs, input_nodes,
                                         return_proba=return_proba)
         # post processing to extract predictions on inference node types
         predictions = {}

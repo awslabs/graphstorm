@@ -46,6 +46,9 @@ else:
     from dgl.distributed import DistDataLoader
     from dgl.distributed.dist_dataloader import (EdgeCollator,
                                                  _remove_kwargs_dist)
+
+MAX_REALTIME_BATCH_SIZE = 1000
+
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
 class _ReconstructedNeighborSampler():
@@ -1791,17 +1794,14 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         Add `GSgnnRealtimeInferNodeDataLoader` class to support node-level dataloader for
         real-time inference.
 
-    This dataloader wraps DGL's DataLoader for real-time inference in GraphStorm. It will use DGL's
-    `MultiLayerFullNeighborSampler` samper to extract all nodes from the given subgraph because
-    during real-time inference. Graph sampling can be achieved before invoking the real-time inference endpoint.
-    when building the subgraph payload.
-    
-    This class extends from the ``GSgnnNodeDataLoaderBase`` class so that it will be compatible
-    with other dataloaders.
+    This dataloader extends from the ``GSgnnNodeDataLoaderBase`` class for real-time inference.
+    It will use DGL's `MultiLayerFullNeighborSampler` sampler to extract all nodes from the given
+    subgraph during real-time inference. Graph sampling can be achieved before invoking the
+    real-time inference endpoint when building the subgraph payload.
 
     Parameters
     -----------
-    dataset: DGLGraph
+    g: DGLGraph
         A DGLGraph instance.
     target_idx : dict of Tensors
         The target node indexes for prediction.
@@ -1809,27 +1809,24 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         The number of layers dataloader will use as the number of GNN layers. Default is 1.
     """
     def __init__(self,
-                 dataset,
+                 g,
                  target_idx,
                  num_layers=1):
-        assert isinstance(dataset, dgl.DGLGraph), ('The \"dataset\" should be a DGLGraph ' \
-            f'instance, but got {dataset}.')
-        assert isinstance(target_idx, dict), ('The \"target_idx\" should be a dictionary, ' \
-            f'but got {target_idx}.')
+        assert isinstance(g, dgl.DGLGraph), ('The argument \"g\" should be a DGLGraph ' \
+            f'instance, but got {g}.')
+        assert isinstance(target_idx, dict), ('The argument \"target_idx\" should be a ' \
+            f'dictionary, but got {target_idx}.')
         for ntype in target_idx:
-            assert ntype in dataset.ntypes, (f'node type {ntype} does not exist in the graph.')
+            assert ntype in g.ntypes, (f'node type {ntype} does not exist in the graph.')
 
-        # set dummy label fields using "label" string
-        label_field = "label"
-
-        super().__init__(dataset,
+        super().__init__(g,
                          target_idx,
                          fanout=[-1],
-                         label_field=label_field,
+                         label_field="label",
                          node_feats=None,
                          edge_feats=None)
 
-        self.dataloader = self._prepare_dataloader(dataset, target_idx, num_layers)
+        self.dataloader = self._prepare_dataloader(g, target_idx, num_layers)
 
     def _prepare_dataloader(self, g, target_idx, num_layers):
         """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader. 
@@ -1841,12 +1838,18 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
             if len(idx) > batch_size:
                 batch_size = len(idx)
 
+        if batch_size > MAX_REALTIME_BATCH_SIZE:
+            logging.warning(f'The maximum number of target nodes {batch_size} is larger than ' \
+                f'{MAX_REALTIME_BATCH_SIZE}. This may cause longer response latency or other ' \
+                 'unexpected issues.')
+
         # use a full neighbor sampler because it is unclear if callers have done sampling when
         # building the subgraph payload.
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(num_layers)
 
-        device = get_device() \
-            if is_distributed() and get_backend() == "nccl" else th.device('cpu')
+        # for an endpoint, just use one GPU if in a GPU instance
+        # TODO (Jian) investigate the efficiency of using multiple GPUs and decide next design
+        device = th.device('cuda:0') if th.cuda.is_available() else th.device('cpu')
 
         # Here to avoid naming conflict with torch Dataloader, use dgl name directly
         dataloader = dgl.dataloading.DataLoader(g, target_idx, sampler, device=device,
@@ -1875,7 +1878,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         int: length
         """
         # TODO(Jian), provide meaningful length if the number of targets is relatively large.
-        return 1
+        return self.dataloader.__len__()
 
 
 ####################### Multi-task Dataloader ####################

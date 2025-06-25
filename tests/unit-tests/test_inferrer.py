@@ -1719,7 +1719,22 @@ def test_realtime_infer_np():
         for infer_ntype in infer_ntypes)
 
     #   Test case 2: abnormal case
-    #       2.1 invalid input graph
+    #       2.1 infer ntypes do not in prediction results
+    infer_ntypes = 'n2'
+    dataloader = GSgnnRealtimeInferNodeDataLoader(g, infer_nids, num_layers=1)
+    with pytest.raises(AssertionError, match='.* is not in the set of prediction ntypes'):
+        pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
+
+    #       2.2 dataloader is not a GSgnnRealtimeInferNodeDataLoader
+    sampler = MultiLayerFullNeighborSampler(1)
+    dataloader = DataLoader(g, infer_nids, sampler,
+                            batch_size=10, shuffle=False,
+                            drop_last=False)
+    inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+    with pytest.raises(AssertionError, match='The given dataloader should be .* but got'):
+        pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
+
+    #       2.3 invalid input graph
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
@@ -1740,20 +1755,3 @@ def test_realtime_infer_np():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
-    #       2.2 infer ntypes do not in prediction results
-    infer_ntypes = 'n2'
-    model = create_builtin_node_gnn_model(g, config, True)
-    inferrer = GSGnnNodePredictionRealtimeInferrer(model)
-    with pytest.raises(AssertionError, match='.* is not in the set of prediction ntypes'):
-        pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
-
-    #       2.3 dataloader is not a GSgnnRealtimeInferNodeDataLoader
-    sampler = MultiLayerFullNeighborSampler(1)
-    dataloader = DataLoader(g, infer_nids, sampler,
-                            batch_size=10, shuffle=False,
-                            drop_last=False)
-    inferrer = GSGnnNodePredictionRealtimeInferrer(model)
-    with pytest.raises(AssertionError, match='The given dataloader should be .* but got'):
-        pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name)
-

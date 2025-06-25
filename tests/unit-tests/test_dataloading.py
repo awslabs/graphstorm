@@ -2667,24 +2667,22 @@ def test_realtime_infer_node_dataloader():
     src_idx_r1, dst_idx_r1 = g.edges(form='uv', etype=('n0', 'r1', 'n1'))
     all_src_idx = np.unique(np.concatenate([src_idx_r0, src_idx_r1]))
 
-    all_nodes = []
-    for input_nodes, seeds, blocks in dataloader:
-        assert 'n0' in input_nodes
-        assert input_nodes['n0'].shape[0] == len(all_src_idx)
-        assert 'n1' in input_nodes
-        
-        assert input_nodes['n1'].shape[0] == batch_size
-        assert 'n1' in seeds
-        assert len(blocks) == 1
-        all_nodes.append(seeds['n1'])
+    # should only has one mini batch
+    input_nodes, seeds, blocks = next(iter(dataloader))
+    assert 'n0' in input_nodes
+    assert input_nodes['n0'].shape[0] == len(all_src_idx)
+    assert 'n1' in input_nodes
+    
+    assert input_nodes['n1'].shape[0] == batch_size
+    assert 'n1' in seeds
+    assert len(blocks) == 1
 
-    all_nodes = th.cat(all_nodes)
-    assert_equal(all_nodes.numpy(), target_idx['n1'])
+    assert_equal(seeds['n1'].numpy(), target_idx['n1'])
     assert dataloader.node_feat_fields == None
     assert dataloader.edge_feat_fields == None
 
     # Test case 2: fail to create due to using non-dict targets
-    with pytest.raises(AssertionError, match='The \"target_idx\" should be a dictionary'):
+    with pytest.raises(AssertionError, match='The argument \"target_idx\" should be a dictionary'):
         dataloader = GSgnnRealtimeInferNodeDataLoader(g, [th.arange(g.number_of_nodes('n1'))],
                                                       num_layers=1)
 
@@ -2706,12 +2704,12 @@ def test_realtime_infer_node_dataloader():
         np_data = GSgnnData(part_config=part_config)
 
     # use a GSGnnData as an input
-    with pytest.raises(AssertionError, match='The \"dataset\" should be a DGLGraph'):
+    with pytest.raises(AssertionError, match='The argument \"g\" should be a DGLGraph'):
         dataloader = GSgnnRealtimeInferNodeDataLoader(np_data, target_idx, num_layers=1)
 
     # use a distributed graph as an input
     g = np_data.g
-    with pytest.raises(AssertionError, match='The \"dataset\" should be a DGLGraph'):
+    with pytest.raises(AssertionError, match='The argument \"g\" should be a DGLGraph'):
         dataloader = GSgnnRealtimeInferNodeDataLoader(g, target_idx, num_layers=1)
 
     # after test pass, destroy all process group
