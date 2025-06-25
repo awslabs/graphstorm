@@ -71,7 +71,7 @@ def check_failure(config, field):
         has_error = True
     assert has_error
 
-def create_dummpy_config_obj():
+def create_dummy_config_obj():
     yaml_object = { # dummy config, bypass checks by default
         "version": 1.0,
         "gsf": {
@@ -103,7 +103,7 @@ def copy_gconstruct_config(tmp_path, file_name=RUNTIME_GCONSTRUCT_FILENAME):
 
 
 def create_basic_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "backend": "gloo",
         "ip_config": os.path.join(tmp_path, "ip.txt"),
@@ -196,7 +196,7 @@ def test_load_basic_info():
         check_failure(config, "part_config")
 
 def create_task_tracker_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["output"] = {
     }
 
@@ -277,10 +277,15 @@ def test_task_tracker_info():
         check_failure(config, "task_tracker")
         check_failure(config, "log_report_frequency")
 
-def create_train_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+def create_train_config(tmp_path: Path, file_name: str):
+    yaml_object = create_dummy_config_obj()
+    _, part_config = tempfile.mkstemp(dir=str(tmp_path))
+    yaml_object["gsf"]["basic"].update({
+        "part_config": part_config
+    })
     yaml_object["gsf"]["hyperparam"] = {
     }
+
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
@@ -396,7 +401,9 @@ def test_train_info():
         assert config.use_self_loop == True
         assert config.use_early_stop == False
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'),
+            local_rank=0)
         config = GSConfig(args)
 
         assert config.dropout == 0.1
@@ -464,7 +471,7 @@ def test_train_info():
         check_failure(config, "alpha_l2norm")
 
 def create_rgcn_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["rgcn"] = {
     }
     # config for check default value
@@ -509,7 +516,7 @@ def test_rgcn_info():
         check_failure(config, "num_bases")
 
 def create_rgat_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["rgat"] = {
     }
     # config for check default value
@@ -544,7 +551,7 @@ def test_rgat_info():
         check_failure(config, "num_heads")
 
 def create_node_class_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["node_classification"] = {
     }
     # config for check default value
@@ -827,7 +834,7 @@ def test_node_class_info():
         check_failure(config, "imbalance_class_weights")
 
 def create_node_regress_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["node_regression"] = {
     }
     # config for check default value
@@ -911,7 +918,7 @@ def test_node_regress_info():
         check_failure(config, "eval_metric")
 
 def create_edge_class_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["edge_classification"] = {
     }
     # config for check default value
@@ -1050,7 +1057,7 @@ def test_edge_class_info():
         check_failure(config, "eval_metric")
 
 def create_lp_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["link_prediction"] = {
     }
     # config for check default value
@@ -1319,7 +1326,7 @@ def test_lp_info():
         check_failure(config, "lp_decoder_type")
 
 def create_gnn_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["link_prediction"] = {}
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgat"
@@ -1593,7 +1600,11 @@ def test_gnn_info():
 
 
 def create_io_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
+    _, part_config = tempfile.mkstemp(dir=str(tmp_path))
+    yaml_object["gsf"]["basic"].update({
+        "part_config": part_config
+    })
     yaml_object["gsf"]["input"] = {
     }
     yaml_object["gsf"]["output"] = {
@@ -1658,7 +1669,7 @@ def test_load_io_info():
         assert config.save_prediction_path == "./prediction"
 
 def create_lm_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "rgcn"
     }
@@ -1730,7 +1741,7 @@ def create_lm_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for check default value with gsf encoder type lm
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "lm"
     }
@@ -1746,7 +1757,7 @@ def create_lm_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     # config for check default value with gsf encoder type mlp
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "mlp"
     }
@@ -1829,7 +1840,7 @@ def test_lm():
 
 def test_check_node_lm_config():
     with tempfile.TemporaryDirectory() as tmpdirname:
-        yaml_object = create_dummpy_config_obj()
+        yaml_object = create_dummy_config_obj()
 
         with open(os.path.join(tmpdirname, "check_lm_config_default.yaml"), "w") as f:
             yaml.dump(yaml_object, f)
@@ -1874,7 +1885,7 @@ def test_check_node_lm_config():
 
 def test_id_mapping_file():
     with tempfile.TemporaryDirectory() as tmpdirname:
-        yaml_object = create_dummpy_config_obj()
+        yaml_object = create_dummy_config_obj()
         part_path = os.path.join(tmpdirname, "graph")
         yaml_object["gsf"]["basic"] = {
             "part_config": os.path.join(part_path, "graph.json"),
@@ -2045,7 +2056,7 @@ def create_dummy_efr_config2():
     }
 
 def create_multi_task_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "backend": "gloo",
     }
