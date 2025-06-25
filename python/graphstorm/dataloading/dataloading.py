@@ -1839,9 +1839,10 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
                 batch_size = len(idx)
 
         if batch_size > MAX_REALTIME_BATCH_SIZE:
-            logging.warning(f'The maximum number of target nodes {batch_size} is larger than ' \
-                f'{MAX_REALTIME_BATCH_SIZE}. This may cause longer response latency or other ' \
-                 'unexpected issues.')
+            logging.warning('The maximum number of target nodes %s',  batch_size + \
+                'is larger than %s', MAX_REALTIME_BATCH_SIZE + \
+                ' This may cause longer response latency or other unexpected issues. ' \
+                'Please use smaller number of target nodes.')
 
         # use a full neighbor sampler because it is unclear if callers have done sampling when
         # building the subgraph payload.
