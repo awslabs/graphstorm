@@ -21,7 +21,7 @@
         "relation": ["user", "rated", "movie"]
       },
       {
-        "files": "edges/director-directed-movie.csv",
+        "files": "edges/director-directed-*.csv",
         "format": {
             "name": "csv",
             "separator" : ","
@@ -42,7 +42,7 @@
         "node_id_col":  "~id",
         "node_type":    "movies",
         "format":       {"name": "csv", "separator": ","},
-        "files":        ["nodes/movie.csv"]
+        "files":        ["nodes/movie*"]
       },
       {
         "node_id_col":  "~id",

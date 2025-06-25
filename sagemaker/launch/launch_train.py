@@ -17,11 +17,10 @@
 """
 import os
 
-import boto3 # pylint: disable=import-error
 from sagemaker.pytorch.estimator import PyTorch
-import sagemaker
 
 from common_parser import (
+    create_sm_session,
     get_common_parser,
     parse_estimator_kwargs,
     SUPPORTED_TASKS,
@@ -59,10 +58,7 @@ def run_job(input_args, image, unknowargs):
     custom_script = input_args.custom_script # custom_script if any
     log_level = input_args.log_level # SageMaker runner logging level
 
-    boto_session = boto3.session.Session(region_name=region)
-    sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
-    sess = sagemaker.session.Session(boto_session=boto_session,
-        sagemaker_client=sagemaker_client)
+    sess = create_sm_session(instance_type, region)
 
     container_image_uri = image
 

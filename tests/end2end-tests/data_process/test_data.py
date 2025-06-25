@@ -279,3 +279,8 @@ if args.reverse_edges:
     assert g.num_edges(('node2', 'relation_empty_csv0-rev', 'node1')) == g.num_edges(('node1', 'relation_empty_csv0', 'node2'))
 
     assert g.num_edges(('node2', 'relation_empty_pa0-rev', 'node1')) == g.num_edges(('node1', 'relation_empty_pa0', 'node2'))
+
+# Test featless nodes (nodes only in edge files)
+assert g.num_nodes('node_fl') < g.num_nodes('node3')
+node_fl_map = read_data_parquet(os.path.join(out_dir, "raw_id_mappings", "node_fl"))
+assert len(node_fl_map["orig"]) == g.num_nodes('node_fl')

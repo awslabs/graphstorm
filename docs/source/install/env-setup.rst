@@ -1,89 +1,83 @@
 .. _setup:
 
 Environment Setup
-======================
-GraphStorm supports two environment setup methods:
-    - Install GraphStorm as a pip package. This method works well for development and test on a single machine.
-    - Setup a GraphStorm Docker image. This method is good for using GraphStorm in distributed environments that commonly used in production.
+=================
+
+This guide will walk you through the process of installing GraphStorm, based on your specific use scenario.
+
+GraphStorm supports three environment setup methods:
+    - Install GraphStorm to your local Python environment. This method is ideal for model development and testing on a single machine.
+    - Setup a GraphStorm Docker image. This method allows you to work in a reproducible environment, and
+      can naturally be expanded to use GraphStorm in a distributed multi-machine environment.
+    - :ref:`Run GraphStorm jobs on SageMaker <distributed-sagemaker>`. This method makes it easy to run
+      distributed jobs on massive graphs without worrying about infrastructure setup and management, allowing you to focus on your business problems.
 
 .. _setup_pip:
 
-1. Setup GraphStorm with pip Packages
---------------------------------------
+Setup GraphStorm in your local Python environment
+----------------------------------------------------
+
 Prerequisites
 ...............
 
-1. **Linux OS**: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.
+1. **Linux OS**: The current version of GraphStorm supports Linux-based operating systems. GraphStorm
+   has been tested on Ubuntu 20.04, 22.04 and
+   `Amazon Linux 2023 <https://docs.aws.amazon.com/linux/al2023/ug/what-is-amazon-linux.html>`_.
+2. **Python3**: The current version of GraphStorm requires Python version **3.8** to **3.11**.
+3. (Optional) GraphStorm supports **Nvidia GPUs**.
 
-2. **Python3**: The current version of GraphStorm requires Python installed with the version larger than **3.8**.
+Install Dependencies
+.....................
 
-3. (Optional) GraphStorm supports **Nvidia GPUs** for using GraphStorm in GPU environments.
+GraphStorm requires ``PyTorch>=1.13.0`` and ``DGL>=1.1.3``.
+We recommend using PyTorch v2.3.0 and DGL v2.3.0 for best compatibility.
+For users who have to use older DGL versions, please refer to `install GraphStorm with DGL 1.1.3 <https://graphstorm.readthedocs.io/en/v0.4/install/env-setup.html#install-graphstorm>`_.
+
+For Nvidia GPU environment you can install PyTorch and DGL using:
+
+.. code-block:: bash
+
+    # for CUDA 11
+    pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cu118
+    pip install dgl==2.3.0+cu118 -f https://data.dgl.ai/wheels/torch-2.3/cu118/repo.html
+
+    # for CUDA 12
+    pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cu121
+    pip install dgl==2.3.0+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html
+
+And for CPU environment use:
+
+.. code-block:: bash
+
+    pip install torch==2.3.0 --index-url https://download.pytorch.org/whl/cpu
+    pip install dgl==2.3.0 -f https://data.dgl.ai/wheels/torch-2.3/repo.html
+
 
 Install GraphStorm
 ...................
-Users can use ``pip`` or ``pip3`` to install GraphStorm.
+
+After you install PyTorch and DGL, use ``pip`` to install GraphStorm:
 
 .. code-block:: bash
 
     pip install graphstorm
 
-Install Dependencies
-.....................
-Users should install PyTorch v2.3.0 and DGL v2.3.0 that is the core dependency of GraphStorm using the following commands. For users who have to use the previous DGL versions, please refer to `install GraphStorm with DGL 1.1.3 <https://graphstorm.readthedocs.io/en/v0.4/install/env-setup.html#install-graphstorm>`_.
 
-For Nvidia GPU environment:
-
-.. code-block:: bash
-
-    pip install torchdata==0.9.0 pydantic
-    # for CUDA 11
-    pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-    pip install dgl==2.3.0+cu118 -f https://data.dgl.ai/wheels/torch-2.3/cu118/repo.html
-
-    # for CUDA 12
-    pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-    pip install dgl==2.3.0+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html
-
-For CPU environment:
-
-.. code-block:: bash
-
-    pip install torchdata==0.9.0 pydantic
-    pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    pip install dgl==2.3.0 -f https://data.dgl.ai/wheels/torch-2.3/repo.html
-
-Configure SSH No-password login (optional)
+Clone GraphStorm codebase (Optional)
 ..........................................
-To perform distributed training in a cluster of machines, please use the following commands
-to configure a local SSH no-password login that GraphStorm relies on.
+The GraphStorm repository includes a set of scripts, tools, and examples, which can facilitate the use of the
+framework.
 
-.. note::
+* **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include example configuration yaml files that are used in
+  GraphStorm documentations and tutorials and can be used as a starting point for
+  your own training configuration.
+* **graphstorm/examples** includes use-case specific examples, such as temporal graph learning, using SageMaker Pipelines, or performing graph-level predictions with GraphStorm.
+* **graphstorm/tools** includes utilities for GraphStorm, such as data sanity checks for partitioned graph data.
+* **graphstorm/sagemaker** has fully-fledged launch scripts to help your run GraphStorm jobs on Amazon SageMaker and create and execute SageMaker Pipelines.
 
-    The "SSH No-password login" is **NOT** needed for GraphStorm's Standalone mode, i.e., running GraphStorm in one machine only.
+.. TODO: Need to add further documentation for scripts under tools/
 
-.. code-block:: bash
-
-    ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ''
-    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-
-Then use this command to test if the SSH no-password login works.
-
-.. code-block:: bash
-
-    ssh 127.0.0.1
-
-If everything is right, the above command will enter another Linux shell process. Then exit this new shell with the command ``exit``.
-
-Clone GraphStorm Toolkits (Optional)
-..........................................
-GraphStorm provides a set of toolkits, including scripts, tools, and examples, which can facilitate the use of GraphStrom.
-
-* **graphstorm/training_scripts/** and **graphstorm/inference_scripts/** include examplar configuration yaml files that used in GraphStorm documentations and tutorials.
-* **graphstorm/examples** includes Python code for customized models and customized data preparation.
-* **graphstorm/tools** includes graph partition and related Python code.
-* **graphstorm/sagemaker** include commands and code to run GraphStorm on Amazon SageMaker.
-
-Users can clone GraphStorm source code to obtain these toolkits.
+You can clone the GraphStorm repository to get access to these tools and examples:
 
 .. code-block:: bash
 
@@ -91,37 +85,56 @@ Users can clone GraphStorm source code to obtain these toolkits.
 
 .. _setup_docker:
 
-2. Setup GraphStorm Docker Environment
----------------------------------------
+Setup GraphStorm Docker Environment
+-----------------------------------
+
+Running GraphStorm within a Docker container will allow you to have a reproducible environment to run
+examples without affecting your local environment.
+
 Prerequisites
 ...............
 
-1. **Docker**: You need to install Docker in your environment as the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggests, and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
+1. **Docker**: You need to install Docker in your environment following
+`Docker documentation <https://docs.docker.com/engine/install/>`_.
 
-For example, in an AWS EC2 instance without Docker preinstalled, you can run the following commands to install Docker.
+Using Docker's convenience script you can install Docker on a Linux machine:
 
 .. code-block:: bash
 
-    sudo apt-get update
     sudo apt update
-    sudo apt install Docker.io
+    sudo apt install -y ca-certificates curl
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh ./get-docker.sh --dry-run # Preview the commands
+    # Run the installation once ready
+    # sudo sh ./get-docker.sh
 
-If using AWS `Deep Learning AMI GPU version`, the Nvidia Container Toolkit has been preinstalled.
+.. note::
 
-2. (Optional) GraphStorm supports **Nvidia GPUs** for using GraphStorm in GPU environments.
+    After installing Docker, you may need to add your user to the docker group to run Docker commands without sudo:
+
+    .. code-block:: bash
+
+        sudo usermod -aG docker $USER
+        # Log out and back in for the changes to take effect
+
+2. (Optional) GraphStorm supports **Nvidia GPUs** for GPU-based training and inference. To launch
+containers with GPU support you need the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
+If using the `AWS Deep Learning AMI <https://docs.aws.amazon.com/dlami/latest/devguide/what-is-dlami.html>`_,
+the Nvidia Container Toolkit comes preinstalled.
 
 .. _build_docker:
 
-Build a GraphStorm Docker image from source code
-.................................................
+Build a GraphStorm Docker image
+...............................
 
 Set up AWS access
 -----------------
 
-To build and push the image to ECR we'll make use of the
-``aws-cli`` and we'll need valid AWS credentials as well.
+To build and push the image to the Amazon Elastic Container Registry (ECR) you need the
+``aws-cli`` and you will need valid AWS credentials as well.
 
-To install the AWS CLI you can use:
+To `install the AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html>`_
+you can use:
 
 .. code-block:: bash
 
@@ -133,8 +146,8 @@ To set up credentials for use with ``aws-cli`` see the
 `AWS docs <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-examples>`_.
 
 Your executing role should have full ECR access to be able to pull from ECR to build the image,
-create an ECR repository if it doesn't exist, and push the GSProcessing image to the repository.
-See the `official ECR docs <https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_ 
+create an ECR repository if it doesn't exist, and push the GraphStorm image to the repository.
+See the `official ECR docs <https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_
 for details.
 
 
@@ -146,17 +159,17 @@ you can use the provided scripts
 in the ``graphstorm/docker`` directory to build the image.
 
 GraphStorm supports Amazon SageMaker and EC2/local
-execution environments, so we need to choose which image we want
+execution environments, so you need to choose which image you want
 to build first.
 
 The ``build_graphstorm_image.sh`` script can build the image
 locally and tag it. It only requires providing the intended execution environment,
 using the ``-e/--environment`` argument. The supported environments
-are ``sagemaker`` and ``local``.
+are ``sagemaker`` to run jobs on Amazon SageMaker and ``local`` to run jobs
+on local instances, like a custom cluster of EC2 instances.
 
-For example, assuming our current directory is where
-we cloned ``graphstorm/``, we can use
-the following command to build the local image:
+For example, you can use the following commands to build the local image
+with GPU support:
 
 .. code-block:: bash
 
@@ -175,9 +188,12 @@ tag and other aspects of the build. We list the full argument list below:
 * ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
 * ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
 * ``-i, --image``         Docker image name, default is 'graphstorm'.
-* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
-* ``-b, --build``         Docker build directory prefix, default is '/tmp/graphstorm-build/docker'.
-* ``--use-parmetis``      When this flag is set we add the ParMETIS dependencies to the local image. ParMETIS partitioning is not available on SageMaker.
+* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is
+  "<environment>-<device>", e.g. ``sagemaker-gpu``.
+* ``-b, --build``         Docker build directory prefix, default is ``/tmp/graphstorm-build/docker``.
+* ``--use-parmetis``      When this flag is set we add the `ParMETIS <https://license.umn.edu/product/parmetis---mesh-graph-partitioning-algorithm>`_
+  dependencies to the image. ParMETIS is an advanced distributed graph partitioning algorithm designed
+  to minimize communication time during GNN training.
 
 For example you can build an image to support CPU-only execution using:
 
@@ -196,64 +212,24 @@ Or to build and tag an image to run ParMETIS with EC2 instances:
 See ``bash docker/build_graphstorm_image.sh --help``
 for more information.
 
-Push the image to Amazon Elastic Container Registry (ECR)
--------------------------------------------------------------
+Launch a GraphStorm Container
+.............................
 
-Once the image is built we can use the ``push_graphstorm_image.sh`` script to push the image we just built.
-The script will create an ECR repository if needed.
+Once you have built the image, you can launch a local container to run test jobs.
 
-The script again requires us to provide the intended execution environment using
-the ``-e/--environment`` argument,
-and by default will create a repository named ``graphstorm`` in the ``us-east-1`` region,
-on the default AWS account ``aws-cli`` is configured for,
-and push the image tagged as ``<environment>-<device>```.
-
-In addition to ``-e/--environment``, the script supports several optional arguments, for a full list use
-``bash push_graphstorm_image.sh --help``. We list the most important below:
-
-* ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
-* ``-a, --account``       AWS Account ID to use, we retrieve the default from the AWS cli configuration.
-* ``-r, --region``        AWS Region to push the image to, we retrieve the default from the AWS cli configuration.
-* ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
-* ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
-* ``-i, --image``         Docker image name, default is 'graphstorm'.
-* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
-
-
-Examples:
-
-.. code-block:: bash
-
-    # Push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu'
-    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu
-    # Push a ParMETIS-capable image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu-parmetis'
-    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu --suffix "-parmetis"
-
-
-Create a GraphStorm Container
-..............................
-
-First, you need to create a GraphStorm container based on the Docker image built in the previous step.
-
-Run the following command:
+If your host has access to a GPU run the following command:
 
 .. code:: bash
 
-    docker run --gpus all --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-gpu
+    docker run --gpus all --network=host --rm -v /dev/shm:/dev/shm/ -it --name gs-test graphstorm:local-gpu /bin/bash
 
 Or if using a CPU-only host:
 
 .. code:: bash
 
-    docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-cpu
+    docker run --network=host -v /dev/shm:/dev/shm/ --rm -it --name gs-test graphstorm:local-cpu /bin/bash
 
-This command will create a GraphStorm container, named ``test`` and run the container as a daemon.
-
-Then connect to the container by running the following command:
-
-.. code:: bash
-
-    docker container exec -it test /bin/bash
+This command will create a GraphStorm container, named ``gs-test`` and attach a bash shell to it.
 
 If successful, the command prompt will change to the container's, like
 
@@ -261,6 +237,51 @@ If successful, the command prompt will change to the container's, like
 
     root@<ip-address>:/#
 
+
 .. note::
 
-    If you are preparing the environment to run GraphStorm in a distributed setting, specific instruction for running a Docker image with the NFS folder is given in the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>`.
+    Notice that we assign the host's shared memory volume to the container as well using
+    ``-v /dev/shm:/dev/shm/``. GraphStorm uses shared memory to host graph data, so it is important
+    that you allocate enough shared memory to the container. You can also set the shared memory
+    using e.g. ``--shm-size 4gb``.
+
+.. note::
+
+    If you are planning to run GraphStorm in a local cluster, specific instruction for running
+    GraphStorm with an NFS shared filesystem is given in :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>`.
+
+Push the image to Amazon Elastic Container Registry (ECR)
+---------------------------------------------------------
+
+Once you build the image, you can use the ``push_graphstorm_image.sh`` script to push the image
+to an `Amazon ECR <https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html>`_ repository.
+ECR allows you to easily store, manage, and deploy container images.
+
+This will allow you to use the image in SageMaker jobs using SageMaker Bring-Your-Own-Container, or to launch
+EC2 clusters.
+
+The script requires you to provide the intended execution environment again using
+the ``-e/--environment`` argument.
+By default it will create a repository named ``graphstorm`` in the ``us-east-1`` region,
+on the default AWS account ``aws-cli`` is configured for.
+It tags the image as ``<environment>-<device>``, creates a new ECR repository if one
+doesn't exist, and pushes the image to it.
+
+In addition to ``-e/--environment``, the script supports several optional arguments, for a full list use
+``bash push_graphstorm_image.sh --help``. We list the most important below:
+
+* ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
+* ``-a, --account``       AWS Account ID to use, we try retrieve the default from the AWS CLI configuration.
+* ``-r, --region``        AWS Region to push the image to, we retrieve the default from the AWS CLI configuration.
+* ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
+* ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
+* ``-i, --image``         Docker image name, default is 'graphstorm'.
+* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>", e.g. ``sagemaker-gpu``.
+* ``-x, --verbose``       Print script debug info (set -x)
+
+Examples:
+
+.. code-block:: bash
+
+    # Push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu'
+    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" --account "123456789012" --device cpu

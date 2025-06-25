@@ -104,6 +104,10 @@ objects:
          -  e.g. ``"files": ['path/to/edge/type/']``
          -  This option allows for concise listing of entire types and
             would be preferred. All the files under the path will be loaded.
+         -  You can also provide a wildcard pattern, e.g.
+            ``"files": ['path/to/edge-type*.parquet']`` would match
+            all files that start with ``edge-type`` and end with
+            ``.parquet`` under ``<input_prefix>/path/to``.
 
       -  a multi-element list of **relative** file paths.
 

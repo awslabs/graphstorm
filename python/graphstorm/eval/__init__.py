@@ -23,6 +23,8 @@ from .eval_func import SUPPORTED_CLASSIFICATION_METRICS
 from .eval_func import SUPPORTED_REGRESSION_METRICS
 from .eval_func import SUPPORTED_LINK_PREDICTION_METRICS
 from .eval_func import SUPPORTED_HIT_AT_METRICS
+from .eval_func import SUPPORTED_FSCORE_AT_METRICS
+from .eval_func import SUPPORTED_RECALL_AT_PRECISION_METRICS, SUPPORTED_PRECISION_AT_RECALL_METRICS
 
 from .evaluator import (GSgnnBaseEvaluator,
                         GSgnnPredictionEvalInterface,
@@ -37,3 +39,5 @@ from .evaluator import (GSgnnBaseEvaluator,
                         GSgnnRegressionEvaluator,
                         GSgnnRconstructFeatRegScoreEvaluator,
                         GSgnnMultiTaskEvaluator)
+
+from .utils import is_float

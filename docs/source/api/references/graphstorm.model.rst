@@ -58,6 +58,7 @@ Input Layer
     :nosignatures:
     :template: modeltemplate.rst
 
+    GSPureLearnableInputLayer
     GSNodeEncoderInputLayer
     GSLMNodeEncoderInputLayer
     GSPureLMNodeInputLayer

@@ -24,16 +24,35 @@ from functools import partial
 import numpy as np
 import torch as th
 from sklearn.metrics import roc_auc_score
-from sklearn.metrics import precision_recall_curve, auc, classification_report
+from sklearn.metrics import (precision_recall_curve,
+                             auc,
+                             classification_report,
+                             precision_recall_fscore_support)
+from .utils import is_float
 
+
+SUPPORTED_RECALL_AT_PRECISION_METRICS = 'recall_at_precision'
+SUPPORTED_PRECISION_AT_RECALL_METRICS = 'precision_at_recall'
+SUPPORTED_FSCORE_AT_METRICS = 'fscore_at'
 SUPPORTED_HIT_AT_METRICS = 'hit_at'
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
-    'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', SUPPORTED_HIT_AT_METRICS}
+    'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', 'precision', 'recall', \
+    SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS, \
+    SUPPORTED_RECALL_AT_PRECISION_METRICS, SUPPORTED_PRECISION_AT_RECALL_METRICS}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
 SUPPORTED_LINK_PREDICTION_METRICS = {"mrr", SUPPORTED_HIT_AT_METRICS, "amri"}
 
 class ClassificationMetrics:
     """ object that compute metrics for classification tasks.
+    
+    Note(Jian): In order to let users to implement their own metrics, we need to:
+    1) refactorize this Metrics class to expose the comparator, function, and eval_function
+       interfaces to let users to set and get these objects.
+    2) define a new MetricInterface class, and define two abs methods, i.e.,
+        - assert_supported_metric;
+        - init_best_metric.
+    3) further discuss if we can set all metrics (Classsification, Regression, and LP) in the same
+       architecture.
     """
     def __init__(self, eval_metric_list, multilabel):
         self.supported_metrics = SUPPORTED_CLASSIFICATION_METRICS
@@ -47,6 +66,8 @@ class ClassificationMetrics:
         self.metric_comparator["f1_score"] = operator.le
         self.metric_comparator["per_class_f1_score"] = comparator_per_class_f1_score
         self.metric_comparator["per_class_roc_auc"] = comparator_per_class_roc_auc
+        self.metric_comparator["precision"] = operator.le
+        self.metric_comparator["recall"] = operator.le
 
         # This is the operator used to measure each metric performance in training
         self.metric_function = {}
@@ -56,6 +77,8 @@ class ClassificationMetrics:
         self.metric_function["f1_score"] = compute_f1_score
         self.metric_function["per_class_f1_score"] = compute_f1_score
         self.metric_function["per_class_roc_auc"] = compute_roc_auc
+        self.metric_function["precision"] = compute_precision
+        self.metric_function["recall"] = compute_recall
 
         # This is the operator used to measure each metric performance in evaluation
         self.metric_eval_function = {}
@@ -65,6 +88,8 @@ class ClassificationMetrics:
         self.metric_eval_function["f1_score"] = compute_f1_score
         self.metric_eval_function["per_class_f1_score"] = compute_per_class_f1_score
         self.metric_eval_function["per_class_roc_auc"] = compute_per_class_roc_auc
+        self.metric_eval_function["precision"] = compute_precision
+        self.metric_eval_function["recall"] = compute_recall
 
         for eval_metric in eval_metric_list:
             if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
@@ -75,6 +100,26 @@ class ClassificationMetrics:
                 self.metric_eval_function[eval_metric] = \
                     partial(compute_hit_at_classification, k=k)
 
+            if eval_metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+                beta = float(eval_metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:].strip())
+                self.metric_comparator[eval_metric] = operator.le
+                self.metric_function[eval_metric] = partial(compute_fscore, beta=beta)
+                self.metric_eval_function[eval_metric] = partial(compute_fscore, beta=beta)
+
+            if eval_metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+                beta = float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:].strip())
+                self.metric_comparator[eval_metric] = operator.le
+                self.metric_function[eval_metric] = partial(compute_precision_at_recall, beta=beta)
+                self.metric_eval_function[eval_metric] = partial(compute_precision_at_recall,
+                                                                 beta=beta)
+
+            if eval_metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+                beta = float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:].strip())
+                self.metric_comparator[eval_metric] = operator.le
+                self.metric_function[eval_metric] = partial(compute_recall_at_precision, beta=beta)
+                self.metric_eval_function[eval_metric] = partial(compute_recall_at_precision,
+                                                                 beta=beta)
+
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
@@ -82,6 +127,24 @@ class ClassificationMetrics:
             assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                             "hit_at_k evaluation metric for classification " \
                             f"must end with an integer, but get {metric}"
+        elif metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+            assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
+                            "fscore_at_beta evaluation metric for classification " \
+                            f"must end with an integer or float, but get {metric}"
+        elif metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+            assert is_float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
+                            "precision_at_recall evaluation metric for classification " \
+                            f"must end with an integer or float, but get {metric}"
+            assert 0 < float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1, \
+                "The beta in precision_at_recall evaluation metric must be in (0, 1], " \
+                f"but get {float(metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:])}."
+        elif metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+            assert is_float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
+                            "recall_at_precision evaluation metric for classification " \
+                            f"must end with an integer or float, but get {metric}"
+            assert 0 < float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1, \
+                "The beta in recall_at_precision evaluation metric must be in (0, 1], " \
+                f"but get {float(metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:])}."
         else:
             assert metric in self.supported_metrics, \
                 f"Metric {metric} not supported for classification"
@@ -581,6 +644,7 @@ class PRKeys(str, Enum):
     PRECISION = "precision"
     RECALL = "recall"
     THRESHOLD = "threshold"
+    FSCORE = "fscore"
 
 
 def compute_precision_recall_auc(y_preds, y_targets, weights=None):
@@ -624,6 +688,245 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         raise
 
     return auc_score
+
+def compute_precision_recall_fscore(y_preds, y_targets, beta=2.):
+    """ Compute Precision, Recall, and Fscore
+    
+    In order to provide a sigle-value evaluation, for binary classification, it will return a
+    binary value. For multi-class classification, it will return a macro-averaged value.
+    For multi-label cases, it will return a list of values, one for each label. It is up to the
+    caller to decide how to handle the multi-label values.
+
+    Details can be found in
+    https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_fscore_support.html
+
+    Parameters
+    ----------
+    pred : tensor
+        a 1-D tensor for single-label classification and 2-D tensor for multi-label classification.
+        For 2-D tensor, the number of column is the number of labels.
+    labels : tensor
+        a 1-D tensor for single-label classification and 2-D tensor for multi-label classification.
+        For 2-D tensor, the number of column is the number of labels.
+    beta : float
+        The beta value for computing fscore. Default is 2.0.
+
+    Returns
+    -------
+    precision: A float value, or list of values of precision for multi-label.
+    recall: A float value, or list of values of recall for multi-label.
+    fscore: A float value, or list of values of fscore for multi-label.
+    """
+    # check prediction values. Must be integers, not float logits.
+    assert not (th.is_floating_point(y_preds) or th.is_complex(y_preds)), 'The predictions ' + \
+                                            f'should be integer values, but got {y_preds.dtype}.'
+
+    y_true = y_targets.cpu().numpy()
+    y_pred = y_preds.cpu().numpy()
+
+    if len(y_pred.shape) == 1:   # 1-D tensor for single-label classification, using macro avg
+        assert len(y_true.shape) == 1, 'The provided labels should be 1D' + \
+                                       ' for single-label classification.'
+        if y_pred.max() == 1 and y_true.max() == 1:     # 1-D binary tensor, using binary
+            precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
+                                                                           y_true=y_pred,
+                                                                           beta=beta,
+                                                                           average='binary'
+                                                                           )
+        else:
+            precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
+                                                                           y_true=y_pred,
+                                                                           beta=beta,
+                                                                           average='macro'
+                                                                           )
+    elif len(y_pred.shape) == 2:   # 2-D tensor for multi-label classification, returning per class
+        assert len(y_true.shape) == 2, 'The provided labels should be 2D for multi-label ' + \
+                                       f'classification, but got label shape: {y_true.shape}'
+        precision, recall, fscore, _ = precision_recall_fscore_support(y_pred=y_true,
+                                                                   y_true=y_pred,
+                                                                   beta=beta)
+    else:
+        raise NotImplementedError(f'Not support >2D predictions, but got shape: {y_pred.shape}')
+
+    return precision, recall, fscore
+
+def compute_precision(y_preds, y_targets):
+    """ Compute precision for classification tasks
+    """
+    precision, _, _ = compute_precision_recall_fscore(y_preds, y_targets)
+
+    return precision
+
+def compute_recall(y_preds, y_targets):
+    """ Compute recall for classification tasks
+    """
+    _, recall, _ = compute_precision_recall_fscore(y_preds, y_targets)
+
+    return recall
+
+def compute_fscore(y_preds, y_targets, beta):
+    """ Compute fscore for classification tasks
+    """
+    _, _, fscore = compute_precision_recall_fscore(y_preds, y_targets, beta)
+
+    return fscore
+
+def compute_precision_at_recall(y_preds, y_targets, beta=1., weights=None):
+    """ Compute precision at recall at beta for binary classification tasks.
+        If there is no a recall score equal to beta, it returns the precision
+            at the largest recall less than beta.
+        If there are multiple precision scores when recall equal to beta
+            or the largest recall less than beta, it returns the maximum precision
+            among these precision scores.
+        If unable to find a proper precision with the given beta value,
+            it will return 0 as precision, and provide warning message.
+
+        This metric is only for binary classification tasks.
+
+        Parameters
+        ----------
+        y_preds : tensor
+            Target scores in 1D or 2D tensor. Tensors with more than 2D will trigger an error.
+        y_targets: tensor
+            Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
+            binary label indicators.
+        weights: list
+            A list of weights with the same number of classes in labels.
+            Default is None.
+        beta: float or int
+            Beta value of precision for getting recall. Should be in the range of (0, 1].
+            Default is 1.0.
+
+        Returns
+        -------
+        float: The precision_at_recall score.
+    """
+    assert 0 < beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
+
+    y_true = y_targets.cpu().numpy()
+    y_pred = y_preds.cpu().numpy()
+
+    # only support binary classification
+    nclass = len(np.unique(y_true))
+    assert nclass <= 2, (f"ERROR: compute_precision_at_recall only supports binary "
+                         f"classification, but got {nclass} classes.")
+
+    # same check for binary cases, input in (n, 2) and label in 1D or (n, 1)
+    assert len(y_pred.shape) <= 2, (f"ERROR: not support >2D predictions, "
+                                    f"but got shape: {y_pred.shape}")
+    if len(y_pred.shape) > 1 and y_pred.shape[1] == 2:
+        if len(y_true.shape) == 1:
+            y_pred = y_pred[:, 1]
+        elif len(y_true.shape) == 2 and y_true.shape[1] == 1:
+            y_pred = y_pred[:, 1]
+            y_true = y_true.squeeze()
+
+    # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
+                                                  sample_weight=weights)
+
+    if beta in recall:
+        locations = np.where(recall == beta)[0]
+        return np.max(precision[locations])
+    else:
+        # sort the recall and precision lists by the ascending order of recall
+        sort_idx = np.argsort(recall)
+        recall_sorted_asc = recall[sort_idx]
+        precision_sorted = precision[sort_idx]
+
+        idx = np.searchsorted(recall_sorted_asc, beta) - 1
+        if idx < 0:
+            logging.warning(
+                "WARNING: could not find a corresponding precision score given beta %s. "
+                "Return 0 for precision@recall instead.", beta)
+            return 0.
+
+        new_beta = recall_sorted_asc[idx]
+        locations = np.where(recall_sorted_asc == new_beta)[0]
+        return np.max(precision_sorted[locations])
+
+def compute_recall_at_precision(y_preds, y_targets, beta=1., weights=None):
+    """ Compute recall at precision at beta for binary classification tasks.
+        If there is no precision score equal to beta, we update the beta as the first precision
+            less than beta following the ascending order of corresponding recall. For example, given
+            a list of recall [0., 0.5, 0.5, 1., 1.], a list of precision [1., 1., 0.5, 0.67, 0.5],
+            and beta=0.6, the updated beta will be 0.5 whose index is 2 in the precision list.
+        With the known index of the first met precision equal to beta or the updated beta in the
+            precision list (following the ascending order of corresponding recall list), to find the
+            location of the last met maximum precision in the slice of precision list
+            from the known index to the end, it will return the recall at that location.
+            For example, the known index is 2 as above, the location of the maximum precision in the
+            slice of precision list is 3, and the returned recall will be 1. at the 3rd index of the
+            recall list.
+        If unable to find a proper precision with the given beta value,
+            it will return 0 as precision, and provide warning message.
+
+        This metric is only for binary classification tasks.
+
+        Parameters
+        ----------
+        y_preds : tensor
+            Target scores in 1D or 2D tensor. Tensors with more than 2D will trigger an error.
+        y_targets: tensor
+            Array-like of shape (n_samples,) or (n_samples, n_classes) True labels or
+            binary label indicators.
+        weights: list
+            A list of weights with the same number of classes in labels.
+            Default is None.
+        beta: float or int
+            Beta value of precision for getting recall. Should be in the range of (0, 1].
+            Default is 1.0.
+
+        Returns
+        -------
+        float: The precision_at_recall score.
+    """
+    assert 0 < beta <= 1, f"ERROR: beta should be in the range of (0, 1], but get {beta}"
+
+    y_true = y_targets.cpu().numpy()
+    y_pred = y_preds.cpu().numpy()
+
+    # only support binary classification
+    nclass = len(np.unique(y_true))
+    assert nclass <= 2, (f"ERROR: compute_precision_at_recall only supports binary "
+                                    f"classification, but got {nclass} classes.")
+
+    # same check for binary cases, input in (n, 2) and label in 1D or (n, 1)
+    assert len(y_pred.shape) <= 2, (f"ERROR: not support >2D predictions, "
+                                    f"but got shape: {y_pred.shape}")
+    if len(y_pred.shape) > 1 and y_pred.shape[1] == 2:
+        if len(y_true.shape) == 1:
+            y_pred = y_pred[:, 1]
+        elif len(y_true.shape) == 2 and y_true.shape[1] == 1:
+            y_pred = y_pred[:, 1]
+            y_true = y_true.squeeze()
+
+    # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_pred,
+                                                  sample_weight=weights)
+
+    if beta in precision:
+        locations = np.where(precision == beta)[0]
+        return np.max(recall[locations])
+    else:
+        # sort the recall and precision lists by the ascending order of recall
+        sort_idx = np.argsort(recall)
+        recall_sorted_asc = recall[sort_idx]
+        precision_sorted = precision[sort_idx]
+
+        new_beta = None
+        for prec in precision_sorted:
+            if prec < beta:
+                new_beta = prec
+                break
+        if new_beta is None:
+            logging.warning(
+                "WARNING: could not find a corresponding recall score given beta %s. "
+                "Return 0 for recall@precision instead.", beta)
+            return 0.
+
+        # returns the maximum recall at precision == new_beta
+        return np.max(recall_sorted_asc[precision_sorted == new_beta])
 
 def compute_acc(pred, labels, multilabel):
     '''Compute accuracy.

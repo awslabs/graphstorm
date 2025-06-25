@@ -2,11 +2,10 @@
 
 service ssh restart
 
-DGL_HOME=/root/dgl
 GS_HOME=$(pwd)
 NUM_TRAINERS=1
 export PYTHONPATH=$GS_HOME/python/
-cd $GS_HOME/training_scripts/gsgnn_np
+cd $GS_HOME/training_scripts/gsgnn_np || exit 1
 
 echo "127.0.0.1" > ip_list.txt
 
@@ -97,7 +96,59 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit $?
 
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-1/
+echo "**************dataset: MovieLens, Check test-set-only inference"
+# Create a temp dir for embedding output
+EMBED_CHECK_DIR=$(mktemp -d)
+# Set up tmpdir cleanup trap
+trap 'rm -rf "$EMBED_CHECK_DIR"; echo "Cleaned up temp directories"' EXIT
+
+# Only infer test set
+python3 -m graphstorm.run.gs_node_classification \
+    --inference \
+    --workspace $GS_HOME/training_scripts/gsgnn_np \
+    --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 \
+    --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json \
+    --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml \
+    --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-1/ \
+    --save-embed-path "$EMBED_CHECK_DIR/only-test-embeddings/"
+
+error_and_exit $?
+
+# Ensure only test nodes have embeddings
+# test set is 10% of 1682 nodes, so we expect 168 nodes
+python3 $GS_HOME/tests/end2end-tests/graphstorm-nc/check_emb.py \
+    --emb-path "$EMBED_CHECK_DIR/only-test-embeddings/" \
+    --graph-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json \
+    --ntypes "movie" \
+    --expected-row-count 168 \
+    --emb-size 128 \
+    --file-format "parquet"
+
+error_and_exit $?
+
+echo "**************dataset: MovieLens, Check all-nodes inference"
+# Infer all nodes
+python3 -m graphstorm.run.gs_node_classification \
+    --inference \
+    --infer-all-target-nodes true \
+    --no-validation true \
+    --workspace $GS_HOME/training_scripts/gsgnn_np \
+    --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 \
+    --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json \
+    --ip-config ip_list.txt --ssh-port 2222 \
+    --cf ml_nc.yaml \
+    --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-1/ \
+    --save-embed-path "$EMBED_CHECK_DIR/all-node-embeddings/"
+
+error_and_exit $?
+
+# Ensure all nodes have embeddings
+python3 $GS_HOME/tests/end2end-tests/graphstorm-nc/check_emb.py \
+    --emb-path "$EMBED_CHECK_DIR/all-node-embeddings/" \
+    --graph-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json \
+    --ntypes "movie" \
+    --emb-size 128 \
+    --file-format "parquet"
 
 error_and_exit $?
 
@@ -295,7 +346,7 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss with tensorboard tracker but not tensorboard package installed"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1 --task-tracker tensorboard_task_tracker
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 2 --task-tracker tensorboard_task_tracker
 
 if test $? -eq 0
 then
@@ -308,7 +359,7 @@ fi
 python3 -m pip install tensorboard
 
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss with tensorboard tracker"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1 --task-tracker tensorboard_task_tracker
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 2 --task-tracker tensorboard_task_tracker
 
 error_and_exit $?
 
@@ -321,7 +372,7 @@ fi
 rm -fr $GS_HOME/training_scripts/gsgnn_np/runs/
 
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss with tensorboard tracker"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1 --task-tracker tensorboard_task_tracker:./logs/
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 2 --task-tracker tensorboard_task_tracker:./logs/
 
 error_and_exit $?
 
@@ -332,6 +383,16 @@ then
     exit -1
 fi
 rm -fr $GS_HOME/training_scripts/gsgnn_np/logs/
+
+echo "**************dataset: multi-feature MovieLens, RGCN layer: 1, node feat: generated feature, inference: mini-batch, multiple feat groups"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_node_feat_nc/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --num-epochs 3 --node-feat-name user:feat0 movie:title user:feat0
+
+error_and_exit $?
+
+echo "**************dataset: multi-feature MovieLens, RGCN layer: 1, node feat: generated feature, inference: full graph, multiple feat groups with learnable embeddings "
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_node_feat_nc/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --num-epochs 3 --node-feat-name user:feat0 movie:title user:feat0 --use-node-embeddings true --use-mini-batch-infer false
+
+error_and_exit $?
 
 date
 
