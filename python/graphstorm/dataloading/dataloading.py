@@ -1806,7 +1806,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
     target_idx : dict of Tensors
         The target node indexes for prediction.
     num_layers: int
-        The number of layers dataloader will use as the number of hops for sampling. Default is 1.
+        The number of layers dataloader will use as the number of GNN layers. Default is 1.
     """
     def __init__(self,
                  dataset,
