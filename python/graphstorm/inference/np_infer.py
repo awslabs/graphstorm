@@ -244,8 +244,11 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         assert len(dataloader) == 1, ('Real-time inference do mini-batch computing once, but ' \
             f'got the number of mini batch: {len(dataloader)}.')
         input_nodes, _, blocks = next(iter(dataloader))
+
+        # setup device according to the inferrer's device property
         input_nodes = {ntype: nids.to(self.device) for ntype, nids in input_nodes.items()}
         blocks = [block.to(self.device) for block in blocks]
+        g = g.to(self.device)
 
         # extract node and edge features of the sampled blocks
         # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups
