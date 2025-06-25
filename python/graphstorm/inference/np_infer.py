@@ -239,6 +239,7 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
 
         # set model to be in the evaluation mode
         self._model.eval()
+        self._model.to(dataloader.device())
         # extract one mini-batch blocks using the given dataloader
         assert len(dataloader) == 1, ('Real-time inference do mini-batch computing once, but ' \
             f'got the number of mini batch: {len(dataloader)}.')
@@ -246,11 +247,12 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         # extract node and edge features of the sampled blocks
         # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups
         #      instead of a list of strings
-        n_h = prepare_batch_input(g, input_nodes, feat_field=nfeat_fields)
+        n_h = prepare_batch_input(g, input_nodes, feat_field=nfeat_fields,
+                                  dev=dataloader.device())
         if efeat_fields:
-            e_hs = prepare_blocks_edge_feats(g, blocks, efeat_fields)
+            e_hs = prepare_blocks_edge_feats(g, blocks, efeat_fields, device=dataloader.device())
         else:
-            e_hs = prepare_blocks_edge_feats(g, blocks, None)
+            e_hs = prepare_blocks_edge_feats(g, blocks, None, device=dataloader.device())
         # do predict on the blocks
         logits, _ = self._model.predict(blocks, n_h, e_hs, input_nodes,
                                         return_proba=return_proba)
