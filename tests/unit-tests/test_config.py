@@ -75,7 +75,7 @@ def check_failure(config, field):
         has_error = True
     assert has_error
 
-def create_dummpy_config_obj():
+def create_dummy_config_obj():
     yaml_object = { # dummy config, bypass checks by default
         "version": 1.0,
         "gsf": {
@@ -107,7 +107,7 @@ def copy_gconstruct_config(tmp_path, file_name=RUNTIME_GCONSTRUCT_FILENAME):
 
 
 def create_basic_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "backend": "gloo",
         "ip_config": os.path.join(tmp_path, "ip.txt"),
@@ -281,10 +281,15 @@ def test_task_tracker_info():
         check_failure(config, "task_tracker")
         check_failure(config, "log_report_frequency")
 
-def create_train_config(tmp_path, file_name):
+def create_train_config(tmp_path: Path, file_name: str):
     yaml_object = create_dummy_config_obj()
+    _, part_config = tempfile.mkstemp(dir=str(tmp_path))
+    yaml_object["gsf"]["basic"].update({
+        "part_config": part_config
+    })
     yaml_object["gsf"]["hyperparam"] = {
     }
+
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
@@ -400,7 +405,9 @@ def test_train_info():
         assert config.use_self_loop == True
         assert config.use_early_stop == False
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'),
+            local_rank=0)
         config = GSConfig(args)
 
         assert config.dropout == 0.1
@@ -1598,6 +1605,10 @@ def test_gnn_info():
 
 def create_io_config(tmp_path, file_name):
     yaml_object = create_dummy_config_obj()
+    _, part_config = tempfile.mkstemp(dir=str(tmp_path))
+    yaml_object["gsf"]["basic"].update({
+        "part_config": part_config
+    })
     yaml_object["gsf"]["input"] = {
     }
     yaml_object["gsf"]["output"] = {
