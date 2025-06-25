@@ -186,6 +186,7 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
     1. setting and using a DGLGraph, instead of DistGrahp, as the source to extract features.
     2. using DGL dataloader, instead of GS dataloaders that rely on DGL distributed graphs.
     3. no evaluation section as there is no label on real-time inference.
+
     """
     def infer(self,
               g,
@@ -239,7 +240,6 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
 
         # set model to be in the evaluation mode
         self._model.eval()
-        self._model.to(dataloader.device())
         # extract one mini-batch blocks using the given dataloader
         assert len(dataloader) == 1, ('Real-time inference do mini-batch computing once, but ' \
             f'got the number of mini batch: {len(dataloader)}.')
@@ -248,11 +248,11 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups
         #      instead of a list of strings
         n_h = prepare_batch_input(g, input_nodes, feat_field=nfeat_fields,
-                                  dev=dataloader.device())
+                                  dev=self.device)
         if efeat_fields:
-            e_hs = prepare_blocks_edge_feats(g, blocks, efeat_fields, device=dataloader.device())
+            e_hs = prepare_blocks_edge_feats(g, blocks, efeat_fields, device=self.device)
         else:
-            e_hs = prepare_blocks_edge_feats(g, blocks, None, device=dataloader.device())
+            e_hs = prepare_blocks_edge_feats(g, blocks, None, device=self.device)
         # do predict on the blocks
         logits, _ = self._model.predict(blocks, n_h, e_hs, input_nodes,
                                         return_proba=return_proba)

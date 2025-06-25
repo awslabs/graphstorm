@@ -1708,6 +1708,9 @@ def test_realtime_infer_np():
     # initialize a real-time np inferrer
     inferrer = GSGnnNodePredictionRealtimeInferrer(model)
 
+    device = th.device('cuda:0') if th.cuda.is_available() else th.device('cpu')
+    inferrer.setup_device(device)
+
     # initialize a GSgnnRealtimeInferNodeDataLoader, no need of batch_size now
     dataloader = GSgnnRealtimeInferNodeDataLoader(g, infer_nids, num_layers=1)
 
