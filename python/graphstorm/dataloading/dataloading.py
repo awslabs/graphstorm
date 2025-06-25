@@ -1788,7 +1788,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Mini-batch dataloader for real-time node inference task
 
     .. versionadded:: 0.5
-        Add `GSgnnRealtimeInferNodeDataLoader` class to support node-level dataloader used for
+        Add `GSgnnRealtimeInferNodeDataLoader` class to support node-level dataloader for
         real-time inference.
 
     This dataloader wraps DGL's DataLoader for real-time inference in GraphStorm. It will use DGL's
