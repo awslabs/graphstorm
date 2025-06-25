@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -Eeuo pipefail
 GS_HOME=$(pwd)
 export PYTHONPATH=$GS_HOME/python/
 
