@@ -1839,8 +1839,8 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
                 batch_size = len(idx)
 
         if batch_size > MAX_REALTIME_BATCH_SIZE:
-            logging.warning('The maximum number of target nodes %s',  batch_size + \
-                'is larger than %s', MAX_REALTIME_BATCH_SIZE + \
+            logging.warning('The maximum number of target ' \
+                'nodes %s is larger than %s ',  batch_size, MAX_REALTIME_BATCH_SIZE + \
                 ' This may cause longer response latency or other unexpected issues. ' \
                 'Please use smaller number of target nodes.')
 
