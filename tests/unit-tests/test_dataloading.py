@@ -2677,7 +2677,7 @@ def test_realtime_infer_node_dataloader():
     assert 'n1' in seeds
     assert len(blocks) == 1
 
-    assert_equal(seeds['n1'].numpy(), target_idx['n1'])
+    assert_equal(seeds['n1'].cpu().numpy(), target_idx['n1'])
     assert dataloader.node_feat_fields == None
     assert dataloader.edge_feat_fields == None
 
