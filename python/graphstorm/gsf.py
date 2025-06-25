@@ -1396,11 +1396,11 @@ def restore_builtin_node_model4realtime(model_dir, json_file, yaml_file):
 
     # load model configuration from a YAML file
     args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)
-    model_config = GSConfig(args)
+    gs_config = GSConfig(args)
 
     # use GraphStorm built-in function to create the model and reload 
-    model = create_builtin_node_gnn_model(metadata_g, model_config, train_task=False)
+    model = create_builtin_node_gnn_model(metadata_g, gs_config, train_task=False)
     model.restore_model(model_dir)
 
     # return all three artifacts back to model_fn()
-    return model, config_json, model_config
+    return model, config_json, gs_config

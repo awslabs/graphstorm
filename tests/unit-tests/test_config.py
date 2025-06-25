@@ -55,6 +55,9 @@ from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_TRANSE_L2_DECODER)
 from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
+from config_utils import create_dummpy_config_obj, create_basic_config
+
+
 def check_failure(config, field):
     has_error = False
     try:
@@ -62,76 +65,6 @@ def check_failure(config, field):
     except:
         has_error = True
     assert has_error
-
-def create_dummpy_config_obj():
-    yaml_object = { # dummy config, bypass checks by default
-        "version": 1.0,
-        "gsf": {
-            "basic": {},
-            "gnn": {
-                "fanout": "4",
-                "num_layers": 1,
-            },
-            "input": {},
-            "output": {},
-            "hyperparam": {
-                "lr": 0.01,
-                "lm_tune_lr": 0.0001,
-                "sparse_optimizer_lr": 0.0001
-            },
-            "rgcn": {},
-        }
-    }
-    return yaml_object
-
-def create_basic_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
-    yaml_object["gsf"]["basic"] = {
-        "backend": "gloo",
-        "ip_config": os.path.join(tmp_path, "ip.txt"),
-        "part_config": os.path.join(tmp_path, "part.json"),
-        "model_encoder_type": "rgat",
-        "eval_frequency": 100,
-        "no_validation": True,
-    }
-    # create dummpy ip.txt
-    with open(os.path.join(tmp_path, "ip.txt"), "w") as f:
-        f.write("127.0.0.1\n")
-    # create dummpy part.json
-    with open(os.path.join(tmp_path, "part.json"), "w") as f:
-        json.dump({
-            "graph_name": "test"
-        }, f)
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for check default value
-    yaml_object["gsf"]["basic"] = {
-        "ip_config": os.path.join(tmp_path, "ip.txt"),
-        "part_config": os.path.join(tmp_path, "part.json"),
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for wrong values
-    yaml_object["gsf"]["basic"] = {
-        "backend": "error",
-        "eval_frequency": 0,
-        "model_encoder_type": "abc"
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for none exist ip config file and partition file
-    yaml_object["gsf"]["basic"] = {
-        "ip_config": "ip_missing.txt",
-        "part_config": "part_missing.json",
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
 
 def test_load_basic_info():
     with tempfile.TemporaryDirectory() as tmpdirname:

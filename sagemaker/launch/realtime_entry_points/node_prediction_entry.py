@@ -40,7 +40,7 @@ np.random.seed(6553865)
 
 # Global variables to be initialized during model loading
 CONFIG_JSON = None
-MODEL_YAML = None
+GS_CONFIG = None
 # Global variables as keys
 DATA = 'data'
 TARGETS = 'targets'
@@ -105,12 +105,12 @@ def model_fn(model_dir):
     assert json_file is not None, f'Missing graph configuration JSON file in the tar file.'
 
     # load and recreate the trained model using the gsf built-in function
-    model, config_json, model_yaml = gs.restore_builtin_node_model4realtime(model_dir,
+    model, config_json, gs_config = gs.restore_builtin_node_model4realtime(model_dir,
                                                                             json_file,
                                                                             yaml_file)
-    global CONFIG_JSON, MODEL_YAML
+    global CONFIG_JSON, GS_CONFIG
     CONFIG_JSON = config_json
-    MODEL_YAML = model_yaml
+    GS_CONFIG = gs_config
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)
@@ -118,7 +118,7 @@ def model_fn(model_dir):
 
     logging.debug(model)
     logging.debug(CONFIG_JSON)
-    logging.debug(MODEL_YAML)
+    logging.debug(GS_CONFIG)
 
     return model
 
@@ -311,8 +311,8 @@ def predict_fn(input_data, model):
         target_nids[ntype] = dgl_nids
 
     # Use load model configuration to intialize an inferrer
-    global MODEL_YAML
-    model_config = MODEL_YAML
+    global GS_CONFIG
+    gs_config = GS_CONFIG
 
     try:
         # initialize a GS real-time inferrer
@@ -320,10 +320,10 @@ def predict_fn(input_data, model):
         # initialize a GS real-time dataLoader
         dataloader = GSgnnRealtimeInferNodeDataLoader(dgl_graph,
                                                       target_nids,
-                                                      model_config.num_layers)
+                                                      gs_config.num_layers)
         predictions = inferrer.infer(dgl_graph, dataloader, list(target_dict.keys()),
-                                     model_config.node_feat_name, 
-                                     model_config.edge_feat_name)
+                                     gs_config.node_feat_name, 
+                                     gs_config.edge_feat_name)
         # Build prediction response
         pred_list = []
         for ntype, preds in predictions.items():

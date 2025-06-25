@@ -12,12 +12,22 @@
 
     Unit tests for gsf.py
 """
-import pytest
 
+import os
+import json
+import yaml
+import pytest
+import tempfile
+from argparse import Namespace
+from pathlib import Path
+
+from graphstorm.config import GSConfig
 from graphstorm.gsf import (get_edge_feat_size,
                             create_builtin_node_decoder,
                             create_builtin_edge_decoder,
-                            create_builtin_lp_decoder)
+                            create_builtin_lp_decoder,
+                            create_builtin_node_gnn_model,
+                            restore_builtin_node_model4realtime)
 from graphstorm.utils import check_graph_name
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
@@ -34,7 +44,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_LP_LOSS_BPR,
                                BUILTIN_REGRESSION_LOSS_MSE,
                                BUILTIN_REGRESSION_LOSS_SHRINKAGE)
-
+from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.node_decoder import (EntityClassifier,
                                            EntityRegression)
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
@@ -63,7 +73,9 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         FocalLossFunc,
                                         ShrinkageLossFunc)
 
-from data_utils import generate_dummy_hetero_graph
+from data_utils import generate_dummy_dist_graph
+from config_utils import create_dummpy_config_obj
+
 
 class GSTestConfig:
     def __init__(self, dictionary):
@@ -744,10 +756,73 @@ def test_get_edge_feat_size():
         edge_feat_size = {}
     assert edge_feat_size == {}
 
+def test_restore_builtin_node_model4realtime():
+    """ Test restore a builtin node mode for real-time inference from a model dir
+    
+    The test needs three inputs: 1/ model dir path, 2/ josn file name, 3/ yaml file name.
+    """
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # create YAML config 
+        yaml_object = create_dummpy_config_obj()
+        yaml_object["gsf"]["basic"] = {
+            "backend": "gloo",
+            "ip_config": os.path.join(tmpdirname, "ip.txt"),
+            "part_config": os.path.join(tmpdirname, "part.json"),
+            "model_encoder_type": "rgcn",
+            "eval_frequency": 100,
+            "no_validation": True,
+        }
+        yaml_object["gsf"]["gnn"]["hidden_size"] = 128
+        yaml_object["gsf"]["node_classification"] ={
+            "target_ntype": "n1",
+            "label_field": "label",
+            "multilabel": False,
+            "num_classes": 10
+        }
+        yaml_object["gsf"]["input"] = {
+            "node_feat_name": ["n0:feat,feat1", "n1:feat,feat1"]
+        }
+        # create dummpy ip.txt
+        with open(os.path.join(tmpdirname, "ip.txt"), "w") as f:
+            f.write("127.0.0.1\n")
+        # create dummpy part.json
+        with open(os.path.join(tmpdirname, "part.json"), "w") as f:
+            json.dump({
+                "graph_name": "test"
+            }, f)
+        with open(os.path.join(tmpdirname, "basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+
+        # use dummy dist hetero graph and yaml file to build a node model and save
+        g, _, graph_config = generate_dummy_dist_graph(tmpdirname,
+                                                       graph_name='basic',
+                                                       return_graph_config=True)
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        model = create_builtin_node_gnn_model(g, config, train_task=False)
+        model.save_model(tmpdirname)
+
+        # restore the model from the current temp file
+        graph_config_file = os.path.basename(graph_config)
+
+        model, _, _ = restore_builtin_node_model4realtime(tmpdirname, graph_config_file, 'basic.yaml')
+
+        assert model.gnn_encoder.num_layers == yaml_object["gsf"]["gnn"]["num_layers"]
+        assert model.gnn_encoder.h_dims == yaml_object["gsf"]["gnn"]["hidden_size"]
+        assert model.gnn_encoder.out_dims == yaml_object["gsf"]["gnn"]["hidden_size"]
+        assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
+        assert isinstance(model.decoder, EntityClassifier)
+        assert model.decoder.decoder.shape[1] == yaml_object["gsf"]["node_classification"]["num_classes"]
+
 
 if __name__ == '__main__':
-    test_check_graph_name()
-    test_create_builtin_node_decoder()
-    test_create_builtin_edge_decoder()
-    test_create_builtin_lp_decoder()
-    test_get_edge_feat_size()
+    # test_check_graph_name()
+    # test_create_builtin_node_decoder()
+    # test_create_builtin_edge_decoder()
+    # test_create_builtin_lp_decoder()
+    # test_get_edge_feat_size()
+
+    test_restore_builtin_node_model4realtime()
