@@ -1785,7 +1785,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
                    self.unlabeled_dataloader.expected_idxs)
 
 class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
-    """ Mini-batch dataloader for real-time node infernce task
+    """ Mini-batch dataloader for real-time node inference task
 
     .. versionadded:: 0.5
         Add `GSgnnRealtimeInferNodeDataLoader` class to support node-level dataloader used for
