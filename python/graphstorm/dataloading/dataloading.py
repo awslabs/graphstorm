@@ -1793,7 +1793,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
 
     This dataloader wraps DGL's DataLoader for real-time inference in GraphStorm. It will use DGL's
     `MultiLayerFullNeighborSampler` samper to extract all nodes from the given subgraph because
-    during real-time inference, it is unclear if data providers have done fanout sampling or not
+    during real-time inference. Graph sampling can be achieved before invoking the real-time inference endpoint.
     when building the subgraph payload.
     
     This class extends from the ``GSgnnNodeDataLoaderBase`` class so that it will be compatible
