@@ -1,7 +1,7 @@
 # Move to parent directory
 cd ../../
 
-set -ex
+set -Eeuo pipefail
 
 sh ./tests/end2end-tests/setup.sh
 sh ./tests/end2end-tests/create_data.sh
