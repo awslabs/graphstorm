@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    SageMaker entry point file for SageMaker realtime inference endpoint
+    SageMaker entry point file for GraphStorm node prediction realtime inference
 """
 
 import json
@@ -35,8 +35,8 @@ from graphstorm.inference import GSGnnNodePredictionRealtimeInferrer
 from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as res_msg
 
 # Set seed to ensure prediction results constantly
-th.manual_seed(6553865)
-np.random.seed(6553865)
+th.manual_seed(12345678)
+np.random.seed(12345678)
 
 # Global variables to be initialized during model loading
 CONFIG_JSON = None
