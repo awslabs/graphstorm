@@ -1819,10 +1819,13 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         for ntype in target_idx:
             assert ntype in g.ntypes, (f'node type {ntype} does not exist in the graph.')
 
+        # GSgnnNodeDataLoaderBase requires a valid label_field, but in real-time inference
+        # dataloading, no label is available normally. So here we provide a dummy name for
+        # using the base class.
         super().__init__(g,
                          target_idx,
                          fanout=[-1],
-                         label_field="label",
+                         label_field="label",   # use a dummy name for compatibility
                          node_feats=None,
                          edge_feats=None)
 
