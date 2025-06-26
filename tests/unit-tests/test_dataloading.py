@@ -2668,6 +2668,7 @@ def test_realtime_infer_node_dataloader():
     all_src_idx = np.unique(np.concatenate([src_idx_r0, src_idx_r1]))
 
     # should only has one mini batch
+    assert len(dataloader) == 1
     input_nodes, seeds, blocks = next(iter(dataloader))
     assert 'n0' in input_nodes
     assert input_nodes['n0'].shape[0] == len(all_src_idx)

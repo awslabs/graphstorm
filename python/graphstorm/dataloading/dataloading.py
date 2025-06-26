@@ -1825,7 +1825,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         super().__init__(g,
                          target_idx,
                          fanout=[-1],
-                         label_field="label",   # use a dummy name for compatibility
+                         label_field="label",   # use a dummy name for using the base class
                          node_feats=None,
                          edge_feats=None)
 
