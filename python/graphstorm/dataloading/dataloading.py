@@ -46,6 +46,9 @@ else:
     from dgl.distributed import DistDataLoader
     from dgl.distributed.dist_dataloader import (EdgeCollator,
                                                  _remove_kwargs_dist)
+
+MAX_REALTIME_BATCH_SIZE = 1000
+
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
 class _ReconstructedNeighborSampler():
@@ -1783,6 +1786,103 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         """
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
+
+class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
+    """ Mini-batch dataloader for real-time node inference task
+
+    .. versionadded:: 0.5
+        Add `GSgnnRealtimeInferNodeDataLoader` class to support node-level dataloader for
+        real-time inference.
+
+    This dataloader extends from the ``GSgnnNodeDataLoaderBase`` class for real-time inference.
+    It will use DGL's `MultiLayerFullNeighborSampler` sampler to extract all nodes from the given
+    subgraph during real-time inference. Graph sampling can be achieved before invoking the
+    real-time inference endpoint when building the subgraph payload.
+
+    Parameters
+    -----------
+    g: DGLGraph
+        A DGLGraph instance.
+    target_idx : dict of Tensors
+        The target node indexes for prediction.
+    num_layers: int
+        The number of layers dataloader will use as the number of GNN layers. Default is 1.
+    """
+    def __init__(self,
+                 g,
+                 target_idx,
+                 num_layers=1):
+        assert isinstance(g, dgl.DGLGraph), ('The argument \"g\" should be a DGLGraph ' \
+            f'instance, but got {g}.')
+        assert isinstance(target_idx, dict), ('The argument \"target_idx\" should be a ' \
+            f'dictionary, but got {target_idx}.')
+        for ntype in target_idx:
+            assert ntype in g.ntypes, (f'node type {ntype} does not exist in the graph.')
+
+        # GSgnnNodeDataLoaderBase requires a valid label_field, but in real-time inference
+        # dataloading, no label is available normally. So here we provide a dummy name for
+        # using the base class.
+        super().__init__(g,
+                         target_idx,
+                         fanout=[-1],
+                         label_field="label",   # use a dummy name for using the base class
+                         node_feats=None,
+                         edge_feats=None)
+
+        self.dataloader = self._prepare_dataloader(g, target_idx, num_layers)
+
+    def _prepare_dataloader(self, g, target_idx, num_layers):
+        """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader. 
+        """
+        # to shorten real-time inference time, here set the batch size to be the largest number
+        # of target indexes, so that only use one mini batch.
+        batch_size = 0
+        for _, idx in target_idx.items():
+            if len(idx) > batch_size:
+                batch_size = len(idx)
+
+        if batch_size > MAX_REALTIME_BATCH_SIZE:
+            logging.warning('The maximum number of target ' \
+                'nodes %s is larger than %s ',  batch_size, MAX_REALTIME_BATCH_SIZE + \
+                ' This may cause longer response latency or other unexpected issues. ' \
+                'Please use smaller number of target nodes.')
+
+        # use a full neighbor sampler because it is unclear if callers have done sampling when
+        # building the subgraph payload.
+        sampler = dgl.dataloading.MultiLayerFullNeighborSampler(num_layers)
+
+        # for an endpoint, just use one GPU if in a GPU instance
+        # TODO (Jian) investigate the efficiency of using multiple GPUs and decide next design
+        device = th.device('cuda:0') if th.cuda.is_available() else th.device('cpu')
+
+        # Here to avoid naming conflict with torch Dataloader, use dgl name directly
+        dataloader = dgl.dataloading.DataLoader(g, target_idx, sampler, device=device,
+                                                batch_size=batch_size, shuffle=False,
+                                                drop_last=False)
+        return dataloader
+
+    def __iter__(self):
+        """ Returns an iterator object of the dataloader
+        """
+        self.dataloader = iter(self.dataloader)
+        return self
+
+    def __next__(self):
+        """ Return a mini-batch data for node tasks.
+        """
+        return self.dataloader.__next__()
+
+    def __len__(self):
+        """ Return the length (number of mini-batches) of the dataloader.
+
+        For real-time inference, all targets will be processed once. So, the length will be one.
+
+        Returns
+        -------
+        int: length
+        """
+        # TODO(Jian), provide meaningful length if the number of targets is relatively large.
+        return self.dataloader.__len__()
 
 
 ####################### Multi-task Dataloader ####################
