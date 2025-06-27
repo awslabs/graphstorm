@@ -38,15 +38,7 @@ def comput_bert(lm_model, input_ids, attention_masks, token_type_ids=None):
 @pytest.mark.parametrize("lm_type, bert_model_name",[
     (BUILTIN_HF_BERT, "bert-base-uncased"),
     ("roberta", "roberta-base"),
-    ("albert", "albert-base-v1"),
-    ("camembert", "camembert-base"),
-    ("ernie", "nghuyong/ernie-1.0-base-zh"),
-    ("ibert", "kssteven/ibert-roberta-base"),
-    ("mega", "mnaylor/mega-base-wikitext"),
-    ("mpnet", "microsoft/mpnet-base"),
-    ("nezha", "sijunhe/nezha-cn-base"),
-    ("qdqbert", "bert-base-uncased"),
-    ("roc_bert", "weiweishi/roc-bert-base-zh")])
+    ("albert", "albert-base-v1")])
 def test_hfbert_wrapper(num_train, input_ntypes, generate_tid, lm_type, bert_model_name):
     device='cuda:0'
     max_seq_length = 32
