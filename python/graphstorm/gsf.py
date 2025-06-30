@@ -1388,7 +1388,7 @@ def restore_builtin_node_model4realtime(model_dir, json_file, yaml_file):
     initialize()
 
     # create a metadata graph for a graph configuration JSON file
-    with open(os.path.join(model_dir, json_file), 'r') as f:
+    with open(os.path.join(model_dir, json_file), 'r', encoding='utf-8') as f:
         config_json = json.load(f)
 
     metadata = load_metadata_from_json(config_json)
@@ -1398,7 +1398,7 @@ def restore_builtin_node_model4realtime(model_dir, json_file, yaml_file):
     args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)
     gs_config = GSConfig(args)
 
-    # use GraphStorm built-in function to create the model and reload 
+    # use GraphStorm built-in function to create the model and reload
     model = create_builtin_node_gnn_model(metadata_g, gs_config, train_task=False)
     model.restore_model(model_dir)
 
