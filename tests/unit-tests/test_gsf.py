@@ -73,7 +73,7 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         FocalLossFunc,
                                         ShrinkageLossFunc)
 
-from data_utils import generate_dummy_dist_graph
+from data_utils import generate_dummy_dist_graph, generate_dummy_hetero_graph
 from config_utils import create_dummpy_config_obj
 
 
