@@ -214,15 +214,12 @@ def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
             elif col == 'dest_id':
                 edge_dict['dest_id_col'] = col
             elif col == 'label':
-                label_dict['task_type'] = 'link_prediction'     # In ACM data, we do not have this
-                                                                # edge task. Here is just for demo
-                label_dict['split_pct'] = [0.8, 0.1, 0.1]       # Same as the label_split filed.
-                                                                # The split pct values are just for
-                                                                # demonstration purpose.
+                label_dict['task_type'] = 'link_prediction'
+                label_dict['split_pct'] = [0.8, 0.1, 0.1]
                 labels_list.append(label_dict)
-            elif col.startswith('cate_'):                       # Dummy categorical features that ask
-                feat_dict['feature_col'] = col                  # for a "to_categorical" tranformation
-                feat_dict['feature_name'] = col                 # operation
+            elif col.startswith('cate_'):
+                feat_dict['feature_col'] = col
+                feat_dict['feature_name'] = col
                 feat_dict['transform'] = {"name": "to_categorical"}
                 feat_dict['feature_dim'] = feat_dims[col]
                 feats_list.append(feat_dict)
@@ -825,12 +822,12 @@ def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy',
     else:
         hetero_graph = generate_dummy_homo_graph(size=size, gen_mask=gen_mask)
     
-    graph_config_new = create_dummy_hetero_graph_config(dirname, hetero_graph)
-    
     dist_g, part_config = partion_and_load_distributed_graph(hetero_graph=hetero_graph,
                                                              dirname=dirname,
                                                              graph_name=graph_name)
+
     if return_graph_config:
+        graph_config_new = create_dummy_hetero_graph_config(dirname, hetero_graph)
         return dist_g, part_config, graph_config_new
     else:
         return dist_g, part_config

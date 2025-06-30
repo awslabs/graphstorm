@@ -2307,8 +2307,8 @@ def test_GSgnnTrainData_homogeneous():
         # generate the test dummy homogeneous distributed graph and
         # test if it is possible to create GSgnnData on homogeneous graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=os.path.join(tmpdirname, 'dummy'),
-                                                            is_homo=True)
+                                                   dirname=os.path.join(tmpdirname, 'dummy'),
+                                                   is_homo=True)
         data = GSgnnData(part_config=part_config)
         _ = data.get_edge_train_set(tr_etypes)
         _ = data.get_edge_val_set(va_etypes)
