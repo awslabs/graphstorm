@@ -388,9 +388,3 @@ def test_np_predict_fn():
         model, gs_config = create_realtime_np_model(tmpdir, model_error=True)
         res = np_predict_fn(input_data, model)
         assert res['status_code'] == 500
-
-
-if __name__ == '__main__':
-    # test_np_model_fn()
-    test_np_input_fn()
-    test_np_predict_fn()

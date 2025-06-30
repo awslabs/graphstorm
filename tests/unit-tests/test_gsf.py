@@ -816,13 +816,3 @@ def test_restore_builtin_node_model4realtime():
         assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
         assert isinstance(model.decoder, EntityClassifier)
         assert model.decoder.decoder.shape[1] == yaml_object["gsf"]["node_classification"]["num_classes"]
-
-
-if __name__ == '__main__':
-    # test_check_graph_name()
-    # test_create_builtin_node_decoder()
-    # test_create_builtin_edge_decoder()
-    # test_create_builtin_lp_decoder()
-    # test_get_edge_feat_size()
-
-    test_restore_builtin_node_model4realtime()
