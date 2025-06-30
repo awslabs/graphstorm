@@ -37,20 +37,18 @@ class GSRealTimeInferenceResponseMessage:
     data: dict
         The prediction results payload for the response. Default is None
     """
-    def __init__(
-            self,
-            status_code,
-            message = None,
-            error = None,
-            data = None
-        ):
-            self.status_code = status_code
-            self.message = message
-            self.error = error
-            if data is not None:
-                self.data = data
-            else:
-                self.data = {}
+    def __init__(self,
+                 status_code,
+                 message = None,
+                 error = None,
+                 data = None):
+        self.status_code = status_code
+        self.message = message
+        self.error = error
+        if data is not None:
+            self.data = data
+        else:
+            self.data = {}
 
     def to_dict(self):
         """Return a dict representation for JSON serialization."""
@@ -128,8 +126,8 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code=403,
             error=(
-                f"Mismatch target node IDs: the target node ID: {target_nid} does not existing in " \
-                 "the payload graph."
+                f"Mismatch target node IDs: the target node ID: {target_nid} does not " \
+                 "existing in the payload graph."
             )
         )
 
@@ -141,8 +139,8 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code = 411,
             error = (
-                f"Graph Construction Failure: Failed to construct a DGL graph from the http "
-                 "payload. Details: {track}"
+                "Graph Construction Failure: Failed to construct a DGL graph from the http "
+                f"payload. Details: {track}"
             )
         )
 
@@ -164,8 +162,8 @@ class GSRealTimeInferenceResponseMessage:
         """
         Create a generic internal server error response (500).
         """
-        msg = ("Internal Server Error: Please Please contact with your endpoint administrators " \
-               "for this error. " )
+        msg = "Internal Server Error: Please Please contact with your endpoint " + \
+              "administrators for this error. "
         if detail:
             msg += f"Details: {detail}"
         return cls(
