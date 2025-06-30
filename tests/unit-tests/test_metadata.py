@@ -20,7 +20,6 @@ import tempfile
 import json
 
 import pytest
-from numpy.testing import assert_equal, assert_almost_equal
 from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
 from graphstorm.dataloading import (GSGraphMetadata,
@@ -1423,11 +1422,3 @@ def test_GSMetadataDglDistGraph():
             ntype, feat_dims in expected_nfeat_dims.items() for feat_name, dim in feat_dims.items())
         assert all(list(md_dist_g.edges[etype].data[feat_name].shape) == [0, dim[0]] for \
             etype, feat_dims in expected_efeat_dims.items() for feat_name, dim in feat_dims.items())
-
-
-if __name__ == '__main__':
-
-    test_GSGraphMetadata()
-    test_config_json_santiy_check()
-    test_load_metadata_from_json()
-    test_GSMetadataDglDistGraph()

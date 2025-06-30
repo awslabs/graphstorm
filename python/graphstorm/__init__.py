@@ -49,3 +49,4 @@ from .gsf import (create_builtin_node_decoder,
                   create_builtin_reconstruct_efeat_decoder)
 from .gsf import (get_builtin_lp_train_dataloader_class,
                   get_builtin_lp_eval_dataloader_class)
+from .gsf import restore_builtin_node_model4realtime

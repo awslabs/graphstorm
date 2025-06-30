@@ -38,9 +38,9 @@ SUPPORTED_REALTIME_INFER_TASKS = [SUPPORTED_REALTIME_INFER_NC_TASK]
 ENTRY_FOLDER_NAME = 'realtime_entry_points'
 # TODO: When add new realtime inference tasks, modify this dict
 ENTRY_FILE_NAMES = {
-    SUPPORTED_REALTIME_INFER_NC_TASK: 'node_classification_entry.py'
+    SUPPORTED_REALTIME_INFER_NC_TASK: 'node_prediction_entry.py'
     }
-DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
+DEFAULT_GS_MODLE_FILE_NAME = 'model.bin'
 
 
 def run_job(input_args):
