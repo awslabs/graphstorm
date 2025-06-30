@@ -20,7 +20,6 @@ import tempfile
 import json
 
 import pytest
-from numpy.testing import assert_equal, assert_almost_equal
 from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
 from graphstorm.dataloading import (GSGraphMetadata,

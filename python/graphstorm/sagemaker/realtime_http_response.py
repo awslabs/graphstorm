@@ -81,6 +81,19 @@ class GSRealTimeInferenceResponseMessage:
         )
 
     @classmethod
+    def json_format_error(cls, error):
+        """
+        Create a response for general json format errors (400) occurred in json.load().
+        """
+        return cls(
+            status_code=400,
+            error=(
+                "General JSON format error: The input payload has some JSON format error. " \
+                f"Details: {error}."
+            )
+        )
+
+    @classmethod
     def missing_required_field(cls, field):
         """
         Create a response for missing required field errors (401).

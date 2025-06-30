@@ -28,6 +28,7 @@ import torch as th
 from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
 
 import graphstorm as gs
+from graphstorm.utils import setup_device, get_device
 from graphstorm.gconstruct import (ERROR_CODE, GRAPH, MSG, NODE_MAPPING,
                                    STATUS, process_json_payload_graph)
 from graphstorm.dataloading import GSgnnRealtimeInferNodeDataLoader
@@ -89,8 +90,11 @@ def model_fn(model_dir):
     yaml_file = None
     json_file = None
     files = os.listdir(model_dir)
+
+    # keep the file name or extension check logic here for easy customization as users may use
+    # different artifact names or extensions from the default settings
     for file in files:
-        if file.endswith('.bin'):
+        if file == 'model.bin':
             model_file = file
         if file.endswith('.yaml'):
             yaml_file = file
@@ -98,19 +102,24 @@ def model_fn(model_dir):
             json_file = file
         else:
             continue
-
     # check if required artifacts exist
     assert model_file is not None, f'Missing model file, e.g., \"model.bin\", in the tar file.'
     assert yaml_file is not None, f'Missing model configuration YAML file in the tar file.' 
     assert json_file is not None, f'Missing graph configuration JSON file in the tar file.'
 
     # load and recreate the trained model using the gsf built-in function
-    model, config_json, gs_config = gs.restore_builtin_node_model4realtime(model_dir,
-                                                                            json_file,
-                                                                            yaml_file)
-    global CONFIG_JSON, GS_CONFIG
-    CONFIG_JSON = config_json
-    GS_CONFIG = gs_config
+    try:
+        model, config_json, gs_config = gs.restore_builtin_node_model4realtime(model_dir,
+                                                                                json_file,
+                                                                                yaml_file)
+        global CONFIG_JSON, GS_CONFIG
+        CONFIG_JSON = config_json
+        GS_CONFIG = gs_config
+    except Exception as e:
+        model = None
+        logging.error('Fail to restore trained GraphStorm model. Details:\n %s', e)
+        # This will be endpoint backend error, so not use the response class
+        raise Exception('Fail to restore trained GraphStorm model. Details: %s', e)
 
     e_t = dt.now()
     diff_t = int((e_t - s_t).microseconds / 1000)
@@ -208,17 +217,23 @@ def input_fn(request_body, request_content_type='application/json'):
 
     logging.debug(request_body)
 
-    payload_data = json.loads(request_body)
+    try:
+        payload_data = json.loads(request_body)
+    except Exception as e:
+        res = res_msg.json_format_error(error=e)
+        return res
 
-    result = {}
+    # TODO(Jian), build a unified payload content sanity checking  method under gconstruct package
+    # to be shared by all entry point files
 
-    # general checks of the payload, while other checks will be in the payload processing
+    # the version object will be used later to keep backward compatibilty for early versions
     version = payload_data.get('version', None)
+
     gml_task = payload_data.get('gml_task', None)
     targets = payload_data.get('targets', None)
 
     # 1. check if the payload is for a NC task
-    if gml_task is None or not (gml_task == 'node_classification' or gml_task == 'node_regression'):
+    if gml_task is None or (gml_task not in ['node_classification', 'node_regression']):
         track = f'This endpoint is for node prediction, but got {gml_task} task from the payload.'
         res = res_msg.model_mismatch_error(track=track)
         return res
@@ -227,6 +242,18 @@ def input_fn(request_body, request_content_type='application/json'):
     if targets is None or len(targets)==0:
         res = res_msg.missing_required_field(field='targets')
         return res
+    # check if target has node_type and node_id. Will check values in id mapping
+    for target in targets:
+        if isinstance(target, dict):
+            if 'node_type' not in target or 'node_id' not in target:
+                res = res_msg.json_format_error(error=('The Element of \"targets\" field should ' \
+                    'be a dictionary that has both \"node_type\" and \"node_id\" keys, but ' \
+                    f'got {target}.'))
+                return res
+        else:
+            res = res_msg.json_format_error(error=('The Element of \"targets\" field should ' \
+                f'be a dictionary, but got {target}'))
+            return res
 
     # processing payload to generate a DGL graph
     global CONFIG_JSON
@@ -236,20 +263,23 @@ def input_fn(request_body, request_content_type='application/json'):
         track = f'Error code: {g_resp[ERROR_CODE]}, Message: {g_resp[MSG]}.'
         res = res_msg.graph_construction_failure(track=track)
         return res
-    elif g_resp[STATUS] == 200:   # succeeded
+
+    # succeeded
+    if g_resp[STATUS] == 200:
         dgl_graph = g_resp[GRAPH]
         raw_node_id_maps = g_resp[NODE_MAPPING]
 
-    # mapping the targets, a list of node objects, to new graph node IDs
-    target_dict = {}
+    # mapping the targets, a list of node objects, to new graph node IDs after dgl graph
+    # construction for less overall data processing time
+    target_mapping_dict = {}
     for target in targets:
         target_ntype = target['node_type']
         target_nid = target['node_id']
 
-        if target_ntype in target_dict:
-            orig_target_nids = target_dict[target_ntype][0]
+        if target_ntype in target_mapping_dict:
+            orig_target_nids = target_mapping_dict[target_ntype][0]
             orig_target_nids.append(target_nid)
-            graph_target_nids = target_dict[target_ntype][1]
+            graph_target_nids = target_mapping_dict[target_ntype][1]
             # target id is not in the subgraph
             if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
                 res = res_msg.mismatch_target_nid(target_nid)
@@ -268,9 +298,9 @@ def input_fn(request_body, request_content_type='application/json'):
             else:
                 graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
                 graph_target_nids.append(graph_target_nid)
-                target_dict[target_ntype] = (orig_target_nids, graph_target_nids)
+                target_mapping_dict[target_ntype] = (orig_target_nids, graph_target_nids)
 
-    data = {DATA: dgl_graph, TARGETS: target_dict}
+    data = {DATA: dgl_graph, TARGETS: target_mapping_dict}
     res = res_msg.success(data=data)
 
     e_t = dt.now()
@@ -297,6 +327,7 @@ def predict_fn(input_data, model):
     s_t = dt.now()
 
     res = {}
+
     # Handle payload errors from the input_fn
     if input_data.status_code != 200:
         return input_data.to_dict()
@@ -315,8 +346,13 @@ def predict_fn(input_data, model):
     gs_config = GS_CONFIG
 
     try:
+        # setup device
+        setup_device(0)
+        device = get_device()
+
         # initialize a GS real-time inferrer
         inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+        inferrer.setup_device(device)
         # initialize a GS real-time dataLoader
         dataloader = GSgnnRealtimeInferNodeDataLoader(dgl_graph,
                                                       target_nids,
@@ -335,7 +371,6 @@ def predict_fn(input_data, model):
                     'node_id': orig_nid,
                     'prediction': pred_in_orig
                 }
-
                 pred_list.append(pred_res)
     except Exception as e:
         logging.error(traceback.format_exc())
