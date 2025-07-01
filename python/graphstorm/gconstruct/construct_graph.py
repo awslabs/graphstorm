@@ -851,7 +851,7 @@ def process_graph(args):
         outfile_path = args.output_conf_file
     else:
         new_file_name = RUNTIME_GCONSTRUCT_FILENAME
-        outfile_path = os.path.join(args.output_dir,new_file_name )
+        outfile_path = os.path.join(args.output_dir,new_file_name)
 
     # check if the output configuration file exists. Overwrite it with a warning.
     if os.path.exists(outfile_path):

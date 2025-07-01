@@ -227,7 +227,7 @@ class GSConfig:
         # If model output is configured, save the runtime train config as a yaml file there,
         # and the graph construction config, if one exists in the input
         if hasattr(self, "_save_model_path") and self._save_model_path:
-            # Ensure mode output directory exists
+            # Ensure model output directory exists
             os.makedirs(self._save_model_path, exist_ok=True)
 
             # Save a copy of train config with runtime args
