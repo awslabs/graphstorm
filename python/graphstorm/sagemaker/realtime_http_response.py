@@ -126,7 +126,7 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code=403,
             error=(
-                f"Mismatch target node IDs: the target node ID: {target_nid} does not " \
+                f"Mismatched target node IDs: the target node ID: {target_nid} does not " \
                  "existing in the payload graph."
             )
         )
@@ -152,7 +152,7 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code = 421,
             error = (
-                "Task Mismatch: Input payload\'s task mismatched with the endpoint model. " \
+                "Task Mismatch: Input payload\'s task mismatches with the endpoint model. " \
                 f"Details: {track}"
             )
         )
@@ -162,7 +162,7 @@ class GSRealTimeInferenceResponseMessage:
         """
         Create a generic internal server error response (500).
         """
-        msg = "Internal Server Error: Please Please contact with your endpoint " + \
+        msg = "Internal Server Error: Please contact with your endpoint " + \
               "administrators for this error. "
         if detail:
             msg += f"Details: {detail}"
