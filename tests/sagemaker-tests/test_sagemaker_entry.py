@@ -75,6 +75,8 @@ def create_dummy_model_artifacts(model_dir, files=None):
 
 def create_realtime_yaml_object(tmpdirname):
     """ Create a model yaml object to build a GraphStorm model
+
+    This yaml object works for the real-time test payload data, which is based on movielens.
     """
     yaml_object = {
         "version": 1.0,
@@ -120,10 +122,10 @@ def create_realtime_yaml_object(tmpdirname):
         json.dump({
             "graph_name": "test"
         }, f)
-    with open(os.path.join(tmpdirname, "ml.yaml"), "w") as f:
+    with open(os.path.join(tmpdirname, "ml_nc.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'ml.yaml'),
+    args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'ml_nc.yaml'),
                     local_rank=0)
     gs_config = GSConfig(args)
 

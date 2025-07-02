@@ -95,8 +95,10 @@ def model_fn(model_dir):
     for file in files:
         if file == 'model.bin':
             model_file = file
+        # TODO (Jian) add check existance of GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml
         if file.endswith('.yaml'):
             yaml_file = file
+        # TODO (Jian) add check existance of data_transform_new.json
         elif file.endswith('.json'):
             json_file = file
         else:
@@ -215,6 +217,9 @@ def input_fn(request_body, request_content_type='application/json'):
     s_t = dt.now()
 
     logging.debug(request_body)
+    if request_content_type != 'application/json':
+        res = res_msg.json_format_error(error=f'Unsupported content type: {request_content_type}')
+        return res
 
     try:
         payload_data = json.loads(request_body)
