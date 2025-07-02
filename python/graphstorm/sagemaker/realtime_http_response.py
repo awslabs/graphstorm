@@ -152,7 +152,7 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code = 421,
             error = (
-                "Task Mismatch: Input payload\'s task mismatched with the endpoint model. " \
+                "Task Mismatch: Input payload\'s task mismatches with the endpoint model. " \
                 f"Details: {track}"
             )
         )
