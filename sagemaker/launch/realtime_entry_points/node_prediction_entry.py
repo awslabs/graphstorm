@@ -61,8 +61,8 @@ def model_fn(model_dir):
 
     - model_dir
         |- model.bin
-        |- acm_nc.yaml
-        |- new_acm_config.json
+        |- GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml
+        |- data_transform_new.json
         |- code
             |- node_prediction_entry.py
 
