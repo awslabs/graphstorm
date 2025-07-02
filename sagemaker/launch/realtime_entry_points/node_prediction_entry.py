@@ -297,7 +297,7 @@ def input_fn(request_body, request_content_type='application/json'):
             else:
                 graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
                 graph_target_nids.append(graph_target_nid)
-                target_mapping_dict[target_ntype] = (orig_target_nids, graph_target_nids)
+                target_mapping_dict[target_ntype] = ([target_nid], [graph_target_nid])
 
     data = {DATA: dgl_graph, TARGETS: target_mapping_dict}
     res = res_msg.success(data=data)
