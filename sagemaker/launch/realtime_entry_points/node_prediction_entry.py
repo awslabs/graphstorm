@@ -200,7 +200,7 @@ def input_fn(request_body, request_content_type='application/json'):
     request_body: JSON object
         The JSON object in the request. The JSON object contains the subgraph for inference.
     request_content_type: str
-        String to indicate what is the format of the payload. For GraphStorm built-in real-time
+        A string to indicate what is the format of the payload. For GraphStorm built-in real-time
         input function, the format should be 'application/json'.
 
     Return
