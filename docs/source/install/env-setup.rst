@@ -152,7 +152,7 @@ to build first.
 The ``build_graphstorm_image.sh`` script can build the image
 locally and tag it. It only requires providing the intended execution environment,
 using the ``-e/--environment`` argument. The supported environments
-are ``sagemaker`` and ``local``.
+are ``sagemaker``, ``local`` and ``sagemaker-endpoint``.
 
 For example, assuming our current directory is where
 we cloned ``graphstorm/``, we can use
@@ -171,7 +171,7 @@ The script also supports other arguments to customize the image name,
 tag and other aspects of the build. We list the full argument list below:
 
 * ``-x, --verbose``       Print script debug info (set -x)
-* ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
+* ``-e, --environment``   Image execution environment. Must be one of 'local', 'sagemaker' and 'sagemaker-endpoint'. Required.
 * ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
 * ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
 * ``-i, --image``         Docker image name, default is 'graphstorm'.
