@@ -363,7 +363,7 @@ def predict_fn(input_data, model):
         pred_list = []
         for ntype, preds in predictions.items():
             (orig_nids, dgl_nids) = target_dict[ntype]
-            preds_in_orig = preds[dgl_nids].tolist()
+            preds_in_orig = preds[dgl_nids].cpu().numpy().tolist()
             for orig_nid, pred_in_orig in zip(orig_nids, preds_in_orig):
                 pred_res = {
                     'node_type': ntype,
