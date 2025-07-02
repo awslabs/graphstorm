@@ -281,7 +281,8 @@ def input_fn(request_body, request_content_type='application/json'):
             orig_target_nids.append(target_nid)
             graph_target_nids = target_mapping_dict[target_ntype][1]
             # target id is not in the subgraph
-            if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
+            graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
+            if graph_target_nid is None:
                 res = res_msg.mismatch_target_nid(target_nid)
                 return res
             else:
