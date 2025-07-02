@@ -244,7 +244,10 @@ class GSConfig:
         """ Copy graph construct config to the model output path.
         """
         # Copy data configuration file if available
-        if get_rank() == 0 and self.part_config is not None:
+        if get_rank() == 0:
+            assert isinstance(self.part_config, str), (
+                "Need to provide a value for part_config"
+            )
             try:
                 part_config_dir = os.path.dirname(self.part_config)
                 input_data_config = os.path.join(part_config_dir, RUNTIME_GCONSTRUCT_FILENAME)

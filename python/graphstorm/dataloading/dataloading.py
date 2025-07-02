@@ -19,6 +19,7 @@ import importlib.metadata
 import inspect
 import logging
 import math
+from typing import Dict, List, Union, Optional
 
 import dgl
 import torch as th
@@ -1472,8 +1473,12 @@ class GSgnnNodeDataLoaderBase():
 
         Default: None.
     """
-    def __init__(self, dataset: GSgnnData, target_idx, fanout,
-                 label_field, node_feats=None, edge_feats=None):
+    def __init__(self, dataset: GSgnnData,
+                 target_idx: Dict[str, th.Tensor],
+                 fanout: Union[List[int], Dict[str, List[int]]],
+                 label_field: Union[str, Dict[str, str]],
+                 node_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 edge_feats: Optional[Union[str, Dict[str, List[str]]]] = None):
         self._data = dataset
         self._target_idx = target_idx
         self._fanout = fanout
