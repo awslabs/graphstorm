@@ -32,9 +32,11 @@ from graphstorm.model import GSNodeEncoderInputLayer
 from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as res_msg
 
 from realtime_entry_points import node_prediction_entry as npe
-from realtime_entry_points.node_prediction_entry import model_fn as np_model_fn
-from realtime_entry_points.node_prediction_entry import input_fn as np_input_fn
-from realtime_entry_points.node_prediction_entry import predict_fn as np_predict_fn
+from realtime_entry_points.node_prediction_entry import (
+    model_fn as np_model_fn,
+    input_fn as np_input_fn,
+    predict_fn as np_predict_fn,
+)
 
 
 # get two input files
