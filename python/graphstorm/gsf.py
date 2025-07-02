@@ -1381,10 +1381,13 @@ def create_lp_evaluator(config):
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     """ restore the trained GraphStorm model from model artifacts
 
+    This method provides a lightweigth method to restore built-in model by using the three model
+    artifacts, including a model path there is a `model.bin` file as the trained parameters, a
+    JSON file that store the metadata of graphs used during model training, and a YAML file.
     
-    The real-time node inference is supposed to occur inside a SageMaker real-time inference
-    endpoint where in a model path there is a `model.bin` file as the trained parameters, a
-    JSON file that store the metadata of graphs used during model training, and a YAML file
+    A common use case of this method is for real-time node inference inside a SageMaker real-time
+    inference endpoint. Another case is to retore a trained model without contruct a distributed
+    graph.
     """
     # intialize gsf environment first
     initialize()
