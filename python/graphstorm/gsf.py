@@ -1377,9 +1377,11 @@ def create_lp_evaluator(config):
 
 
 ####################### Functions for real-time inference #############################
-def restore_builtin_node_model4realtime(model_dir, json_file, yaml_file):
-    """ restore the trained GraphStorm model for real-time node inference
 
+def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
+    """ restore the trained GraphStorm model from model artifacts
+
+    
     The real-time node inference is supposed to occur inside a SageMaker real-time inference
     endpoint where in a model path there is a `model.bin` file as the trained parameters, a
     JSON file that store the metadata of graphs used during model training, and a YAML file
@@ -1399,7 +1401,21 @@ def restore_builtin_node_model4realtime(model_dir, json_file, yaml_file):
     gs_config = GSConfig(args)
 
     # use GraphStorm built-in function to create the model and reload
-    model = create_builtin_node_gnn_model(metadata_g, gs_config, train_task=False)
+    if gs_config.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        model = create_builtin_node_gnn_model(metadata_g, gs_config, train_task=False)
+    elif gs_config.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+        model = create_builtin_edge_gnn_model(metadata_g, gs_config, train_task=False)
+    elif gs_config.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        model = create_builtin_lp_gnn_model(metadata_g, gs_config, train_task=False)
+    # TODO(Jian) add support of feature reconstruction tasks
+    else:
+        raise NotImplementedError('Only support to restore GraphStorm built-in models from ' \
+                                  f'artifacts on {BUILTIN_TASK_NODE_CLASSIFICATION}, ' \
+                                  f'{BUILTIN_TASK_NODE_REGRESSION}, ' \
+                                  f'{BUILTIN_TASK_EDGE_CLASSIFICATION}, ' \
+                                  f'{BUILTIN_TASK_EDGE_REGRESSION}, or ' \
+                                  f'{BUILTIN_TASK_LINK_PREDICTION}, but got {gs_config.task_type}')
+
     model.restore_model(model_dir)
 
     # return all three artifacts back to model_fn()

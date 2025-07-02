@@ -22,7 +22,7 @@ import yaml
 
 from data_utils import generate_dummy_hetero_graph
 
-def create_dummpy_config_obj():
+def create_dummy_config_obj():
     yaml_object = { # dummy config, bypass checks by default
         "version": 1.0,
         "gsf": {
@@ -44,7 +44,7 @@ def create_dummpy_config_obj():
     return yaml_object
 
 def create_basic_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["basic"] = {
         "backend": "gloo",
         "ip_config": os.path.join(tmp_path, "ip.txt"),

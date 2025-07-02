@@ -25,7 +25,6 @@ from datetime import datetime as dt
 
 import numpy as np
 import torch as th
-from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
 
 import graphstorm as gs
 from graphstorm.utils import setup_device, get_device
@@ -109,7 +108,7 @@ def model_fn(model_dir):
 
     # load and recreate the trained model using the gsf built-in function
     try:
-        model, config_json, gs_config = gs.restore_builtin_node_model4realtime(model_dir,
+        model, config_json, gs_config = gs.restore_builtin_model_from_artifacts(model_dir,
                                                                                 json_file,
                                                                                 yaml_file)
         global CONFIG_JSON, GS_CONFIG
