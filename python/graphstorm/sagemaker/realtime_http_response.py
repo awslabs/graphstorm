@@ -162,7 +162,7 @@ class GSRealTimeInferenceResponseMessage:
         """
         Create a generic internal server error response (500).
         """
-        msg = "Internal Server Error: Please Please contact with your endpoint " + \
+        msg = "Internal Server Error: Please contact with your endpoint " + \
               "administrators for this error. "
         if detail:
             msg += f"Details: {detail}"
