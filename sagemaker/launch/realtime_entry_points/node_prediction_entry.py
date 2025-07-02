@@ -234,6 +234,7 @@ def input_fn(request_body, request_content_type='application/json'):
     # 1. check if the payload is for a NC task
     if gml_task is None or (gml_task not in ['node_classification', 'node_regression']):
         track = f'This endpoint is for node prediction, but got {gml_task} task from the payload.'
+                      f'Supported task types include [node_classification, node_regression]'
         res = res_msg.model_mismatch_error(track=track)
         return res
 
