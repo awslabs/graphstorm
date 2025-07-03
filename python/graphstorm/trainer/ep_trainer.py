@@ -35,7 +35,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
     ``GSgnnEdgePredictionTrainer`` is used to train models for edge prediction tasks,
     such as edge classification and edge regression. ``GSgnnEdgePredictionTrainer``
-    define two main functions: 
+    define two main functions:
 
     * ``fit()``: performs the training for the model provided to this trainer
       when the object is initialized, and;
@@ -91,7 +91,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         This function performs the training for the given edge prediction model.
         It iterates over the training batches provided by the ``train_loader``
         to compute the loss, and then performs the backward steps using trainer's
-        own optimizer. 
+        own optimizer.
 
         If an evaluator and a validation dataloader are added to this trainer, during
         training, the trainer will perform model evaluation in three cases:
@@ -118,7 +118,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             save model checkpoints.
             Default: None.
         save_model_frequency: int
-            The number of iterations to train the model before saving a model checkpoint. 
+            The number of iterations to train the model before saving a model checkpoint.
             Default: -1, meaning only save a model after each epoch.
         save_perf_results_path: str
             The path of the file where the performance results are saved. Default: None.

@@ -15,17 +15,20 @@
 
     GraphStorm trainer for node prediction.
 """
-import time
-import resource
 import logging
+import resource
+import time
+from typing import Optional
+
+
 import torch as th
 from torch.nn.parallel import DistributedDataParallel
 
+from ..dataloading import GSgnnNodeDataLoader
 from ..model.node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
 from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
-
 from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed, get_backend
 
@@ -34,7 +37,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
     ``GSgnnNodePredictionTrainer`` is used to train models for node prediction tasks,
     such as node classification and node regression. ``GSgnnNodePredictionTrainer``
-    defines two main functions: 
+    defines two main functions:
 
     * ``fit()``: performs the training for the model provided to this trainer
       when the object is initialized, and;
@@ -75,22 +78,24 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         assert isinstance(model, GSgnnNodeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not a node model. Please implement GSgnnNodeModelBase."
 
-    def fit(self, train_loader, num_epochs,
-            val_loader=None,
-            test_loader=None,
-            use_mini_batch_infer=True,
-            save_model_path=None,
-            save_model_frequency=-1,
-            save_perf_results_path=None,
-            freeze_input_layer_epochs=0,
-            max_grad_norm=None,
-            grad_norm_type=2.0):
+    def fit(self,
+            train_loader: GSgnnNodeDataLoader,
+            num_epochs: int,
+            val_loader: Optional[GSgnnNodeDataLoader] = None,
+            test_loader: Optional[GSgnnNodeDataLoader] = None,
+            use_mini_batch_infer: bool = True,
+            save_model_path: Optional[str] = None,
+            save_model_frequency: int = -1,
+            save_perf_results_path: Optional[str] = None,
+            freeze_input_layer_epochs: int = 0,
+            max_grad_norm: Optional[float] = None,
+            grad_norm_type: float = 2.0):
         """ Fit function for node prediction training.
 
         This function performs the training for the given node prediction model.
         It iterates over the training batches provided by the ``train_loader``
         to compute the loss, and then performs the backward steps using trainer's
-        own optimizer. 
+        own optimizer.
 
         If an evaluator and a validation dataloader are added to this trainer, during
         training, the trainer will perform model evaluation in three cases:
@@ -105,26 +110,26 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             Node dataloader for mini-batch sampling the training set.
         num_epochs: int
             The max number of epochs used to train the model.
-        val_loader: GSgnnNodeDataLoader
+        val_loader: GSgnnNodeDataLoader, optional
             Node dataloader for mini-batch sampling the validation set. Default: None.
-        test_loader: GSgnnNodeDataLoader
+        test_loader: GSgnnNodeDataLoader, optional
             Node dataloader for mini-batch sampling the test set. Default: None.
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.
-        save_model_path: str
+        save_model_path: str, optional
             The path where trained model checkpoints are saved. If is None, will not
             save model checkpoints.
             Default: None.
         save_model_frequency: int
-            The number of iterations to train the model before saving a model checkpoint. 
+            The number of iterations to train the model before saving a model checkpoint.
             Default: -1, meaning only save model after each epoch.
-        save_perf_results_path: str
+        save_perf_results_path: str, optional
             The path of the file where the performance results are saved. Default: None.
         freeze_input_layer_epochs: int
             The number of epochs to freeze the input layer from updating trainable
             parameters. This is commonly used when the input layer contains language models.
             Default: 0.
-        max_grad_norm: float
+        max_grad_norm: float, optional
             A value used to clip the gradient, which can enhance training stability.
             More explanation of this argument can be found
             in `torch.nn.utils.clip_grad_norm_ <https://pytorch.org/docs/2.1/generated/

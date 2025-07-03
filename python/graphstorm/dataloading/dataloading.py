@@ -19,6 +19,7 @@ import importlib.metadata
 import inspect
 import logging
 import math
+from typing import Dict, List, Union, Optional
 
 import dgl
 import torch as th
@@ -27,7 +28,7 @@ from packaging import version
 from torch.utils.data import DataLoader
 
 from ..utils import get_backend, get_device, is_distributed
-from .dataset import GSDistillData
+from .dataset import GSDistillData, GSgnnData
 from .sampler import (DistributedFileSampler, FastMultiLayerNeighborSampler,
                       GlobalUniform, GSFixedEdgeDstNegativeSampler,
                       GSHardEdgeDstNegativeSampler, InbatchJointUniform,
@@ -1472,8 +1473,12 @@ class GSgnnNodeDataLoaderBase():
 
         Default: None.
     """
-    def __init__(self, dataset, target_idx, fanout,
-                 label_field, node_feats=None, edge_feats=None):
+    def __init__(self, dataset: GSgnnData,
+                 target_idx: Dict[str, th.Tensor],
+                 fanout: Union[List[int], Dict[str, List[int]]],
+                 label_field: Union[str, Dict[str, str]],
+                 node_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 edge_feats: Optional[Union[str, Dict[str, List[str]]]] = None):
         self._data = dataset
         self._target_idx = target_idx
         self._fanout = fanout
@@ -1642,7 +1647,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size,
+    def __init__(self, dataset: GSgnnData, target_idx, fanout, batch_size,
                  label_field, node_feats=None, edge_feats=None,
                  train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
