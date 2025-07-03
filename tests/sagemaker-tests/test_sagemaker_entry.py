@@ -21,9 +21,6 @@ from argparse import Namespace
 from pathlib import Path
 
 import pytest
-from argparse import ArgumentTypeError
-
-import dgl
 from graphstorm.dataloading import (GSDglDistGraphFromMetadata,
                                     load_metadata_from_json)
 from graphstorm.config import GSConfig
@@ -31,31 +28,35 @@ from graphstorm.gsf import (create_builtin_node_gnn_model)
 from graphstorm.model import GSNodeEncoderInputLayer
 from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as res_msg
 
-from realtime_entry_points import node_prediction_entry as npe
 from realtime_entry_points.node_prediction_entry import (
     model_fn as np_model_fn,
-    input_fn as np_input_fn,
-    predict_fn as np_predict_fn,
+    transform_fn as np_transform_fn
 )
 
+@pytest.fixture(scope='session')
+def create_test_realtime_payload():
+    # get a real-time payload file
+    _ROOT = os.path.abspath(os.path.dirname(__file__))
 
-# get two input files
-_ROOT = os.path.abspath(os.path.dirname(__file__))
+    json_payload_file_path = os.path.join(_ROOT, "../end2end-tests/"
+                                                "data_gen/movielens_realtime_payload.json")
+    with open(json_payload_file_path, 'r', encoding="utf8") as json_file:
+        json_data = json.load(json_file)
 
-json_payload_file_path = os.path.join(_ROOT, "../end2end-tests/"
-                                            "data_gen/movielens_realtime_payload.json")
-with open(json_payload_file_path, 'r', encoding="utf8") as json_file:
-    json_data = json.load(json_file)
+    resource = {'json_data': json_data}
 
+    yield resource
 
+# ============ helper functions ==============
 def create_dummy_model_artifacts(model_dir, files=None):
     """ create dummy test model artifacts
     
     These artifacts is in a model folder that includes
     1. a model.bin model parameter files,
     2. a JSON file from GraphStorm's graph construction steps.
+       Default is GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml.
     3. a YAML file from GraphStorm's model training steps.
-
+       Default is data_transform_new.json.
     """
     if files is None:
         files = []
@@ -66,12 +67,12 @@ def create_dummy_model_artifacts(model_dir, files=None):
             f.write("This is temporary GraphStorm model file.")
 
     if "json" in files:
-        temp_json_file_path = os.path.join(model_dir, "new_configuraton.json")
+        temp_json_file_path = os.path.join(model_dir, "data_transform_new.json")
         with open(temp_json_file_path, 'w') as f:
             f.write("This is temporary GraphStorm JSON file.")
 
     if "yaml" in files:
-        temp_yaml_file_path = os.path.join(model_dir, ".yaml")
+        temp_yaml_file_path = os.path.join(model_dir, "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml")
         with open(temp_yaml_file_path, 'w') as f:
             f.write("This is temporary GraphStorm YAML file.")    
 
@@ -124,10 +125,12 @@ def create_realtime_yaml_object(tmpdirname):
         json.dump({
             "graph_name": "test"
         }, f)
-    with open(os.path.join(tmpdirname, "ml_nc.yaml"), "w") as f:
+    with open(os.path.join(tmpdirname,
+                           "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-    args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'ml_nc.yaml'),
+    args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname),
+                                            'GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml'),
                     local_rank=0)
     gs_config = GSConfig(args)
 
@@ -234,9 +237,10 @@ def create_realtime_np_model(tmpdirname, model_error=False):
                                                gs_config.hidden_size)
         model.set_node_input_encoder(node_encoder)
 
-    return model, gs_config
+    return model, gs_json, gs_config
 
 
+# ============ test functions ==============
 def test_np_model_fn():
     """ Locally test the model_fn for np
 
@@ -261,134 +265,149 @@ def test_np_model_fn():
                 np_model_fn(tempdir)
 
 
-def test_np_input_fn():
-    """ Locally test the input_fn for np
-    
+def test_np_transform_fn(create_test_realtime_payload):
+    """ Locally test the transform_fn for np
+
     Because the content of test payload json has been tested in the test_gconstruct_json_payload.py
-    file, this test focuses on the other fields:
+    file, this test focuses on the other fields for input contents:
+    0. request_content_type
     1. version
     2. task_type
     3. targets
     4. target_mapping_dict
+    5. prediction results
     """
-    # add target field input the test data
+    json_data = create_test_realtime_payload['json_data']
+
+    # Test case 1: normal case, successful http payload parsing and graph building, model loading,
+    #              and prediction
     with tempfile.TemporaryDirectory() as tmpdir:
-        gs_json = create_realtime_json_oject(tmpdir)
-        npe.CONFIG_JSON = gs_json
-    json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
-                            {'node_type': 'movie', 'node_id': 'm2'}]
-    json_payload = json.dumps(json_data)
+        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+                                {'node_type': 'movie', 'node_id': 'm2'}]
+        json_payload = json.dumps(json_data)
 
-    # Test case 1: normal case, success load and parse http payload
-    res = np_input_fn(json_payload)
-    assert res.status_code == 200
-    # only test if the data is a DGLGraph, not contents of the test graph which has been tested
-    assert isinstance(res.data['data'], dgl.DGLGraph)
-    # check target node id mapping
-    assert isinstance(res.data['targets'], dict)
-    assert len(res.data['targets']['movie']) == 2
-    assert res.data['targets']['movie'][0] == ['m1', 'm2']
-    assert res.data['targets']['movie'][1] == [0, 1]
-
-    # Test case 2: abnormal cases
-    #       2.1 missing gml_task or mismatch
-    json_data['gml_task'] = 'edge_classification'
-    json_payload_wrong_gml_task = json.dumps(json_data)
-    res = np_input_fn(json_payload_wrong_gml_task)
-    assert res.status_code == 421
-
-    json_data.pop('gml_task')
-    json_payload_wt_gml_task = json.dumps(json_data)
-    res = np_input_fn(json_payload_wt_gml_task)
-    assert res.status_code == 421
-
-    # resume the gml_task field
-    json_data['gml_task'] = 'node_classification'
-
-    #       2.2 missing targets field or it is empty
-    json_data['targets'] = None
-    json_payload_none_targets = json.dumps(json_data)
-    res = np_input_fn(json_payload_none_targets)
-    assert res.status_code == 401
-
-    json_data['targets'] = []
-    json_payload_empty_targets = json.dumps(json_data)
-    res = np_input_fn(json_payload_empty_targets)
-    assert res.status_code == 401
-
-    json_data['targets'] = [['m1', 'm2']]
-    json_payload_nondict_targets = json.dumps(json_data)
-    res = np_input_fn(json_payload_nondict_targets)
-    assert res.status_code == 400
-
-    json_data['targets'] = [{'ntype': 'movie'}]
-    json_payload_nondict_targets = json.dumps(json_data)
-    res = np_input_fn(json_payload_nondict_targets)
-    assert res.status_code == 400
-
-    #       2.3 targets do not exist in the payload graph
-    json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
-                            {'node_type': 'movie', 'node_id': 'm3'}]
-    json_payload_mis_targets = json.dumps(json_data)
-    res = np_input_fn(json_payload_mis_targets)
-    assert res.status_code == 403
-
-
-def test_np_predict_fn():
-    """ Locally test the predict_fn for np
-
-    predict_fn asks for two arguments:
-    - input_data: the DGLGraph and the target id mapping from the input_fn
-    - model: the restored GraphStorm model from the model_fn
-
-    """
-    # Test case 1, normal case, success prediction
-    json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
-                            {'node_type': 'movie', 'node_id': 'm2'}]
-    json_payload = json.dumps(json_data)
-
-    input_data = np_input_fn(json_payload)
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        model, gs_config = create_realtime_np_model(tmpdir)
-        npe.GS_CONFIG = gs_config
-        res = np_predict_fn(input_data, model)
+        model, gs_json, gs_config = create_realtime_np_model(tmpdir)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload,
+                                        request_content_type='application/json')
+        res = json.loads(res)
         assert res['status_code'] == 200
+        assert res_type == 'application/json'
         results = res['data']['results']
         for i, result in enumerate(results):
             assert result['node_type'] == 'movie'
             assert result['node_id'] == 'm'+str(i+1)
             assert len(result['prediction']) == gs_config.num_classes
 
-    # Test case 2, abnormal cases
-    #       2.1 input_data has error
-    with tempfile.TemporaryDirectory() as tmpdir:
-        model, gs_config = create_realtime_np_model(tmpdir)
-        npe.GS_CONFIG = gs_config
-        input_data_wt_feat = res_msg.missing_required_field("feat")
-        res = np_predict_fn(input_data_wt_feat, model)
-        assert res == input_data_wt_feat.to_dict()
+    # Test case 2: abnormal cases of input payload
+    #       2.1 missing gml_task or mismatch
+        json_data['gml_task'] = 'edge_classification'
+        json_payload_wrong_gml_task = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_wrong_gml_task,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 421
 
-    #       2.2 target id mismatch
-    with tempfile.TemporaryDirectory() as tmpdir:
+        json_data.pop('gml_task')
+        json_payload_wt_gml_task = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_wt_gml_task,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 421
+
+        # resume the gml_task field
+        json_data['gml_task'] = 'node_classification'
+
+        #       2.2 missing targets field or it is empty
+        json_data['targets'] = None
+        json_payload_none_targets = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_none_targets,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 401
+
+        json_data['targets'] = []
+        json_payload_empty_targets = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_empty_targets,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 401
+
+        json_data['targets'] = [['m1', 'm2']]
+        json_payload_nondict_targets = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_nondict_targets,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 400
+
+        json_data['targets'] = [{'ntype': 'movie'}]
+        json_payload_noids_targets = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_noids_targets,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 400
+
+        #       2.3 some targets do not exist in the payload graph
         json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
                                 {'node_type': 'movie', 'node_id': 'm3'}]
-        json_payload = json.dumps(json_data)
-
-        input_data = np_input_fn(json_payload)
-
-        model, gs_config = create_realtime_np_model(tmpdir)
-        res = np_predict_fn(input_data, model)
+        json_payload_mis_targets = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_mis_targets,
+                                        request_content_type='application/json')
+        res = json.loads(res)
         assert res['status_code'] == 403
 
-    #       2.3 internal server error
-    with tempfile.TemporaryDirectory() as tmpdir:
+        #       2.4 internal server error
         json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload = json.dumps(json_data)
 
-        input_data = np_input_fn(json_payload)
-
-        model, gs_config = create_realtime_np_model(tmpdir, model_error=True)
-        res = np_predict_fn(input_data, model)
+        model, gs_json, gs_config = create_realtime_np_model(tmpdir, model_error=True)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload,
+                                        request_content_type='application/json')
+        res = json.loads(res)
         assert res['status_code'] == 500
+
+        #       2.5 missing node features
+        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+                                {'node_type': 'movie', 'node_id': 'm2'}]
+        json_payload = json.dumps(json_data)
+
+        model, gs_json, gs_config = create_realtime_np_model(tmpdir)
+        setattr(gs_config, "_node_feat_name", {'user:test_feat', 'movie:test_feat'})
+
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 404
+
+        #       2.6 graph construction error with missing node or edge features
+        json_data['graph']['nodes'][0].pop('features')
+        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+                                {'node_type': 'movie', 'node_id': 'm2'}]
+        json_payload_miss_feat = json.dumps(json_data)
+
+        model, gs_json, gs_config = create_realtime_np_model(tmpdir)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_miss_feat,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 411
+
+
+if __name__ == '__main__':
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model, gs_json, gs_config = create_realtime_np_model(tmpdir)
+        print(gs_config.node_feat_name)
+        print(gs_config.edge_feat_name)
+        for ntype, feat_list in gs_config.node_feat_name.items():
+            print(ntype)
+            print(feat_list)

@@ -51,6 +51,9 @@ from .utils import (multiprocessing_data_read,
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
 
+UPDATED_CONFIGURATION_FILENAME = 'data_transform_new.json'
+
+
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
 
@@ -845,7 +848,7 @@ def process_graph(args):
     if args.output_conf_file is not None:
         outfile_path = args.output_conf_file
     else:
-        new_file_name = 'data_transform_new.json'
+        new_file_name = UPDATED_CONFIGURATION_FILENAME
         outfile_path = os.path.join(args.output_dir,new_file_name )
 
     # check if the output configuration file exists. Overwrite it with a warning.

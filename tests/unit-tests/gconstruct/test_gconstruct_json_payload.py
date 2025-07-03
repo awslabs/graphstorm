@@ -23,7 +23,10 @@ from graphstorm.gconstruct.construct_payload_graph import (process_json_payload_
                                             get_conf, merge_payload_input,
                                             process_json_payload_nodes,
                                             verify_payload_conf,
-                                            STATUS, MSG, GRAPH, NODE_MAPPING)
+                                            PAYLOAD_PROCESSING_STATUS,
+                                            PAYLOAD_PROCESSING_RETURN_MSG,
+                                            PAYLOAD_GRAPH,
+                                            PAYLOAD_GRAPH_NODE_MAPPING)
 from graphstorm.gconstruct.payload_utils import BaseApplicationError
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
@@ -66,12 +69,12 @@ def check_heterogeneous_graph(dgl_hg):
 
 def test_process_json_payload_graph():
     response = process_json_payload_graph(json_payload, gconstruct_confs)
-    assert response[STATUS] == 200
-    assert MSG in response
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+    assert PAYLOAD_PROCESSING_RETURN_MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
-    assert response[NODE_MAPPING] == expected_raw_node_id_maps
+    assert response[PAYLOAD_GRAPH_NODE_MAPPING] == expected_raw_node_id_maps
 
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
 
     # Test with Edge features
@@ -80,7 +83,7 @@ def test_process_json_payload_graph():
             "feature_col": "rate"
     }]
     response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
         assert "rate" in dgl_hg.edges[etype].data
@@ -96,12 +99,12 @@ def test_with_two_phase_transformation():
                           "min_val": -2}
     }]
     response = process_json_payload_graph(json_payload, two_phase_gconstruct_confs)
-    assert response[STATUS] == 200
-    assert MSG in response
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+    assert PAYLOAD_PROCESSING_RETURN_MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
-    assert response[NODE_MAPPING] == expected_raw_node_id_maps
+    assert response[PAYLOAD_GRAPH_NODE_MAPPING] == expected_raw_node_id_maps
 
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
 
     # Edge Feature Transformation
@@ -113,7 +116,7 @@ def test_with_two_phase_transformation():
                           "min_val": -2}
     }]
     response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
         assert "rate" in dgl_hg.edges[etype].data
@@ -127,12 +130,12 @@ def test_with_after_merge_transformation():
             "transform": {"name": "rank_gauss"}
     }]
     response = process_json_payload_graph(json_payload, after_merge_gconstruct_conf)
-    assert response[STATUS] == 200
-    assert MSG in response
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+    assert PAYLOAD_PROCESSING_RETURN_MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
-    assert response[NODE_MAPPING] == expected_raw_node_id_maps
+    assert response[PAYLOAD_GRAPH_NODE_MAPPING] == expected_raw_node_id_maps
 
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
 
     # Edge Feature Transformation
@@ -142,7 +145,7 @@ def test_with_after_merge_transformation():
             "transform": {"name": "rank_gauss"}
     }]
     response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
         assert "rate" in dgl_hg.edges[etype].data

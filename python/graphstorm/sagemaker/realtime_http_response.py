@@ -16,6 +16,9 @@
     GraphStorm SageMaker endpoint http response for realtime inference
 """
 
+import json
+
+
 class GSRealTimeInferenceResponseMessage:
     """
     ResponseMessage provides standardized HTTP response structures for real-time inference endpoint.
@@ -66,6 +69,10 @@ class GSRealTimeInferenceResponseMessage:
         else:
             res["data"] = {}
         return res
+
+    def to_json(self):
+        """Return a JSON object as http contents"""
+        return json.dumps(self.to_dict())
 
     @classmethod
     def success(cls, data):
@@ -132,6 +139,19 @@ class GSRealTimeInferenceResponseMessage:
         )
 
     @classmethod
+    def missing_feature(cls, entity_type, entity_name, feat_name):
+        """
+        Create a response for node or edge feature names are missing in the subgraph (404)
+        """
+        return cls(
+            status_code=404,
+            error=(
+                f"Missng {entity_type} Feature: the {entity_name} {entity_type}s does not contain " \
+                f"model required feature: {feat_name}. "
+            )
+        )
+
+    @classmethod
     def graph_construction_failure(cls, track):
         """
         Create a response for graph construction failures (411).
@@ -145,7 +165,7 @@ class GSRealTimeInferenceResponseMessage:
         )
 
     @classmethod
-    def model_mismatch_error(cls, track):
+    def task_mismatch_error(cls, track):
         """
         Create a response for model/data mismatch errors (421).
         """

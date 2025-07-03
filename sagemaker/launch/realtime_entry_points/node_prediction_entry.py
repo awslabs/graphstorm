@@ -28,23 +28,28 @@ import torch as th
 
 import graphstorm as gs
 from graphstorm.utils import setup_device, get_device
-from graphstorm.gconstruct import (ERROR_CODE, GRAPH, MSG, NODE_MAPPING,
-                                   STATUS, process_json_payload_graph)
+from graphstorm.config import COMBINED_CONFIG_FILENAME
+from graphstorm.gconstruct import (PAYLOAD_PROCESSING_STATUS,
+                                   PAYLOAD_PROCESSING_RETURN_MSG,
+                                   PAYLOAD_PROCESSING_ERROR_CODE,
+                                   PAYLOAD_GRAPH,
+                                   PAYLOAD_GRAPH_NODE_MAPPING,
+                                   UPDATED_CONFIGURATION_FILENAME,
+                                   process_json_payload_graph)
 from graphstorm.dataloading import GSgnnRealtimeInferNodeDataLoader
 from graphstorm.inference import GSGnnNodePredictionRealtimeInferrer
-from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as res_msg
+from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as RTResponseMsg
 
-# Set seed to ensure prediction results constantly
+# Set seed to ensure prediction results to be constant
 th.manual_seed(12345678)
 np.random.seed(12345678)
 
-# Global variables to be initialized during model loading
-CONFIG_JSON = None
-GS_CONFIG = None
-# Global variables as keys
-DATA = 'data'
-TARGETS = 'targets'
-RESULTS = 'results'
+DEFAULT_GS_MODEL_FILE_NAME = 'model.bin'
+
+# set some constants as response keys
+RESPONSE_DATA = 'data'
+PREDICTION_TARGETS = 'targets'
+PREDICTION_RESULTS = 'results'
 
 
 # ================== SageMaker real-time entry point functions ================== #
@@ -69,20 +74,20 @@ def model_fn(model_dir):
     Parameters
     ----------
     model_dir: str
-        The SageMaker model directory. In theory, it should be "/opt/ml/model/".
+        The SageMaker model directory where SageMake unzips the tar file provided in endpoint
+        deployment.
 
     Returns
     -------
+    A tuple of three elements, including:
     model: GraphStorm model
-        A GraphStorm model loaded and recreated from model artifacts.
-
-    Note: Because these functions, `model_fn`, `input_fn`, `predict_fn`, and `output_fn`, are
-          called by the endpoint separately, variables cannot be passed among them directly. So,
-          this function also sets the two global variables, CONFIG_JSON and MODEL_YAML, for other
-          functions.
+        A GraphStorm model rebuilt from model artifacts.
+    config_json:
+        A JSON object loaded from the given graph configuration JSON file.
+    gs_config: GSConfig
+        An instance of GSConfig object built from the given model configuration YAML file.
     """
     logging.info('-- START model loading... ')
-    s_t = dt.now()
 
     # find the name of artifact file names, assuming there is only one type file packed
     model_file = None
@@ -92,17 +97,22 @@ def model_fn(model_dir):
 
     # keep the file name or extension check logic here for easy customization as users may use
     # different artifact names or extensions from the default settings
+    if DEFAULT_GS_MODEL_FILE_NAME in files:
+        model_file = DEFAULT_GS_MODEL_FILE_NAME
+    if COMBINED_CONFIG_FILENAME in files:
+        yaml_file = COMBINED_CONFIG_FILENAME
+    if UPDATED_CONFIGURATION_FILENAME in files:
+        json_file = UPDATED_CONFIGURATION_FILENAME
+
+    # release the control of file names
     for file in files:
-        if file == 'model.bin':
-            model_file = file
-        # TODO (Jian) add check existance of GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml
-        if file.endswith('.yaml'):
+        if yaml_file is None and file.endswith('.yaml'):
             yaml_file = file
-        # TODO (Jian) add check existance of data_transform_new.json
-        elif file.endswith('.json'):
-            json_file = file
+        elif json_file is None and file.endswith('.json'):
+            json_file == file
         else:
             continue
+
     # check if required artifacts exist
     assert model_file is not None, f'Missing model file, e.g., \"model.bin\", in the tar file.'
     assert yaml_file is not None, f'Missing model configuration YAML file in the tar file.' 
@@ -113,28 +123,24 @@ def model_fn(model_dir):
         model, config_json, gs_config = gs.restore_builtin_model_from_artifacts(model_dir,
                                                                                 json_file,
                                                                                 yaml_file)
-        global CONFIG_JSON, GS_CONFIG
-        CONFIG_JSON = config_json
-        GS_CONFIG = gs_config
     except Exception as e:
         model = None
         logging.error('Fail to restore trained GraphStorm model. Details:\n %s', e)
         # This will be endpoint backend error, so not use the response class
         raise Exception('Fail to restore trained GraphStorm model. Details: %s', e)
 
-    e_t = dt.now()
-    diff_t = int((e_t - s_t).microseconds / 1000)
-    logging.info(f'--model_fn: used {diff_t} ms ...')
-
     logging.debug(model)
-    logging.debug(CONFIG_JSON)
-    logging.debug(GS_CONFIG)
+    logging.debug(config_json)
+    logging.debug(gs_config)
 
-    return model
+    return (model, config_json, gs_config)
 
-def input_fn(request_body, request_content_type='application/json'):
-    """ Preprocessing request_body that is in JSON format.
-    
+def transform_fn(model,
+                 request_body,
+                 request_content_type,
+                 response_content_type='application/json'):
+    """ An end-to-end function to handle one request from input to output.
+
     #TODO: add the API specification url here:
 
     According to GraphStorm real-time inference API specification, the payload is like:
@@ -199,33 +205,35 @@ def input_fn(request_body, request_content_type='application/json'):
 
     Parameters
     ----------
+    model: tuple of three elements
+        The output of the model_fn, including a model object, a json object, and a GSConfig object.
     request_body: JSON object
         The JSON object in the request. The JSON object contains the subgraph for inference.
     request_content_type: str
         A string to indicate what is the format of the payload. For GraphStorm built-in real-time
         input function, the format should be 'application/json'.
+    response_content_type: str
+        A string to indicate what is the format of the response. Default is 'application/json'.
 
-    Return
+    Returns
     -------
-    dgl_graph: DGLGraph
-        A DGL graph for inference. For GraphStorm built-in inference pipeline, the graph is a
-        `DGLGraph` instance.
-    target_dict: 
+    res: JSON format of GSRealTimeInferenceResponseMessage
+        The JSON representations of an instance of GSRealTimeInferenceResponseMessage.
+    response_content_type: str
+        A string to indicate what is the format of the response.
     """
-
-    logging.info('-- START processing input data... ')
-    s_t = dt.now()
-
+    model_obj, config_json, gs_config = model
+    
     logging.debug(request_body)
-    if request_content_type != 'application/json':
-        res = res_msg.json_format_error(error=f'Unsupported content type: {request_content_type}')
-        return res
 
+    if request_content_type != 'application/json':
+        res = RTResponseMsg.json_format_error(error=f'Unsupported content type: {request_content_type}')
+        return res.to_json(), response_content_type
     try:
         payload_data = json.loads(request_body)
     except Exception as e:
-        res = res_msg.json_format_error(error=e)
-        return res
+        res = RTResponseMsg.json_format_error(error=e)
+        return res.to_json(), response_content_type
 
     # TODO(Jian), build a unified payload content sanity checking  method under gconstruct package
     # to be shared by all entry point files
@@ -236,43 +244,74 @@ def input_fn(request_body, request_content_type='application/json'):
     gml_task = payload_data.get('gml_task', None)
     targets = payload_data.get('targets', None)
 
-    # 1. check if the payload is for a NC task
+    # 1. check if the payload is for a node prediction task
     if gml_task is None or (gml_task not in ['node_classification', 'node_regression']):
-        track = f'This endpoint is for node prediction, but got {gml_task} task from the payload.'
-                      f'Supported task types include [node_classification, node_regression]'
-        res = res_msg.model_mismatch_error(track=track)
-        return res
+        track = (f'This endpoint is for node prediction task, but got {gml_task} task from ' \
+                 'the payload. Supported task types include [\"node_classification\", ' \
+                 '\"node_regression\"]')
+        res = RTResponseMsg.task_mismatch_error(track=track)
+        return res.to_json(), response_content_type
 
     # 2. check if the targets field is provided
     if targets is None or len(targets)==0:
-        res = res_msg.missing_required_field(field='targets')
-        return res
-    # check if target has node_type and node_id. Will check values in id mapping
+        res = RTResponseMsg.missing_required_field(field='targets')
+        return res.to_json(), response_content_type
+
+    # 3. check if target has node_type and node_id. Will check values in id mapping
     for target in targets:
         if isinstance(target, dict):
             if 'node_type' not in target or 'node_id' not in target:
-                res = res_msg.json_format_error(error=('The Element of \"targets\" field should ' \
+                res = RTResponseMsg.json_format_error(error=('The Element of \"targets\" field should ' \
                     'be a dictionary that has both \"node_type\" and \"node_id\" keys, but ' \
                     f'got {target}.'))
-                return res
+                return res.to_json(), response_content_type
         else:
-            res = res_msg.json_format_error(error=('The Element of \"targets\" field should ' \
+            res = RTResponseMsg.json_format_error(error=('The Element of \"targets\" field should ' \
                 f'be a dictionary, but got {target}'))
-            return res
+            return res.to_json(), response_content_type
 
     # processing payload to generate a DGL graph
-    global CONFIG_JSON
-    g_resp = process_json_payload_graph(payload_data, CONFIG_JSON)
+    g_resp = process_json_payload_graph(payload_data, config_json)
 
-    if g_resp[STATUS] == 400:
-        track = f'Error code: {g_resp[ERROR_CODE]}, Message: {g_resp[MSG]}.'
-        res = res_msg.graph_construction_failure(track=track)
-        return res
+    # generation failed
+    if g_resp[PAYLOAD_PROCESSING_STATUS] == 400:
+        track = (f'Error code: {g_resp[PAYLOAD_PROCESSING_ERROR_CODE]}, ' \
+                 f'Message: {g_resp[PAYLOAD_PROCESSING_RETURN_MSG]}.')
+        res = RTResponseMsg.graph_construction_failure(track=track)
+        return res.to_json(), response_content_type
 
-    # succeeded
-    if g_resp[STATUS] == 200:
-        dgl_graph = g_resp[GRAPH]
-        raw_node_id_maps = g_resp[NODE_MAPPING]
+    # generation succeeded
+    if g_resp[PAYLOAD_PROCESSING_STATUS] == 200:
+        dgl_graph = g_resp[PAYLOAD_GRAPH]
+        raw_node_id_maps = g_resp[PAYLOAD_GRAPH_NODE_MAPPING]
+
+    # 4. check if node or edge feature names match with model configurations
+    if gs_config.node_feat_name is not None:
+        for ntype, feat_list in gs_config.node_feat_name.items():
+            # it is possible that some node types are not sampled 
+            if ntype not in dgl_graph.ntypes:
+                continue
+
+            for feat in feat_list:
+                if feat not in dgl_graph.nodes[ntype].data:
+                    res = RTResponseMsg.missing_feature(entity_type='node', 
+                                                        entity_name=ntype,
+                                                        feat_name=feat)
+                    return res.to_json(), response_content_type
+
+    if gs_config.edge_feat_name is not None:
+        for etype, feat_list in gs_config.edge_feat_name.items():
+            # it is possible that some edge types are not sampled 
+            if etype not in dgl_graph.etypes:
+                continue
+
+            for feat in feat_list:
+                if feat not in dgl_graph.edges[etype].data:
+                    res = RTResponseMsg.missing_feature(entity_type='edge', 
+                                                        entity_name=etype,
+                                                        feat_name=feat)
+                    return res.to_json(), response_content_type
+
 
     # mapping the targets, a list of node objects, to new graph node IDs after dgl graph
     # construction for less overall data processing time
@@ -282,74 +321,29 @@ def input_fn(request_body, request_content_type='application/json'):
         target_nid = target['node_id']
 
         if target_ntype in target_mapping_dict:
-            orig_target_nids = target_mapping_dict[target_ntype][0]
-            orig_target_nids.append(target_nid)
             graph_target_nids = target_mapping_dict[target_ntype][1]
             # target id is not in the subgraph
-            graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
-            if graph_target_nid is None:
-                res = res_msg.mismatch_target_nid(target_nid)
-                return res
+            if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
+                res = RTResponseMsg.mismatch_target_nid(target_nid)
+                return res.to_json(), response_content_type
             else:
                 graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
                 graph_target_nids.append(graph_target_nid)
         else:
-            orig_target_nids = []
-            orig_target_nids.append(target_nid)
             graph_target_nids = []
             # target id is not in the subgraph
             if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
-                res = res_msg.mismatch_target_nid(target_nid)
-                return res
+                res = RTResponseMsg.mismatch_target_nid(target_nid)
+                return res.to_json(), response_content_type
             else:
                 graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
                 graph_target_nids.append(graph_target_nid)
                 target_mapping_dict[target_ntype] = ([target_nid], [graph_target_nid])
 
-    data = {DATA: dgl_graph, TARGETS: target_mapping_dict}
-    res = res_msg.success(data=data)
-
-    e_t = dt.now()
-    diff_t = int((e_t - s_t).microseconds / 1000)
-    logging.info(f'--input_fn: used {diff_t} ms ...')
-
-    return res
-
-def predict_fn(input_data, model):
-    """ Make prediction on the given subgraph for the given targets with the loaded model.
-    
-    Parameters
-    ----------
-    input_data: dict
-        The input data is a GSRealTimeInferenceResponseMessage, where 'status_code': 200,
-        'message': 'something', 'data': {'data': dgl_graph, 'targets': target_dict}}.
-        The target_dict is a dictionary whose keys are target node types, and keys are tuples
-        where the 1st element is a list of the original node IDs, and the 2nd element is a list
-        of the new DGL graph integer IDs. The input_data comes from the input_fn functioin.
-    model: GraphStorm model
-        A GraphStorm model loaded from the model_fn() function.
-    """
-    logging.info('-- START prediction... ')
-    s_t = dt.now()
-
-    res = {}
-
-    # Handle payload errors from the input_fn
-    if input_data.status_code != 200:
-        return input_data.to_dict()
-
-    # extract the data
-    dgl_graph = input_data.data[DATA]
-    target_dict = input_data.data[TARGETS]
-
     # extract the DGL graph nids from target ID mapping dict
     target_nids = {}
-    for ntype, (_, dgl_nids) in target_dict.items():
+    for ntype, (_, dgl_nids) in target_mapping_dict.items():
         target_nids[ntype] = dgl_nids
-
-    # Use load model configuration to intialize an inferrer
-    global GS_CONFIG
-    gs_config = GS_CONFIG
 
     try:
         # setup device
@@ -357,20 +351,20 @@ def predict_fn(input_data, model):
         device = get_device()
 
         # initialize a GS real-time inferrer
-        inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+        inferrer = GSGnnNodePredictionRealtimeInferrer(model_obj)
         inferrer.setup_device(device)
         # initialize a GS real-time dataLoader
         dataloader = GSgnnRealtimeInferNodeDataLoader(dgl_graph,
                                                       target_nids,
                                                       gs_config.num_layers)
-        predictions = inferrer.infer(dgl_graph, dataloader, list(target_dict.keys()),
+        predictions = inferrer.infer(dgl_graph, dataloader, list(target_mapping_dict.keys()),
                                      gs_config.node_feat_name, 
                                      gs_config.edge_feat_name)
         # Build prediction response
         pred_list = []
         for ntype, preds in predictions.items():
-            (orig_nids, dgl_nids) = target_dict[ntype]
-            preds_in_orig = preds[dgl_nids].cpu().numpy().tolist()
+            (orig_nids, dgl_nids) = target_mapping_dict[ntype]
+            preds_in_orig = preds[dgl_nids].tolist()
             for orig_nid, pred_in_orig in zip(orig_nids, preds_in_orig):
                 pred_res = {
                     'node_type': ntype,
@@ -380,13 +374,9 @@ def predict_fn(input_data, model):
                 pred_list.append(pred_res)
     except Exception as e:
         logging.error(traceback.format_exc())
-        res = res_msg.internal_server_error(detail=e)
-        return res.to_dict()
+        res = RTResponseMsg.internal_server_error(detail=e)
+        return res.to_json(), response_content_type
 
-    res = res_msg.success(data={RESULTS: pred_list})
+    res = RTResponseMsg.success(data={PREDICTION_RESULTS: pred_list})
 
-    e_t = dt.now()
-    diff_t = int((e_t - s_t).microseconds / 1000)
-    logging.info(f'--predict_fn: used {diff_t} ms ...')
-
-    return res.to_dict()
+    return res.to_json(), response_content_type

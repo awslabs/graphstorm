@@ -922,7 +922,3 @@ def test_restore_builtin_model_from_artifacts():
 
         # only check decoder output features as other model configurations are the same as nc model,
         assert lp_model.decoder._w_relation.embedding_dim == yaml_object['gsf']['gnn']['hidden_size']
-
-
-if __name__ == '__main__':
-    test_restore_builtin_model_from_artifacts()
