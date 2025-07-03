@@ -544,7 +544,9 @@ def process_json_payload_graph(request_json_payload, graph_construct_config):
     except BaseApplicationError as payload_error:
         error_message = str(payload_error)
         error_code = payload_error.get_error_code()
-        return {PAYLOAD_PROCESSING_STATUS: 400, PAYLOAD_PROCESSING_ERROR_CODE: error_code, PAYLOAD_PROCESSING_RETURN_MSG: error_message}
+        return {PAYLOAD_PROCESSING_STATUS: 400,
+                PAYLOAD_PROCESSING_ERROR_CODE: error_code,
+                PAYLOAD_PROCESSING_RETURN_MSG: error_message}
 
     # Process Node Data
     try:
@@ -554,7 +556,9 @@ def process_json_payload_graph(request_json_payload, graph_construct_config):
     except BaseApplicationError as payload_error:
         error_message = str(payload_error)
         error_code = payload_error.get_error_code()
-        return {PAYLOAD_PROCESSING_STATUS: 400, PAYLOAD_PROCESSING_ERROR_CODE: error_code, PAYLOAD_PROCESSING_RETURN_MSG: error_message}
+        return {PAYLOAD_PROCESSING_STATUS: 400,
+                PAYLOAD_PROCESSING_ERROR_CODE: error_code,
+                PAYLOAD_PROCESSING_RETURN_MSG: error_message}
 
     # Process Edge Data
     try:
@@ -563,7 +567,9 @@ def process_json_payload_graph(request_json_payload, graph_construct_config):
     except BaseApplicationError as payload_error:
         error_message = str(payload_error)
         error_code = payload_error.get_error_code()
-        return {PAYLOAD_PROCESSING_STATUS: 400, PAYLOAD_PROCESSING_ERROR_CODE: error_code, PAYLOAD_PROCESSING_RETURN_MSG: error_message}
+        return {PAYLOAD_PROCESSING_STATUS: 400,
+                PAYLOAD_PROCESSING_ERROR_CODE: error_code,
+                PAYLOAD_PROCESSING_RETURN_MSG: error_message}
 
     try:
         g = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
@@ -576,7 +582,11 @@ def process_json_payload_graph(request_json_payload, graph_construct_config):
             for name, edata in edge_data[etype].items():
                 g.edges[etype].data[name] = th.tensor(edata)
 
-        return {PAYLOAD_PROCESSING_STATUS: 200, PAYLOAD_PROCESSING_RETURN_MSG: "successful build payload graph",
-                PAYLOAD_GRAPH: g, PAYLOAD_GRAPH_NODE_MAPPING: raw_node_id_maps}
+        return {PAYLOAD_PROCESSING_STATUS: 200,
+                PAYLOAD_PROCESSING_RETURN_MSG: "successful build payload graph",
+                PAYLOAD_GRAPH: g,
+                PAYLOAD_GRAPH_NODE_MAPPING: raw_node_id_maps}
     except DGLCreateError as e:
-        return {PAYLOAD_PROCESSING_STATUS: 400, PAYLOAD_PROCESSING_ERROR_CODE: e.get_error_code(), PAYLOAD_PROCESSING_RETURN_MSG: str(e)}
+        return {PAYLOAD_PROCESSING_STATUS: 400,
+                PAYLOAD_PROCESSING_ERROR_CODE: e.get_error_code(),
+                PAYLOAD_PROCESSING_RETURN_MSG: str(e)}

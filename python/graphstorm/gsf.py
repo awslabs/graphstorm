@@ -1386,8 +1386,8 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     JSON file that store the metadata of graphs used during model training, and a YAML file.
     
     A common use case of this method is for real-time node inference inside a SageMaker real-time
-    inference endpoint. Another case is to restore a trained model without constructing a distributed
-    graph.
+    inference endpoint. Another case is to restore a trained model without constructing a
+    distributed graph.
     """
     # intialize gsf environment first
     initialize()
