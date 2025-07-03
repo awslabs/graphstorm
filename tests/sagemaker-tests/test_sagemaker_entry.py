@@ -47,6 +47,7 @@ def create_test_realtime_payload():
 
     yield resource
 
+
 # ============ helper functions ==============
 def create_dummy_model_artifacts(model_dir, files=None):
     """ create dummy test model artifacts
@@ -207,6 +208,13 @@ def create_realtime_json_oject(tmpdirname):
                                 "split_pct":	[0.1, 0.1, 0.1]
                             }
                         ]
+                },
+                {
+                        "source_id_col":    "src_id",
+                        "dest_id_col":      "dst_id",
+                        "relation":         ["movie", "rating-rev", "user"],
+                        "format":           {"name": "parquet"},
+                        "files":        "/data/ml-100k/edges_rev.parquet",
                 }
         ],
         "is_homogeneous": "false"
@@ -282,11 +290,13 @@ def test_np_transform_fn(create_test_realtime_payload):
     # Test case 1: normal case, successful http payload parsing and graph building, model loading,
     #              and prediction
     with tempfile.TemporaryDirectory() as tmpdir:
-        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+        json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload = json.dumps(json_data)
 
         model, gs_json, gs_config = create_realtime_np_model(tmpdir)
+        # setattr(gs_config, '_target_ntype', ['user', 'movie'])
+        setattr(gs_config, '_target_ntype', ['user'])
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload,
                                         request_content_type='application/json')
@@ -294,9 +304,9 @@ def test_np_transform_fn(create_test_realtime_payload):
         assert res['status_code'] == 200
         assert res_type == 'application/json'
         results = res['data']['results']
-        for i, result in enumerate(results):
-            assert result['node_type'] == 'movie'
-            assert result['node_id'] == 'm'+str(i+1)
+        for result, target in zip(results, json_data['targets']):
+            assert result['node_type'] == target['node_type']
+            assert result['node_id'] == target['node_id']
             assert len(result['prediction']) == gs_config.num_classes
 
     # Test case 2: abnormal cases of input payload
@@ -353,8 +363,8 @@ def test_np_transform_fn(create_test_realtime_payload):
         res = json.loads(res)
         assert res['status_code'] == 400
 
-        #       2.3 some targets do not exist in the payload graph
-        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+        #       2.3 some targets, m3, do not exist in the payload graph
+        json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm3'}]
         json_payload_mis_targets = json.dumps(json_data)
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
@@ -364,7 +374,7 @@ def test_np_transform_fn(create_test_realtime_payload):
         assert res['status_code'] == 403
 
         #       2.4 internal server error
-        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+        json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload = json.dumps(json_data)
 
@@ -376,7 +386,7 @@ def test_np_transform_fn(create_test_realtime_payload):
         assert res['status_code'] == 500
 
         #       2.5 missing node features
-        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+        json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload = json.dumps(json_data)
 
@@ -391,7 +401,7 @@ def test_np_transform_fn(create_test_realtime_payload):
 
         #       2.6 graph construction error with missing node or edge features
         json_data['graph']['nodes'][0].pop('features')
-        json_data['targets'] = [{'node_type': 'movie', 'node_id': 'm1'},
+        json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload_miss_feat = json.dumps(json_data)
 
@@ -401,13 +411,3 @@ def test_np_transform_fn(create_test_realtime_payload):
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 411
-
-
-if __name__ == '__main__':
-    with tempfile.TemporaryDirectory() as tmpdir:
-        model, gs_json, gs_config = create_realtime_np_model(tmpdir)
-        print(gs_config.node_feat_name)
-        print(gs_config.edge_feat_name)
-        for ntype, feat_list in gs_config.node_feat_name.items():
-            print(ntype)
-            print(feat_list)

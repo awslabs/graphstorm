@@ -363,13 +363,13 @@ def transform_fn(model,
         # Build prediction response
         pred_list = []
         for ntype, preds in predictions.items():
-            (orig_nids, dgl_nids) = target_mapping_dict[ntype]
-            preds_in_orig = preds[dgl_nids].tolist()
-            for orig_nid, pred_in_orig in zip(orig_nids, preds_in_orig):
+            (orig_nids, _) = target_mapping_dict[ntype]
+            # the dataloader ensures that the order of predictions is same as the order of nids
+            for orig_nid, pred in zip(orig_nids, preds):
                 pred_res = {
                     'node_type': ntype,
                     'node_id': orig_nid,
-                    'prediction': pred_in_orig
+                    'prediction': pred.tolist()
                 }
                 pred_list.append(pred_res)
     except Exception as e:

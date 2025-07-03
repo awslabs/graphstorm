@@ -35,6 +35,18 @@
     ],
     "edges": [{
       "edge_type": [
+          "movie",
+          "rating-rev",
+          "user"
+      ],
+      "features": {
+        "rate": [0.1235435765, 0.1]
+      },
+      "src_node_id": "m1",
+      "dest_node_id": "a1"
+    },
+    {
+      "edge_type": [
           "user",
           "rating",
           "movie"
