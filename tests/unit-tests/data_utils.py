@@ -240,9 +240,9 @@ def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
     data_json = {}
     data_json['version'] = 'gconstruct-v0.1'
     if len(node_list) == 1 and len(edge_list) == 1:
-        data_json['is_homogeneous'] = "True"
+        data_json['is_homogeneous'] = True
     else:
-        data_json['is_homogeneous'] = "False"
+        data_json['is_homogeneous'] = False
     data_json['nodes'] = node_jsons
     data_json['edges'] = edge_jsons
         
