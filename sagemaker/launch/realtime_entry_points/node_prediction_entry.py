@@ -108,10 +108,8 @@ def model_fn(model_dir):
     for file in files:
         if yaml_file is None and file.endswith('.yaml'):
             yaml_file = file
-        elif json_file is None and file.endswith('.json'):
+        if json_file is None and file.endswith('.json'):
             json_file = file
-        else:
-            continue
 
     # check if required artifacts exist
     assert model_file is not None, f'Missing model file, e.g., \"model.bin\", in the tar file.'
