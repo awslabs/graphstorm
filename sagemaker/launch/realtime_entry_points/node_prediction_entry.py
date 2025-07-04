@@ -109,7 +109,7 @@ def model_fn(model_dir):
         if yaml_file is None and file.endswith('.yaml'):
             yaml_file = file
         elif json_file is None and file.endswith('.json'):
-            json_file == file
+            json_file = file
         else:
             continue
 
