@@ -127,7 +127,7 @@ fi
 mkdir -p "${BUILD_DIR}"
 
 # Authenticate to ECR to be able to pull source SageMaker or public.ecr.aws image
-if [[ ${EXEC_ENV} == "sagemaker" ]]; then
+if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "sagemaker-endpoint" ]]; then
     if [[ ${USE_PARMETIS} == true ]]; then
         die "ParMETIS partitioning is not supported for SageMaker execution environment"
     fi
