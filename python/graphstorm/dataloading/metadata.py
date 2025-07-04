@@ -751,7 +751,7 @@ def config_json_sanity_check(config_json):
         assert 'is_homogeneous' in config_json, (
             'A "is_homogeneous" field must be defined in the configuration JSON object.')
         is_homo = config_json['is_homogeneous']
-        assert is_homo in ['True', 'true', 'False', 'false'], (
+        assert is_homo in [True, 'true', False, 'false'], (
             'The value of "is_homogeneous" can only be "True", "true", "False", or '
             f'"false", but got {is_homo}.')
 

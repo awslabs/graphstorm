@@ -241,8 +241,9 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         # set model to be in the evaluation mode
         self._model.eval()
         # extract one mini-batch blocks using the given dataloader
-        assert len(dataloader) == 1, ('Real-time inference do single batch computation, but ' \
-            f'got the number of mini batch: {len(dataloader)}.')
+        assert len(dataloader) == len(infer_ntypes), ('Real-time inference do single batch ' \
+            'computation for each inference node type, but got the number of mini batch: ' \
+            f'{len(dataloader)} for {len(infer_ntypes)} inference node types.')
         input_nodes, _, blocks = next(iter(dataloader))
 
         # setup device according to the inferrer's device property
@@ -260,8 +261,10 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         else:
             e_hs = prepare_blocks_edge_feats(g, blocks, None, device=self.device)
         # do predict on the blocks
+        print(blocks)
         logits, _ = self._model.predict(blocks, n_h, e_hs, input_nodes,
                                         return_proba=return_proba)
+        print(logits)
         # post processing to extract predictions on inference node types
         predictions = {}
         for ntype in infer_ntypes:
