@@ -93,7 +93,7 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code=400,
             error=(
-                "General JSON format error: The input payload has some JSON format error. " \
+                "General JSON format error: The input payload has some JSON format error. "
                 f"Details: {error}."
             )
         )
