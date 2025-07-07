@@ -118,7 +118,7 @@ def model_fn(model_dir):
 
     # load and recreate the trained model using the gsf built-in function
     try:
-        model, config_json, gs_config = gs.restore_builtin_model_from_artifacts(model_dir,
+        model, gconstruct_config_dict, gs_train_config = gs.restore_builtin_model_from_artifacts(model_dir,
                                                                                 json_file,
                                                                                 yaml_file)
     except Exception as e:
