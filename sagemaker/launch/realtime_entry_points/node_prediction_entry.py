@@ -203,7 +203,7 @@ def transform_fn(model,
 
     Parameters
     ----------
-    model: tuple of three elements
+    model: a tuple of three elements
         The output of the model_fn, including a model object, a GConstruct config dict, and a GSConfig object.
     request_body: str
         The request payload as a JSON string. The JSON string contains the subgraph for inference.
