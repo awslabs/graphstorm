@@ -50,7 +50,15 @@ def apply_transform(
 
     if action == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        try:
+            # Try to load from local folder
+            tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
+            logging.info("Loaded model from local cache.")
+        except Exception as e:
+            logging.warning(f"No local model cache found: {e}")
+            # Fallback: download from Hugging Face Hub
+            tokenizer = AutoTokenizer.from_pretrained(hf_model)
+            logging.info("Downloaded model from Hugging Face Hub.")
         if max_seq_length > tokenizer.model_max_length:
             raise RuntimeError(
                 f"max_seq_length {max_seq_length} is larger "
@@ -110,15 +118,25 @@ def apply_transform(
         else:
             device = "cpu"
             logging.warning("Running HuggingFace transformation on CPU, runtime can be very long.")
-        tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        try:
+            # Try to load from local folder
+            tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
+            config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
+            lm_model = AutoModel.from_pretrained(hf_model, config, local_files_only=True)
+            logging.info("Loaded model from local cache.")
+        except Exception as e:
+            logging.warning(f"No local model cache found: {e}")
+            # Fallback: download from Hugging Face Hub
+            tokenizer = AutoTokenizer.from_pretrained(hf_model)
+            config = AutoConfig.from_pretrained(hf_model)
+            lm_model = AutoModel.from_pretrained(hf_model, config)
+            logging.info("Downloaded model from Hugging Face Hub.")
         if max_seq_length > tokenizer.model_max_length:
             # TODO: Could we possibly raise this at config time?
             raise RuntimeError(
                 f"max_seq_length {max_seq_length} is larger "
                 f"than expected {tokenizer.model_max_length}"
             )
-        config = AutoConfig.from_pretrained(hf_model)
-        lm_model = AutoModel.from_pretrained(hf_model, config)
         lm_model.eval()
         lm_model = lm_model.to(device)
 
