@@ -74,7 +74,7 @@ def model_fn(model_dir):
     Parameters
     ----------
     model_dir: str
-        The SageMaker model directory where SageMake unzips the tar file provided in endpoint
+        The SageMaker model directory where SageMaker unzips the tar file provided in endpoint
         deployment.
 
     Returns
