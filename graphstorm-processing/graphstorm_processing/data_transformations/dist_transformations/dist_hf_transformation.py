@@ -23,6 +23,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, IntegerType, FloatType, StructType, StructField
 from pyspark.sql.functions import udf
 from transformers import AutoTokenizer, AutoModel, AutoConfig
+from huggingface_hub.utils import EntryNotFoundError, LocalEntryNotFoundError
 
 from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
 from .base_dist_transformation import DistributedTransformation
@@ -54,7 +55,7 @@ def apply_transform(
             # Try to load from local folder
             tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
             logging.info("Loaded model from local cache.")
-        except Exception:
+        except (EntryNotFoundError, LocalEntryNotFoundError):
             logging.warning("No local model cache found")
             # Fallback: download from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(hf_model)
@@ -124,8 +125,8 @@ def apply_transform(
             config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
             lm_model = AutoModel.from_pretrained(hf_model, config, local_files_only=True)
             logging.info("Loaded model from local cache.")
-        except Exception as e:
-            logging.warning(f"No local model cache found: {e}")
+        except (EntryNotFoundError, LocalEntryNotFoundError):
+            logging.warning("No local model cache found")
             # Fallback: download from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(hf_model)
             config = AutoConfig.from_pretrained(hf_model)
