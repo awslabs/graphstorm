@@ -1856,7 +1856,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         device = th.device('cuda:0') if th.cuda.is_available() else th.device('cpu')
 
         # to avoid naming conflict with torch Dataloader, use dgl name directly.
-        # and force to NOT shuffle and not drop last
+        # and force to NOT shuffle and NOT drop last
         dataloader = dgl.dataloading.DataLoader(g, target_idx, sampler, device=device,
                                                 batch_size=batch_size, shuffle=False,
                                                 drop_last=False)
