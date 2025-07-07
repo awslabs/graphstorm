@@ -47,7 +47,7 @@ np.random.seed(12345678)
 DEFAULT_GS_MODEL_FILE_NAME = 'model.bin'
 
 # set some constants as response keys
-RESPONSE_DATA = 'data'
+RESPONSE_DATA_KEYWORD = 'data'
 PREDICTION_TARGETS = 'targets'
 PREDICTION_RESULTS = 'results'
 
