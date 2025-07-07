@@ -15,7 +15,7 @@
 
 """
 
-from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as res_msg
+from graphstorm.sagemaker import GSRealTimeInferenceResponseMessage as RERespMsg
 
 
 def test_realtime_infer_res_msg():
@@ -23,7 +23,7 @@ def test_realtime_infer_res_msg():
     """
     # success case
     data = {"results": [42]}
-    resp = res_msg.success(data)
+    resp = RERespMsg.success(data)
     assert resp.status_code == 200
     assert resp.message is not None
     assert resp.error is None
@@ -32,7 +32,7 @@ def test_realtime_infer_res_msg():
 
     # to_dict
     # Ensure that all output fields in to_dict match the instance attributes if present
-    resp = res_msg.success(data={"foo": "bar"})
+    resp = RERespMsg.success(data={"foo": "bar"})
     res = resp.to_dict()
     assert res["status_code"] == resp.status_code
     assert res["message"] == resp.message
@@ -40,7 +40,7 @@ def test_realtime_infer_res_msg():
     assert res["error"] == ''
 
     # missing required field case
-    resp = res_msg.missing_required_field("node_features")
+    resp = RERespMsg.missing_required_field("node_features")
     assert resp.status_code == 401
     assert resp.message is None
     assert "node_features" in resp.error
@@ -48,7 +48,7 @@ def test_realtime_infer_res_msg():
 
     # internal server error
     detail = "Unexpected exception"
-    resp = res_msg.internal_server_error(detail)
+    resp = RERespMsg.internal_server_error(detail)
     assert resp.status_code == 500
     assert resp.error is not None
     assert detail in resp.error

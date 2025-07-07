@@ -318,6 +318,3 @@ def test_verify_payload_conf():
     input_conf["graph"]["edges"][1]["features"]["feat_err"] = [0.1]
     with pytest.raises(BaseApplicationError):
         verify_payload_conf(input_conf, gconstruct_confs)
-
-if __name__ == '__main__':
-    test_process_json_payload_graph()

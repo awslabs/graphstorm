@@ -20,8 +20,6 @@ import json
 import logging
 import os
 import traceback
-from argparse import Namespace
-from datetime import datetime as dt
 
 import numpy as np
 import torch as th
@@ -65,9 +63,11 @@ def model_fn(model_dir):
     given `model_dir`, which has the following structure,
 
     - model_dir
-        |- model.bin # Binary model artifact
-        |- GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml # Train YAML config, updated with runtime parameters
-        |- data_transform_new.json # GConstruct configuration JSON used during graph processing
+        |- model.bin                                        # Binary model artifact
+        |- GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml  # Train YAML config, updated with
+                                                            # runtime parameters
+        |- data_transform_new.json                          # GConstruct configuration JSON used
+                                                            # during graph processing
         |- code
             |- node_prediction_entry.py # Entry point for task
 
@@ -82,45 +82,53 @@ def model_fn(model_dir):
     A tuple of three elements, including:
     model: GraphStorm model
         A GraphStorm model rebuilt from model artifacts.
-    config_json:
-        A JSON object loaded from the given graph configuration JSON file.
-    gs_config: GSConfig
+    gconstruct_config_dict:
+        A dictionary object loaded from the given graph configuration JSON file.
+    gs_train_config: GSConfig
         An instance of GSConfig object built from the given model configuration YAML file.
     """
     logging.info('-- START model loading... ')
 
     # find the name of artifact file names, assuming there is only one type file packed
-    model_file = None
-    yaml_file = None
-    json_file = None
+    gs_trained_model_file = None
+    gs_train_yaml_file = None
+    gs_construct_json_file = None
     files = os.listdir(model_dir)
 
     # keep the file name or extension check logic here for easy customization as users may use
     # different artifact names or extensions from the default settings
     if DEFAULT_GS_MODEL_FILE_NAME in files:
-        model_file = DEFAULT_GS_MODEL_FILE_NAME
+        gs_trained_model_file = DEFAULT_GS_MODEL_FILE_NAME
     if COMBINED_CONFIG_FILENAME in files:
-        yaml_file = COMBINED_CONFIG_FILENAME
+        gs_train_yaml_file = COMBINED_CONFIG_FILENAME
     if UPDATED_CONFIGURATION_FILENAME in files:
-        json_file = UPDATED_CONFIGURATION_FILENAME
+        gs_construct_json_file = UPDATED_CONFIGURATION_FILENAME
 
-    # release the control of file names
+    # in case there is no built-in JSON or YAML files, use file extensions for custom names
     for file in files:
-        if yaml_file is None and file.endswith('.yaml'):
-            yaml_file = file
-        if json_file is None and file.endswith('.json'):
-            json_file = file
+        if gs_train_yaml_file is None and file.endswith('.yaml'):
+            gs_train_yaml_file = file
+            logging.warning(f'Not find the built-in YAML file: {COMBINED_CONFIG_FILENAME}. ' \
+                            f'Will use the {file} instead.')
+        if gs_construct_json_file is None and file.endswith('.json'):
+            gs_construct_json_file = file
+            logging.warning(f'Not find the built-in JSON file: {UPDATED_CONFIGURATION_FILENAME}' \
+                            f'. Will use the {file} instead.')
 
     # check if required artifacts exist
-    assert model_file is not None, f'Missing model file, e.g., \"model.bin\", in the tar file.'
-    assert yaml_file is not None, f'Missing model configuration YAML file in the tar file.' 
-    assert json_file is not None, f'Missing graph configuration JSON file in the tar file.'
+    assert gs_trained_model_file is not None, ('Missing model file, e.g., \"model.bin\", in the ' \
+                                               'tar file.')
+    assert gs_train_yaml_file is not None, ('Missing model configuration YAML file in the tar ' \
+                                            'file.')
+    assert gs_construct_json_file is not None, ('Missing graph configuration JSON file in the tar ' \
+                                                'file.')
 
     # load and recreate the trained model using the gsf built-in function
     try:
-        model, gconstruct_config_dict, gs_train_config = gs.restore_builtin_model_from_artifacts(model_dir,
-                                                                                json_file,
-                                                                                yaml_file)
+        model, gconstruct_config_dict, gs_train_config = \
+            gs.restore_builtin_model_from_artifacts(model_dir,
+                                                    gs_construct_json_file,
+                                                    gs_train_yaml_file)
     except Exception as e:
         model = None
         logging.error('Fail to restore trained GraphStorm model. Details:\n %s', e)
@@ -128,8 +136,8 @@ def model_fn(model_dir):
         raise Exception('Fail to restore trained GraphStorm model. Details: %s', e)
 
     logging.debug(model)
-    logging.debug(config_json)
-    logging.debug(gs_config)
+    logging.debug(gconstruct_config_dict)
+    logging.debug(gs_train_config)
 
     return (model, gconstruct_config_dict, gs_train_config)
 
@@ -220,7 +228,7 @@ def transform_fn(model,
     response_content_type: str
         A string to indicate what is the format of the response.
     """
-    model_obj, config_json, gs_config = model
+    model_obj, gconstruct_config_dict, gs_train_config = model
     
     logging.debug(request_body)
 
@@ -269,10 +277,10 @@ def transform_fn(model,
             return res.to_json(), response_content_type
 
     # processing payload to generate a DGL graph
-    g_resp = process_json_payload_graph(payload_data, config_json)
+    g_resp = process_json_payload_graph(payload_data, gconstruct_config_dict)
 
     # generation failed
-    if g_resp[PAYLOAD_PROCESSING_STATUS] == 400:
+    if g_resp[PAYLOAD_PROCESSING_STATUS] != 200:
         track = (f'Error code: {g_resp[PAYLOAD_PROCESSING_ERROR_CODE]}, ' \
                  f'Message: {g_resp[PAYLOAD_PROCESSING_RETURN_MSG]}.')
         res = RTResponseMsg.graph_construction_failure(track=track)
@@ -284,8 +292,8 @@ def transform_fn(model,
         raw_node_id_maps = g_resp[PAYLOAD_GRAPH_NODE_MAPPING]
 
     # 4. check if node or edge feature names match with model configurations
-    if gs_config.node_feat_name is not None:
-        for ntype, feat_list in gs_config.node_feat_name.items():
+    if gs_train_config.node_feat_name is not None:
+        for ntype, feat_list in gs_train_config.node_feat_name.items():
             # it is possible that some node types are not sampled 
             if ntype not in dgl_graph.ntypes:
                 continue
@@ -297,8 +305,8 @@ def transform_fn(model,
                                                         feat_name=feat)
                     return res.to_json(), response_content_type
 
-    if gs_config.edge_feat_name is not None:
-        for etype, feat_list in gs_config.edge_feat_name.items():
+    if gs_train_config.edge_feat_name is not None:
+        for etype, feat_list in gs_train_config.edge_feat_name.items():
             # it is possible that some edge types are not sampled 
             if etype not in dgl_graph.etypes:
                 continue
@@ -354,10 +362,10 @@ def transform_fn(model,
         # initialize a GS real-time dataLoader
         dataloader = GSgnnRealtimeInferNodeDataLoader(dgl_graph,
                                                       target_nids,
-                                                      gs_config.num_layers)
+                                                      gs_train_config.num_layers)
         predictions = inferrer.infer(dgl_graph, dataloader, list(target_mapping_dict.keys()),
-                                     gs_config.node_feat_name, 
-                                     gs_config.edge_feat_name)
+                                     gs_train_config.node_feat_name, 
+                                     gs_train_config.edge_feat_name)
         # Build prediction response
         pred_list = []
         for ntype, preds in predictions.items():
