@@ -146,7 +146,7 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code=404,
             error=(
-                f"Missng {entity_type} Feature: the {entity_name} {entity_type}s does not " \
+                f"Missng {entity_type} Feature: the {entity_name} {entity_type}s does not "
                 f"contain model required feature: {feat_name}. "
             )
         )
