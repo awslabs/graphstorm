@@ -120,7 +120,7 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code=402,
             error=(
-                f"Missing Data in Field: The input payload contains the '{field}' field but no " \
+                f"Missing Data in Field: The input payload contains the '{field}' field but no "
                 "associated data."
             )
         )
