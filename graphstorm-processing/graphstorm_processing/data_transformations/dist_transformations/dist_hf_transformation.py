@@ -55,7 +55,7 @@ def apply_transform(
             # Try to load from local folder
             tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
             logging.info("Loaded model from local cache.")
-        except (EntryNotFoundError, LocalEntryNotFoundError):
+        except (OSError, EntryNotFoundError, LocalEntryNotFoundError):
             logging.warning("No local model cache found")
             # Fallback: download from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(hf_model)
@@ -125,7 +125,7 @@ def apply_transform(
             config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
             lm_model = AutoModel.from_pretrained(hf_model, config, local_files_only=True)
             logging.info("Loaded model from local cache.")
-        except (EntryNotFoundError, LocalEntryNotFoundError):
+        except (OSError, EntryNotFoundError, LocalEntryNotFoundError):
             logging.warning("No local model cache found")
             # Fallback: download from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(hf_model)
