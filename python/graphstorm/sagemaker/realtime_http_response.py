@@ -133,7 +133,7 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code=403,
             error=(
-                f"Mismatched target node IDs: the target node ID: {target_nid} does not " \
+                f"Mismatched target node IDs: the target node ID: {target_nid} does not "
                  "existing in the payload graph."
             )
         )
