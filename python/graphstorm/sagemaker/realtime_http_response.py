@@ -106,8 +106,8 @@ class GSRealTimeInferenceResponseMessage:
         return cls(
             status_code=401,
             error=(
-                f"Missing Required Field: The input payload missed the '{field}' field. " \
-                "Please refer to the GraphStorm realtime inference documentation for required " \
+                f"Missing Required Field: The input payload missed the '{field}' field. "
+                "Please refer to the GraphStorm realtime inference documentation for required "
                 "fields."
             )
         )
