@@ -131,7 +131,7 @@ def model_fn(model_dir):
     logging.debug(config_json)
     logging.debug(gs_config)
 
-    return (model, config_json, gs_config)
+    return (model, gconstruct_config_dict, gs_train_config)
 
 def transform_fn(model,
                  request_body,
