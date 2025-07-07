@@ -65,11 +65,11 @@ def model_fn(model_dir):
     given `model_dir`, which has the following structure,
 
     - model_dir
-        |- model.bin
-        |- GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml
-        |- data_transform_new.json
+        |- model.bin # Binary model artifact
+        |- GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml # Train YAML config, updated with runtime parameters
+        |- data_transform_new.json # GConstruct configuration JSON used during graph processing
         |- code
-            |- node_prediction_entry.py
+            |- node_prediction_entry.py # Entry point for task
 
     Parameters
     ----------
