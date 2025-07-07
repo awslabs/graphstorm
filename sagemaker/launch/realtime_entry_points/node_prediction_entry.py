@@ -205,8 +205,8 @@ def transform_fn(model,
     ----------
     model: tuple of three elements
         The output of the model_fn, including a model object, a GConstruct config dict, and a GSConfig object.
-    request_body: JSON object
-        The JSON object in the request. The JSON object contains the subgraph for inference.
+    request_body: str
+        The request payload as a JSON string. The JSON string contains the subgraph for inference.
     request_content_type: str
         A string to indicate what is the format of the payload. For GraphStorm built-in real-time
         input function, the format should be 'application/json'.
