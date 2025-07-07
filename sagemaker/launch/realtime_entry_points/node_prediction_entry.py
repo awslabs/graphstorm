@@ -204,7 +204,7 @@ def transform_fn(model,
     Parameters
     ----------
     model: tuple of three elements
-        The output of the model_fn, including a model object, a json object, and a GSConfig object.
+        The output of the model_fn, including a model object, a GConstruct config dict, and a GSConfig object.
     request_body: JSON object
         The JSON object in the request. The JSON object contains the subgraph for inference.
     request_content_type: str
