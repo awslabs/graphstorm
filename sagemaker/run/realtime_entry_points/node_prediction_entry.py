@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import traceback
+import hashlib
 
 import numpy as np
 import torch as th
@@ -45,9 +46,10 @@ np.random.seed(12345678)
 DEFAULT_GS_MODEL_FILE_NAME = 'model.bin'
 
 # set some constants as response keys
-RESPONSE_DATA_KEYWORD = 'data'
-PREDICTION_TARGETS = 'targets'
-PREDICTION_RESULTS = 'results'
+RESPONSE_NTYPE_STR = 'node_type'
+RESPONSE_NID_STR = 'node_id'
+RESPONSE_PREDICTION_STR = 'prediction'
+PREDICTION_RESULTS_STR = 'results'
 
 
 # ================== SageMaker real-time entry point functions ================== #
@@ -232,7 +234,7 @@ def transform_fn(model,
         A string to indicate what is the format of the response.
     """
     model_obj, gconstruct_config_dict, gs_train_config = model
-    
+
     logging.debug(request_body)
 
     if request_content_type != 'application/json':
@@ -244,6 +246,13 @@ def transform_fn(model,
     except Exception as e:
         res = RTResponseMsg.json_format_error(error=e)
         return res.to_json(), response_content_type
+
+    # create a unique request id for easy error tracking between client and server side
+    # here use the last 16 chars of the hash code of the request body.
+    # The request id will be added to each response class, and return to invokers. It will
+    # be logged on the server side too.
+    hash_oject = hashlib.sha256(request_body.encode('utf-8'))
+    request_uid = hash_oject.hexdigest()[-16: ]
 
     # TODO(Jian), build a unified payload content sanity checking  method under gconstruct package
     # to be shared by all entry point files
@@ -259,25 +268,29 @@ def transform_fn(model,
         track = (f'This endpoint is for node prediction task, but got {gml_task} task from ' \
                  'the payload. Supported task types include [\"node_classification\", ' \
                  '\"node_regression\"]')
-        res = RTResponseMsg.task_mismatch_error(track=track)
+        res = RTResponseMsg.task_mismatch_error(request_uid=request_uid, track=track)
+        logging.error(res.to_json())
         return res.to_json(), response_content_type
 
     # 2. check if the targets field is provided
     if targets is None or len(targets)==0:
-        res = RTResponseMsg.missing_required_field(field='targets')
+        res = RTResponseMsg.missing_required_field(request_uid=request_uid, field='targets')
+        logging.error(res.to_json())
         return res.to_json(), response_content_type
 
     # 3. check if target has node_type and node_id. Will check values in id mapping
     for target in targets:
         if isinstance(target, dict):
             if 'node_type' not in target or 'node_id' not in target:
-                res = RTResponseMsg.json_format_error(error=('The Element of \"targets\" field should ' \
-                    'be a dictionary that has both \"node_type\" and \"node_id\" keys, but ' \
-                    f'got {target}.'))
+                res = RTResponseMsg.json_format_error(request_uid=request_uid, error=(
+                    'The Element of \"targets\" field should be a dictionary that has both ' \
+                    f'\"node_type\" and \"node_id\" keys, but got {target}.'))
+                logging.error(res.to_json())
                 return res.to_json(), response_content_type
         else:
-            res = RTResponseMsg.json_format_error(error=('The Element of \"targets\" field should ' \
-                f'be a dictionary, but got {target}'))
+            res = RTResponseMsg.json_format_error(request_uid=request_uid, error=(
+                f'The Element of \"targets\" field should be a dictionary, but got {target}'))
+            logging.error(res.to_json())
             return res.to_json(), response_content_type
 
     # processing payload to generate a DGL graph
@@ -287,7 +300,8 @@ def transform_fn(model,
     if g_resp[PAYLOAD_PROCESSING_STATUS] != 200:
         track = (f'Error code: {g_resp[PAYLOAD_PROCESSING_ERROR_CODE]}, ' \
                  f'Message: {g_resp[PAYLOAD_PROCESSING_RETURN_MSG]}.')
-        res = RTResponseMsg.graph_construction_failure(track=track)
+        res = RTResponseMsg.graph_construction_failure(request_uid=request_uid, track=track)
+        logging.error(res.to_json())
         return res.to_json(), response_content_type
 
     # generation succeeded
@@ -304,9 +318,11 @@ def transform_fn(model,
 
             for feat in feat_list:
                 if feat not in dgl_graph.nodes[ntype].data:
-                    res = RTResponseMsg.missing_feature(entity_type='node', 
+                    res = RTResponseMsg.missing_feature(request_uid=request_uid, 
+                                                        entity_type='node', 
                                                         entity_name=ntype,
                                                         feat_name=feat)
+                    logging.error(res.to_json())
                     return res.to_json(), response_content_type
 
     if gs_train_config.edge_feat_name is not None:
@@ -317,9 +333,11 @@ def transform_fn(model,
 
             for feat in feat_list:
                 if feat not in dgl_graph.edges[etype].data:
-                    res = RTResponseMsg.missing_feature(entity_type='edge', 
+                    res = RTResponseMsg.missing_feature(request_uid=request_uid, 
+                                                        entity_type='edge', 
                                                         entity_name=etype,
                                                         feat_name=feat)
+                    logging.error(res.to_json())
                     return res.to_json(), response_content_type
 
 
@@ -337,7 +355,9 @@ def transform_fn(model,
         if target_ntype in raw_node_id_maps:
             if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
                 # target node id is not in the payload graph
-                res = RTResponseMsg.mismatch_target_nid(target_nid)
+                res = RTResponseMsg.mismatch_target_nid(request_uid=request_uid,
+                                                        target_nid=target_nid)
+                logging.error(res.to_json())
                 return res.to_json(), response_content_type
             else:
                 # target node type and id are in the payload graph
@@ -345,7 +365,9 @@ def transform_fn(model,
                 target_mapping_dict[target_ntype][0].append(target_nid)
                 target_mapping_dict[target_ntype][1].append(dgl_nid)
         else:   # target node type is not in the payload graph
-            res = RTResponseMsg.mismatch_target_ntype(target_ntype=target_ntype)
+            res = RTResponseMsg.mismatch_target_ntype(request_uid=request_uid,
+                                                      target_ntype=target_ntype)
+            logging.error(res.to_json())
             return res.to_json(), response_content_type
 
     # extract the DGL graph nids from target ID mapping dict
@@ -376,16 +398,18 @@ def transform_fn(model,
             # the dataloader ensures that the order of predictions is same as the order of dgl nids
             for orig_nid, pred in zip(orig_nids, preds):
                 pred_res = {
-                    'node_type': ntype,
-                    'node_id': orig_nid,
-                    'prediction': pred.tolist()
+                    RESPONSE_NTYPE_STR: ntype,
+                    RESPONSE_NID_STR: orig_nid,
+                    RESPONSE_PREDICTION_STR: pred.tolist()
                 }
                 pred_list.append(pred_res)
     except Exception as e:
+        res = RTResponseMsg.internal_server_error(request_uid=request_uid, detail=e)
         logging.error(traceback.format_exc())
-        res = RTResponseMsg.internal_server_error(detail=e)
         return res.to_json(), response_content_type
 
-    res = RTResponseMsg.success(data={PREDICTION_RESULTS: pred_list})
+    res = RTResponseMsg.success(request_uid=request_uid,
+                                data={PREDICTION_RESULTS_STR: pred_list})
+    logging.info(res.to_json())
 
     return res.to_json(), response_content_type

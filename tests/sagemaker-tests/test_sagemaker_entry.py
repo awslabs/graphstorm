@@ -17,6 +17,7 @@ import os
 import json
 import yaml
 import tempfile
+import hashlib
 from argparse import Namespace
 from pathlib import Path
 
@@ -49,6 +50,11 @@ def create_test_realtime_payload():
     resource = {'json_data': json_data}
 
     yield resource
+
+def create_request_uid(payload):
+    hash_obj = hashlib.sha256(payload.encode('utf-8'))
+    request_uid = hash_obj.hexdigest()[-16: ]
+    return request_uid
 
 def create_dummy_model_artifacts(model_dir, files=None):
     """ create dummy test model artifacts
@@ -294,7 +300,9 @@ def test_np_transform_fn(create_test_realtime_payload):
     with tempfile.TemporaryDirectory() as tmpdir:
         json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
+
         json_payload = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload)
 
         model, gs_json, gs_config = create_realtime_np_model(tmpdir)
         # setattr(gs_config, '_target_ntype', ['user', 'movie'])
@@ -304,6 +312,7 @@ def test_np_transform_fn(create_test_realtime_payload):
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 200
+        assert res['request_uid'] == request_uid
         assert res_type == 'application/json'
         results = res['data']['results']
         for result, target in zip(results, json_data['targets']):
@@ -315,19 +324,25 @@ def test_np_transform_fn(create_test_realtime_payload):
     #       2.1 missing gml_task or mismatch
         json_data['gml_task'] = 'edge_classification'
         json_payload_wrong_gml_task = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_wrong_gml_task)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_wrong_gml_task,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 421
+        assert res['request_uid'] == request_uid
 
         json_data.pop('gml_task')
         json_payload_wt_gml_task = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_wt_gml_task)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_wt_gml_task,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 421
+        assert res['request_uid'] == request_uid
 
         # resume the gml_task field
         json_data['gml_task'] = 'node_classification'
@@ -335,59 +350,78 @@ def test_np_transform_fn(create_test_realtime_payload):
         #       2.2 missing targets field or it is empty
         json_data['targets'] = None
         json_payload_none_targets = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_none_targets)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_none_targets,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 401
+        assert res['request_uid'] == request_uid
 
         json_data['targets'] = []
         json_payload_empty_targets = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_empty_targets)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_empty_targets,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 401
+        assert res['request_uid'] == request_uid
 
         json_data['targets'] = [['m1', 'm2']]
         json_payload_nondict_targets = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_nondict_targets)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_nondict_targets,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 400
+        assert res['request_uid'] == request_uid
 
         json_data['targets'] = [{'ntype': 'movie'}]
         json_payload_noids_targets = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_noids_targets)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_noids_targets,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 400
+        assert res['request_uid'] == request_uid
 
         #       2.3 some targets, other_ntype or m3, do not exist in the payload graph
         json_data['targets'] = [{'node_type': 'other_ntype', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm3'}]
         json_payload_mis_targets = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_mis_targets)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_mis_targets,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 403
+        assert res['request_uid'] == request_uid
 
         json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm3'}]
         json_payload_mis_targets = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_mis_targets)
+
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
                                         request_body=json_payload_mis_targets,
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 404
+        assert res['request_uid'] == request_uid
 
         #       2.4 internal server error
         json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload)
 
         model, gs_json, gs_config = create_realtime_np_model(tmpdir, model_error=True)
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
@@ -395,11 +429,13 @@ def test_np_transform_fn(create_test_realtime_payload):
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 500
+        assert res['request_uid'] == request_uid
 
         #       2.5 missing node features
         json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload)
 
         model, gs_json, gs_config = create_realtime_np_model(tmpdir)
         setattr(gs_config, "_node_feat_name", {'user:test_feat', 'movie:test_feat'})
@@ -409,12 +445,14 @@ def test_np_transform_fn(create_test_realtime_payload):
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 404
+        assert res['request_uid'] == request_uid
 
         #       2.6 graph construction error with missing node or edge features
         json_data['graph']['nodes'][0].pop('features')
         json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm2'}]
         json_payload_miss_feat = json.dumps(json_data)
+        request_uid = create_request_uid(json_payload_miss_feat)
 
         model, gs_json, gs_config = create_realtime_np_model(tmpdir)
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
@@ -422,4 +460,5 @@ def test_np_transform_fn(create_test_realtime_payload):
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 411
+        assert res['request_uid'] == request_uid
 
