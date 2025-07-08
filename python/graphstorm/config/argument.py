@@ -223,7 +223,8 @@ class GSConfig:
 
         # If model output is configured, save the updated config as a yaml file there
         if hasattr(self, "_save_model_path") and self._save_model_path:
-            combined_output_path = os.path.join(self._save_model_path, GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
+            combined_output_path = os.path.join(self._save_model_path,
+                                                GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
             self._save_combined_config(combined_output_path)
 
 
