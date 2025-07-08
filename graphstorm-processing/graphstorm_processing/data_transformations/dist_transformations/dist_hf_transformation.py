@@ -123,14 +123,12 @@ def apply_transform(
             # Try to load from local folder
             tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
             config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
-            lm_model = AutoModel.from_pretrained(hf_model, config, local_files_only=True)
             logging.info("Loaded model from local cache.")
         except (OSError, EntryNotFoundError, LocalEntryNotFoundError):
             logging.warning("No local model cache found")
             # Fallback: download from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(hf_model)
             config = AutoConfig.from_pretrained(hf_model)
-            lm_model = AutoModel.from_pretrained(hf_model, config)
             logging.info("Downloaded model from Hugging Face Hub.")
         if max_seq_length > tokenizer.model_max_length:
             # TODO: Could we possibly raise this at config time?
@@ -138,6 +136,7 @@ def apply_transform(
                 f"max_seq_length {max_seq_length} is larger "
                 f"than expected {tokenizer.model_max_length}"
             )
+        lm_model = AutoModel.from_pretrained(hf_model, config)
         lm_model.eval()
         lm_model = lm_model.to(device)
 
