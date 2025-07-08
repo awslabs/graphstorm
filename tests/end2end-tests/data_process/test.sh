@@ -353,6 +353,10 @@ rm -fr /tmp/np_remap/
 echo "********* Test the remap node emb/partial emb *********"
 python3 $GS_HOME/tests/end2end-tests/data_process/gen_emb_predict_remap_test.py --output /tmp/em_remap/
 
+# Add relation2id_map.json into /tmp/em_remap/partial-emb/
+# remap_result should ignore this file
+echo 'Dummy' > /tmp/em_remap/partial-emb/relation2id_map.json
+
 # Test remap emb results
 python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-emb/  --preserve-input True --rank 1 --world-size 2
 error_and_exit $?
@@ -446,6 +450,11 @@ cp -r /tmp/em_remap/partial-emb/n0/*0.pt /tmp/em_remap/partial-emb/0/n0/
 cp -r /tmp/em_remap/partial-emb/n0/*1.pt /tmp/em_remap/partial-emb/1/n0/
 cp -r /tmp/em_remap/partial-emb/n1/*0.pt /tmp/em_remap/partial-emb/0/n1/
 cp -r /tmp/em_remap/partial-emb/n1/*1.pt /tmp/em_remap/partial-emb/1/n1/
+
+# Add relation2id_map.json into /tmp/em_remap/partial-emb/
+# remap_result should ignore this file
+echo 'Dummy' > /tmp/em_remap/partial-emb/0/relation2id_map.json
+echo 'Dummy' > /tmp/em_remap/partial-emb/1/relation2id_map.json
 
 # Test remap emb results
 python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-emb/1/  --preserve-input True --rank 1 --world-size 2 --with-shared-fs False
