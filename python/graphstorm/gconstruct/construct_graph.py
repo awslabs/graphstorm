@@ -51,7 +51,8 @@ from .utils import (multiprocessing_data_read,
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
 
-UPDATED_CONFIGURATION_FILENAME = 'data_transform_new.json'
+# Preset the new graph construction JSON file name
+GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME = 'data_transform_new.json'
 
 
 def prepare_node_data(in_file, feat_ops, read_file):
@@ -848,7 +849,7 @@ def process_graph(args):
     if args.output_conf_file is not None:
         outfile_path = args.output_conf_file
     else:
-        new_file_name = UPDATED_CONFIGURATION_FILENAME
+        new_file_name = GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME
         outfile_path = os.path.join(args.output_dir,new_file_name )
 
     # check if the output configuration file exists. Overwrite it with a warning.

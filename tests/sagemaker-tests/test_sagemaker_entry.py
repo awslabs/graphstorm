@@ -33,6 +33,9 @@ from realtime_entry_points.node_prediction_entry import (
     transform_fn as np_transform_fn
 )
 
+
+# ============ helper functions ==============
+
 @pytest.fixture(scope='session')
 def create_test_realtime_payload():
     # get a real-time payload file
@@ -47,8 +50,6 @@ def create_test_realtime_payload():
 
     yield resource
 
-
-# ============ helper functions ==============
 def create_dummy_model_artifacts(model_dir, files=None):
     """ create dummy test model artifacts
     
@@ -249,6 +250,7 @@ def create_realtime_np_model(tmpdirname, model_error=False):
 
 
 # ============ test functions ==============
+
 def test_np_model_fn():
     """ Locally test the model_fn for np
 
@@ -363,8 +365,8 @@ def test_np_transform_fn(create_test_realtime_payload):
         res = json.loads(res)
         assert res['status_code'] == 400
 
-        #       2.3 some targets, m3, do not exist in the payload graph
-        json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
+        #       2.3 some targets, other_ntype or m3, do not exist in the payload graph
+        json_data['targets'] = [{'node_type': 'other_ntype', 'node_id': 'a1'},
                                 {'node_type': 'movie', 'node_id': 'm3'}]
         json_payload_mis_targets = json.dumps(json_data)
         res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
@@ -372,6 +374,15 @@ def test_np_transform_fn(create_test_realtime_payload):
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 403
+
+        json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
+                                {'node_type': 'movie', 'node_id': 'm3'}]
+        json_payload_mis_targets = json.dumps(json_data)
+        res, res_type = np_transform_fn(model=(model, gs_json, gs_config),
+                                        request_body=json_payload_mis_targets,
+                                        request_content_type='application/json')
+        res = json.loads(res)
+        assert res['status_code'] == 404
 
         #       2.4 internal server error
         json_data['targets'] = [{'node_type': 'user', 'node_id': 'a1'},
@@ -411,3 +422,4 @@ def test_np_transform_fn(create_test_realtime_payload):
                                         request_content_type='application/json')
         res = json.loads(res)
         assert res['status_code'] == 411
+

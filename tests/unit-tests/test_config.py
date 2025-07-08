@@ -35,7 +35,7 @@ from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_BPR,
                                       BUILTIN_REGRESSION_LOSS_MSE,
                                       BUILTIN_REGRESSION_LOSS_SHRINKAGE,
-                                      COMBINED_CONFIG_FILENAME)
+                                      GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -2218,7 +2218,7 @@ def test_save_combined_config():
         _ = GSConfig(args)
 
         # Updated config should exist under the save model path
-        updated_yaml = os.path.join(save_model_path, COMBINED_CONFIG_FILENAME)
+        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
 
         # Verify the file exists
         assert os.path.exists(updated_yaml)
@@ -2252,7 +2252,7 @@ def test_save_combined_new_argument():
         assert gs_config.wd_l2norm == 0.0001
 
         # Updated config should exist under the save model path
-        updated_yaml = os.path.join(save_model_path, COMBINED_CONFIG_FILENAME)
+        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
 
         # Verify the file exists
         assert os.path.exists(updated_yaml)

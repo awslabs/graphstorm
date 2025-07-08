@@ -26,13 +26,13 @@ import torch as th
 
 import graphstorm as gs
 from graphstorm.utils import setup_device, get_device
-from graphstorm.config import COMBINED_CONFIG_FILENAME
+from graphstorm.config import GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME
 from graphstorm.gconstruct import (PAYLOAD_PROCESSING_STATUS,
                                    PAYLOAD_PROCESSING_RETURN_MSG,
                                    PAYLOAD_PROCESSING_ERROR_CODE,
                                    PAYLOAD_GRAPH,
                                    PAYLOAD_GRAPH_NODE_MAPPING,
-                                   UPDATED_CONFIGURATION_FILENAME,
+                                   GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME,
                                    process_json_payload_graph)
 from graphstorm.dataloading import GSgnnRealtimeInferNodeDataLoader
 from graphstorm.inference import GSGnnNodePredictionRealtimeInferrer
@@ -99,21 +99,23 @@ def model_fn(model_dir):
     # different artifact names or extensions from the default settings
     if DEFAULT_GS_MODEL_FILE_NAME in files:
         gs_trained_model_file = DEFAULT_GS_MODEL_FILE_NAME
-    if COMBINED_CONFIG_FILENAME in files:
-        gs_train_yaml_file = COMBINED_CONFIG_FILENAME
-    if UPDATED_CONFIGURATION_FILENAME in files:
-        gs_construct_json_file = UPDATED_CONFIGURATION_FILENAME
+    if GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME in files:
+        gs_train_yaml_file = GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME
+    if GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME in files:
+        gs_construct_json_file = GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME
 
     # in case there is no built-in JSON or YAML files, use file extensions for custom names
     for file in files:
         if gs_train_yaml_file is None and file.endswith('.yaml'):
             gs_train_yaml_file = file
-            logging.warning(f'Not find the built-in YAML file: {COMBINED_CONFIG_FILENAME}. ' \
+            logging.warning('Not find the built-in YAML file: ' 
+                            f'{GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME}. ' \
                             f'Will use the {file} instead.')
         if gs_construct_json_file is None and file.endswith('.json'):
             gs_construct_json_file = file
-            logging.warning(f'Not find the built-in JSON file: {UPDATED_CONFIGURATION_FILENAME}' \
-                            f'. Will use the {file} instead.')
+            logging.warning('Not find the built-in JSON file: ' \
+                            f'{GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME}. ' \
+                            f'Will use the {file} instead.')
 
     # check if required artifacts exist
     assert gs_trained_model_file is not None, ('Missing model file, e.g., \"model.bin\", in the ' \
@@ -212,7 +214,8 @@ def transform_fn(model,
     Parameters
     ----------
     model: a tuple of three elements
-        The output of the model_fn, including a model object, a GConstruct config dict, and a GSConfig object.
+        The output of model_fn, including a model object, a graph construct config dict, and a
+        GSConfig object.
     request_body: str
         The request payload as a JSON string. The JSON string contains the subgraph for inference.
     request_content_type: str
@@ -233,7 +236,8 @@ def transform_fn(model,
     logging.debug(request_body)
 
     if request_content_type != 'application/json':
-        res = RTResponseMsg.json_format_error(error=f'Unsupported content type: {request_content_type}')
+        res = RTResponseMsg.json_format_error(error=('Unsupported content type: ' \
+            f'{request_content_type}. Supported content type: \"application/json\".'))
         return res.to_json(), response_content_type
     try:
         payload_data = json.loads(request_body)
@@ -321,35 +325,34 @@ def transform_fn(model,
 
     # mapping the targets, a list of node objects, to new graph node IDs after dgl graph
     # construction for less overall data processing time
-    target_mapping_dict = {}
+    
+    # create an empty mapping dict: keys are node types, and values are two lists, 1st for
+    # original(str like) node ids, 2nd for the dgl(int) node ids.
+    target_mapping_dict = {ntype: ([],[]) for ntype in raw_node_id_maps.keys()}
+
     for target in targets:
         target_ntype = target['node_type']
         target_nid = target['node_id']
 
-        if target_ntype in target_mapping_dict:
-            graph_target_nids = target_mapping_dict[target_ntype][1]
-            # target id is not in the subgraph
+        if target_ntype in raw_node_id_maps:
             if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
+                # target node id is not in the payload graph
                 res = RTResponseMsg.mismatch_target_nid(target_nid)
                 return res.to_json(), response_content_type
             else:
-                graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
-                graph_target_nids.append(graph_target_nid)
-        else:
-            graph_target_nids = []
-            # target id is not in the subgraph
-            if raw_node_id_maps[target_ntype].get(target_nid, None) is None:
-                res = RTResponseMsg.mismatch_target_nid(target_nid)
-                return res.to_json(), response_content_type
-            else:
-                graph_target_nid = raw_node_id_maps[target_ntype][target_nid]
-                graph_target_nids.append(graph_target_nid)
-                target_mapping_dict[target_ntype] = ([target_nid], [graph_target_nid])
+                # target node type and id are in the payload graph
+                dgl_nid = raw_node_id_maps[target_ntype].get(target_nid)
+                target_mapping_dict[target_ntype][0].append(target_nid)
+                target_mapping_dict[target_ntype][1].append(dgl_nid)
+        else:   # target node type is not in the payload graph
+            res = RTResponseMsg.mismatch_target_ntype(target_ntype=target_ntype)
+            return res.to_json(), response_content_type
 
     # extract the DGL graph nids from target ID mapping dict
     target_nids = {}
     for ntype, (_, dgl_nids) in target_mapping_dict.items():
-        target_nids[ntype] = dgl_nids
+        if len(dgl_nids) > 0:
+            target_nids[ntype] = dgl_nids
 
     try:
         # setup device
@@ -363,14 +366,14 @@ def transform_fn(model,
         dataloader = GSgnnRealtimeInferNodeDataLoader(dgl_graph,
                                                       target_nids,
                                                       gs_train_config.num_layers)
-        predictions = inferrer.infer(dgl_graph, dataloader, list(target_mapping_dict.keys()),
+        predictions = inferrer.infer(dgl_graph, dataloader, list(target_nids.keys()),
                                      gs_train_config.node_feat_name, 
                                      gs_train_config.edge_feat_name)
         # Build prediction response
         pred_list = []
         for ntype, preds in predictions.items():
             (orig_nids, _) = target_mapping_dict[ntype]
-            # the dataloader ensures that the order of predictions is same as the order of nids
+            # the dataloader ensures that the order of predictions is same as the order of dgl nids
             for orig_nid, pred in zip(orig_nids, preds):
                 pred_res = {
                     'node_type': ntype,

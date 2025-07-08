@@ -126,15 +126,28 @@ class GSRealTimeInferenceResponseMessage:
         )
 
     @classmethod
-    def mismatch_target_nid(cls, target_nid):
+    def mismatch_target_ntype(cls, target_ntype):
         """
-        Create a response for target indexes are missing in the subgraph (403)
+        Create a response for target node type are missing in the subgraph (403)
         """
         return cls(
             status_code=403,
             error=(
+                f"Mismatched target node type: the target node type: {target_ntype} does not "
+                 "exist in the payload graph."
+            )
+        )
+
+    @classmethod
+    def mismatch_target_nid(cls, target_nid):
+        """
+        Create a response for target node indexes are missing in the subgraph (404)
+        """
+        return cls(
+            status_code=404,
+            error=(
                 f"Mismatched target node IDs: the target node ID: {target_nid} does not "
-                 "existing in the payload graph."
+                 "exist in the payload graph."
             )
         )
 

@@ -1383,11 +1383,15 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
 
     This method provides a lightweigth method to restore built-in model by using the three model
     artifacts, including a model path there is a `model.bin` file as the trained parameters, a
-    JSON file that store the metadata of graphs used during model training, and a YAML file.
-    
-    A common use case of this method is loading a pre-trained model for real-time node inference
-    inside a SageMaker real-time inference endpoint. Another case is to restore a trained model
-    without constructing a distributed graph.
+    JSON file that is the GConstruct configuration spec with data-derived transformations, and
+    a YAML file that is the Graphstorm train config updated with runtime arguments.
+
+    This method is different from the other create model functions as it does not rely on a DGL
+    distributed graph instance as the input argument. Instead this method use the `GSMeteData`,
+    and `GSDglDistGraphFromMetadata` to create a lightweight graph that only contains graph
+    structure, and then use it to create a built-in model. A common use case of this method is
+    loading a pre-trained model for real-time node inference inside a SageMaker real-time inference
+    endpoint without recreating the distributed graph used in model training.
     """
     # intialize gsf environment first
     initialize()
