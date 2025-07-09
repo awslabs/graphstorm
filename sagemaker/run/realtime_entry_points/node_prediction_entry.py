@@ -66,7 +66,7 @@ def model_fn(model_dir):
 
     - model_dir
         |- model.bin                                        # Binary model artifact
-        |- GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml  # Train YAML config, updated with
+        |- GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml  # Training YAML config, updated with
                                                             # runtime parameters
         |- data_transform_new.json                          # GConstruct configuration JSON used
                                                             # during graph processing
