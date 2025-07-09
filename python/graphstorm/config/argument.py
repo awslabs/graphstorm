@@ -47,7 +47,7 @@ from .config import (
     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT, LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
     SUPPORTED_TASKS,
     # Filenames
-    COMBINED_CONFIG_FILENAME,
+    GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME,
     # GNN normalization
     BUILTIN_GNN_NORM,
     # Early stopping strategies
@@ -223,7 +223,8 @@ class GSConfig:
 
         # If model output is configured, save the updated config as a yaml file there
         if hasattr(self, "_save_model_path") and self._save_model_path:
-            combined_output_path = os.path.join(self._save_model_path, COMBINED_CONFIG_FILENAME)
+            combined_output_path = os.path.join(self._save_model_path,
+                                                GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
             self._save_combined_config(combined_output_path)
 
 

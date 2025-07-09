@@ -35,12 +35,14 @@ SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
 SUPPORTED_REALTIME_INFER_TASKS = [SUPPORTED_REALTIME_INFER_NC_TASK]
 
 # Constants for SageMaker endpoints
-ENTRY_FOLDER_NAME = 'realtime_entry_points'
+_ROOT = os.path.abspath(os.path.dirname(__file__))
+ENTRY_FOLDER_NAME = os.path.join(_ROOT, '../run/realtime_entry_points')
+
 # TODO: When add new realtime inference tasks, modify this dict
 ENTRY_FILE_NAMES = {
-    SUPPORTED_REALTIME_INFER_NC_TASK: 'node_classification_entry.py'
+    SUPPORTED_REALTIME_INFER_NC_TASK: 'node_prediction_entry.py'
     }
-DEFAULT_GS_MODLE_FILE_NAME = 'model.pt'
+DEFAULT_GS_MODEL_FILE_NAME = 'model.bin'
 
 
 def run_job(input_args):
@@ -122,7 +124,7 @@ def run_job(input_args):
         raise NotImplementedError(f'The given real-time inference task \
                                     {input_args.infer_task_type} is not supported.')
 
-    path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODLE_FILE_NAME)
+    path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODEL_FILE_NAME)
     path_to_model_yaml = input_args.model_yaml_config_file
     path_to_graph_json = input_args.graph_json_config_file
     model_name = input_args.model_name

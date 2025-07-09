@@ -18,7 +18,9 @@
 
 import os
 import logging
+import json
 import importlib.metadata
+from argparse import Namespace
 
 import numpy as np
 import dgl
@@ -37,19 +39,20 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
-                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
-from .config import (BUILTIN_LP_DOT_DECODER,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
+                     BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
                      BUILTIN_LP_ROTATE_DECODER,
                      BUILTIN_LP_TRANSE_L1_DECODER,
-                     BUILTIN_LP_TRANSE_L2_DECODER)
-from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                     BUILTIN_LP_TRANSE_L2_DECODER,
+                     BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_LP_LOSS_BPR,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL,
                      BUILTIN_REGRESSION_LOSS_MSE,
-                     BUILTIN_REGRESSION_LOSS_SHRINKAGE)
+                     BUILTIN_REGRESSION_LOSS_SHRINKAGE,
+                     GSConfig)
 from .eval.eval_func import (
     SUPPORTED_HIT_AT_METRICS,
     SUPPORTED_LINK_PREDICTION_METRICS)
@@ -120,7 +123,8 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
 from .dataloading import (GSgnnLinkPredictionTestDataLoader,
                           GSgnnLinkPredictionJointTestDataLoader,
                           GSgnnLinkPredictionPredefinedTestDataLoader)
-
+from .dataloading import (GSDglDistGraphFromMetadata,
+                          load_metadata_from_json)
 from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
@@ -1370,3 +1374,58 @@ def create_lp_evaluator(config):
                                 early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                 early_stop_rounds=config.early_stop_rounds,
                                 early_stop_strategy=config.early_stop_strategy)
+
+
+####################### Functions for real-time inference #############################
+
+def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
+    """ Restores a trained GraphStorm model from model artifacts
+
+    This method provides a lightweight method to restore a built-in model by using the three model
+    artifacts. Under the input model path there needs to be a PyTorch `model.bin` file with the
+    trained model weights, a JSON file that is the GConstruct configuration specification with
+    data-derived transformations, and a YAML file that is the Graphstorm train configuration
+    updated with runtime arguments. These files are created during the graph construction and model
+    training phases.
+
+    This method is different from the other create model functions as it does not rely on a DGL
+    distributed graph instance as the input argument. Instead this method use the `GSMeteData`,
+    and `GSDglDistGraphFromMetadata` to create a lightweight graph that only contains graph
+    structure, and then use it to create a built-in model. A common use case of this method is
+    loading a pre-trained model for real-time node inference inside a SageMaker real-time inference
+    endpoint without recreating the distributed graph used in model training.
+    """
+    # intialize gsf environment first
+    initialize()
+
+    # create a metadata graph for a graph configuration JSON file
+    with open(os.path.join(model_dir, json_file), 'r', encoding='utf-8') as f:
+        config_json = json.load(f)
+
+    metadata = load_metadata_from_json(config_json)
+    metadata_g = GSDglDistGraphFromMetadata(metadata)
+
+    # load model configuration from a YAML file
+    args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)
+    gs_config = GSConfig(args)
+
+    # use GraphStorm built-in function to create the model and reload
+    if gs_config.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        model = create_builtin_node_gnn_model(metadata_g, gs_config, train_task=False)
+    elif gs_config.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+        model = create_builtin_edge_gnn_model(metadata_g, gs_config, train_task=False)
+    elif gs_config.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        model = create_builtin_lp_gnn_model(metadata_g, gs_config, train_task=False)
+    # TODO(Jian) add support of feature reconstruction tasks
+    else:
+        raise NotImplementedError('Only support to restore GraphStorm built-in models from '
+                                  f'artifacts on {BUILTIN_TASK_NODE_CLASSIFICATION}, '
+                                  f'{BUILTIN_TASK_NODE_REGRESSION}, '
+                                  f'{BUILTIN_TASK_EDGE_CLASSIFICATION}, '
+                                  f'{BUILTIN_TASK_EDGE_REGRESSION}, or '
+                                  f'{BUILTIN_TASK_LINK_PREDICTION}, but got {gs_config.task_type}')
+
+    model.restore_model(model_dir)
+
+    # return all three artifacts back to model_fn()
+    return model, config_json, gs_config

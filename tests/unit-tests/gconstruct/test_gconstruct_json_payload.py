@@ -21,9 +21,11 @@ import torch as th
 
 from graphstorm.gconstruct.construct_payload_graph import (process_json_payload_graph,
                                             get_conf, merge_payload_input,
-                                            process_json_payload_nodes,
                                             verify_payload_conf,
-                                            STATUS, MSG, GRAPH, NODE_MAPPING)
+                                            PAYLOAD_PROCESSING_STATUS,
+                                            PAYLOAD_PROCESSING_RETURN_MSG,
+                                            PAYLOAD_GRAPH,
+                                            PAYLOAD_GRAPH_NODE_MAPPING)
 from graphstorm.gconstruct.payload_utils import BaseApplicationError
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
@@ -31,6 +33,16 @@ gconstruct_file_path = os.path.join(_ROOT, "../../end2end-tests/"
                                            "data_gen/movielens.json")
 with open(gconstruct_file_path, 'r', encoding="utf8") as json_file:
     gconstruct_confs = json.load(json_file)
+    # add this configuration to fit the data for real-time entry point test for 2 target ntypes
+    gconstruct_confs['edges'].append(
+        {
+            "source_id_col":    "src_id",
+            "dest_id_col":      "dst_id",
+            "relation":         ["movie", "rating-rev", "user"],
+            "format":           {"name": "parquet"},
+            "files":        "/data/ml-100k/edges_rev.parquet",
+        }
+    )
 
 json_payload_file_path = os.path.join(_ROOT, "../../end2end-tests/"
                                              "data_gen/movielens_realtime_payload.json")
@@ -40,7 +52,8 @@ with open(json_payload_file_path, 'r', encoding="utf8") as json_file:
 
 def check_heterogeneous_graph(dgl_hg):
     assert dgl_hg.ntypes == ["movie", "user"]
-    assert dgl_hg.canonical_etypes == [("user", "rating", "movie")]
+    assert dgl_hg.canonical_etypes == [("movie", "rating-rev", "user"),
+                                       ("user", "rating", "movie")]
     expected_node_count = {"movie": 2, "user": 1}
     for ntype in dgl_hg.ntypes:
         assert dgl_hg.num_nodes(ntype) == expected_node_count[ntype]
@@ -58,20 +71,26 @@ def check_heterogeneous_graph(dgl_hg):
             assert len(dgl_hg.nodes[ntype].data["feat"]) == expected_node_count[ntype]
 
     for etype in dgl_hg.canonical_etypes:
-        assert dgl_hg.num_edges(etype) == 2
-        src_actual, dest_actual = dgl_hg.edges(etype=etype, order='eid')
-        assert th.equal(src_actual, th.tensor([0, 0]))
-        assert th.equal(dest_actual, th.tensor([0, 1]))
+        if etype[1].endswith('-rev'):
+            assert dgl_hg.num_edges(etype) == 1
+            src_actual, dest_actual = dgl_hg.edges(etype=etype, order='eid')
+            assert th.equal(src_actual, th.tensor([0]))
+            assert th.equal(dest_actual, th.tensor([0]))
+        else:
+            assert dgl_hg.num_edges(etype) == 2
+            src_actual, dest_actual = dgl_hg.edges(etype=etype, order='eid')
+            assert th.equal(src_actual, th.tensor([0, 0]))
+            assert th.equal(dest_actual, th.tensor([0, 1]))
 
 
 def test_process_json_payload_graph():
     response = process_json_payload_graph(json_payload, gconstruct_confs)
-    assert response[STATUS] == 200
-    assert MSG in response
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+    assert PAYLOAD_PROCESSING_RETURN_MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
-    assert response[NODE_MAPPING] == expected_raw_node_id_maps
+    assert response[PAYLOAD_GRAPH_NODE_MAPPING] == expected_raw_node_id_maps
 
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
 
     # Test with Edge features
@@ -80,10 +99,11 @@ def test_process_json_payload_graph():
             "feature_col": "rate"
     }]
     response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
-        assert "rate" in dgl_hg.edges[etype].data
+        if not etype[1].endswith('-rev'):
+            assert "rate" in dgl_hg.edges[etype].data
 
 
 def test_with_two_phase_transformation():
@@ -96,12 +116,12 @@ def test_with_two_phase_transformation():
                           "min_val": -2}
     }]
     response = process_json_payload_graph(json_payload, two_phase_gconstruct_confs)
-    assert response[STATUS] == 200
-    assert MSG in response
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+    assert PAYLOAD_PROCESSING_RETURN_MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
-    assert response[NODE_MAPPING] == expected_raw_node_id_maps
+    assert response[PAYLOAD_GRAPH_NODE_MAPPING] == expected_raw_node_id_maps
 
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
 
     # Edge Feature Transformation
@@ -113,10 +133,11 @@ def test_with_two_phase_transformation():
                           "min_val": -2}
     }]
     response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
-        assert "rate" in dgl_hg.edges[etype].data
+        if not etype[1].endswith('-rev'):
+            assert "rate" in dgl_hg.edges[etype].data
 
 
 def test_with_after_merge_transformation():
@@ -127,12 +148,12 @@ def test_with_after_merge_transformation():
             "transform": {"name": "rank_gauss"}
     }]
     response = process_json_payload_graph(json_payload, after_merge_gconstruct_conf)
-    assert response[STATUS] == 200
-    assert MSG in response
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+    assert PAYLOAD_PROCESSING_RETURN_MSG in response
     expected_raw_node_id_maps = {'user': {'a1': 0}, 'movie': {'m1': 0, 'm2': 1}}
-    assert response[NODE_MAPPING] == expected_raw_node_id_maps
+    assert response[PAYLOAD_GRAPH_NODE_MAPPING] == expected_raw_node_id_maps
 
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
 
     # Edge Feature Transformation
@@ -142,10 +163,11 @@ def test_with_after_merge_transformation():
             "transform": {"name": "rank_gauss"}
     }]
     response = process_json_payload_graph(json_payload, edge_feat_gconstruct_confs)
-    dgl_hg = response[GRAPH]
+    dgl_hg = response[PAYLOAD_GRAPH]
     check_heterogeneous_graph(dgl_hg)
     for etype in dgl_hg.canonical_etypes:
-        assert "rate" in dgl_hg.edges[etype].data
+        if not etype[1].endswith('-rev'):
+            assert "rate" in dgl_hg.edges[etype].data
 
 
 def test_get_gconstruct_conf():
@@ -175,10 +197,14 @@ def test_merge_payloads():
     payload_edge_conf_list = json_payload["graph"]["edges"]
     merged_payload_edge_conf_list = merge_payload_input(payload_edge_conf_list)
 
-    assert len(merged_payload_edge_conf_list) == 1
-    assert merged_payload_edge_conf_list[0]["edge_type"] == ['user', 'rating', 'movie']
-    assert merged_payload_edge_conf_list[0]["src_node_id"] == ['a1', 'a1']
-    assert merged_payload_edge_conf_list[0]["dest_node_id"] == ['m1', 'm2']
+    assert len(merged_payload_edge_conf_list) == 2
+    assert merged_payload_edge_conf_list[0]["edge_type"] == ['movie', 'rating-rev', 'user']
+    assert merged_payload_edge_conf_list[0]["src_node_id"] == ['m1']
+    assert merged_payload_edge_conf_list[0]["dest_node_id"] == ['a1']
+
+    assert merged_payload_edge_conf_list[1]["edge_type"] == ['user', 'rating', 'movie']
+    assert merged_payload_edge_conf_list[1]["src_node_id"] == ['a1', 'a1']
+    assert merged_payload_edge_conf_list[1]["dest_node_id"] == ['m1', 'm2']
 
 
 def test_verify_payload_conf():

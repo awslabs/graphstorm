@@ -1855,7 +1855,8 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         # TODO (Jian) investigate the efficiency of using multiple GPUs and decide next design
         device = th.device('cuda:0') if th.cuda.is_available() else th.device('cpu')
 
-        # Here to avoid naming conflict with torch Dataloader, use dgl name directly
+        # to avoid naming conflict with torch Dataloader, use dgl name directly.
+        # and force to NOT shuffle and NOT drop last
         dataloader = dgl.dataloading.DataLoader(g, target_idx, sampler, device=device,
                                                 batch_size=batch_size, shuffle=False,
                                                 drop_last=False)
