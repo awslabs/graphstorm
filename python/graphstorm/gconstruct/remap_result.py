@@ -807,11 +807,11 @@ def main(args, gs_config_args):
             #     task_id1/
             #     ...
             # We need to exclude both emb_info.json, relation2id_map.json
-            # and task_id directories, when we are collecting node types
-            # with node embeddings.
+            # rel_emb.pt and task_id directories, when we are collecting 
+            # node types with node embeddings.
             emb_names = [e_name for e_name in emb_names \
                 if e_name not in task_emb_dirs + \
-                    ["emb_info.json", "relation2id_map.json"]]
+                    ["emb_info.json", "relation2id_map.json", "rel_emb.pt"]]
 
             emb_ntypes = emb_names
     else:
