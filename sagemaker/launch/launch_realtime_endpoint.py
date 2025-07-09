@@ -35,7 +35,9 @@ SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
 SUPPORTED_REALTIME_INFER_TASKS = [SUPPORTED_REALTIME_INFER_NC_TASK]
 
 # Constants for SageMaker endpoints
-ENTRY_FOLDER_NAME = '../run/realtime_entry_points'
+_ROOT = os.path.abspath(os.path.dirname(__file__))
+ENTRY_FOLDER_NAME = os.path.join(_ROOT, '../run/realtime_entry_points')
+
 # TODO: When add new realtime inference tasks, modify this dict
 ENTRY_FILE_NAMES = {
     SUPPORTED_REALTIME_INFER_NC_TASK: 'node_prediction_entry.py'
