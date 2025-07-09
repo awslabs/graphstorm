@@ -1417,11 +1417,11 @@ These files are created during the graph construction and model training phases.
         model = create_builtin_lp_gnn_model(metadata_g, gs_config, train_task=False)
     # TODO(Jian) add support of feature reconstruction tasks
     else:
-        raise NotImplementedError('Only support to restore GraphStorm built-in models from ' \
-                                  f'artifacts on {BUILTIN_TASK_NODE_CLASSIFICATION}, ' \
-                                  f'{BUILTIN_TASK_NODE_REGRESSION}, ' \
-                                  f'{BUILTIN_TASK_EDGE_CLASSIFICATION}, ' \
-                                  f'{BUILTIN_TASK_EDGE_REGRESSION}, or ' \
+        raise NotImplementedError('Only support to restore GraphStorm built-in models from '
+                                  f'artifacts on {BUILTIN_TASK_NODE_CLASSIFICATION}, '
+                                  f'{BUILTIN_TASK_NODE_REGRESSION}, '
+                                  f'{BUILTIN_TASK_EDGE_CLASSIFICATION}, '
+                                  f'{BUILTIN_TASK_EDGE_REGRESSION}, or '
                                   f'{BUILTIN_TASK_LINK_PREDICTION}, but got {gs_config.task_type}')
 
     model.restore_model(model_dir)
