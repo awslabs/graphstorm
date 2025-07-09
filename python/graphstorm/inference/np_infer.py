@@ -241,8 +241,8 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         # set model to be in the evaluation mode
         self._model.eval()
         # extract one mini-batch blocks using the given dataloader
-        assert len(dataloader) == len(infer_ntypes), ('Real-time inference do single batch ' \
-            'computation for each inference node type, but got the number of mini batch: ' \
+        assert len(dataloader) == len(infer_ntypes), ('Real-time inference do single batch '
+            'computation for each inference node type, but got the number of mini batch: '
             f'{len(dataloader)} for {len(infer_ntypes)} inference node types.')
         input_nodes, _, blocks = next(iter(dataloader))
 
