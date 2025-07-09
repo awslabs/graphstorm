@@ -1381,7 +1381,7 @@ def create_lp_evaluator(config):
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     """ Restores a trained GraphStorm model from model artifacts
 
-    This method provides a lightweigth method to restore built-in model by using the three model
+    This method provides a lightweight method to restore built-in model by using the three model
     artifacts, including a model path there is a `model.bin` file as the trained parameters, a
     JSON file that is the GConstruct configuration spec with data-derived transformations, and
     a YAML file that is the Graphstorm train config updated with runtime arguments.
