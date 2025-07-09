@@ -1385,6 +1385,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     artifacts, including a model path there is a `model.bin` file as the trained parameters, a
     JSON file that is the GConstruct configuration spec with data-derived transformations, and
     a YAML file that is the Graphstorm train config updated with runtime arguments.
+These files are created during the graph construction and model training phases.
 
     This method is different from the other create model functions as it does not rely on a DGL
     distributed graph instance as the input argument. Instead this method use the `GSMeteData`,
