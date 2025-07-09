@@ -1379,12 +1379,13 @@ def create_lp_evaluator(config):
 ####################### Functions for real-time inference #############################
 
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
-    """ restore the trained GraphStorm model from model artifacts
+    """ Restores a trained GraphStorm model from model artifacts
 
-    This method provides a lightweigth method to restore built-in model by using the three model
-    artifacts, including a model path there is a `model.bin` file as the trained parameters, a
+    This method provides a lightweight method to restore built-in model by using the three model
+    artifacts. Under the input model path there needs to be  a PyTorch `model.bin` file with the trained model weights, a
     JSON file that is the GConstruct configuration spec with data-derived transformations, and
     a YAML file that is the Graphstorm train config updated with runtime arguments.
+These files are created during the graph construction and model training phases.
 
     This method is different from the other create model functions as it does not rely on a DGL
     distributed graph instance as the input argument. Instead this method use the `GSMeteData`,
@@ -1416,11 +1417,11 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
         model = create_builtin_lp_gnn_model(metadata_g, gs_config, train_task=False)
     # TODO(Jian) add support of feature reconstruction tasks
     else:
-        raise NotImplementedError('Only support to restore GraphStorm built-in models from ' \
-                                  f'artifacts on {BUILTIN_TASK_NODE_CLASSIFICATION}, ' \
-                                  f'{BUILTIN_TASK_NODE_REGRESSION}, ' \
-                                  f'{BUILTIN_TASK_EDGE_CLASSIFICATION}, ' \
-                                  f'{BUILTIN_TASK_EDGE_REGRESSION}, or ' \
+        raise NotImplementedError('Only support to restore GraphStorm built-in models from '
+                                  f'artifacts on {BUILTIN_TASK_NODE_CLASSIFICATION}, '
+                                  f'{BUILTIN_TASK_NODE_REGRESSION}, '
+                                  f'{BUILTIN_TASK_EDGE_CLASSIFICATION}, '
+                                  f'{BUILTIN_TASK_EDGE_REGRESSION}, or '
                                   f'{BUILTIN_TASK_LINK_PREDICTION}, but got {gs_config.task_type}')
 
     model.restore_model(model_dir)
