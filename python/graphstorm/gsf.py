@@ -1379,7 +1379,7 @@ def create_lp_evaluator(config):
 ####################### Functions for real-time inference #############################
 
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
-    """ restore the trained GraphStorm model from model artifacts
+    """ Restores a trained GraphStorm model from model artifacts
 
     This method provides a lightweigth method to restore built-in model by using the three model
     artifacts, including a model path there is a `model.bin` file as the trained parameters, a
