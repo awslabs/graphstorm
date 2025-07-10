@@ -336,13 +336,6 @@ class DistributedExecutor:
             )
             json.dump(input_dict_with_transforms, f, indent=4)
 
-        # This is used to upload the output output JSON files to S3 on non-SageMaker runs,
-        # since we can't rely on SageMaker to do it
-        if self.filesystem_type == FilesystemType.S3:
-            self._upload_output_files(
-                self.loader, force=(not self.execution_env == ExecutionEnv.SAGEMAKER)
-            )
-
         repartition_start = time.perf_counter()
         updated_metadata = {}
         if all_match:
@@ -401,6 +394,13 @@ class DistributedExecutor:
                 sorted(processed_representations.timers.items(), key=lambda x: x[1], reverse=True)
             )
             json.dump(sorted_timers, f, indent=4)
+
+        # This is used to upload the output output JSON files to S3 on non-SageMaker runs,
+        # since we can't rely on SageMaker to do it
+        if self.filesystem_type == FilesystemType.S3:
+            self._upload_output_files(
+                self.loader, force=(not self.execution_env == ExecutionEnv.SAGEMAKER)
+            )
 
     def _merge_config_with_transformations(
         self,
