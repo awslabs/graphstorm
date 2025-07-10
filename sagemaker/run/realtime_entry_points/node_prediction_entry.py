@@ -301,7 +301,7 @@ def transform_fn(model,
             logging.error(res.to_json())
             return res.to_json(), response_content_type
 
-    # processing payload to generate a DGL graph, and catch any errors to prevent server crushing
+    # processing payload to generate a DGL graph, and catch any errors to prevent server crash
     try:
         g_resp = process_json_payload_graph(payload_data, gconstruct_config_dict)
     except Exception as e:
