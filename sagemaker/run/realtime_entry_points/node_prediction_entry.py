@@ -27,13 +27,13 @@ import torch as th
 
 import graphstorm as gs
 from graphstorm.utils import setup_device, get_device
-from graphstorm.config import GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME
+from graphstorm.config import (GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+                               GS_RUNTIME_GCONSTRUCT_FILENAME,)
 from graphstorm.gconstruct import (PAYLOAD_PROCESSING_STATUS,
                                    PAYLOAD_PROCESSING_RETURN_MSG,
                                    PAYLOAD_PROCESSING_ERROR_CODE,
                                    PAYLOAD_GRAPH,
                                    PAYLOAD_GRAPH_NODE_MAPPING,
-                                   GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME,
                                    process_json_payload_graph)
 from graphstorm.dataloading import GSgnnRealtimeInferNodeDataLoader
 from graphstorm.inference import GSGnnNodePredictionRealtimeInferrer
@@ -102,22 +102,22 @@ def model_fn(model_dir):
     # different artifact names or extensions from the default settings
     if DEFAULT_GS_MODEL_FILE_NAME in files:
         gs_trained_model_file = DEFAULT_GS_MODEL_FILE_NAME
-    if GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME in files:
-        gs_train_yaml_file = GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME
-    if GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME in files:
-        gs_construct_json_file = GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME
+    if GS_RUNTIME_TRAINING_CONFIG_FILENAME in files:
+        gs_train_yaml_file = GS_RUNTIME_TRAINING_CONFIG_FILENAME
+    if GS_RUNTIME_GCONSTRUCT_FILENAME in files:
+        gs_construct_json_file = GS_RUNTIME_GCONSTRUCT_FILENAME
 
     # in case there is no built-in JSON or YAML files, use file extensions for custom names
     for file in files:
         if gs_train_yaml_file is None and file.endswith('.yaml'):
             gs_train_yaml_file = file
             logging.warning('Not find the built-in YAML file: ' 
-                            f'{GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME}. ' \
+                            f'{GS_RUNTIME_TRAINING_CONFIG_FILENAME}. ' \
                             f'Will use the {file} instead.')
         if gs_construct_json_file is None and file.endswith('.json'):
             gs_construct_json_file = file
             logging.warning('Not find the built-in JSON file: ' \
-                            f'{GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME}. ' \
+                            f'{GS_RUNTIME_GCONSTRUCT_FILENAME}. ' \
                             f'Will use the {file} instead.')
 
     # check if required artifacts exist
