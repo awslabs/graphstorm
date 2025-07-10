@@ -306,8 +306,8 @@ def transform_fn(model,
         g_resp = process_json_payload_graph(payload_data, gconstruct_config_dict)
     except Exception as e:
         logging.error(traceback.format_exc())
-        logging.error(res.to_json())
         res = RTResponseMsg.graph_construction_failure(request_uid=request_uid, track=e)
+        logging.error(res.to_json())
         return res.to_json(), response_content_type
 
     # generation failed
