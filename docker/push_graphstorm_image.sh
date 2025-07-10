@@ -95,10 +95,10 @@ cleanup() {
 
 parse_params "${@}"
 
-if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "local" ]]; then
+if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "local" || ${EXEC_ENV} == "sagemaker-endpoint" ]]; then
     : # Do nothing
 else
-    die "--environment parameter needs to be one of 'sagemaker', or 'local' got ${EXEC_ENV}"
+    die "--environment parameter needs to be one of 'sagemaker', 'sagemaker-endpoint', or 'local' got ${EXEC_ENV}"
 fi
 
 TAG="${EXEC_ENV}-${DEVICE_TYPE}${SUFFIX}"
