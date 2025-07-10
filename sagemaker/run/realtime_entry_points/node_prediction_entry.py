@@ -239,13 +239,14 @@ def transform_fn(model,
     logging.debug(request_body)
 
     if request_content_type != 'application/json':
-        res = RTResponseMsg.json_format_error(error=('Unsupported content type: ' \
-            f'{request_content_type}. Supported content type: \"application/json\".'))
+        res = RTResponseMsg.json_format_error(request_uid='',
+            error=(f'Unsupported content type: {request_content_type}. Supported content ' \
+                   'type: "application/json"'))
         return res.to_json(), response_content_type
     try:
         payload_data = json.loads(request_body)
     except Exception as e:
-        res = RTResponseMsg.json_format_error(error=e)
+        res = RTResponseMsg.json_format_error(request_uid='',error=e)
         return res.to_json(), response_content_type
 
     # create a unique request id for easy error tracking between client and server side
@@ -294,8 +295,14 @@ def transform_fn(model,
             logging.error(res.to_json())
             return res.to_json(), response_content_type
 
-    # processing payload to generate a DGL graph
-    g_resp = process_json_payload_graph(payload_data, gconstruct_config_dict)
+    # processing payload to generate a DGL graph, and catch any errors to prevent server crushing
+    try:
+        g_resp = process_json_payload_graph(payload_data, gconstruct_config_dict)
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        logging.error(res.to_json())
+        res = RTResponseMsg.graph_construction_failure(request_uid=request_uid, track=e)
+        return res.to_json(), response_content_type
 
     # generation failed
     if g_resp[PAYLOAD_PROCESSING_STATUS] != 200:
