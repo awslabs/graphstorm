@@ -37,7 +37,8 @@ from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_BPR,
                                       BUILTIN_REGRESSION_LOSS_MSE,
                                       BUILTIN_REGRESSION_LOSS_SHRINKAGE,
-                                      GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
+                                      GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+                                      GS_RUNTIME_GCONSTRUCT_FILENAME,)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -58,11 +59,6 @@ from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
 from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
 from config_utils import create_dummy_config_obj, create_basic_config
-
-from graphstorm.config import (
-    RUNTIME_TRAIN_CONFIG_FILENAME,
-    RUNTIME_GCONSTRUCT_FILENAME,
-)
 
 # Get location of test file
 _ROOT = os.path.abspath(os.path.dirname(__file__))
@@ -96,7 +92,7 @@ def create_dummy_config_obj():
     }
     return yaml_object
 
-def copy_gconstruct_config(tmp_path, file_name=RUNTIME_GCONSTRUCT_FILENAME):
+def copy_gconstruct_config(tmp_path, file_name=GS_RUNTIME_GCONSTRUCT_FILENAME):
     """Copy a GConstruct config file to the given path/filename"""
     ML_GCONSTRUCT_FILEPATH = os.path.join(
         _ROOT, "../end2end-tests/data_gen/movielens.json")
@@ -2318,7 +2314,7 @@ def test_save_combined_config():
         _ = GSConfig(args)
 
         # Updated config should exist under the save model path
-        updated_yaml = os.path.join(save_model_path, RUNTIME_TRAIN_CONFIG_FILENAME)
+        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
 
         # Verify the file exists
         assert os.path.exists(updated_yaml)
@@ -2352,7 +2348,7 @@ def test_save_combined_new_argument():
         assert gs_config.wd_l2norm == 0.0001
 
         # Updated config should exist under the save model path
-        updated_yaml = os.path.join(save_model_path, RUNTIME_TRAIN_CONFIG_FILENAME)
+        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
 
         # Verify the file exists
         assert os.path.exists(updated_yaml)
@@ -2371,7 +2367,7 @@ def test_copy_gconstruct_config():
         create_basic_config(Path(tmpdirname), 'combined_test')
         save_model_path = os.path.join(tmpdirname, "model")
         # Copy a gconstruct file into the graph data input path
-        copy_gconstruct_config(tmpdirname, RUNTIME_GCONSTRUCT_FILENAME)
+        copy_gconstruct_config(tmpdirname, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
         # Test assertion, there needs to be a part config file under the input
         assert os.path.exists(os.path.join(tmpdirname, "part.json"))
 
@@ -2387,7 +2383,7 @@ def test_copy_gconstruct_config():
         _ = GSConfig(args)
 
         # Copied GConstruct config should exist under the save model path
-        copied_gc_config = os.path.join(save_model_path, RUNTIME_GCONSTRUCT_FILENAME)
+        copied_gc_config = os.path.join(save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
 
         # Verify the file exists
         assert os.path.exists(copied_gc_config)

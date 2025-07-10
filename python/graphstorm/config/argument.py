@@ -48,9 +48,8 @@ from .config import (
     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT, LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
     SUPPORTED_TASKS,
     # Filenames
-    GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME,
-    RUNTIME_TRAIN_CONFIG_FILENAME,
-    RUNTIME_GCONSTRUCT_FILENAME,
+    GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+    GS_RUNTIME_GCONSTRUCT_FILENAME,
     # GNN normalization
     BUILTIN_GNN_NORM,
     # Early stopping strategies
@@ -232,12 +231,12 @@ class GSConfig:
 
             # Save a copy of train config with runtime args
             train_config_output_path = os.path.join(
-                self._save_model_path, RUNTIME_TRAIN_CONFIG_FILENAME)
+                self._save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
             self._save_runtime_train_config(train_config_output_path)
 
             # Copy over graph construction config, if one exists
             gconstruct_config_output_path = os.path.join(
-                self._save_model_path, RUNTIME_GCONSTRUCT_FILENAME)
+                self._save_model_path, GS_RUNTIME_GCONSTRUCT_FILENAME)
             self._copy_graph_construct_config(gconstruct_config_output_path)
 
     def _copy_graph_construct_config(self, output_data_config):
@@ -250,7 +249,7 @@ class GSConfig:
             )
             try:
                 part_config_dir = os.path.dirname(self.part_config)
-                input_data_config = os.path.join(part_config_dir, RUNTIME_GCONSTRUCT_FILENAME)
+                input_data_config = os.path.join(part_config_dir, GS_RUNTIME_GCONSTRUCT_FILENAME)
                 if os.path.exists(input_data_config):
                     shutil.copy2(
                         input_data_config,
@@ -258,15 +257,16 @@ class GSConfig:
                     )
                 else:
                     warnings.warn(
-                        f"Graph construction config {RUNTIME_GCONSTRUCT_FILENAME} "
+                        f"Graph construction config {GS_RUNTIME_GCONSTRUCT_FILENAME} "
                         f"not found in {part_config_dir}. "
                         "This is expected for older models (trained with version < 0.5). "
                         "You will need to copy over the graph construction  "
                         "config for model deployment.")
             except Exception as e: # pylint: disable=broad-exception-caught
                 warnings.warn(
-                    f"Failed to copy {RUNTIME_GCONSTRUCT_FILENAME} to model output: {str(e)}. You "
-                    " will need to copy over the graph construction config for model deployment.")
+                    f"Failed to copy {GS_RUNTIME_GCONSTRUCT_FILENAME} to model output: {str(e)}. "
+                    "You  will need to copy over the graph construction "
+                    "config for model deployment.")
 
 
     def set_attributes(self, configuration):

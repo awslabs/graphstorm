@@ -30,7 +30,7 @@ import torch as th
 import dgl
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
-from ..config import RUNTIME_GCONSTRUCT_FILENAME
+from ..config import GS_RUNTIME_GCONSTRUCT_FILENAME
 from ..utils import sys_tracker, get_log_level, check_graph_name
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files
@@ -51,9 +51,6 @@ from .utils import (multiprocessing_data_read,
                     stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
-
-# Preset the new graph construction JSON file name
-GS_UPDATED_GRAPH_CONSTRUCT_CONFIG_FILENAME = 'data_transform_new.json'
 
 
 def prepare_node_data(in_file, feat_ops, read_file):
@@ -850,7 +847,7 @@ def process_graph(args):
     if args.output_conf_file is not None:
         outfile_path = args.output_conf_file
     else:
-        new_file_name = RUNTIME_GCONSTRUCT_FILENAME
+        new_file_name = GS_RUNTIME_GCONSTRUCT_FILENAME
         outfile_path = os.path.join(args.output_dir,new_file_name)
 
     # check if the output configuration file exists. Overwrite it with a warning.
