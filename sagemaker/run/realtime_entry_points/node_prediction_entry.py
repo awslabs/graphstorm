@@ -111,7 +111,7 @@ def model_fn(model_dir):
 
     # in case there is no built-in JSON or YAML files, use file extensions for custom names
     for file in files:
-        if gs_train_yaml_file is None and file.endswith('.yaml'):
+        if gs_train_yaml_file is None and file.endswith(".yaml"):
             gs_train_yaml_file = file
             logging.warning("Could not find the default training config YAML file: "
                             "%s. "
@@ -120,7 +120,7 @@ def model_fn(model_dir):
                             file)
         if gs_construct_json_file is None and file.endswith(".json"):
             gs_construct_json_file = file
-            logging.warning("Not find the default GConstruct JSON file: "
+            logging.warning("Could not find the default GConstruct JSON file: "
                             "'%s'. "
                             "Will try to use '%s' as the GConstruct config file.",
                             GS_RUNTIME_GCONSTRUCT_FILENAME,
