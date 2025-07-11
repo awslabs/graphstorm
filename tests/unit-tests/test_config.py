@@ -16,6 +16,7 @@
 import json
 import math
 import os
+import shutil
 import sys
 import tempfile
 import yaml
@@ -25,6 +26,7 @@ from pathlib import Path
 import dgl
 import torch as th
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+import pytest
 
 from graphstorm.config import GSConfig
 from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
@@ -35,7 +37,8 @@ from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_BPR,
                                       BUILTIN_REGRESSION_LOSS_MSE,
                                       BUILTIN_REGRESSION_LOSS_SHRINKAGE,
-                                      GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
+                                      GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+                                      GS_RUNTIME_GCONSTRUCT_FILENAME,)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -57,6 +60,8 @@ from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
 from config_utils import create_dummy_config_obj, create_basic_config
 
+# Get location of test file
+_ROOT = os.path.abspath(os.path.dirname(__file__))
 
 def check_failure(config, field):
     has_error = False
@@ -65,6 +70,86 @@ def check_failure(config, field):
     except:
         has_error = True
     assert has_error
+
+def create_dummy_config_obj():
+    yaml_object = { # dummy config, bypass checks by default
+        "version": 1.0,
+        "gsf": {
+            "basic": {},
+            "gnn": {
+                "fanout": "4",
+                "num_layers": 1,
+            },
+            "input": {},
+            "output": {},
+            "hyperparam": {
+                "lr": 0.01,
+                "lm_tune_lr": 0.0001,
+                "sparse_optimizer_lr": 0.0001
+            },
+            "rgcn": {},
+        }
+    }
+    return yaml_object
+
+def copy_gconstruct_config(tmp_path, file_name=GS_RUNTIME_GCONSTRUCT_FILENAME):
+    """Copy a GConstruct config file to the given path/filename"""
+    ML_GCONSTRUCT_FILEPATH = os.path.join(
+        _ROOT, "../end2end-tests/data_gen/movielens.json")
+    shutil.copy2(
+        ML_GCONSTRUCT_FILEPATH,
+        os.path.join(tmp_path, file_name)
+    )
+
+
+def create_basic_config(tmp_path, file_name):
+    yaml_object = create_dummy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "backend": "gloo",
+        "ip_config": os.path.join(tmp_path, "ip.txt"),
+        "part_config": os.path.join(tmp_path, "part.json"),
+        "model_encoder_type": "rgat",
+        "eval_frequency": 100,
+        "no_validation": True,
+    }
+    # create dummpy ip.txt
+    with open(os.path.join(tmp_path, "ip.txt"), "w") as f:
+        f.write("127.0.0.1\n")
+    # create dummpy part.json
+    with open(os.path.join(tmp_path, "part.json"), "w") as f:
+        json.dump({
+            "graph_name": "test"
+        }, f)
+    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # config for check default value
+    yaml_object["gsf"]["basic"] = {
+        "ip_config": os.path.join(tmp_path, "ip.txt"),
+        "part_config": os.path.join(tmp_path, "part.json"),
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # config for wrong values
+    yaml_object["gsf"]["basic"] = {
+        "backend": "error",
+        "eval_frequency": 0,
+        "model_encoder_type": "abc"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # config for none exist ip config file and partition file
+    yaml_object["gsf"]["basic"] = {
+        "ip_config": "ip_missing.txt",
+        "part_config": "part_missing.json",
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
 
 def test_load_basic_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -192,10 +277,15 @@ def test_task_tracker_info():
         check_failure(config, "task_tracker")
         check_failure(config, "log_report_frequency")
 
-def create_train_config(tmp_path, file_name):
+def create_train_config(tmp_path: Path, file_name: str):
     yaml_object = create_dummy_config_obj()
+    _, part_config = tempfile.mkstemp(dir=str(tmp_path))
+    yaml_object["gsf"]["basic"].update({
+        "part_config": part_config
+    })
     yaml_object["gsf"]["hyperparam"] = {
     }
+
 
     # config for check default value
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
@@ -311,7 +401,9 @@ def test_train_info():
         assert config.use_self_loop == True
         assert config.use_early_stop == False
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'), local_rank=0)
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'train_test.yaml'),
+            local_rank=0)
         config = GSConfig(args)
 
         assert config.dropout == 0.1
@@ -1509,6 +1601,10 @@ def test_gnn_info():
 
 def create_io_config(tmp_path, file_name):
     yaml_object = create_dummy_config_obj()
+    _, part_config = tempfile.mkstemp(dir=str(tmp_path))
+    yaml_object["gsf"]["basic"].update({
+        "part_config": part_config
+    })
     yaml_object["gsf"]["input"] = {
     }
     yaml_object["gsf"]["output"] = {
@@ -2218,7 +2314,7 @@ def test_save_combined_config():
         _ = GSConfig(args)
 
         # Updated config should exist under the save model path
-        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
+        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
 
         # Verify the file exists
         assert os.path.exists(updated_yaml)
@@ -2252,7 +2348,7 @@ def test_save_combined_new_argument():
         assert gs_config.wd_l2norm == 0.0001
 
         # Updated config should exist under the save model path
-        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
+        updated_yaml = os.path.join(save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
 
         # Verify the file exists
         assert os.path.exists(updated_yaml)
@@ -2263,3 +2359,50 @@ def test_save_combined_new_argument():
 
         # Check that the wd_l2norm value was added to the 'runtime' key
         assert updated_config['gsf']['runtime']['wd_l2norm'] == 0.0001
+
+def test_copy_gconstruct_config():
+    """Ensure that we save a copy of the GConstruct config with model, if one exists"""
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+        save_model_path = os.path.join(tmpdirname, "model")
+        # Copy a gconstruct file into the graph data input path
+        copy_gconstruct_config(tmpdirname, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
+        # Test assertion, there needs to be a part config file under the input
+        assert os.path.exists(os.path.join(tmpdirname, "part.json"))
+
+        # Create runtime args, makings sure to include a save model path
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            # Set save_model_path to trigger combined config saving
+            save_model_path=save_model_path,
+        )
+
+        # Create GSConfig, this will also copy the GConstruct config
+        _ = GSConfig(args)
+
+        # Copied GConstruct config should exist under the save model path
+        copied_gc_config = os.path.join(save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
+
+        # Verify the file exists
+        assert os.path.exists(copied_gc_config)
+
+def test_missing_gconstruct_config():
+    """Ensure that we log a warning if the GConstruct config is missing"""
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+        save_model_path = os.path.join(tmpdirname, "model")
+
+        # Create runtime args, makings sure to include a save model path
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            # Set save_model_path to trigger combined config saving
+            save_model_path=save_model_path,
+        )
+
+        # Create GSConfig, this will try to copy the GConstruct config, ensure we log a warning:
+        with pytest.warns(UserWarning, match="Graph construction config .* not found in .*"):
+            _ = GSConfig(args)

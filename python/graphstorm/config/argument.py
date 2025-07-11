@@ -16,11 +16,12 @@
     Arguments and config
 """
 
-import os
-import sys
 import argparse
-import math
 import logging
+import math
+import os
+import shutil
+import sys
 import warnings
 from typing import Any, Dict
 
@@ -47,7 +48,8 @@ from .config import (
     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT, LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
     SUPPORTED_TASKS,
     # Filenames
-    GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME,
+    GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+    GS_RUNTIME_GCONSTRUCT_FILENAME,
     # GNN normalization
     BUILTIN_GNN_NORM,
     # Early stopping strategies
@@ -64,7 +66,7 @@ from .config import (
     TaskInfo, get_mttask_id
 )
 
-from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
+from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name, get_rank
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -221,11 +223,50 @@ class GSConfig:
         else:
             self._multi_tasks = None
 
-        # If model output is configured, save the updated config as a yaml file there
+        # If model output is configured, save the runtime train config as a yaml file there,
+        # and the graph construction config, if one exists in the input
         if hasattr(self, "_save_model_path") and self._save_model_path:
-            combined_output_path = os.path.join(self._save_model_path,
-                                                GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME)
-            self._save_combined_config(combined_output_path)
+            # Ensure model output directory exists
+            os.makedirs(self._save_model_path, exist_ok=True)
+
+            # Save a copy of train config with runtime args
+            train_config_output_path = os.path.join(
+                self._save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
+            self._save_runtime_train_config(train_config_output_path)
+
+            # Copy over graph construction config, if one exists
+            gconstruct_config_output_path = os.path.join(
+                self._save_model_path, GS_RUNTIME_GCONSTRUCT_FILENAME)
+            self._copy_graph_construct_config(gconstruct_config_output_path)
+
+    def _copy_graph_construct_config(self, output_data_config):
+        """ Copy graph construct config to the model output path.
+        """
+        # Copy data configuration file if available
+        if get_rank() == 0:
+            assert isinstance(self.part_config, str), (
+                "Need to provide a value for part_config"
+            )
+            try:
+                part_config_dir = os.path.dirname(self.part_config)
+                input_data_config = os.path.join(part_config_dir, GS_RUNTIME_GCONSTRUCT_FILENAME)
+                if os.path.exists(input_data_config):
+                    shutil.copy2(
+                        input_data_config,
+                        output_data_config
+                    )
+                else:
+                    warnings.warn(
+                        f"Graph construction config {GS_RUNTIME_GCONSTRUCT_FILENAME} "
+                        f"not found in {part_config_dir}. "
+                        "This is expected for older models (trained with version < 0.5). "
+                        "You will need to copy over the graph construction  "
+                        "config for model deployment.")
+            except Exception as e: # pylint: disable=broad-exception-caught
+                warnings.warn(
+                    f"Failed to copy {GS_RUNTIME_GCONSTRUCT_FILENAME} to model output: {str(e)}. "
+                    "You  will need to copy over the graph construction "
+                    "config for model deployment.")
 
 
     def set_attributes(self, configuration):
@@ -311,7 +352,7 @@ class GSConfig:
         for key, val in configuration.items():
             setattr(self, f"_{key}", val)
 
-    def _save_combined_config(self, output_path: str):
+    def _save_runtime_train_config(self, output_path: str):
         """Save a YAML file that combines the input YAML with runtime args.
 
         Parameters:
@@ -344,9 +385,6 @@ class GSConfig:
 
         # Try to save to model output location
         try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
             # Save the combined config
             with open(output_path, 'w', encoding="utf-8") as f:
                 yaml.dump(yaml_config, f, default_flow_style=False)

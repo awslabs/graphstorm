@@ -104,8 +104,11 @@ SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER,
 
 # Filename constants
 
-# Filename for output yaml, updated with runtime args
-GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME = "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml"
+# Filename for GS training yaml, updated with runtime args
+GS_RUNTIME_TRAINING_CONFIG_FILENAME = "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml"
+
+# Filename for output GConstruct graph data configuration, updated with data-derived transformations
+GS_RUNTIME_GCONSTRUCT_FILENAME = "data_transform_new.json"
 
 ################ Task info data classes ############################
 def get_mttask_id(task_type, ntype=None, etype=None, label=None):

@@ -19,6 +19,7 @@ import importlib.metadata
 import inspect
 import logging
 import math
+from typing import Dict, List, Union, Optional
 
 import dgl
 import torch as th
@@ -27,7 +28,7 @@ from packaging import version
 from torch.utils.data import DataLoader
 
 from ..utils import get_backend, get_device, is_distributed
-from .dataset import GSDistillData
+from .dataset import GSDistillData, GSgnnData
 from .sampler import (DistributedFileSampler, FastMultiLayerNeighborSampler,
                       GlobalUniform, GSFixedEdgeDstNegativeSampler,
                       GSHardEdgeDstNegativeSampler, InbatchJointUniform,
@@ -1432,6 +1433,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
         pos_eids = self._target_idx[etype][current_pos:self._fixed_test_size[etype]] \
             if end_of_etype \
             else self._target_idx[etype][current_pos:current_pos+self._batch_size]
+        # TODO: Verify that given _negative_sampler provides the gen_etype_neg_pairs function
         pos_neg_tuple = self._negative_sampler.gen_etype_neg_pairs(g, etype, pos_eids)
         self._current_pos[etype] += self._batch_size
         return pos_neg_tuple, end_of_etype
@@ -1472,8 +1474,12 @@ class GSgnnNodeDataLoaderBase():
 
         Default: None.
     """
-    def __init__(self, dataset, target_idx, fanout,
-                 label_field, node_feats=None, edge_feats=None):
+    def __init__(self, dataset: GSgnnData,
+                 target_idx: Dict[str, th.Tensor],
+                 fanout: Union[List[int], Dict[str, List[int]]],
+                 label_field: Union[str, Dict[str, str]],
+                 node_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 edge_feats: Optional[Union[str, Dict[str, List[str]]]] = None):
         self._data = dataset
         self._target_idx = target_idx
         self._fanout = fanout
@@ -1594,6 +1600,8 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     fanout: list of int, or dict of list
         Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
         edge type.
+    batch_size: int
+        Mini-batch size.
     label_field: str
         Label field of the node task.
     node_feats: str, list of str or dict of list of str
@@ -1612,11 +1620,9 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
-    batch_size: int
-        Mini-batch size.
     train_task : bool
-        Whether or not it is the dataloader for training.
-    construct_feat_ntype : list of str
+        Whether or not the dataloader will be used for training.
+    construct_feat_ntype : list of str, optional
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout used when constructing node features for feature-less nodes.
@@ -1642,10 +1648,17 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size,
-                 label_field, node_feats=None, edge_feats=None,
-                 train_task=True,
-                 construct_feat_ntype=None, construct_feat_fanout=5):
+    def __init__(self,
+                 dataset: GSgnnData,
+                 target_idx: Dict[str, th.Tensor],
+                 fanout: Union[List[int], Dict[str, List[int]]],
+                 batch_size: int,
+                 label_field: Union[str, Dict[str, str]],
+                 node_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 edge_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 train_task: bool = True,
+                 construct_feat_ntype: Optional[List[str]] = None,
+                 construct_feat_fanout: int = 5):
         super().__init__(dataset, target_idx, fanout,
                          label_field=label_field,
                          node_feats=node_feats,
@@ -1832,7 +1845,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         self.dataloader = self._prepare_dataloader(g, target_idx, num_layers)
 
     def _prepare_dataloader(self, g, target_idx, num_layers):
-        """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader. 
+        """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader.
         """
         # to shorten real-time inference time, here set the batch size to be the largest number
         # of target indexes, so that only use one mini batch.
@@ -1842,10 +1855,12 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
                 batch_size = len(idx)
 
         if batch_size > MAX_REALTIME_BATCH_SIZE:
-            logging.warning('The maximum number of target ' \
-                'nodes %s is larger than %s ',  batch_size, MAX_REALTIME_BATCH_SIZE + \
-                ' This may cause longer response latency or other unexpected issues. ' \
-                'Please use smaller number of target nodes.')
+            logging.warning(('The maximum number of target '
+                'nodes %s is larger than %s.'
+                'This may cause longer response latency or other unexpected issues. '
+                'Please use smaller number of target nodes.'),
+                batch_size, MAX_REALTIME_BATCH_SIZE
+                )
 
         # use a full neighbor sampler because it is unclear if callers have done sampling when
         # building the subgraph payload.
