@@ -111,7 +111,7 @@ def model_fn(model_dir):
 
     # in case there is no built-in JSON or YAML files, use file extensions for custom names
     for file in files:
-        if gs_train_yaml_file is None and file.endswith('.yaml'):
+        if gs_train_yaml_file is None and file.endswith(".yaml"):
             gs_train_yaml_file = file
             logging.warning("Could not find the default training config YAML file: "
                             "%s. "
@@ -120,7 +120,7 @@ def model_fn(model_dir):
                             file)
         if gs_construct_json_file is None and file.endswith(".json"):
             gs_construct_json_file = file
-            logging.warning("Not find the default GConstruct JSON file: "
+            logging.warning("Could not find the default GConstruct JSON file: "
                             "'%s'. "
                             "Will try to use '%s' as the GConstruct config file.",
                             GS_RUNTIME_GCONSTRUCT_FILENAME,
@@ -245,13 +245,14 @@ def transform_fn(model,
     logging.debug(request_body)
 
     if request_content_type != 'application/json':
-        res = RTResponseMsg.json_format_error(error=('Unsupported content type: ' \
-            f'{request_content_type}. Supported content type: \"application/json\".'))
+        res = RTResponseMsg.json_format_error(request_uid='',
+            error=(f'Unsupported content type: {request_content_type}. Supported content ' \
+                   'type: "application/json"'))
         return res.to_json(), response_content_type
     try:
         payload_data = json.loads(request_body)
     except Exception as e:
-        res = RTResponseMsg.json_format_error(error=e)
+        res = RTResponseMsg.json_format_error(request_uid='',error=e)
         return res.to_json(), response_content_type
 
     # create a unique request id for easy error tracking between client and server side
@@ -300,8 +301,14 @@ def transform_fn(model,
             logging.error(res.to_json())
             return res.to_json(), response_content_type
 
-    # processing payload to generate a DGL graph
-    g_resp = process_json_payload_graph(payload_data, gconstruct_config_dict)
+    # processing payload to generate a DGL graph, and catch any errors to prevent server crash
+    try:
+        g_resp = process_json_payload_graph(payload_data, gconstruct_config_dict)
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        res = RTResponseMsg.graph_construction_failure(request_uid=request_uid, track=e)
+        logging.error(res.to_json())
+        return res.to_json(), response_content_type
 
     # generation failed
     if g_resp[PAYLOAD_PROCESSING_STATUS] != 200:
