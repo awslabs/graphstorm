@@ -27,8 +27,10 @@ import torch as th
 
 import graphstorm as gs
 from graphstorm.utils import setup_device, get_device
-from graphstorm.config import (GS_RUNTIME_TRAINING_CONFIG_FILENAME,
-                               GS_RUNTIME_GCONSTRUCT_FILENAME,)
+from graphstorm.config.config import (
+    GS_RUNTIME_GCONSTRUCT_FILENAME,
+    GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+    )
 from graphstorm.gconstruct import (PAYLOAD_PROCESSING_STATUS,
                                    PAYLOAD_PROCESSING_RETURN_MSG,
                                    PAYLOAD_PROCESSING_ERROR_CODE,
@@ -111,14 +113,18 @@ def model_fn(model_dir):
     for file in files:
         if gs_train_yaml_file is None and file.endswith('.yaml'):
             gs_train_yaml_file = file
-            logging.warning('Not find the built-in YAML file: ' 
-                            f'{GS_RUNTIME_TRAINING_CONFIG_FILENAME}. ' \
-                            f'Will use the {file} instead.')
-        if gs_construct_json_file is None and file.endswith('.json'):
+            logging.warning("Could not find the default training config YAML file: "
+                            "%s. "
+                            "Will try to use %s as the train config file.",
+                            GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+                            file)
+        if gs_construct_json_file is None and file.endswith(".json"):
             gs_construct_json_file = file
-            logging.warning('Not find the built-in JSON file: ' \
-                            f'{GS_RUNTIME_GCONSTRUCT_FILENAME}. ' \
-                            f'Will use the {file} instead.')
+            logging.warning("Not find the default GConstruct JSON file: "
+                            "'%s'. "
+                            "Will try to use '%s' as the GConstruct config file.",
+                            GS_RUNTIME_GCONSTRUCT_FILENAME,
+                            file)
 
     # check if required artifacts exist
     assert gs_trained_model_file is not None, ('Missing model file, e.g., \"model.bin\", in the ' \
@@ -201,7 +207,7 @@ def transform_fn(model,
                 "node_type": "paper",
                 "node_id": "p4463"
             },
-            or 
+            or
             {
                 "edge_type": [
                         "paper",
@@ -320,14 +326,14 @@ def transform_fn(model,
     # 4. check if node or edge feature names match with model configurations
     if gs_train_config.node_feat_name is not None:
         for ntype, feat_list in gs_train_config.node_feat_name.items():
-            # it is possible that some node types are not sampled 
+            # it is possible that some node types are not sampled
             if ntype not in dgl_graph.ntypes:
                 continue
 
             for feat in feat_list:
                 if feat not in dgl_graph.nodes[ntype].data:
-                    res = RTResponseMsg.missing_feature(request_uid=request_uid, 
-                                                        entity_type='node', 
+                    res = RTResponseMsg.missing_feature(request_uid=request_uid,
+                                                        entity_type='node',
                                                         entity_name=ntype,
                                                         feat_name=feat)
                     logging.error(res.to_json())
@@ -335,14 +341,14 @@ def transform_fn(model,
 
     if gs_train_config.edge_feat_name is not None:
         for etype, feat_list in gs_train_config.edge_feat_name.items():
-            # it is possible that some edge types are not sampled 
+            # it is possible that some edge types are not sampled
             if etype not in dgl_graph.etypes:
                 continue
 
             for feat in feat_list:
                 if feat not in dgl_graph.edges[etype].data:
-                    res = RTResponseMsg.missing_feature(request_uid=request_uid, 
-                                                        entity_type='edge', 
+                    res = RTResponseMsg.missing_feature(request_uid=request_uid,
+                                                        entity_type='edge',
                                                         entity_name=etype,
                                                         feat_name=feat)
                     logging.error(res.to_json())
@@ -351,7 +357,7 @@ def transform_fn(model,
 
     # mapping the targets, a list of node objects, to new graph node IDs after dgl graph
     # construction for less overall data processing time
-    
+
     # create an empty mapping dict: keys are node types, and values are two lists, 1st for
     # original(str like) node ids, 2nd for the dgl(int) node ids.
     target_mapping_dict = {ntype: ([],[]) for ntype in raw_node_id_maps.keys()}
@@ -397,7 +403,7 @@ def transform_fn(model,
                                                       target_nids,
                                                       gs_train_config.num_layers)
         predictions = inferrer.infer(dgl_graph, dataloader, list(target_nids.keys()),
-                                     gs_train_config.node_feat_name, 
+                                     gs_train_config.node_feat_name,
                                      gs_train_config.edge_feat_name)
         # Build prediction response
         pred_list = []

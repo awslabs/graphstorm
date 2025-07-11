@@ -62,7 +62,9 @@ from .config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
                      GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS)
 from .config import (GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
                      GRAPHSTORM_TENSORBOARD_TASK_TRACKER)
+from .config import (
+    GS_RUNTIME_TRAINING_CONFIG_FILENAME,
+    GS_RUNTIME_GCONSTRUCT_FILENAME,
+    )
 
 from .config import TaskInfo
-
-from .config import GS_RUNTIME_UPDATED_TRAINING_CONFIG_FILENAME
