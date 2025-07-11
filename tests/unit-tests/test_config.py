@@ -71,26 +71,7 @@ def check_failure(config, field):
         has_error = True
     assert has_error
 
-def create_dummy_config_obj():
-    yaml_object = { # dummy config, bypass checks by default
-        "version": 1.0,
-        "gsf": {
-            "basic": {},
-            "gnn": {
-                "fanout": "4",
-                "num_layers": 1,
-            },
-            "input": {},
-            "output": {},
-            "hyperparam": {
-                "lr": 0.01,
-                "lm_tune_lr": 0.0001,
-                "sparse_optimizer_lr": 0.0001
-            },
-            "rgcn": {},
-        }
-    }
-    return yaml_object
+
 
 def copy_gconstruct_config(tmp_path, file_name=GS_RUNTIME_GCONSTRUCT_FILENAME):
     """Copy a GConstruct config file to the given path/filename"""
@@ -101,55 +82,6 @@ def copy_gconstruct_config(tmp_path, file_name=GS_RUNTIME_GCONSTRUCT_FILENAME):
         os.path.join(tmp_path, file_name)
     )
 
-
-def create_basic_config(tmp_path, file_name):
-    yaml_object = create_dummy_config_obj()
-    yaml_object["gsf"]["basic"] = {
-        "backend": "gloo",
-        "ip_config": os.path.join(tmp_path, "ip.txt"),
-        "part_config": os.path.join(tmp_path, "part.json"),
-        "model_encoder_type": "rgat",
-        "eval_frequency": 100,
-        "no_validation": True,
-    }
-    # create dummpy ip.txt
-    with open(os.path.join(tmp_path, "ip.txt"), "w") as f:
-        f.write("127.0.0.1\n")
-    # create dummpy part.json
-    with open(os.path.join(tmp_path, "part.json"), "w") as f:
-        json.dump({
-            "graph_name": "test"
-        }, f)
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for check default value
-    yaml_object["gsf"]["basic"] = {
-        "ip_config": os.path.join(tmp_path, "ip.txt"),
-        "part_config": os.path.join(tmp_path, "part.json"),
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for wrong values
-    yaml_object["gsf"]["basic"] = {
-        "backend": "error",
-        "eval_frequency": 0,
-        "model_encoder_type": "abc"
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
-
-    # config for none exist ip config file and partition file
-    yaml_object["gsf"]["basic"] = {
-        "ip_config": "ip_missing.txt",
-        "part_config": "part_missing.json",
-    }
-
-    with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
-        yaml.dump(yaml_object, f)
 
 def test_load_basic_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -2359,6 +2291,32 @@ def test_save_combined_new_argument():
 
         # Check that the wd_l2norm value was added to the 'runtime' key
         assert updated_config['gsf']['runtime']['wd_l2norm'] == 0.0001
+
+def test_save_combined_without_partconfig():
+    """When the part_config file listed in the train YAML file is missing,
+    we should only log a warning, not fail the program"""
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+        save_model_path = os.path.join(tmpdirname, "model")
+        part_config_file = os.path.join(tmpdirname, "part.json")
+
+        # Create args with an override, where the new arg did not exist in the original yaml
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            # Set save_model_path to trigger combined config saving
+            save_model_path=save_model_path,
+        )
+
+        # Remove the part config file
+        os.remove(part_config_file)
+
+        # Try to create GSConfing, this should only log a warning about the missing part config
+        with pytest.warns(UserWarning, match="Partition config file .* does not exist. .*"):
+            _ = GSConfig(args)
+
+
 
 def test_copy_gconstruct_config():
     """Ensure that we save a copy of the GConstruct config with model, if one exists"""
