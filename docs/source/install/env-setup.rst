@@ -246,7 +246,6 @@ If successful, the command prompt will change to the container's, like
 
     root@<ip-address>:/#
 
-
 .. note::
 
     Notice that we assign the host's shared memory volume to the container as well using
