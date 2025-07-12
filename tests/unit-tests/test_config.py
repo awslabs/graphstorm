@@ -60,11 +60,10 @@ from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_TRANSE_L2_DECODER)
 from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 from config_utils import create_dummy_config_obj, create_basic_config
+from graphstorm.config.config import get_mttask_id
 
 # Get location of test file
 _ROOT = os.path.abspath(os.path.dirname(__file__))
-
-from graphstorm.config.config import get_mttask_id
 
 def test_get_mttask_id():
     # node classification task
@@ -2583,8 +2582,6 @@ def test_save_combined_without_partconfig():
         with pytest.warns(UserWarning, match="Partition config file .* does not exist. .*"):
             _ = GSConfig(args)
 
-
-
 def test_copy_gconstruct_config():
     """Ensure that we save a copy of the GConstruct config with model, if one exists"""
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -2633,7 +2630,7 @@ def test_missing_gconstruct_config():
             _ = GSConfig(args)
 
 def create_fname_test_gnn_config(tmp_path, file_name):
-    yaml_object = create_dummpy_config_obj()
+    yaml_object = create_dummy_config_obj()
     yaml_object["gsf"]["link_prediction"] = {}
 
     yaml_object["gsf"]["gnn"] = {
