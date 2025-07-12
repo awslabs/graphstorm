@@ -302,3 +302,8 @@ for edge_conf in conf["edges"]:
             assert edge_conf["features"][1]["feature_dim"] == [2]
         if edge_conf["files"] == "/tmp/test_data/ng_edge_data3.parquet":
             assert edge_conf["features"][0]["feature_dim"] == [4]
+
+# Test featless nodes (nodes only in edge files)
+assert g.num_nodes('node_fl') < g.num_nodes('node3')
+node_fl_map = read_data_parquet(os.path.join(out_dir, "raw_id_mappings", "node_fl"))
+assert len(node_fl_map["orig"]) == g.num_nodes('node_fl')

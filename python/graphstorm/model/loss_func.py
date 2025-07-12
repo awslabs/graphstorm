@@ -16,6 +16,7 @@
     Loss functions.
 """
 import logging
+import warnings
 
 import torch as th
 from torch import nn
@@ -101,7 +102,8 @@ class FocalLossFunc(GSLayer):
     See more details on https://pytorch.org/vision/main/_modules/torchvision/ops/focal_loss.html.
 
     To use focal loss, the classification task must be
-    a binary classification task.
+    a binary classification task, i.e. ``num_classes``
+    should be set to 2.
 
     Parameters
     ----------
@@ -121,6 +123,13 @@ class FocalLossFunc(GSLayer):
         super(FocalLossFunc, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
+        # TODO: Focal loss should also produce (N, num_classes) output
+        if get_rank() == 0:
+            warnings.warn(
+                "Focal loss currently produces predictions with shape (N, 1) where N "
+                "is the number of targets. This behavior will change in v0.5.0"
+                "to produce predictions of shape (N, 2).",
+                FutureWarning)
 
     def forward(self, logits, labels):
         """ The forward function.

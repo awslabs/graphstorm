@@ -343,8 +343,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                          but {need_label_pred} requires return_proba==False."
         if len(need_proba) > 0 and return_proba is False:
             return_proba = True
-            logging.warning("%s requires return_proba==True. \
-                Set return_proba to True.", need_proba)
 
         if use_mini_batch_infer:
             val_pred, _, val_label = node_mini_batch_gnn_predict(model, val_loader, return_proba,

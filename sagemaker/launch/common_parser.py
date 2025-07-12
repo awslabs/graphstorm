@@ -1,9 +1,13 @@
 """
 Common parsers for all launcher scripts.
 """
+import argparse
 from typing import Any, Dict, List
 from ast import literal_eval
-import argparse
+
+import boto3
+import sagemaker
+from sagemaker.local.local_session import LocalSession
 
 # Note: Keep SUPPORTED_TASKS and SUPPORTED_INFER_TASKS
 # synced with graphstorm.config SUPPORTED_TASKS.
@@ -29,6 +33,37 @@ SUPPORTED_INFER_TASKS = {
     "multi_task"
 }
 
+def create_sm_session(instance_type, region):
+    """Create a SageMaker session based on the instance type.
+    If instance_type is "local", create a LocalSession
+    """
+    if instance_type == "local":
+        sess = LocalSession()
+        # Add local SM config if needed
+        if sess.config is None:
+            sess.config = {}
+        sess.config.update({"local": {"local_code": True}})
+
+        # if shm_size is not specified, use 90% of host memory as shared memory.
+        should_set_shm = (
+            "container_config" not in sess.config["local"] or
+            "shm_size" not in sess.config["local"]["container_config"]
+        )
+        if should_set_shm:
+            try:
+                import psutil
+                shm_size_mb = (psutil.virtual_memory().total * 0.9) // (1024**2)
+            except ImportError:
+                shm_size_mb = 1024
+            sess.config["local"]["container_config"] = {"shm_size": f"{shm_size_mb}m"}
+    else:
+        boto_session = boto3.session.Session(region_name=region)
+        sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
+        sess = sagemaker.session.Session(boto_session=boto_session,
+            sagemaker_client=sagemaker_client)
+
+    return sess
+
 def get_common_parser() -> argparse.ArgumentParser:
     """
     Returns an argument parser that can be used by all
@@ -40,7 +75,7 @@ def get_common_parser() -> argparse.ArgumentParser:
 
     common_args.add_argument("--graph-data-s3", "--input-graph-s3", type=str,
         help="S3 location of input graph data", required=True)
-    common_args.add_argument("--image-url", type=str,
+    common_args.add_argument("--image-url", "--image-uri", type=str,
         help="GraphStorm SageMaker docker image URI",
         required=True)
     common_args.add_argument("--role", type=str,

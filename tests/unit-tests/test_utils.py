@@ -22,8 +22,10 @@ import h5py
 import torch as th
 import numpy as np
 import dgl
-from numpy.testing import assert_equal, assert_almost_equal
+from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from dgl.distributed import DistTensor
+
+from graphstorm.config import FeatureGroup, FeatureGroupSize
 from graphstorm.model.utils import save_embeddings, LazyDistTensor, remove_saved_models, TopKList
 from graphstorm.model.utils import get_data_range
 from graphstorm.model.utils import _exchange_node_id_mapping, distribute_nid_map
@@ -674,7 +676,7 @@ def helper_save_multiple_embeddings(tmpdirname):
     return type0_random_emb, type1_random_emb
 
 def helper_save_single_embedding(tmpdirname):
-    """ 
+    """
     Save embeddings without specifying a node type.
     """
     num_embs = 57
@@ -832,6 +834,7 @@ def test_get_node_feat_size():
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
+
     feat_size = get_node_feat_size(g, 'feat')
     assert len(feat_size) == len(g.ntypes)
     for ntype in feat_size:
@@ -849,11 +852,58 @@ def test_get_node_feat_size():
     assert feat_size['n0'] == g.nodes['n0'].data['feat'].shape[1]
     assert feat_size['n1'] == 0
 
-    try:
+    with assert_raises(AssertionError):
         feat_size = get_node_feat_size(g, {'n0': ['feat'], 'n1': ['feat_not_exist']})
-    except:
-        feat_size = None
-    assert feat_size is None
+
+    # test input is feature group
+    # empty group
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup([])]}
+    with assert_raises(AssertionError):
+        feat_size = get_node_feat_size(g, feat_field)
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup(["feat", "feat1"]),
+                         FeatureGroup([])]}
+    with assert_raises(AssertionError):
+        feat_size = get_node_feat_size(g, feat_field)
+
+    # Single group with single feat
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup(["feat"])]}
+    feat_size = get_node_feat_size(g, feat_field)
+    assert len(feat_size) == len(g.ntypes)
+    assert feat_size['n0'] == g.nodes['n0'].data['feat'].shape[1]
+    assert isinstance(feat_size['n1'], FeatureGroupSize)
+    assert len(feat_size['n1'].feature_group_sizes) == 1
+    assert feat_size['n1'].feature_group_sizes[0] == g.nodes['n1'].data['feat'].shape[1]
+
+    # Single group with multiple feats
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup(["feat", "feat1"])]}
+    feat_size = get_node_feat_size(g, feat_field)
+    assert len(feat_size) == len(g.ntypes)
+    assert feat_size['n0'] == g.nodes['n0'].data['feat'].shape[1]
+    assert isinstance(feat_size['n1'], FeatureGroupSize)
+    assert len(feat_size['n1'].feature_group_sizes) == 1
+    assert feat_size['n1'].feature_group_sizes[0] == \
+        g.nodes['n1'].data['feat'].shape[1] + \
+        g.nodes['n1'].data['feat1'].shape[1]
+
+    # Multiple groups
+    feat_field = {"n0":["feat"],
+                  "n1": [FeatureGroup(["feat", "feat1"]),
+                         FeatureGroup(["feat"])]}
+    feat_size = get_node_feat_size(g, feat_field)
+    assert len(feat_size) == len(g.ntypes)
+    assert feat_size['n0'] == g.nodes['n0'].data['feat'].shape[1]
+    assert isinstance(feat_size['n1'], FeatureGroupSize)
+    assert len(feat_size['n1'].feature_group_sizes) == 2
+    assert feat_size['n1'].feature_group_sizes[0] == \
+        g.nodes['n1'].data['feat'].shape[1] + \
+        g.nodes['n1'].data['feat1'].shape[1]
+    assert feat_size['n1'].feature_group_sizes[1] == \
+        g.nodes['n1'].data['feat'].shape[1]
+
 
 def test_gen_mrr_score():
     ranking = th.rand(500)
@@ -1232,5 +1282,5 @@ def test_get_graph_name():
     with tempfile.TemporaryDirectory() as tmpdirname:
         _, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
         graph_name = get_graph_name(part_config)
-        
+
         assert graph_name == 'dummy'

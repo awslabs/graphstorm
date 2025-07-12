@@ -30,6 +30,8 @@ from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct.construct_graph import (parse_edge_data,
                                                    prepare_edge_data,
+                                                   process_featless_ntype,
+                                                   parse_edge_nid_data,
                                                    verify_confs,
                                                    is_homogeneous,
                                                    _collect_parsed_edge_data)
@@ -38,10 +40,11 @@ from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
 from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5Array
 from graphstorm.gconstruct.file_io import write_index_json
+from graphstorm.gconstruct.file_io import parse_edge_file_format
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
-from graphstorm.gconstruct.id_map import IdMap, IdReverseMap, map_node_ids
+from graphstorm.gconstruct.id_map import IdMap, IdReverseMap, map_node_ids, NoopMap
 from graphstorm.gconstruct.transform import (BucketTransform, RankGaussTransform,
                                              Text2BERT, NumericalMinMaxTransform)
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
@@ -257,7 +260,7 @@ def test_feat_ops_noop():
 
 def test_noop_string():
     text_vector_data = {
-        "test2": np.array(["1;2;3", "4;5;6"], dtype=object)
+        "test2": np.array(np.array(["1;2;3", "4;5;6"], dtype=object), dtype=object)
     }
     feature_name = "test3"
     text_vector_config = [{
@@ -310,7 +313,6 @@ def test_noop_string():
         match=f"The feature {feature_name} has to be integers or floats, got 'object'."
     ):
         process_features(text_vector_data, res)
-
 
 def test_feat_ops_tokenize():
     feat_op2 = [
@@ -625,7 +627,6 @@ def test_feat_ops_categorical():
         assert multi_hot[int(str_i1)] == 1
         assert multi_hot[int(str_i2)] == 1
     assert 'mapping' in feat_op8[0]["transform"]
-
 
 def test_process_features_fp16():
     np.random.seed(1)
@@ -2751,3 +2752,547 @@ def test_collect_parsed_edge_data():
 
     test_two_none(0, 4)
     test_two_none(4, 10)
+
+def create_featless_data(graph_dir):
+    edge_dir = os.path.join(graph_dir, "edges")
+    os.mkdir(edge_dir)
+
+    # Create edges with src and dst ids as integers
+    # For consequtive integer IDs, there is no need
+    # to build ID mapping.
+    data0 = {
+        "src": np.random.randint(0, 5, size=10),
+        "dst": np.random.randint(0, 5, size=10),
+    }
+
+    data1 = {
+        "src": np.random.randint(6, 30, size=10),
+        "dst": np.random.randint(6, 30, size=10),
+    }
+
+    data2 = {
+        "src": np.random.randint(0, 10, size=20),
+        "dst": np.random.randint(20, 40, size=20),
+    }
+
+    data3 = {
+        "src": np.arange(20),
+        "dst": np.arange(20),
+    }
+
+    os.mkdir(os.path.join(edge_dir, "r0"))
+    os.mkdir(os.path.join(edge_dir, "r1"))
+    os.mkdir(os.path.join(edge_dir, "r2"))
+    write_data_csv(data0, os.path.join(os.path.join(edge_dir, "r0"), 'data0.csv'))
+    write_data_csv(data1, os.path.join(os.path.join(edge_dir, "r0"), 'data1.csv'))
+    write_data_csv(data2, os.path.join(os.path.join(edge_dir, "r1"), 'data0.csv'))
+    write_data_csv(data3, os.path.join(os.path.join(edge_dir, "r2"), 'data0.csv'))
+
+    # Create edges with src and dst ids as strings
+    data0_str = {
+        "src": data0["src"].astype(str),
+        "dst": data0["dst"].astype(str),
+    }
+    data1_str = {
+        "src": data1["src"].astype(str),
+        "dst": data1["dst"].astype(str),
+    }
+    data2_str = {
+        "src": data2["src"].astype(str),
+        "dst": data2["dst"].astype(str),
+    }
+    data3_str = {
+        "src": data3["src"].astype(str),
+        "dst": data3["dst"].astype(str),
+    }
+
+    os.mkdir(os.path.join(edge_dir, "r0_str"))
+    os.mkdir(os.path.join(edge_dir, "r1_str"))
+    os.mkdir(os.path.join(edge_dir, "r2_str"))
+    write_data_parquet(data0_str, os.path.join(os.path.join(edge_dir, "r0_str"), 'data0.parquet'))
+    write_data_parquet(data1_str, os.path.join(os.path.join(edge_dir, "r0_str"), 'data1.parquet'))
+    write_data_parquet(data2_str, os.path.join(os.path.join(edge_dir, "r1_str"), 'data0.parquet'))
+    write_data_parquet(data3_str, os.path.join(os.path.join(edge_dir, "r2_str"), 'data0.parquet'))
+
+    return data0, data1, data2, data3, edge_dir
+
+
+def test_process_featless_ntype():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data0, data1, data2, data3, edge_dir = create_featless_data(tmpdirname)
+
+        # Case 0: With integer node id
+        # Both src and dst are featless
+        # Both src and dst are featless and same
+        # Src and dst are consecutive integers.
+        node_confs = [
+        ]
+
+        edge_confs = [
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n1","r0","n2"],
+                "files": os.path.join(edge_dir, "r0/*"),
+                "format": {"name": "csv"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n3","r1","n3"],
+                "files": os.path.join(edge_dir, "r1/*"),
+                "format": {"name": "csv"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n4","r2","n5"],
+                "files": os.path.join(edge_dir, "r2/*"),
+                "format": {"name": "csv"},
+            }
+        ]
+
+        n1_nids = np.concatenate([data0["src"], data1["src"]])
+        n2_nids = np.concatenate([data0["dst"], data1["dst"]])
+        n3_nids = np.concatenate([data2["src"], data2["dst"]])
+        n4_nids = data3["src"]
+        n5_nids = data3["dst"]
+
+        n1_nids = np.unique(n1_nids)
+        n2_nids = np.unique(n2_nids)
+        n3_nids = np.unique(n3_nids)
+
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 5
+        n1_map = raw_node_id_maps["n1"]
+        n2_map = raw_node_id_maps["n2"]
+        n3_map = raw_node_id_maps["n3"]
+        n4_map = raw_node_id_maps["n4"]
+        n5_map = raw_node_id_maps["n5"]
+
+        assert isinstance(n1_map, IdMap)
+        assert isinstance(n2_map, IdMap)
+        assert isinstance(n3_map, IdMap)
+        assert isinstance(n4_map, NoopMap)
+        assert isinstance(n5_map, NoopMap)
+
+        assert len(n1_map) == len(n1_nids)
+        assert len(n2_map) == len(n2_nids)
+        assert len(n3_map) == len(n3_nids)
+        assert len(n4_map) == len(data3["src"])
+        assert len(n5_map) == len(data3["dst"])
+
+        keys = set(n1_map._ids.keys())
+        assert keys == set(n1_nids.tolist())
+        keys = set(n2_map._ids.keys())
+        assert keys == set(n2_nids.tolist())
+        keys = set(n3_map._ids.keys())
+        assert keys == set(n3_nids.tolist())
+
+        maped_id, _ = n4_map.map_id(n4_nids)
+        assert_equal(n4_nids, maped_id)
+        maped_id, _ = n4_map.map_id(n5_nids)
+        assert_equal(n5_nids, maped_id)
+
+        # Case 1: With string node id
+        # Edge r0: Both src and dst are featless
+        # Edge r1: Both src and dst are featless and same
+        # Edge r2: Src and dst are consecutive integers but with type string
+        edge_confs = [
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n1","r0","n2"],
+                "files": os.path.join(edge_dir, "r0_str/*"),
+                "format": {"name": "parquet"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n3","r1","n3"],
+                "files": os.path.join(edge_dir, "r1_str/*"),
+                "format": {"name": "parquet"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n4","r2","n5"],
+                "files": os.path.join(edge_dir, "r2_str/*"),
+                "format": {"name": "parquet"},
+            }
+        ]
+
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 5
+        n1_map = raw_node_id_maps["n1"]
+        n2_map = raw_node_id_maps["n2"]
+        n3_map = raw_node_id_maps["n3"]
+        n4_map = raw_node_id_maps["n4"]
+        n5_map = raw_node_id_maps["n5"]
+
+        assert isinstance(n1_map, IdMap)
+        assert isinstance(n2_map, IdMap)
+        assert isinstance(n3_map, IdMap)
+        assert isinstance(n4_map, IdMap)
+        assert isinstance(n5_map, IdMap)
+
+        assert len(n1_map) == len(n1_nids)
+        assert len(n2_map) == len(n2_nids)
+        assert len(n3_map) == len(n3_nids)
+        assert len(n4_map) == len(n4_nids)
+        assert len(n5_map) == len(n5_nids)
+
+        keys = set(n1_map._ids.keys())
+        assert keys == set(str(nid) for nid in n1_nids.tolist())
+        keys = set(n2_map._ids.keys())
+        assert keys == set(str(nid) for nid in n2_nids.tolist())
+        keys = set(n3_map._ids.keys())
+        assert keys == set(str(nid) for nid in n3_nids.tolist())
+        keys = set(n4_map._ids.keys())
+        assert keys == set(str(nid) for nid in n4_nids.tolist())
+        keys = set(n5_map._ids.keys())
+        assert keys == set(str(nid) for nid in n5_nids.tolist())
+
+        # Case 2: With string node id
+        # Edge r0: Both src and dst are featless
+        # Edge r1: Both src and dst are featless and same
+        # Edge r2: Src and dst are consecutive integers
+        # Edge r3: Src and dst are consecutive integers and nodes are same as r2
+        edge_confs = [
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n1","r0","n2"],
+                "files": os.path.join(edge_dir, "r0_str/*"),
+                "format": {"name": "parquet"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n3","r1","n3"],
+                "files": os.path.join(edge_dir, "r1_str/*"),
+                "format": {"name": "parquet"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n4","r2","n5"],
+                "files": os.path.join(edge_dir, "r2/*"),
+                "format": {"name": "csv"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n5","r3","n4"],
+                "files": os.path.join(edge_dir, "r2/*"),
+                "format": {"name": "csv"},
+            }
+        ]
+
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 5
+        n1_map = raw_node_id_maps["n1"]
+        n2_map = raw_node_id_maps["n2"]
+        n3_map = raw_node_id_maps["n3"]
+        n4_map = raw_node_id_maps["n4"]
+        n5_map = raw_node_id_maps["n5"]
+
+        assert isinstance(n1_map, IdMap)
+        assert isinstance(n2_map, IdMap)
+        assert isinstance(n3_map, IdMap)
+        assert isinstance(n4_map, NoopMap)
+        assert isinstance(n5_map, NoopMap)
+
+        assert len(n1_map) == len(n1_nids)
+        assert len(n2_map) == len(n2_nids)
+        assert len(n3_map) == len(n3_nids)
+        assert len(n4_map) == len(n4_nids)
+        assert len(n5_map) == len(n5_nids)
+
+        maped_id, _ = n4_map.map_id(n4_nids)
+        assert_equal(n4_nids, maped_id)
+        maped_id, _ = n4_map.map_id(n5_nids)
+        assert_equal(n5_nids, maped_id)
+
+
+        # Case 3: With string node id
+        # Edge r0: Only src (n1) are featless, dst (n2) is not
+        # Edge r1: Both src and dst are featless and same
+        # Edge r2: Src and dst are consecutive integers but with type string
+        node_confs = [
+            {
+                "node_id_col":  "id",
+                "node_type":    "n2",
+            }
+        ]
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 4
+        assert "n2" not in raw_node_id_maps
+        n1_map = raw_node_id_maps["n1"]
+        n3_map = raw_node_id_maps["n3"]
+        n4_map = raw_node_id_maps["n4"]
+        n5_map = raw_node_id_maps["n5"]
+
+        # nid map of n1 is still from edges
+        keys = set(n1_map._ids.keys())
+        assert keys == set(str(nid) for nid in n1_nids.tolist())
+
+        # Case 4: With string node id
+        # Edge r0: Only dst (n2) are featless, src (n1)  is not
+        # Edge r1: Both src and dst are featless and same
+        # Edge r2: Src and dst are consecutive integers but with type string
+        node_confs = [
+            {
+                "node_id_col":  "id",
+                "node_type":    "n1",
+            }
+        ]
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 4
+        assert "n1" not in raw_node_id_maps
+        n1_map = raw_node_id_maps["n2"]
+        n3_map = raw_node_id_maps["n3"]
+        n4_map = raw_node_id_maps["n4"]
+        n5_map = raw_node_id_maps["n5"]
+
+        # nid map of n1 is still from edges
+        keys = set(n2_map._ids.keys())
+        assert keys == set(str(nid) for nid in n2_nids.tolist())
+
+        # Case 5: With string node id
+        # Edge r0: Only src (n1) are featless, dst (n2) is not
+        # Edge r1: n3 has features
+        # Edge r2: src is n1 and dst is n5
+        node_confs = [
+            {
+                "node_id_col":  "id",
+                "node_type":    "n2",
+            },
+            {
+                "node_id_col":  "id",
+                "node_type":    "n3",
+            },
+            {
+                "node_id_col":  "id",
+                "node_type":    "n0", # not in edges
+            }
+        ]
+
+        # With string node id
+        edge_confs = [
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n1","r0","n2"],
+                "files": os.path.join(edge_dir, "r0_str/*"),
+                "format": {"name": "parquet"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n3","r1","n3"],
+                "files": os.path.join(edge_dir, "r1_str/*"),
+                "format": {"name": "parquet"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n1","r2","n5"],
+                "files": os.path.join(edge_dir, "r2_str/*"),
+                "format": {"name": "parquet"},
+            }
+        ]
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 2
+        assert "n2" not in raw_node_id_maps
+        assert "n3" not in raw_node_id_maps
+        n1_map = raw_node_id_maps["n1"]
+        n5_map = raw_node_id_maps["n5"]
+
+        assert isinstance(n1_map, IdMap)
+        assert isinstance(n5_map, IdMap)
+
+        new_n1_nid = np.concatenate([n1_nids, n4_nids])
+        new_n1_nid = np.unique(new_n1_nid)
+
+        assert len(n1_map) == len(new_n1_nid)
+        assert len(n5_map) == len(n5_nids)
+        keys = set(n1_map._ids.keys())
+        assert keys == set(str(nid) for nid in new_n1_nid.tolist())
+        keys = set(n5_map._ids.keys())
+        assert keys == set(str(nid) for nid in n5_nids.tolist())
+
+        # Case 6: With string node id
+        # Edge r0: no source_id_col and dest_id_col
+        # Edge r1: src and dst are featless
+        node_confs = []
+        edge_confs = [
+            {
+                "relation":         ["n1","r0","n2"],
+                "files": os.path.join(edge_dir, "r0_str/*"),
+                "format": {"name": "parquet"},
+            },
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation":         ["n1","r1","n2"],
+                "files": os.path.join(edge_dir, "r1_str/*"),
+                "format": {"name": "parquet"},
+            },
+        ]
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 2
+        assert "n1" in raw_node_id_maps
+        assert "n2" in raw_node_id_maps
+
+        # Case 7: With string node id
+        # Edge r0: no source_id_col and dest_id_col
+        # Edge r1: src (n1) is featless, dst (n2) is not
+        node_confs = [
+            {
+                "node_id_col":  "id",
+                "node_type":    "n2",
+            }
+        ]
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 1
+        assert "n1" in raw_node_id_maps
+        assert "n2" not in raw_node_id_maps
+
+        # Case 8: With string node id
+        # Edge r0: no source_id_col and dest_id_col
+        # Edge r1: src (n1) is not featless, dst (n2) is featless
+        node_confs = [
+            {
+                "node_id_col":  "id",
+                "node_type":    "n1",
+            }
+        ]
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 1
+        assert "n2" in raw_node_id_maps
+        assert "n1" not in raw_node_id_maps
+
+        # Case 9: all nodes have features
+        node_confs = [
+            {
+                "node_id_col":  "id",
+                "node_type":    "n1",
+            },
+            {
+                "node_id_col":  "id",
+                "node_type":    "n2",
+            },
+            {
+                "node_id_col":  "id",
+                "node_type":    "n3", # not with edges
+            }
+        ]
+        raw_node_id_maps = process_featless_ntype(node_confs, edge_confs, False, 2)
+
+        assert len(raw_node_id_maps) == 0
+
+def test_parse_edge_nid_data():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        edge_dir = os.path.join(tmpdirname, "edges")
+        os.mkdir(edge_dir)
+
+        data0 = {
+            "src": np.random.randint(0, 5, size=10),
+            "dst": np.random.randint(0, 5, size=10),
+        }
+        os.mkdir(os.path.join(edge_dir, "r0"))
+        write_data_csv(data0, os.path.join(os.path.join(edge_dir, "r0"), 'data0.csv'))
+
+        data1 = {
+            "src": [],
+            "dst": []
+        }
+        os.mkdir(os.path.join(edge_dir, "r1"))
+        write_data_csv(data1, os.path.join(os.path.join(edge_dir, "r1"), 'data0.csv'))
+
+        # Case 0: normal case
+        edge_conf = {
+            "source_id_col":    "src",
+            "dest_id_col":      "dst",
+            "relation":         ["n1","r1","n2"],
+            "files": os.path.join(edge_dir, "r0/*"),
+            "format": {"name": "csv"},
+        }
+
+        read_file = parse_edge_file_format(edge_conf, in_mem=True)
+
+        ret = parse_edge_nid_data(os.path.join(edge_dir, "r0/data0.csv"),
+                                  True,
+                                  True,
+                                  edge_conf,
+                                  read_file)
+        assert_equal(ret[0], data0["src"])
+        assert_equal(ret[1], data0["dst"])
+
+        ret = parse_edge_nid_data(os.path.join(edge_dir, "r0/data0.csv"),
+                                  True,
+                                  False,
+                                  edge_conf,
+                                  read_file)
+        assert_equal(ret[0], data0["src"])
+        assert ret[1] is None
+
+        ret = parse_edge_nid_data(os.path.join(edge_dir, "r0/data0.csv"),
+                                  False,
+                                  True,
+                                  edge_conf,
+                                  read_file)
+        assert ret[0] is None
+        assert_equal(ret[1], data0["dst"])
+
+        # Case 1: no src and dst col
+        edge_conf = {
+            "relation":         ["n1","r1","n2"],
+            "files": os.path.join(edge_dir, "r0/*"),
+            "format": {"name": "csv"},
+        }
+        ret = parse_edge_nid_data(os.path.join(edge_dir, "r0/data0.csv"),
+                                  True,
+                                  True,
+                                  edge_conf,
+                                  read_file)
+        assert ret is None
+
+        # Case 2: empty file
+        edge_conf = {
+            "source_id_col":    "src",
+            "dest_id_col":      "dst",
+            "relation":         ["n1","r1","n2"],
+            "files": os.path.join(edge_dir, "r1/*"),
+            "format": {"name": "csv"},
+        }
+        ret = parse_edge_nid_data(os.path.join(edge_dir, "r1/data0.csv"),
+                                  True,
+                                  True,
+                                  edge_conf,
+                                  read_file)
+        assert ret is None
+
+        with pytest.raises(AssertionError):
+            # Case 3: broken conf
+            edge_conf = {
+                "source_id_col":    "src",
+                "relation":         ["n1","r1","n2"],
+                "files": os.path.join(edge_dir, "r1/*"),
+                "format": {"name": "csv"},
+            }
+            ret = parse_edge_nid_data(os.path.join(edge_dir, "r1/data0.csv"),
+                                    True,
+                                    True,
+                                    edge_conf,
+                                    read_file)

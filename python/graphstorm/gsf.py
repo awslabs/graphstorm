@@ -41,6 +41,9 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
                      BUILTIN_LP_DOT_DECODER,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
+from .config import (BUILTIN_INPUT_ONLY_ENCODER,
+                     BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
                      BUILTIN_LP_ROTATE_DECODER,
                      BUILTIN_LP_TRANSE_L1_DECODER,
@@ -56,7 +59,11 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
 from .eval.eval_func import (
     SUPPORTED_HIT_AT_METRICS,
     SUPPORTED_LINK_PREDICTION_METRICS)
-from .model.embed import GSNodeEncoderInputLayer, GSEdgeEncoderInputLayer
+from .config import (FeatureGroup,
+                     FeatureGroupSize)
+from .model.embed import (GSPureLearnableInputLayer,
+                          GSNodeEncoderInputLayer,
+                          GSEdgeEncoderInputLayer)
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
@@ -208,20 +215,29 @@ def initialize(
 def get_node_feat_size(g, node_feat_names):
     """ Get the overall feature size of each node type with feature names specified in the
     ``node_feat_names``. If a node type has multiple features, the returned feature size
-    will be the sum of the sizes of these features for that node type.
+    will be the sum of the sizes of these features for that node type. If a node type has
+    multiple groups of features, it returns the sizes of different feature groups.
+
+    .. versionchanged:: 0.5.0
+        When node_feat_names is a dict, its value(s) can be a list of str or a list
+        of FeatureGroups. The return value can be a dict of int or
+        FeatureGroupSize, respectively.
 
     Parameters
     ----------
     g : DistGraph
         A DGL distributed graph.
-    node_feat_names : str, or dict of list of str
-        The node feature names. A string indicates that all nodes share the same feature name,
-        while a dictionary with a list of strings indicates that each
-        node type has different node feature names.
+    node_feat_names : str, or a dict
+        The node feature names. A string indicates that all nodes share the same feature name.
+        A dictionary indicates that each node type has different node feature names.
+        When the value of a key (node type) is a list of strings, it indicates that
+        the node type has only one group of features. When the value is a list
+        of FeatureGroups, it indicates that the node type has more than one group
+        of features, which will be encoded separately.
 
     Returns
     -------
-    node_feat_size: dict of int
+    node_feat_size: dict of int or FeatureGroupSize
         The feature size for the node types and feature names specified in the
         ``node_feat_names``. If feature name is not specified, the feature size
         will be 0.
@@ -246,21 +262,53 @@ def get_node_feat_size(g, node_feat_names):
             assert feat_name in g.nodes[ntype].data, \
                     f"Warning. The feature \"{feat_name}\" " \
                     f"does not exists for the node type \"{ntype}\"."
-            node_feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+            node_feat_size[ntype] = int(np.prod(g.nodes[ntype].data[feat_name].shape[1:]))
         else:
-            node_feat_size[ntype] = 0
-            for fname in feat_name:
+            def get_fsize(feat_name, node_type):
                 # We force users to know which node type has node feature
                 # This helps avoid unexpected training behavior.
-                assert fname in g.nodes[ntype].data, \
-                        f"Warning. The feature \"{fname}\" " \
-                        f"does not exists for the node type \"{ntype}\"."
+                assert feat_name in g.nodes[node_type].data, \
+                        f"Warning. The feature \"{feat_name}\" " \
+                        f"does not exists for the node type \"{node_type}\"."
                 # TODO: we only allow an input node feature as a 2D tensor
                 # Support 1D or nD when required.
-                assert len(g.nodes[ntype].data[fname].shape) == 2, \
+                assert len(g.nodes[node_type].data[feat_name].shape) == 2, \
                     "Input node features should be 2D tensors"
-                fsize = np.prod(g.nodes[ntype].data[fname].shape[1:])
-                node_feat_size[ntype] += fsize
+                fsize = int(np.prod(g.nodes[node_type].data[feat_name].shape[1:]))
+
+                return fsize
+
+            assert isinstance(feat_name, list), \
+                f"The feature name object of {ntype} must be either None, " \
+                f"a string or a list, but get {type(feat_name)}"
+            assert len(feat_name) > 0, \
+                f"The feature name object of {ntype} should not be an empty list"
+
+            if isinstance(feat_name[0], FeatureGroup):
+                # There are feature group(s)
+                feat_group_sizes = []
+                for fname in feat_name:
+                    # ntype has multiple feature groups
+                    feat_group = fname.feature_group
+                    assert len(feat_group) > 0, \
+                        f"The feature group of {ntype} should not be empty"
+
+                    fsize = 0
+                    for f_name in feat_group:
+                        fsize += get_fsize(f_name, ntype)
+                    feat_group_sizes.append(fsize)
+                node_feat_size[ntype] = FeatureGroupSize(
+                    feature_group_sizes=feat_group_sizes)
+            else:
+                fsize = 0
+                for fname in feat_name:
+                    # Note(xiang): for backward compatibility,
+                    # we do not change the data format
+                    # of node_feat_size when ntype has
+                    # only one feature group.
+                    fsize += get_fsize(fname, ntype)
+                node_feat_size[ntype] = fsize
+
     return node_feat_size
 
 def get_edge_feat_size(g, edge_feat_names):
@@ -480,52 +528,82 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
     dropout = config.dropout if train_task else 0
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
         if not isinstance(config.num_classes, dict):
-            decoder = EntityClassifier(decoder_input_dim,
-                                       config.num_classes,
-                                       config.multilabel,
-                                       dropout=dropout,
-                                       norm=config.decoder_norm,
-                                       use_bias=config.decoder_bias)
+
+            decoder_output_dim = config.num_classes
             if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+                assert config.num_classes > 1, (
+                    f"When using {BUILTIN_CLASS_LOSS_CROSS_ENTROPY} loss "
+                    "function, please make sure the num_classes is set "
+                    "to 2 or greater."
+                )
                 loss_func = ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
                                              config.imbalance_class_weights)
             elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
-                assert config.num_classes == 1, \
-                    "Focal loss only works with binary classification." \
-                    "num_classes should be set to 1."
+                # For backward compatibility, we allow the num_classes to be 1.
+                # Users should set it to 2.
+                assert config.num_classes in [1, 2], (
+                    "Focal loss only works with binary classification. "
+                    "num_classes should be set to 2."
+                )
                 # set default value of alpha to 0.25 for focal loss
                 # set default value of gamma to 2. for focal loss
                 alpha = config.alpha if config.alpha is not None else 0.25
                 gamma = config.gamma if config.gamma is not None else 2.
                 loss_func = FocalLossFunc(alpha, gamma)
+                # Focal loss expects 1-dimensional output
+                decoder_output_dim = 1
             else:
                 raise RuntimeError(
                     f"Unknown classification loss {config.class_loss_func}")
+
+
+            decoder = EntityClassifier(decoder_input_dim,
+                                       decoder_output_dim,
+                                       config.multilabel,
+                                       dropout=dropout,
+                                       norm=config.decoder_norm,
+                                       use_bias=config.decoder_bias)
         else:
             decoder = {}
             loss_func = {}
             for ntype in config.target_ntype:
-                decoder[ntype] = EntityClassifier(decoder_input_dim,
-                                                  config.num_classes[ntype],
-                                                  config.multilabel[ntype],
-                                                  dropout=dropout,
-                                                  norm=config.decoder_norm,
-                                                  use_bias=config.decoder_bias)
+                decoder_output_dim = config.num_classes[ntype]
 
                 if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+                    assert config.num_classes[ntype] > 1, (
+                        f"When using {BUILTIN_CLASS_LOSS_CROSS_ENTROPY} loss "
+                        f"function for {ntype} nodes, please make sure the "
+                        f"num_classes of {ntype} is set to 2 or greater."
+                    )
+
                     loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
                                                         config.multilabel_weights[ntype],
                                                         config.imbalance_class_weights[ntype])
                 elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                    # For backward compatibility, we allow the num_classes to be 1.
+                    # Users should set it to 2.
+                    assert config.num_classes[ntype] in [1, 2], (
+                        "Focal loss only works with binary classification. "
+                        f"num_classes of {ntype} should be set to 2."
+                    )
                     # set default value of alpha to 0.25 for focal loss
                     # set default value of gamma to 2. for focal loss
                     alpha = config.alpha if config.alpha is not None else 0.25
                     gamma = config.gamma if config.gamma is not None else 2.
                     loss_func[ntype] =  FocalLossFunc(alpha, gamma)
+                    decoder_output_dim = 1
                 else:
                     raise RuntimeError(
                         f"Unknown classification loss {config.class_loss_func}")
+
+                decoder[ntype] = EntityClassifier(decoder_input_dim,
+                                                  decoder_output_dim,
+                                                  config.multilabel[ntype],
+                                                  dropout=dropout,
+                                                  norm=config.decoder_norm,
+                                                  use_bias=config.decoder_bias)
+
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         decoder  = EntityRegression(decoder_input_dim,
                                     dropout=dropout,
@@ -621,8 +699,24 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
     loss_func: The loss function(s)
     """
     dropout = config.dropout if train_task else 0
+
+
     if config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
+
         num_classes = config.num_classes
+
+        # Focal loss expects 1-dimensional output
+        if config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+            # For backward compatibility, we allow the num_classes to be 1.
+            # Users should set it to 2.
+            assert num_classes in [1, 2], (
+                "Focal loss only works with binary classification. "
+                "num_classes should be set to 2."
+            )
+            decoder_output_dim = 1
+        else:
+            decoder_output_dim = num_classes
+
         decoder_type = config.decoder_type
         # TODO(zhengda) we should support multiple target etypes
         target_etype = config.target_etype[0]
@@ -632,7 +726,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 "DenseBiDecoder does not support adding extra feedforward neural network layers" \
                 "You can increases num_basis to increase the parameter size."
             decoder = DenseBiDecoder(in_units=decoder_input_dim,
-                                     num_classes=num_classes,
+                                     num_classes=decoder_output_dim,
                                      multilabel=config.multilabel,
                                      num_basis=num_decoder_basis,
                                      dropout_rate=dropout,
@@ -642,7 +736,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      use_bias=config.decoder_bias)
         elif decoder_type == "MLPDecoder":
             decoder = MLPEdgeDecoder(decoder_input_dim,
-                                     num_classes,
+                                     out_dim=decoder_output_dim,
                                      multilabel=config.multilabel,
                                      target_etype=target_etype,
                                      num_ffn_layers=config.num_ffn_layers_in_decoder,
@@ -666,7 +760,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             decoder = MLPEFeatEdgeDecoder(
                 h_dim=decoder_input_dim,
                 feat_dim=feat_dim,
-                out_dim=num_classes,
+                out_dim=decoder_output_dim,
                 multilabel=config.multilabel,
                 target_etype=target_etype,
                 dropout=config.dropout,
@@ -677,6 +771,11 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             assert False, f"decoder {decoder_type} is not supported."
 
         if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+            assert num_classes > 1, (
+                f"When using {BUILTIN_CLASS_LOSS_CROSS_ENTROPY} loss "
+                "function, please make sure the num_classes is set "
+                "to 2 or greater."
+            )
             loss_func = ClassifyLossFunc(config.multilabel,
                                          config.multilabel_weights,
                                          config.imbalance_class_weights)
@@ -1016,13 +1115,20 @@ def set_encoder(model, g, config, train_task):
                                                     force_no_embeddings=config.construct_feat_ntype
                                                     )
     else:
-        node_encoder = GSNodeEncoderInputLayer(g, node_feat_size, config.hidden_size,
-                                            dropout=config.dropout,
-                                            activation=config.input_activate,
-                                            use_node_embeddings=config.use_node_embeddings,
-                                            force_no_embeddings=config.construct_feat_ntype,
-                                            num_ffn_layers_in_input=config.num_ffn_layers_in_input,
-                                            use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+        if model_encoder_type == "learnable_embed":
+            # only use learnable embeddings as features of every node
+            node_encoder = GSPureLearnableInputLayer(g,
+                config.hidden_size,
+                use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+        else:
+            node_encoder = GSNodeEncoderInputLayer(g,
+                node_feat_size, config.hidden_size,
+                dropout=config.dropout,
+                activation=config.input_activate,
+                use_node_embeddings=config.use_node_embeddings,
+                force_no_embeddings=config.construct_feat_ntype,
+                num_ffn_layers_in_input=config.num_ffn_layers_in_input,
+                use_wholegraph_sparse_emb=config.use_wholegraph_embed)
         # set edge encoder input layer no matter if having edge feature names or not
         # TODO: add support of languange models and GLEM
         edge_feat_size = get_edge_feat_size(g, config.edge_feat_name)
@@ -1041,7 +1147,7 @@ def set_encoder(model, g, config, train_task):
     dropout = config.dropout if train_task else 0
     out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
 
-    if model_encoder_type in ("mlp", "lm"):
+    if model_encoder_type in BUILTIN_INPUT_ONLY_ENCODER:
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None

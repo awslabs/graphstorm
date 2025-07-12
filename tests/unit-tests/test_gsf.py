@@ -112,6 +112,29 @@ def test_create_builtin_node_decoder():
     config = GSTestConfig(
         {
             "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
+            "num_classes": 2,
+            "multilabel": False,
+            "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
+            "multilabel_weights": None,
+            "decoder_norm": None,
+            "imbalance_class_weights": None,
+            "alpha": None,
+            "gamma": None,
+            "decoder_bias": False
+        }
+    )
+    decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, EntityClassifier)
+    assert isinstance(loss_func, FocalLossFunc)
+    assert loss_func.alpha == 0.25
+    assert loss_func.gamma == 2.
+
+    # node classification + focal loss with num class = 1
+    # Note: make sure the current code is backward compatible
+    # May remove this test in the future
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
             "num_classes": 1,
             "multilabel": False,
             "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
@@ -128,6 +151,25 @@ def test_create_builtin_node_decoder():
     assert isinstance(loss_func, FocalLossFunc)
     assert loss_func.alpha == 0.25
     assert loss_func.gamma == 2.
+
+    # node classification + cross entropy with num class = 1
+    # Will cause failure
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
+            "num_classes": 1,
+            "multilabel": False,
+            "class_loss_func": BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+            "multilabel_weights": None,
+            "decoder_norm": None,
+            "imbalance_class_weights": None,
+            "alpha": None,
+            "gamma": None,
+            "decoder_bias": False
+        }
+    )
+    with pytest.raises(AssertionError):
+        decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
 
     # node classification + cross entropy loss for multiple node types
     config = GSTestConfig(
@@ -170,8 +212,8 @@ def test_create_builtin_node_decoder():
             "target_ntype": ["n0", "n1"],
             "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
             "num_classes": {
-                "n0": 1,
-                "n1": 1
+                "n0": 2,
+                "n1": 2
             },
             "multilabel":  {
                 "n0": False,
@@ -197,6 +239,74 @@ def test_create_builtin_node_decoder():
     assert isinstance(loss_func["n1"], FocalLossFunc)
     assert loss_func["n0"].alpha == 0.3
     assert loss_func["n0"].gamma == 3.
+
+    # node classification + focal loss with num class = 1
+    # for multiple node types
+    # Note: make sure the current code is backward compatible
+    # May remove this test in the future
+    config = GSTestConfig(
+        {
+            "target_ntype": ["n0", "n1"],
+            "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
+            "num_classes": {
+                "n0": 1,
+                "n1": 2
+            },
+            "multilabel":  {
+                "n0": False,
+                "n1": False
+            },
+            "multilabel_weights": {
+                "n0": None,
+                "n1": None
+            },
+            "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
+            "decoder_norm": None,
+            "alpha": 0.3,
+            "gamma": 3.,
+            "decoder_bias": False,
+        }
+    )
+    decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, dict)
+    assert isinstance(decoder["n0"], EntityClassifier)
+    assert isinstance(decoder["n1"], EntityClassifier)
+    assert isinstance(loss_func, dict)
+    assert isinstance(loss_func["n0"], FocalLossFunc)
+    assert isinstance(loss_func["n1"], FocalLossFunc)
+    assert loss_func["n0"].alpha == 0.3
+    assert loss_func["n0"].gamma == 3.
+
+    # node classification + cross entropy with num class = 1
+    # Will cause failure for multiple node types
+    config = GSTestConfig(
+        {
+            "target_ntype": ["n0", "n1"],
+            "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
+            "class_loss_func": BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+            "num_classes": {
+                "n0": 1,
+                "n1": 4
+            },
+            "multilabel":  {
+                "n0": True,
+                "n1": True
+            },
+            "multilabel_weights": {
+                "n0": None,
+                "n1": None
+            },
+
+            "imbalance_class_weights": {
+                "n0": None,
+                "n1": None
+            },
+            "decoder_norm": None,
+            "decoder_bias": False,
+        }
+    )
+    with pytest.raises(AssertionError):
+        decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
 
     # node regression
     config = GSTestConfig(
@@ -258,7 +368,7 @@ def test_create_builtin_edge_decoder():
         {
             "task_type": BUILTIN_TASK_EDGE_CLASSIFICATION,
             "target_etype": [("n0", "r0", "n1")],
-            "num_classes": 1,
+            "num_classes": 2,
             "decoder_type": "DenseBiDecoder",
             "num_decoder_basis": 2,
             "multilabel": False,
@@ -281,7 +391,7 @@ def test_create_builtin_edge_decoder():
         {
             "task_type": BUILTIN_TASK_EDGE_CLASSIFICATION,
             "target_etype": [("n0", "r0", "n1")],
-            "num_classes": 1,
+            "num_classes": 2,
             "decoder_type": "MLPDecoder",
             "multilabel": False,
             "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,

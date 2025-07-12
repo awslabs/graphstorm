@@ -71,7 +71,9 @@ from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name, get_rank
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
 from ..eval import SUPPORTED_LINK_PREDICTION_METRICS
-from ..eval import SUPPORTED_HIT_AT_METRICS
+from ..eval import (SUPPORTED_HIT_AT_METRICS, SUPPORTED_FSCORE_AT_METRICS,
+                    SUPPORTED_RECALL_AT_PRECISION_METRICS, SUPPORTED_PRECISION_AT_RECALL_METRICS)
+from ..eval import is_float
 
 from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -193,6 +195,8 @@ class GSConfig:
             logging.basicConfig(level=log_level, force=True)
         else:
             logging.basicConfig(filename=log_file, level=log_level, force=True)
+        # enable DeprecationWarning
+        warnings.simplefilter('always', DeprecationWarning)
 
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
@@ -408,13 +412,13 @@ class GSConfig:
             mask_fields = task_config["mask_fields"]
             assert len(mask_fields) == 3, \
                 "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
-                f"but get {mask_fields}"
+                f"but get {mask_fields}."
         else:
             mask_fields = (None, None, None)
 
         task_weight = task_config["task_weight"] \
             if "task_weight" in task_config else 1.0
-        assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
+        assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}."
 
         batch_size = self.batch_size \
             if "batch_size" not in task_config else task_config["batch_size"]
@@ -975,6 +979,13 @@ class GSConfig:
             _ = self.model_select_etype
             _ = self.lp_embed_normalizer
 
+        # For inference tasks in particular
+        if self.task_type in [
+            BUILTIN_TASK_NODE_CLASSIFICATION,
+            BUILTIN_TASK_NODE_REGRESSION,
+        ]:
+            _ = self.infer_all_target_nodes
+
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
         """
@@ -1451,12 +1462,43 @@ class GSConfig:
     def node_feat_name(self):
         """ User provided node feature name. Default is None.
 
-        It can be in the following formats:
+        The input can be in the following formats:
 
         - ``feat_name``: global feature name for all node types, i.e., for any node, its
-          corresponding feature name is <feat_name>.
+          corresponding feature name is <feat_name>. For example,
+          if ``node_feat_name`` is set to ``feat``, GraphStorm will
+          assume every node has a ``feat`` feature.
         - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types have different
-          node features with different names.
+          node features with different names. For example if ``node_feat_name``
+          is set to ``["user:age","movie:title,genre"]``.
+          The ``user` nodes will take ``age`` as their features.
+          The ``movie`` nodes will take both ``title`` and
+          ``genre`` as their features.
+          By default, for nodes of the same type, their features are
+          first concatenated into a unified tensor, which is then
+          transformed through an MLP layer.
+
+        .. versionchanged:: 0.5.0
+
+            Since 0.5.0, GraphStorm supports using different MLPs,
+            to encode different input node features of the same node.
+            For example, suppose the ``moive`` nodes have two features
+            ``title`` and ``genre``, GraphStorm can encode ``title``
+            feature with the encoder f(x) and encode ``genre`` feature
+            with the encoder g(x).
+
+            To use different MLPs for different features of one
+            node type, users can take the following format for ``node_feat_name``:
+            ``"ntype0:feat0","ntype1:feat0","ntype1:feat1",...``.
+            GraphStorm will create an MLP encoder for ``feat0`` of ``ntype1``
+            and another MLP encoder for ``feat1`` of ``ntype1``.
+
+            The return value can be:
+
+              - None
+              - A string
+              - A dict of list of strings
+              - A dict of list of FeatureGroup
         """
         # pylint: disable=no-member
         if hasattr(self, "_node_feat_name"):
@@ -1475,13 +1517,33 @@ class GSConfig:
                         f"Unknown format of the feature name: {feat_name}, " + \
                         "must be NODE_TYPE:FEAT_NAME."
                 ntype = feat_info[0]
-                assert ntype not in fname_dict, \
-                        f"You already specify the feature names of {ntype} " \
-                        f"as {fname_dict[ntype]}"
                 assert isinstance(feat_info[1], str), \
                     f"Feature name of {ntype} should be a string not {feat_info[1]}"
                 # multiple features separated by ','
-                fname_dict[ntype] = [item.strip() for item in feat_info[1].split(",")]
+                feats = [item.strip() for item in feat_info[1].split(",")]
+                if ntype in fname_dict:
+                    # One node type may have multiple
+                    # feature groups.
+                    # Each group will be stored as a
+                    # list of strings.
+                    if isinstance(fname_dict[ntype][0], str):
+                        # The second feature group
+                        fname_dict[ntype] = [FeatureGroup(
+                            feature_group=fname_dict[ntype])]
+
+                    fname_dict[ntype].append(FeatureGroup(
+                        feature_group=feats
+                    ))
+                    logging.debug("%s nodes has %d feature groups",
+                                 ntype, len(fname_dict[ntype]))
+                else:
+                    # Note(xiang): for backward compatibility,
+                    # we do not change the data format
+                    # of fname_dict when ntype has
+                    # only one feature group.
+                    fname_dict[ntype] = feats
+                    logging.debug("%s nodes has %s features",
+                                ntype, fname_dict[ntype])
             return fname_dict
 
         # By default, return None which means there is no node feature
@@ -2237,14 +2299,25 @@ class GSConfig:
             "Must provide the number possible labels through num_classes"
         if isinstance(self._num_classes, dict):
             for num_classes in self._num_classes.values():
-                assert num_classes > 0
+                if num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                    if get_rank() == 0:
+                        warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                                    "loss is deprecated and will be removed "
+                                    "in future versions.",
+                                    DeprecationWarning)
+                else:
+                    assert num_classes > 1, \
+                        "num_classes for classification tasks must be 2 or greater."
         else:
-            # We need num_classes=1 for binary classification because when we use precision-recall
-            # as evaluation metric, this precision-recall is computed on the positive score.
-            # If we switch to num_classes=2, we also need changes in the evaluation part:
-            # (1) evaluation code need to first recognize whether it is binary classification
-            # (2) then evaluation code select the positive score column from the 2-d prediction.
-            assert self._num_classes > 0
+            if self._num_classes == 1 and self.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                if get_rank() == 0:
+                    warnings.warn(f"Allowing num_classes=1 with {BUILTIN_CLASS_LOSS_FOCAL} "
+                                "loss is deprecated and will be removed "
+                                "in future versions.",
+                                DeprecationWarning)
+            else:
+                assert self._num_classes > 1, \
+                    "num_classes for classification tasks must be 2 or greater."
         return self._num_classes
 
     @property
@@ -2390,6 +2463,20 @@ class GSConfig:
         # if save_prediction_path is not specified in inference
         # use save_embed_path
         return self.save_embed_path
+
+    @property
+    def infer_all_target_nodes(self):
+        """ Whether to force inference to run on all nodes for types specified
+        by target-ntypes, ignoring any mask. Default is False.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_infer_all_target_nodes"):
+            assert self._infer_all_target_nodes in [True, False], \
+                "infer_all_target_nodes should be in [True, False] (bool)"
+            return self._infer_all_target_nodes
+
+        # By default, do not force inference on all nodes/edges
+        return False
 
     ### Node related task variables ###
     @property
@@ -3066,12 +3153,36 @@ class GSConfig:
                     if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
                         assert eval_metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                             "hit_at_k evaluation metric for classification " \
-                            f"must end with an integer, but get {eval_metric}"
+                            f"must end with an integer, but get {eval_metric}."
+                    elif eval_metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+                        assert is_float(
+                            eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS) + 1:]), \
+                        "recall_at_precision_beta evaluation metric for classification " \
+                        f"must end with an integer or float, but get {eval_metric}."
+                        assert (0 < float(eval_metric[
+                                      len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+                            "The beta in recall_at_precision_beta evaluation metric must be in " \
+                            "(0, 1], but get " \
+                            f"{float(eval_metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:])}."
+                    elif eval_metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+                        assert is_float(
+                            eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]), \
+                            "precision_at_recall_beta evaluation metric for classification " \
+                            f"must end with an integer or float, but get {eval_metric}."
+                        assert (0 < float(eval_metric[
+                                      len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
+                            "The beta in precision_at_recall_beta evaluation metric must be in " \
+                            "(0, 1], but get " \
+                            f"{float(eval_metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:])}."
+                    elif eval_metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+                        assert is_float(eval_metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
+                            'fscore_at_beta evaluation metric for classification ' \
+                            f'must end with an integer or float, but get {eval_metric}.'
                     else:
                         assert eval_metric in SUPPORTED_CLASSIFICATION_METRICS, \
                             f"Classification evaluation metric should be " \
                             f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                            f"but get {self._eval_metric}."
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
@@ -3080,12 +3191,38 @@ class GSConfig:
                         if metric.startswith(SUPPORTED_HIT_AT_METRICS):
                             assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
                                 "hit_at_k evaluation metric for classification " \
-                                f"must end with an integer, but get {eval_metric}"
+                                f"must end with an integer, but get {metric}."
+                        elif metric.startswith(SUPPORTED_RECALL_AT_PRECISION_METRICS):
+                            assert is_float(
+                                metric[len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]), \
+                                "recall_at_precision_beta evaluation metric for classification " \
+                                f"must end with an integer or float, but get {metric}."
+                            assert (0 < float(metric[
+                                          len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]) <= 1), \
+                                "The beta in recall_at_precision_beta evaluation metric must be " \
+                                "in (0, 1], but get {}.".format(
+                                    float(metric[
+                                          len(SUPPORTED_RECALL_AT_PRECISION_METRICS)+1:]))
+                        elif metric.startswith(SUPPORTED_PRECISION_AT_RECALL_METRICS):
+                            assert is_float(
+                                metric[len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]), \
+                                "precision_at_recall_beta evaluation metric for classification " \
+                                f"must end with an integer or float, but get {metric}."
+                            assert (0 < float(metric[
+                                          len(SUPPORTED_PRECISION_AT_RECALL_METRICS)+1:]) <= 1), \
+                                "The beta in precision_at_recall_beta evaluation metric must be " \
+                                "in (0, 1], but get {}.".format(
+                                    float(metric[
+                                          len(SUPPORTED_PRECISION_AT_RECALL_METRICS) + 1:]))
+                        elif metric.startswith(SUPPORTED_FSCORE_AT_METRICS):
+                            assert is_float(metric[len(SUPPORTED_FSCORE_AT_METRICS)+1:]), \
+                                'fscore_at_beta evaluation metric for classification ' \
+                                f'must end with an integer or float, but get {metric}.'
                         else:
                             assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
                                 f"Classification evaluation metric should be " \
                                 f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                                f"but get {self._eval_metric}"
+                                f"but get {self._eval_metric}."
                         eval_metric.append(metric)
                 else:
                     assert False, "Classification evaluation metric " \
@@ -3102,7 +3239,7 @@ class GSConfig:
                     assert eval_metric in SUPPORTED_REGRESSION_METRICS, \
                         f"Regression evaluation metric should be " \
                         f"in {SUPPORTED_REGRESSION_METRICS}, " \
-                        f"but get {self._eval_metric}"
+                        f"but get {self._eval_metric}."
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
@@ -3111,7 +3248,7 @@ class GSConfig:
                         assert metric in SUPPORTED_REGRESSION_METRICS, \
                             f"Regression evaluation metric should be " \
                             f"in {SUPPORTED_REGRESSION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                            f"but get {self._eval_metric}."
                         eval_metric.append(metric)
                 else:
                     assert False, "Regression evaluation metric " \
@@ -3130,12 +3267,12 @@ class GSConfig:
                     if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
                         assert eval_metric[len(SUPPORTED_HIT_AT_METRICS) + 1:].isdigit(), \
                             "hit_at_k evaluation metric for link prediction " \
-                            f"must end with an integer, but get {eval_metric}"
+                            f"must end with an integer, but get {eval_metric}."
                     else:
                         assert eval_metric in SUPPORTED_LINK_PREDICTION_METRICS, \
                             f"Link prediction evaluation metric should be " \
                             f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                            f"but get {self._eval_metric}."
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
@@ -3144,12 +3281,12 @@ class GSConfig:
                         if metric.startswith(SUPPORTED_HIT_AT_METRICS):
                             assert metric[len(SUPPORTED_HIT_AT_METRICS) + 1:].isdigit(), \
                                 "hit_at_k evaluation metric for link prediction " \
-                                f"must end with an integer, but get {metric}"
+                                f"must end with an integer, but get {metric}."
                         else:
                             assert metric in SUPPORTED_LINK_PREDICTION_METRICS, \
                                 f"Link prediction evaluation metric should be " \
                                 f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                                f"but get {self._eval_metric}"
+                                f"but get {self._eval_metric}."
                         eval_metric.append(metric)
                 else:
                     assert False, "Link prediction evaluation metric " \
@@ -3707,16 +3844,26 @@ def _add_task_general_args(parser):
                 "the evaluation metric used. Supported metrics are accuracy,"
                 "precision_recall, or roc_auc multiple metrics"
                 "can be specified e.g. --eval-metric accuracy precision_recall")
-    group.add_argument('--report-eval-per-type', type=bool, default=argparse.SUPPRESS,
-            help="Whether report evaluation metrics per node type or edge type."
-                 "If True, report evaluation results for each node type/edge type."
-                 "If False, report an average evaluation result.")
+    group.add_argument(
+        '--report-eval-per-type', type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help=(
+            "Whether to report evaluation metrics per node type or edge type. "
+            "If set to 'True', report evaluation results for each node type/edge type. "
+            "Otherwise, report an average evaluation result."
+        )
+    )
     return parser
 
-def _add_inference_args(parser):
+def _add_inference_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group(title="infer")
     group.add_argument("--save-prediction-path", type=str, default=argparse.SUPPRESS,
                        help="Where to save the prediction results.")
+    group.add_argument(
+        "--infer-all-target-nodes",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="When set to 'true', will force inference to run on all target node types.")
     return parser
 
 def _add_distill_args(parser):

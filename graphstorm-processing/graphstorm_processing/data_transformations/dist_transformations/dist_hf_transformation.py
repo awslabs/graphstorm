@@ -23,6 +23,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, IntegerType, FloatType, StructType, StructField
 from pyspark.sql.functions import udf
 from transformers import AutoTokenizer, AutoModel, AutoConfig
+from huggingface_hub.utils import EntryNotFoundError, LocalEntryNotFoundError
 
 from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
 from .base_dist_transformation import DistributedTransformation
@@ -53,6 +54,19 @@ def apply_transform(
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
         config = AutoConfig.from_pretrained(hf_model)
         output_dim = config.hidden_size
+        try:
+            # Try to load from local folder
+            tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
+            config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
+            output_dim = config.hidden_size
+            logging.info("Loaded model from local cache.")
+        except (OSError, EntryNotFoundError, LocalEntryNotFoundError):
+            logging.warning("No local model cache found")
+            # Fallback: download from Hugging Face Hub
+            tokenizer = AutoTokenizer.from_pretrained(hf_model)
+            config = AutoConfig.from_pretrained(hf_model)
+            output_dim = config.hidden_size
+            logging.info("Downloaded model from Hugging Face Hub.")
         if max_seq_length > tokenizer.model_max_length:
             raise RuntimeError(
                 f"max_seq_length {max_seq_length} is larger "
@@ -112,15 +126,25 @@ def apply_transform(
         else:
             device = "cpu"
             logging.warning("Running HuggingFace transformation on CPU, runtime can be very long.")
-        tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        try:
+            # Try to load from local folder
+            tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
+            config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
+            output_dim = config.hidden_size
+            logging.info("Loaded model from local cache.")
+        except (OSError, EntryNotFoundError, LocalEntryNotFoundError):
+            logging.warning("No local model cache found")
+            # Fallback: download from Hugging Face Hub
+            tokenizer = AutoTokenizer.from_pretrained(hf_model)
+            config = AutoConfig.from_pretrained(hf_model)
+            output_dim = config.hidden_size
+            logging.info("Downloaded model from Hugging Face Hub.")
         if max_seq_length > tokenizer.model_max_length:
             # TODO: Could we possibly raise this at config time?
             raise RuntimeError(
                 f"max_seq_length {max_seq_length} is larger "
                 f"than expected {tokenizer.model_max_length}"
             )
-        config = AutoConfig.from_pretrained(hf_model)
-        output_dim = config.hidden_size
         lm_model = AutoModel.from_pretrained(hf_model, config)
         lm_model.eval()
         lm_model = lm_model.to(device)

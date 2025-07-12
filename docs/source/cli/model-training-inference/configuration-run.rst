@@ -65,18 +65,26 @@ GNN Model Configurations
 .........................
 GraphStorm provides a set of parameters to config the GNN model structure (input layer, gnn layer, decoder layer, etc)
 
-- **model_encoder_type**: (**Required**) The Encoder module used to encode graph data. It can be a GNN encoder or a non-GNN encoder. A GNN encoder is composed of an input module, which encodes input node features, and a GNN module. A non-GNN encoder only contains an input module. GraphStorm supports five GNN encoders: `rgcn` which uses relational graph convolutional network as its GNN module, `rgat` which uses relational graph attention network as its GNN module, `sage` which uses GraphSage as its GNN module (only works with homogeneous graph), `gat` which uses graph attention network as its GNN module (only works with homogeneous graph) and `hgt` which uses heterogenous graph transformer as its GNN module. GraphStorm supports two non-GNN encoder: `lm` which requires each node type has and only has text features and uses language model, e.g., Bert, to encode these features and `mlp` which accepts various types of input node features (text feature, floating points and learnable embeddings) and finally uses an MLP to project these features into same dimension.
+- **model_encoder_type**: (**Required**) The Encoder module used to encode graph data. It can be a GNN encoder or a non-GNN encoder. A GNN encoder is composed of an input module, which encodes input node features, and a GNN module. A non-GNN encoder only contains an input module. GraphStorm supports five GNN encoders: `rgcn` which uses relational graph convolutional network as its GNN module, `rgat` which uses relational graph attention network as its GNN module, `sage` which uses GraphSage as its GNN module (only works with homogeneous graph), `gat` which uses graph attention network as its GNN module (only works with homogeneous graph) and `hgt` which uses heterogenous graph transformer as its GNN module. GraphStorm supports three non-GNN encoder: `lm` which requires each node type has and only has text features and uses language model, e.g., Bert, to encode these features, `mlp` which accepts various types of input node features (text feature, floating points and learnable embeddings) and finally uses an MLP to project these features into same dimension, and `learnable_embed` which initializes every node with a learnable embedding, i.e., node features will be ignored (it can be used to train knowledge graph embeddings).
 
     - Yaml: ``model_encoder_type: rgcn``
     - Argument: ``--model-encoder-type rgcn``
     - Default value: This parameter must be provided by user.
-- **node_feat_name**: User defined feature name. It accepts two formats like: a) `fname`, if all node types have the same node feature name, the corresponding feature name will be `fname`; b) `ntype0:feat0 ntype1:featA ...`, if different node types have different node feature name(s). In the below example, `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`.
+- **node_feat_name**: User defined feature name. It accepts two formats like: a) `fname`, if all node types have the same node feature name, the corresponding feature name will be `fname`; b) `ntype0:feat0 ntype1:featA ...`, if different node types have different node feature name(s). In the below example, `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`. By default, for nodes of the same type, their features are first concatenated into a unified tensor, which is then transformed through an MLP layer. For instance, suppose `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`. GraphStorm will encode `feat0` of `ntype0` with an MLP layer as `MLP(feat0)` and encode `featA` and `featB` of `ntype1` with another MLP layer as `MLP(featA|featB)`, where `|` represents a concatenation operation.
 
     - Yaml: ``node_feat_name:``
                 | ``- "ntype0:feat0"``
                 | ``- "ntype1:featA,featB"``
     - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA,featB"``
     - Default value: If not provided, there will be no node features used by GraphStorm even graphs have node features attached.
+
+    Since 0.5.0, GraphStorm supports using different MLP layers to encode different input node features of the same node. For example, suppose the `ntype1` has three features `featA`, `featB` and `featC`, GraphStorm can encode `featA` and `featB` with an MLP encoder as `MLP(featA|featB)` and encode `featC` feature with another MLP encoder `MLP(featC)`. Here is an example:
+
+    - Yaml: ``node_feat_name:``
+                | ``- "ntype0:feat0"``
+                | ``- "ntype1:featA,featB"``
+                | ``- "ntype1:featC"``
+    - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA,featB ntype1:featC"``
 
     .. Note:: Characters ``:`` and white space are not allowed to be used in node feature names. In Yaml format, users need to put each node's feature in a separated line that starts with a hyphon.
 
@@ -373,12 +381,17 @@ General Configurations
   choose the best trained model and for early stopping. Each learning task supports different evaluation metrics:
 
   - The supported evaluation metrics of classification tasks include ``accuracy``,
-    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``. Note that
-    ``hit_at_k`` only works with binary classification tasks.
+    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``, ``precision``, ``recall``,
+    ``fscore_at_beta``, ``recall_at_precision_beta``, and ``precision_at_recall_beta``.
 
+    - We only support ``recall_at_precision_beta`` and ``precision_at_recall_beta`` metrics for binary classification.
     - The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or
       ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k``
-      predictions with the highest confidence scores.
+      predictions with the highest confidence scores. Note that ``hit_at_k`` only works with binary classification tasks.
+    - The ``beta`` of ``fscore_at_beta`` can be any positive integer or float numbers, for example ``fscore_at_2`` or ``fscore_at_0.5``. Please make sure that the ``beta`` string can be converted to a float number by Python's `float()` method.
+    - The ``beta`` of ``recall_at_precision_beta`` and ``precision_at_recall_beta`` can be a positive number in (0, 1],
+      for example ``recall_at_precision_0.9``, ``recall_at_precision_1``, ``precision_at_recall_0.8``, or ``precision_at_recall_1.0``.
+      Please make sure that the ``beta`` string can be converted to a float number by Python's `float()` method.
   - The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``.
   - The supported evaluation metrics of link prediction tasks include ``mrr``, ``amri`` and
     ``hit_at_k``. MRR refers to the Mean Reciprocal Rank with values between and 0 (worst) and 1
@@ -390,7 +403,10 @@ General Configurations
         | ``- accuracy``
         | ``- precision_recall``
         | ``- hit_at_10``
-    - Argument: ``--eval-metric accuracy precision_recall hit_at_10``
+        | ``- fscore_at_0.5``
+        | ``- recall_at_precision_0.7``
+        | ``- precision_at_recall_0.8``
+    - Argument: ``--eval-metric accuracy precision_recall hit_at_10 fscore_at_0.5 recall_at_precision_0.7 precision_at_recall_0.8``
     - Default value:
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.
@@ -433,7 +449,7 @@ Classification and Regression Task
     - Yaml: ``imbalance_class_weights: 0.1,0.2,0.3``
     - Argument: ``--imbalance-class-weights 0.1,0.2,0.3``
     - Default value: ``None``
-- **return_proba**: For classification task, this configuration determines whether to return probability estimates for each class or the maximum probable class. Set true to return probability estimates and false to return the maximum probable class.
+- **return_proba**: In classification inference, this parameter determines whether the output files will contain probability estimates for each class or the maximum probable class in the output predicitons. Set true to return probability estimates and false to return the maximum probable class.
 
     - Yaml: ``return_proba: true``
     - Argument: ``--return-proba true``
@@ -443,11 +459,21 @@ Classification and Regression Task
     - Yaml: ``save_prediction_path: /data/infer-output/predictions/``
     - Argument: ``--save-prediction-path /data/infer-output/predictions/``
     - Default value: If not provided, it will be the same as save_embed_path.
-- **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``. ``focal`` means to use the focal loss function defined in the `Focal Loss for Dense Object Detection <https://arxiv.org/abs/1708.02002>`_, which is designed for class imbalance. If set ``focal``, you may want to adjust the values of the **gamma** and **alpha** configurations according to your data.
+- **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``.
+  Setting this to ``focal`` will use the focal loss function defined in `Focal Loss for Dense Object Detection <https://arxiv.org/abs/1708.02002>`_,
+  which is designed for imbalanced binary classification problems.
+  When using focal loss, you may want to adjust the values of the **gamma** and **alpha** loss parameters to best fit your data.
 
     - Yaml: ``class_loss_func: cross_entropy``
     - Argument: ``--class-loss-func focal``
     - Default value: ``cross_entropy``
+
+    .. note::
+
+        Focal loss can only be used for binary classification problems.
+        Currently, focal loss produces predictions with shape ``(N, 1)``, where ``N`` is the number of target nodes/edges.
+        In ``v0.5.0`` this may be changed to produce predictions with shape ``(N, 2)`` to match the cross-entropy loss.
+
 - **regression_loss_func**: Node/Edge regression loss function. Builtin loss functions include ``mse`` and ``shrinkage``. ``shrinkage`` means to use the shrinkage loss function defined in the `Deep Regression Tracking with Shrinkage Loss <https://openaccess.thecvf.com/content_ECCV_2018/html/Xiankai_Lu_Deep_Regression_Tracking_ECCV_2018_paper.html>`_, which is designed for data imbalance in regression tasks. If set ``shrinkage``, you may want to adjust the values of the **gamma** and **alpha** configurations according to your data.
 
     - Yaml: ``regression_loss_func: mse``
@@ -461,6 +487,12 @@ Node Classification/Regression Specific
     - Yaml: ``target_ntype: movie``
     - Argument: ``--target-ntype movie``
     - Default value: For heterogeneous input graph, this parameter must be provided by the user. If not provided, GraphStorm will assume the input graph is a homogeneous graph and set ``target_ntype`` to "_N".
+- **infer_all_target_nodes**: When set to `True`, run inference on all nodes in the target node type(s) as defined by **target_ntype**. **NEEDS TO RUN WITH no_validation=True**.
+  We require all-node inference to run without evaluation, to avoid biased evaluation that includes nodes in the train set.
+
+    - Yaml: ``infer_all_target_nodes: True``
+    - Argument: ``--infer-all-target-nodes True``
+    - Default value: False, inference will run only on the node subset specified by the test mask.
 
 Edge Classification/Regression Specific
 `````````````````````````````````````````

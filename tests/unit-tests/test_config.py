@@ -20,6 +20,8 @@ import shutil
 import sys
 import tempfile
 import yaml
+import pytest
+import hashlib
 from argparse import Namespace
 from pathlib import Path
 
@@ -28,7 +30,7 @@ import torch as th
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 import pytest
 
-from graphstorm.config import GSConfig
+from graphstorm.config import GSConfig, FeatureGroup
 from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                       BUILTIN_CLASS_LOSS_FOCAL,
                                       BUILTIN_LP_LOSS_CROSS_ENTROPY,
@@ -57,11 +59,57 @@ from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_TRANSE_L1_DECODER,
                                BUILTIN_LP_TRANSE_L2_DECODER)
 from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
-
 from config_utils import create_dummy_config_obj, create_basic_config
 
 # Get location of test file
 _ROOT = os.path.abspath(os.path.dirname(__file__))
+
+from graphstorm.config.config import get_mttask_id
+
+def test_get_mttask_id():
+    # node classification task
+    task_type = "node_classification"
+    ntype = "type0"
+    etype = None
+    label = "label"
+
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    assert task_id == "-".join([task_type, ntype, label])
+
+    # edge classification task
+    task_type = "edge_classification"
+    ntype = None
+    etype = ("type0", "r0", "type1")
+    label = "label"
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    assert task_id == "-".join([task_type, "_".join(etype), label])
+
+    # link prediction task
+    task_type = "link_prediction"
+    ntype = None
+    etype = [("type0", "r0", "type1")]
+    label = None
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    etype_info = "__".join(["_".join(et) for et in etype])
+    assert task_id == "-".join([task_type, etype_info])
+
+    task_type = "link_prediction"
+    ntype = None
+    etype = [("type0", "r0", "type1"), ("type0", "r0", "type2")]
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    etype_info = "__".join(["_".join(et) for et in etype])
+    assert task_id == "-".join([task_type, etype_info])
+
+    # the etypes are too long
+    task_type = "link_prediction"
+    ntype = None
+    etype = [("type0", "r0", "type1"), ("type0", "1"*64, "type2")]
+    hasher = hashlib.sha256()
+    etype_info = "__".join(["_".join(et) for et in etype])
+    hasher.update(etype_info.encode('utf-8'))
+    task_id = get_mttask_id(task_type, ntype=ntype, etype=etype, label=label)
+    etype_info = etype_info[:64] + hasher.hexdigest()[:8]
+    assert task_id == "-".join([task_type, etype_info])
 
 def check_failure(config, field):
     has_error = False
@@ -523,7 +571,9 @@ def create_node_class_config(tmp_path, file_name):
     # test eval metric
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
-        "eval_metric": ["F1_score", "precision_recall", "ROC_AUC", "hit_at_10"],
+        "eval_metric": ["F1_score", "precision_recall", "ROC_AUC", "hit_at_10", \
+                        "precision", "recall", "fscore_at_2.5", \
+                        "precision_at_recall_0.8", "recall_at_precision_0.8"],
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
     }
     with open(os.path.join(tmp_path, file_name+"_metric2.yaml"), "w") as f:
@@ -535,6 +585,40 @@ def create_node_class_config(tmp_path, file_name):
         "class_loss_func": "unknown"
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 1,
+        "class_loss_func": "focal"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_focal.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": {
+            "n1": 1,
+            "n2": 2,
+        },
+        "class_loss_func": "focal"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_focal2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 1,
+        "class_loss_func": "cross_entropy"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": {
+            "n1": 1,
+            "n2": 2,
+        },
+        "class_loss_func": "cross_entropy"
+    }
+    with open(os.path.join(tmp_path, file_name+"_num_class_1_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
@@ -565,6 +649,88 @@ def create_node_class_config(tmp_path, file_name):
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail_metric3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric fscore_at_ten is an error. Should be fscore_at_10
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "eval_metric": "fscore_at_ten"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_metric4.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric fscore_at_2.0. is an error. Should be fscore_at_2.0
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "eval_metric": "fscore_at_2.0."
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_metric5.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric precision_at_recall_one is an error. Should be precision_at_recall_1
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "precision_at_recall_one"
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail_metric6.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric precision_at_recall_0.5. is an error. Should be precision_at_recall_0.5
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "precision_at_recall_0.5."
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric7.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric precision_at_recall_0 is an error. Beta should be in (0, 1].
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "precision_at_recall_0"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric8.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric precision_at_recall_2 is an error. Beta should be in (0, 1].
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "precision_at_recall_2"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric9.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric recall_at_precision_one is an error. Should be recall_at_precision_1
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "recall_at_precision_one"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric10.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric recall_at_precision_0.5. is an error. Should be recall_at_precision_0.5
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "recall_at_precision_0.5."
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric11.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric recall_at_precision_0 is an error. Beta should be in (0, 1]
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "recall_at_precision_0"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric12.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric recall_at_precision_2 is an error. Beta should be in (0, 1]
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 2,
+        "eval_metric": "recall_at_precision_2"
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_metric13.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
@@ -695,11 +861,13 @@ def test_node_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert len(config.eval_metric) == 4
+        assert len(config.eval_metric) == 9
         assert config.eval_metric[0] == "f1_score"
         assert config.eval_metric[1] == "precision_recall"
         assert config.eval_metric[2] == "roc_auc"
         assert config.eval_metric[3] == "hit_at_10"
+        assert config.eval_metric[7] == "precision_at_recall_0.8"
+        assert config.eval_metric[8] == "recall_at_precision_0.8"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -707,6 +875,40 @@ def test_node_class_info():
         check_failure(config, "num_classes")
         check_failure(config, "eval_metric")
         check_failure(config, "class_loss_func")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_focal.yaml'), local_rank=0)
+        config = GSConfig(args)
+        with pytest.warns(DeprecationWarning) as record:
+            assert config.num_classes == 1
+            assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
+
+        # Verify that the warning was raised
+        assert len(record) == 1
+        # Verify the warning message
+        assert "Allowing num_classes=1 with focal loss is deprecated" in str(record[0].message)
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_focal2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert len(config.num_classes) == 2
+        assert config.num_classes["n2"] == 2
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
+        with pytest.warns(DeprecationWarning) as record:
+            assert config.num_classes["n1"] == 1
+
+        # Verify that the warning was raised
+        assert len(record) == 1
+        # Verify the warning message
+        assert "Allowing num_classes=1 with focal loss is deprecated" in str(record[0].message)
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_fail.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
+        check_failure(config, "num_classes")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_num_class_1_fail2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
+        check_failure(config, "num_classes")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -722,6 +924,72 @@ def test_node_class_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric3.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.num_classes == 20
+        check_failure(config, "eval_metric")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric4.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 20
+        check_failure(config, "eval_metric")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric5.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 20
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric6.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric7.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric8.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric9.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric10.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric11.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric12.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
+        check_failure(config, "eval_metric")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric13.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 2
         check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_ml_w1.yaml'), local_rank=0)
@@ -1349,7 +1617,7 @@ def create_gnn_config(tmp_path, file_name):
         "model_encoder_type": "rgcn"
     }
     yaml_object["gsf"]["gnn"] = {
-        "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
+        "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"],
         "edge_feat_name": ["ntype0, rel0, ntype1:feat_name", "ntype0, rel0, ntype1:feat_name"], # set feat_name twice
         "edge_feat_mp_op": "dot", # not in support ops list
         "fanout": "error", # error fanout
@@ -1495,7 +1763,6 @@ def test_gnn_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_error1.yaml'),
                          local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "node_feat_name")
         check_failure(config, "edge_feat_name")
         check_failure(config, "edge_feat_mp_op")
         check_failure(config, "fanout")
@@ -2364,3 +2631,75 @@ def test_missing_gconstruct_config():
         # Create GSConfig, this will try to copy the GConstruct config, ensure we log a warning:
         with pytest.warns(UserWarning, match="Graph construction config .* not found in .*"):
             _ = GSConfig(args)
+
+def create_fname_test_gnn_config(tmp_path, file_name):
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["link_prediction"] = {}
+
+    yaml_object["gsf"]["gnn"] = {
+        "node_feat_name": ["ntype0:feat_name, feat_name2 ", "ntype1:fname"],
+    }
+    with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["gnn"] = {
+        "node_feat_name": ["ntype0:feat_name, feat_name2 ", "ntype1:fname", "ntype0:feat_name3"],
+    }
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["gnn"] = {
+        "node_feat_name": ["ntype0:feat_name, feat_name2 ", "ntype1:fname,fname1", "ntype0:feat_name,feat_name3", "ntype1:fname"],
+    }
+    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+def test_node_feat_name():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        create_fname_test_gnn_config(Path(tmpdirname), 'node_feat_test')
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_feat_test1.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
+        assert 'ntype1' in config.node_feat_name
+        assert config.node_feat_name['ntype1'] == ["fname"]
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_feat_test2.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert len(config.node_feat_name['ntype0']) == 2
+        assert isinstance(config.node_feat_name['ntype0'][0], FeatureGroup)
+        assert isinstance(config.node_feat_name['ntype0'][1], FeatureGroup)
+        assert len(config.node_feat_name['ntype0'][0].feature_group) == 2
+        assert config.node_feat_name['ntype0'][0].feature_group == ["feat_name", "feat_name2"]
+        assert len(config.node_feat_name['ntype0'][1].feature_group) == 1
+        assert config.node_feat_name['ntype0'][1].feature_group == ["feat_name3"]
+        assert 'ntype1' in config.node_feat_name
+        assert config.node_feat_name['ntype1'] == ["fname"]
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_feat_test3.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert len(config.node_feat_name['ntype0']) == 2
+        assert isinstance(config.node_feat_name['ntype0'][0], FeatureGroup)
+        assert isinstance(config.node_feat_name['ntype0'][1], FeatureGroup)
+        assert len(config.node_feat_name['ntype0'][0].feature_group) == 2
+        assert config.node_feat_name['ntype0'][0].feature_group == ["feat_name", "feat_name2"]
+        assert len(config.node_feat_name['ntype0'][1].feature_group) == 2
+        assert config.node_feat_name['ntype0'][1].feature_group == ["feat_name", "feat_name3"]
+
+        assert 'ntype1' in config.node_feat_name
+        assert len(config.node_feat_name['ntype1']) == 2
+        assert isinstance(config.node_feat_name['ntype1'][0], FeatureGroup)
+        assert isinstance(config.node_feat_name['ntype1'][1], FeatureGroup)
+        assert len(config.node_feat_name['ntype1'][0].feature_group) == 2
+        assert config.node_feat_name['ntype1'][0].feature_group == ["fname", "fname1"]
+        assert len(config.node_feat_name['ntype1'][1].feature_group) == 1
+        assert config.node_feat_name['ntype1'][1].feature_group == ["fname"]

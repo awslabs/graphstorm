@@ -31,7 +31,8 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_MULTI_TASK)
 from .config import SUPPORTED_TASKS
 
-from .config import (BUILTIN_LP_DOT_DECODER,
+from .config import (BUILTIN_INPUT_ONLY_ENCODER,
+                     BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
                      BUILTIN_LP_ROTATE_DECODER,
                      BUILTIN_LP_TRANSE_L1_DECODER,
@@ -68,3 +69,5 @@ from .config import (
     )
 
 from .config import TaskInfo
+from .config import (FeatureGroup,
+                     FeatureGroupSize)
