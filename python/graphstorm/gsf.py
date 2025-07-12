@@ -39,8 +39,6 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
-                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
-                     BUILTIN_LP_DOT_DECODER,
                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from .config import (BUILTIN_INPUT_ONLY_ENCODER,
                      BUILTIN_LP_DOT_DECODER,
