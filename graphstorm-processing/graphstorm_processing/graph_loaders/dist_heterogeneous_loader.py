@@ -58,6 +58,7 @@ from graphstorm_processing.constants import (
     HUGGINGFACE_TRANFORM,
     HUGGINGFACE_TOKENIZE,
     TRANSFORMATIONS_FILENAME,
+    HOMOGENEOUS_REVERSE_COLUMN_FLAG,
 )
 from graphstorm_processing.config.config_parser import (
     EdgeConfig,
@@ -68,6 +69,9 @@ from graphstorm_processing.config.label_config_base import LabelConfig
 from graphstorm_processing.config.feature_config_base import FeatureConfig
 from graphstorm_processing.data_transformations.dist_feature_transformer import (
     DistFeatureTransformer,
+)
+from graphstorm_processing.data_transformations.dist_transformations.dist_hf_transformation import (
+    DistHFTransformation,
 )
 from graphstorm_processing.data_transformations.dist_label_loader import (
     CustomSplit,
@@ -115,6 +119,8 @@ class HeterogeneousLoaderConfig:
     precomputed_transformations: dict
         A dictionary describing precomputed transformations for the features
         of the graph.
+    is_homogeneous: bool
+        Whether the graph is a homogeneous graph, with a single edge and single node type.
     """
 
     add_reverse_edges: bool
@@ -127,6 +133,7 @@ class HeterogeneousLoaderConfig:
     num_output_files: int
     output_prefix: str
     precomputed_transformations: dict
+    is_homogeneous: bool = False
 
 
 @dataclass
@@ -178,6 +185,7 @@ class DistHeterogeneousGraphLoader(object):
     ):
         self.local_meta_output_path = loader_config.local_metadata_output_path
         self._data_configs = loader_config.data_configs
+        self.is_homogeneous = loader_config.is_homogeneous
         self.feature_configs: list[FeatureConfig] = []
 
         # TODO: Pass as an argument?
@@ -449,7 +457,7 @@ class DistHeterogeneousGraphLoader(object):
 
             # Add original and reverse edge types
             edge_types.append(f"{src_type}:{rel_type}:{dst_type}")
-            if self.add_reverse_edges:
+            if self.add_reverse_edges and not self.is_homogeneous:
                 edge_types.append(f"{dst_type}:{rel_type}-rev:{src_type}")
 
         metadata_dict["edge_type"] = edge_types
@@ -1407,6 +1415,10 @@ class DistHeterogeneousGraphLoader(object):
                         )
                         node_type_feature_metadata[bert_feat_name] = feat_meta
                         ntype_feat_sizes.update({bert_feat_name: feat_size})
+                    # Update the corresponding feature dimension for HF embedding
+                    assert isinstance(transformer.transformation, DistHFTransformation)
+                    feat_emb_size = transformer.transformation.get_output_dim()
+                    ntype_feat_sizes.update({feat_name: feat_emb_size})
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
@@ -1683,25 +1695,61 @@ class DistHeterogeneousGraphLoader(object):
         edge_df_with_int_ids = edge_df_with_int_ids.drop(src_col, dst_col).repartition(
             self.num_output_files
         )
-        edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
-        edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
 
         edge_structure_path = os.path.join(
             self.output_prefix, f"edges/{edge_type.replace(':', '_')}"
         )
-        logging.info("Writing edge structure for edge type %s...", edge_type)
-        if self.add_reverse_edges:
+
+        edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
+        edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
+        if self.add_reverse_edges and not self.is_homogeneous:
             edge_df_with_only_int_ids.cache()
-        path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
 
         if self.add_reverse_edges:
-            reversed_edges = edge_df_with_only_int_ids.select("dst_int_id", "src_int_id")
-            reversed_edge_structure_path = os.path.join(
-                self.output_prefix, f"edges/{rev_edge_type.replace(':', '_')}"
-            )
-            logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
-            reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
+            if self.is_homogeneous:
+                # Add reverse edge to same etype
+                # Homogeneous graph will only add reverse edges to the same edge type
+                # instead of creating a {relation_type}-rev edge type.
+                other_columns = [
+                    c
+                    for c in edge_df_with_int_ids_and_all_features.columns
+                    if c not in ("src_int_id", "dst_int_id")
+                ]
+                reversed_edges = edge_df_with_int_ids_and_all_features.select(
+                    col("dst_int_id").alias("src_int_id"),
+                    col("src_int_id").alias("dst_int_id"),
+                    *other_columns,
+                ).withColumn(HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(False))
+                edge_df_with_int_ids_and_all_features = (
+                    edge_df_with_int_ids_and_all_features.withColumn(
+                        HOMOGENEOUS_REVERSE_COLUMN_FLAG, F.lit(True)
+                    )
+                )
+                edge_df_with_int_ids_and_all_features = (
+                    edge_df_with_int_ids_and_all_features.unionByName(reversed_edges)
+                )
+                edge_df_with_only_int_ids = edge_df_with_int_ids_and_all_features.select(
+                    ["src_int_id", "dst_int_id"]
+                )
+                logging.info(
+                    "Writing edge structure for edge type %s with reverse edge...", edge_type
+                )
+                path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
+                reverse_path_list = []
+            else:
+                # Add reverse to -rev etype
+                logging.info("Writing edge structure for edge type %s...", edge_type)
+                path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
+                reversed_edges = edge_df_with_only_int_ids.select("dst_int_id", "src_int_id")
+                reversed_edge_structure_path = os.path.join(
+                    self.output_prefix, f"edges/{rev_edge_type.replace(':', '_')}"
+                )
+                logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
+                reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
         else:
+            # Do not add reverse
+            logging.info("Writing edge structure for edge type %s...", edge_type)
+            path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
             reverse_path_list = []
 
         # Verify counts
@@ -1849,7 +1897,7 @@ class DistHeterogeneousGraphLoader(object):
         }
         edge_structure_dict[edge_type] = edges_metadata_dict
 
-        if self.add_reverse_edges:
+        if self.add_reverse_edges and not self.is_homogeneous:
             reverse_edges_metadata_dict = {
                 "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
                 "data": reverse_edge_path_list,
@@ -1903,7 +1951,7 @@ class DistHeterogeneousGraphLoader(object):
                             edge_config.label_configs[0].label_column
                         )
 
-                    if self.add_reverse_edges:
+                    if self.add_reverse_edges and not self.is_homogeneous:
                         # For reverse edges only the label metadata
                         # (labels + split masks) are relevant.
                         edge_data_dict[reverse_edge_type] = label_metadata_dicts
@@ -2008,6 +2056,10 @@ class DistHeterogeneousGraphLoader(object):
                         )
                         edge_type_feature_metadata[bert_feat_name] = feat_meta
                         etype_feat_sizes.update({bert_feat_name: feat_size})
+                    # Update the corresponding feature dimension for HF embedding
+                    assert isinstance(transformer.transformation, DistHFTransformation)
+                    feat_emb_size = transformer.transformation.get_output_dim()
+                    etype_feat_sizes.update({feat_name: feat_emb_size})
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
@@ -2469,6 +2521,16 @@ class DistHeterogeneousGraphLoader(object):
         int_group_df = input_df.select(
             split_group(input_col).alias(DATA_SPLIT_SET_MASK_COL), *input_df.columns
         )
+        # For homogeneous graph, reverse edge will not have masks
+        if HOMOGENEOUS_REVERSE_COLUMN_FLAG in int_group_df.columns:
+            int_group_df = int_group_df.withColumn(
+                DATA_SPLIT_SET_MASK_COL,
+                when(
+                    F.col(HOMOGENEOUS_REVERSE_COLUMN_FLAG), F.col(DATA_SPLIT_SET_MASK_COL)
+                ).otherwise(
+                    F.array(F.lit(0), F.lit(0), F.lit(0))
+                ),  # BC for spark < 3.4
+            )
 
         if order_col:
             assert (

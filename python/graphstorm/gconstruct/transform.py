@@ -216,6 +216,7 @@ class FeatTransform(ABC):
         self._col_name = col_name
         self._feat_name = feat_name
         self._out_dtype = out_dtype
+        self._feat_dim = None
 
     @property
     def col_name(self):
@@ -234,6 +235,20 @@ class FeatTransform(ABC):
         """ Output feature dtype
         """
         return self._out_dtype
+
+    @property
+    def feat_dim(self):
+        """ Output feature dimension
+        """
+        return self._feat_dim
+
+    @feat_dim.setter
+    def feat_dim(self, new_feat_dim):
+        """ Set the feature dimension
+        """
+        if not isinstance(new_feat_dim, tuple):
+            raise ValueError("Feature dimension must be a tuple.")
+        self._feat_dim = new_feat_dim
 
     def __call__(self, feats):
         """ This transforms the features.
@@ -452,6 +467,8 @@ class BucketTransform(FeatTransform):
             if f <= min_val:
                 encoding[i][0] = 1.0
 
+        # encoding shape is initialized as 2D.
+        self.feat_dim = encoding.shape[1:]
         return {self.feat_name: encoding}
 
 class CategoricalTransform(TwoPhaseFeatTransform):
@@ -547,6 +564,9 @@ class CategoricalTransform(TwoPhaseFeatTransform):
                 idx = [self._val_dict[val] for val in feat.split(self._separator) \
                        if val in self._val_dict]
                 encoding[i, idx] = 1
+
+        # encoding shape is initialized as 2D.
+        self.feat_dim = encoding.shape[1:]
         return {self.feat_name: encoding}
 
 class NumericalMinMaxTransform(TwoPhaseFeatTransform):
@@ -692,6 +712,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
 
+        self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
         return {self.feat_name: feats}
 
 class NumericalStandardTransform(TwoPhaseFeatTransform):
@@ -812,6 +833,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
         feats = self.feat2numerical(feats)
         feats = feats / self._summation
 
+        self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
         return {self.feat_name: feats}
 
 class RankGaussTransform(GlobalProcessFeatTransform):
@@ -855,6 +877,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
 
+        self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
         feats = self.feat2numerical(feats)
         if validate_features():
             assert validate_numerical_feats(feats), \
@@ -911,6 +934,7 @@ class Tokenizer(FeatTransform):
     def __init__(self, col_name, feat_name, bert_model, max_seq_length):
         super(Tokenizer, self).__init__(col_name, feat_name)
         self.tokenizer = AutoTokenizer.from_pretrained(bert_model)
+        self.config = AutoConfig.from_pretrained(bert_model)
         self.max_seq_length = max_seq_length
 
     def call(self, feats):
@@ -943,6 +967,8 @@ class Tokenizer(FeatTransform):
         token_id_name = 'input_ids'
         atten_mask_name = 'attention_mask'
         token_type_id_name = 'token_type_ids'
+
+        self.feat_dim = (self.config.hidden_size,)
         return {token_id_name: th.cat(tokens, dim=0).numpy(),
                 atten_mask_name: th.cat(att_masks, dim=0).numpy(),
                 token_type_id_name: th.cat(type_ids, dim=0).numpy()}
@@ -1045,6 +1071,8 @@ class Text2BERT(FeatTransform):
         else:
             feats = out_embs[0]
 
+        # Huggingface model outputs should have 2D shape.
+        self.feat_dim = feats.shape[1:]
         return {self.feat_name: feats}
 
 class Noop(FeatTransform):
@@ -1126,6 +1154,7 @@ class Noop(FeatTransform):
                 # Need to convert to in-memory array to make truncation possible
                 feats = feats.to_numpy()[:, :self.truncate_dim]
 
+        self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
         return {self.feat_name: feats}
 
 class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
@@ -1287,6 +1316,8 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             # per edge), GraphStorm fills the rest with -1.
             neg_ids[i][:nids.shape[0]] = nids
 
+        # neg_ids shape is initialized as 2D.
+        self.feat_dim = neg_ids.shape[1:]
         return {self.feat_name: neg_ids}
 
 class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
@@ -1528,9 +1559,13 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
 
     Returns
     -------
-    dict : the key is the data name, the value is the processed data.
+    new_data: dict
+        The key is the data name, the value is the processed data.
+    feat_dim_dict: dict
+        The key is the feat_name, and the value is the feature dimension.
     """
     new_data = {}
+    feat_dim_dict = {}
     for op in ops:
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
@@ -1574,10 +1609,13 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
                         if key in new_data else val
                     new_data[key] = val
 
+        # Write feature dimension back to the feature config
+        feat_dim_dict[op.feat_name] = op.feat_dim
+
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()
 
-    return new_data
+    return new_data, feat_dim_dict
 
 def get_valid_label_index(label):
     """ Get the index of the samples with valid labels.

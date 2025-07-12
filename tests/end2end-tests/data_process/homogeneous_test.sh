@@ -46,7 +46,7 @@ echo "********* Test Homogeneous Graph Optimization on reverse edge********"
 python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_homogeneous.json --num-processes 1 --output-dir /tmp/movielen_100k_train_val_1p_4t_homogeneous_rev --graph-name movie-lens-100k --add-reverse-edges
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/check_homogeneous.py
+python3 $GS_HOME/tests/end2end-tests/data_process/check_homogeneous.py --conf-file /tmp/movielen_100k_train_val_1p_4t_homogeneous_rev/data_transform_new.json
 error_and_exit $?
 
 echo "********* Test Node Classification on GConstruct Homogeneous Graph with reverse edge********"

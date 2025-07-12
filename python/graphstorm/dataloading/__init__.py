@@ -35,6 +35,7 @@ from .dataloading import (GSgnnEdgeDataLoaderBase,
                           GSgnnLinkPredictionDataLoaderBase,
                           GSgnnNodeDataLoaderBase)
 from .dataloading import GSgnnMultiTaskDataLoader
+from .dataloading import GSgnnRealtimeInferNodeDataLoader
 
 from .dataset import GSgnnData
 
@@ -55,3 +56,9 @@ from .dataloading import (DistillDataloaderGenerator,
                           DistillDataManager)
 
 from .sampler import DistributedFileSampler
+
+from .metadata import (GSGraphMetadata,
+                       GSDglGraphFromMetadata,
+                       GSDglDistGraphFromMetadata,
+                       config_json_sanity_check,
+                       load_metadata_from_json)
