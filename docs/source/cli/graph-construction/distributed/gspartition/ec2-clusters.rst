@@ -24,15 +24,11 @@ and finally start the image as a container.
 
         git clone https://github.com/awslabs/graphstorm.git
 
-        cd /path-to-graphstorm/docker/
+        cd ./graphstorm/docker/
 
-        bash /path-to-graphstorm/docker/build_docker_parmetis.sh /path-to-graphstorm/ image-name image-tag
+        bash docker/build_graphstorm_image.sh --environment local --use-parmetis
 
-    There are three positional arguments for ``build_docker_parmetis.sh``:
-
-    1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-    2. **image-name** (optional), is the assigned name of the Docker image to be built . Default is ``graphstorm``.
-    3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
+See ``bash docker/build_graphstorm_image.sh --help`` for more build options.
 
 Setup a shared file system for the cluster
 ...........................................

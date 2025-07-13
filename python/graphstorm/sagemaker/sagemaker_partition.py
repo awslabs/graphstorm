@@ -20,9 +20,11 @@ import os
 import json
 import logging
 import queue
+import shutil
 import socket
 import time
 import subprocess
+import warnings
 from threading import Thread, Event
 from typing import Any, List
 
@@ -33,7 +35,11 @@ import sagemaker
 from joblib import Parallel, delayed # pylint: disable=wrong-import-order
 
 from graphstorm.sagemaker import utils
-from .s3_utils import download_data_from_s3, upload_file_to_s3
+from ..config.config import GS_RUNTIME_GCONSTRUCT_FILENAME
+from .s3_utils import (
+    download_data_from_s3,
+    upload_file_to_s3,
+)
 from .sm_partition_algorithm import (
     SageMakerPartitionerConfig,
     SageMakerRandomPartitioner,
@@ -386,6 +392,75 @@ def run_partition(job_config: PartitionJobConfig):
 
         data_dispatch_step(local_partition_path)
 
+        # Leader instance copies raw_id_mappings from input to dist_graph output on S3
+        # using aws cli, usually much faster than using boto3
+        # Will also upload the updated GConstruct/GSProcessing config, if one exists
+        raw_id_mappings_s3_path = os.path.join(graph_data_s3, "raw_id_mappings")
+        logging.info("Copying raw_id_mappings from %s to %s",
+            raw_id_mappings_s3_path, s3_dglgraph_output)
+        # Copy raw_id_mappings from input to dist_graph output on S3
+        subprocess.call([
+            "aws", "configure", "set", "default.s3.max_concurrent_requests", "150"])
+        subprocess.check_call(
+            [
+                "aws",
+                "s3",
+                "sync",
+                "--only-show-errors",
+                "--region",
+                os.environ["AWS_REGION"],
+                raw_id_mappings_s3_path,
+                f"{s3_dglgraph_output}/raw_id_mappings"])
+
+        # Try to download the GSProcessing launch arguments JSON
+        launch_arguments_s3_path = os.path.join(graph_data_s3_no_trailing, "launch_arguments.json")
+        download_data_from_s3(
+            launch_arguments_s3_path,
+            graph_data_path,
+            sagemaker_session
+        )
+        launch_arguments_local = os.path.join(graph_data_path, "launch_arguments.json")
+        # If we got the launch arguments, upload the runtime GSProcessing config to the output S3
+        if os.path.isfile(launch_arguments_local):
+            # Get runtime GSProcessing config filename from input args
+            with open(launch_arguments_local, "r", encoding="utf-8") as f:
+                gsprocessing_launch_arguments = json.load(f)
+            # Runtime-updated GSProcessing config will have '_with_transformation' suffix.
+            gsprocessing_config_fname = (
+                gsprocessing_launch_arguments["config_filename"]
+                    .replace(".json", "_with_transformations.json")
+            )
+            s3_config_path = os.path.join(graph_data_s3_no_trailing, gsprocessing_config_fname)
+            temp_config_path = os.path.join(graph_data_path, gsprocessing_config_fname)
+            local_gsp_config = os.path.join(graph_data_path, GS_RUNTIME_GCONSTRUCT_FILENAME)
+
+            # Download to temporary location first
+            download_data_from_s3(
+                s3_config_path,
+                graph_data_path,
+                sagemaker_session
+            )
+
+            # Rename to final filename
+            shutil.move(temp_config_path, local_gsp_config)
+
+            # Upload renamed GSProcessing config to same S3 path as output
+            upload_file_to_s3(
+                s3_dglgraph_output,
+                local_gsp_config,
+                sagemaker_session
+            )
+            logging.info(
+                "Uploaded runtime GSProcessing config %s to %s",
+                local_gsp_config,
+                s3_dglgraph_output
+            )
+        else:
+            warnings.warn("No runtime GSProcessing configuration file found under "
+                          f"{graph_data_s3_no_trailing}. This file is needed to deploy an "
+                          "endpoint after training a model on the input data.")
+
+
         # Indicate we can stop sending keepalive messages
         task_end.set()
         # Ensure the keepalive thread has finished before closing sockets
@@ -401,22 +476,5 @@ def run_partition(job_config: PartitionJobConfig):
     upload_file_to_s3(s3_dglgraph_output, dglgraph_output, sagemaker_session)
     logging.info("Rank %s completed all tasks, exiting...", host_rank)
 
-    # Leader instance copies raw_id_mappings from input to dist_graph output on S3
-    # using aws cli, usually much faster than using boto3
-    if host_rank == 0:
-        raw_id_mappings_s3_path = os.path.join(graph_data_s3, "raw_id_mappings")
-        # Copy raw_id_mappings from input to dist_graph output on S3
-        subprocess.call([
-            "aws", "configure", "set", "default.s3.max_concurrent_requests", "150"])
-        subprocess.check_call(
-            [
-                "aws",
-                "s3",
-                "sync",
-                "--only-show-errors",
-                "--region",
-                os.environ["AWS_REGION"],
-                raw_id_mappings_s3_path,
-                f"{s3_dglgraph_output}/raw_id_mappings"])
 
     sock.close()
