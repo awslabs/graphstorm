@@ -81,19 +81,19 @@ locally and tag it, provided the intended execution environment,
 using the ``-e/--environment`` argument. The supported environments
 are ``sagemaker``, ``emr``, and ``emr-serverless``.
 For example, assuming our current directory is where
-we cloned ``graphstorm/graphstorm-processing``, we can use
+we cloned ``graphstorm/graphstorm-processing/docker``, we can use
 the following to build the SageMaker image:
 
 .. code-block:: bash
 
-    bash docker/build_gsprocessing_image.sh --environment sagemaker
+    bash build_gsprocessing_image.sh --environment sagemaker
 
 The above will use the SageMaker-specific Dockerfile of the latest available GSProcessing version,
 build an image and tag it as ``graphstorm-processing-sagemaker:${VERSION}-x86_64`` where
 ``${VERSION}`` will take be the latest available GSProcessing version.
 
 The script also supports other arguments to customize the image name,
-tag and other aspects of the build. See ``bash docker/build_gsprocessing_image.sh --help``
+tag and other aspects of the build. See ``bash build_gsprocessing_image.sh --help``
 for more information.
 
 Packaging Huggingface models into the image
@@ -110,8 +110,8 @@ You can find detailed instructions on creating a VPC for EMR Serverless in the A
 
 .. code-block:: bash
 
-    bash docker/build_gsprocessing_image.sh --environment sagemaker --hf-model bert-base-uncased
-    bash docker/build_gsprocessing_image.sh --environment emr-serverless --hf-model bert-base-uncased
+    bash build_gsprocessing_image.sh --environment sagemaker --hf-model bert-base-uncased
+    bash build_gsprocessing_image.sh --environment emr-serverless --hf-model bert-base-uncased
 
 Support for arm64 architecture
 ------------------------------
@@ -163,7 +163,7 @@ Finally, to build an EMR Serverless GSProcessing image for the ``arm64`` archite
 
 .. code-block:: bash
 
-    bash docker/build_gsprocessing_image.sh --environment emr-serverless --architecture arm64
+    bash build_gsprocessing_image.sh --environment emr-serverless --architecture arm64
 
 .. note::
 
@@ -200,13 +200,13 @@ Example:
 
 .. code-block:: bash
 
-    bash docker/push_gsprocessing_image.sh -e sagemaker -r "us-west-2" -a "1234567890"
+    bash push_gsprocessing_image.sh -e sagemaker -r "us-west-2" -a "1234567890"
 
 To push an EMR Serverless ``arm64`` image you'd similarly run:
 
 .. code-block:: bash
 
-    bash docker/push_gsprocessing_image.sh -e emr-serverless --architecture arm64 \
+    bash push_gsprocessing_image.sh -e emr-serverless --architecture arm64 \
         -r "us-west-2" -a "1234567890"
 
 .. _gsp-upload-data-ref:
