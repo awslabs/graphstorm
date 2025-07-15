@@ -43,11 +43,10 @@ parse_params() {
   VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d | sort --version-sort | tail -1 | xargs basename)
   LATEST_VERSION=${VERSION}
   # If the user did not provide a region, try to get from config
-  REGION=${REGION:-$(aws configure get region)}
+  REGION=$(aws configure get region) || REGION=""
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
   ARCH='x86_64'
   SUFFIX=""
-
 
   while :; do
     case "${1-}" in
