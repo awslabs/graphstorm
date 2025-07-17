@@ -47,6 +47,13 @@ def apply_transform(
         The maximal length of the tokenization results.
     input_df : DataFrame
         The input DataFrame to apply normalization to.
+
+    Returns
+    --------
+    transformed_df: DataFrame
+        The transformed features in the format of a DataFrame similar as the input DataFrame.
+    output_dim: int
+        The dimension of the output after transformation by LMs.
     """
 
     if action == HUGGINGFACE_TOKENIZE:

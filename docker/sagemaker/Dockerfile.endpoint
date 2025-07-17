@@ -59,7 +59,6 @@ ARG DGL_BRANCH
 LABEL maintainer="Amazon AI Graph ML team"
 
 # /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
-# TODO(xiangsx): change to pip install when PIP package is available
 COPY code/graphstorm/ /opt/ml/code/graphstorm/
 ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
 

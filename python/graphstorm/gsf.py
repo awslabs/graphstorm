@@ -1504,9 +1504,9 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
 
     # create a metadata graph for a graph configuration JSON file
     with open(os.path.join(model_dir, json_file), 'r', encoding='utf-8') as f:
-        config_json = json.load(f)
+        graph_metadata_json = json.load(f)
 
-    metadata = load_metadata_from_json(config_json)
+    metadata = load_metadata_from_json(graph_metadata_json)
     metadata_g = GSDglDistGraphFromMetadata(metadata)
 
     # load model configuration from a YAML file
@@ -1532,4 +1532,4 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     model.restore_model(model_dir)
 
     # return all three artifacts back to model_fn()
-    return model, config_json, gs_config
+    return model, graph_metadata_json, gs_config

@@ -289,5 +289,3 @@ Examples:
 
     # Push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu'
     bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu
-    # Push a ParMETIS-capable image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu-parmetis'
-    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu --suffix "-parmetis"

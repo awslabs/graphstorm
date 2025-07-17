@@ -886,6 +886,83 @@ def load_metadata_from_json(config_json):
     metadata JSON object comes from the GS gconstruct or GSProcessing command, which outputs the
     graph information after graph construction and feature transformation.
 
+    Below are example contents of GS construction (v0.1) and GSProcessing on (v0.4.1).
+
+    JSON from GS gconstruct:
+        {
+            "version": "gconstruct-v0.1",
+            "is_homogeneous": bool,
+            "nodes":[
+                {
+                    "node_id_col": str,
+                    "node_type": str,
+                    "features": [
+                        {
+                            "feature_col": str
+                            "feature_name": str
+                            "feature_dim": list[int]
+                        }
+                    ]
+                }
+            ]
+            "edges":[
+                {
+                    "source_id_col": str,
+                    "dest_id_col": str,
+                    "relation": [str, str, str],
+                    "features": [
+                        {
+                            "feature_col": str
+                            "feature_name": str
+                            "feature_dim": list[int]
+                        }
+                    ]
+                }
+            ]
+        }
+    JSON from GSProcessing:
+        {
+            "version": "gsprocessing-v0.4.1",
+            "graph": {
+                "is_homogeneous": bool,
+                "nodes": [
+                    {
+                        "type": str,
+                        "column": str,
+                        "data": {
+                            "format": str,
+                            "files": list[str]
+                        },
+                        "features": [
+                            {
+                                "column": str,
+                                "name": str,
+                                "dim": list[int],
+                            }
+                        ]
+                    }
+                ]
+                "edges": [
+                    {
+                        "source": {"column": str, "type": str},
+                        "dest": {"column": str, "type": str},
+                        "relation": {"type": str},
+                        "data": {
+                            "format": str,
+                            "files": list[str]
+                        },
+                        "features": [
+                            {
+                                "column": str,
+                                "name": str,
+                                "dim": list[int],
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
     Parameters
     ----------
     config_json: json
