@@ -1493,7 +1493,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     training phases.
 
     This method is different from the other create model functions as it does not rely on a DGL
-    distributed graph instance as the input argument. Instead this method use the `GSMeteData`,
+    distributed graph instance as the input argument. Instead this method use the `GSMetaData`,
     and `GSDglDistGraphFromMetadata` to create a lightweight graph that only contains graph
     structure, and then use it to create a built-in model. A common use case of this method is
     loading a pre-trained model for real-time node inference inside a SageMaker real-time inference
