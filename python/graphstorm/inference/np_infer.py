@@ -227,13 +227,13 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         predictions: dict
             The inference results in the format of {str: tensor}.
         """
-        assert isinstance(g, dgl.DGLGraph), ('The input graph of ' \
-            '\"GSGnnNodePredictionRealtimeInferrer\" must be an instance of dgl.DGLGraph, ' \
+        assert isinstance(g, dgl.DGLGraph), ('The input graph of ' 
+            '\"GSGnnNodePredictionRealtimeInferrer\" must be an instance of dgl.DGLGraph, ' 
             f'but got {type(g)}.')
-        assert isinstance(dataloader, GSgnnRealtimeInferNodeDataLoader), ('The given dataloader ' \
-            'should be a GSgnnRealtimeInferNodeDataLoader instance or its extensions, but ' \
+        assert isinstance(dataloader, GSgnnRealtimeInferNodeDataLoader), ('The given dataloader ' 
+            'should be a GSgnnRealtimeInferNodeDataLoader instance or its extensions, but ' 
             f'got {dataloader}.')
-        assert isinstance(infer_ntypes, (list, str)), ('The value of \"infer_ntypes\" ' \
+        assert isinstance(infer_ntypes, (list, str)), ('The value of \"infer_ntypes\" ' 
             f'should be either a list of strings or a single string, but got {infer_ntypes}.')
         if isinstance(infer_ntypes, str):
             infer_ntypes = [infer_ntypes]
