@@ -27,6 +27,7 @@ import torch as th
 import dgl
 import pytest
 from data_utils import (
+    generate_dummy_hetero_graph,
     generate_dummy_dist_graph,
     generate_special_dummy_dist_graph_for_efeat_gnn,
     generate_dummy_dist_graph_reconstruct,
@@ -48,7 +49,8 @@ from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
-                                    GSgnnNodeSemiSupDataLoader)
+                                    GSgnnNodeSemiSupDataLoader,
+                                    GSgnnRealtimeInferNodeDataLoader)
 from graphstorm.dataloading import (GSgnnLinkPredictionDataLoaderBase,
                                     GSgnnLinkPredictionDataLoader,
                                     GSgnnLPJointNegDataLoader,
@@ -2356,8 +2358,8 @@ def test_GSgnnTrainData_homogeneous():
         # generate the test dummy homogeneous distributed graph and
         # test if it is possible to create GSgnnData on homogeneous graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=os.path.join(tmpdirname, 'dummy'),
-                                                            is_homo=True)
+                                                   dirname=os.path.join(tmpdirname, 'dummy'),
+                                                   is_homo=True)
         data = GSgnnData(part_config=part_config)
         _ = data.get_edge_train_set(tr_etypes)
         _ = data.get_edge_val_set(va_etypes)
@@ -2699,3 +2701,67 @@ def test_GSgnnTranData_small_val_test():
         p1.join()
         assert p0.exitcode == 0
         assert p1.exitcode == 0
+
+def test_realtime_infer_node_dataloader():
+    """ Test the real-time inference node dataloader
+    """
+    # Test case 1: normal case
+    g = generate_dummy_hetero_graph(gen_mask=True, add_reverse=False, is_random=False)
+
+    target_idx = {'n1': th.arange(g.number_of_nodes('n1'))}
+    batch_size = g.number_of_nodes('n1')
+    dataloader = GSgnnRealtimeInferNodeDataLoader(g, target_idx, num_layers=1)
+    assert len(dataloader) == 1
+
+    src_idx_r0, dst_idx_r0 = g.edges(form='uv', etype=('n0', 'r0', 'n1'))
+    src_idx_r1, dst_idx_r1 = g.edges(form='uv', etype=('n0', 'r1', 'n1'))
+    all_src_idx = np.unique(np.concatenate([src_idx_r0, src_idx_r1]))
+
+    # should only has one mini batch
+    assert len(dataloader) == 1
+    input_nodes, seeds, blocks = next(iter(dataloader))
+    assert 'n0' in input_nodes
+    assert input_nodes['n0'].shape[0] == len(all_src_idx)
+    assert 'n1' in input_nodes
+    
+    assert input_nodes['n1'].shape[0] == batch_size
+    assert 'n1' in seeds
+    assert len(blocks) == 1
+
+    assert_equal(seeds['n1'].cpu().numpy(), target_idx['n1'])
+    assert dataloader.node_feat_fields == None
+    assert dataloader.edge_feat_fields == None
+
+    # Test case 2: fail to create due to using non-dict targets
+    with pytest.raises(AssertionError, match='The argument \"target_idx\" should be a dictionary'):
+        dataloader = GSgnnRealtimeInferNodeDataLoader(g, [th.arange(g.number_of_nodes('n1'))],
+                                                      num_layers=1)
+
+    # Test case 3: fail to create due to non-existing target ntype
+    with pytest.raises(AssertionError, match='node type .* does not exist in the graph.'):
+        dataloader = GSgnnRealtimeInferNodeDataLoader(g, 
+                                                      {'n3': th.arange(g.number_of_nodes('n1'))},
+                                                      num_layers=1)
+
+    # Test case 4: fail to create due to using non-DGLGraph
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        np_data = GSgnnData(part_config=part_config)
+
+    # use a GSGnnData as an input
+    with pytest.raises(AssertionError, match='The argument \"g\" should be a DGLGraph'):
+        dataloader = GSgnnRealtimeInferNodeDataLoader(np_data, target_idx, num_layers=1)
+
+    # use a distributed graph as an input
+    g = np_data.g
+    with pytest.raises(AssertionError, match='The argument \"g\" should be a DGLGraph'):
+        dataloader = GSgnnRealtimeInferNodeDataLoader(g, target_idx, num_layers=1)
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()

@@ -31,7 +31,7 @@ from .base_dist_transformation import DistributedTransformation
 
 def apply_transform(
     cols: Sequence[str], action: str, hf_model: str, max_seq_length: int, input_df: DataFrame
-) -> DataFrame:
+) -> tuple[DataFrame, int]:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
 
@@ -47,18 +47,32 @@ def apply_transform(
         The maximal length of the tokenization results.
     input_df : DataFrame
         The input DataFrame to apply normalization to.
+
+    Returns
+    --------
+    transformed_df: DataFrame
+        The transformed features in the format of a DataFrame similar as the input DataFrame.
+    output_dim: int
+        The dimension of the output after transformation by LMs.
     """
 
     if action == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
+        tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        config = AutoConfig.from_pretrained(hf_model)
+        output_dim = config.hidden_size
         try:
             # Try to load from local folder
             tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
+            config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
+            output_dim = config.hidden_size
             logging.info("Loaded model from local cache.")
         except (OSError, EntryNotFoundError, LocalEntryNotFoundError):
             logging.warning("No local model cache found")
             # Fallback: download from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(hf_model)
+            config = AutoConfig.from_pretrained(hf_model)
+            output_dim = config.hidden_size
             logging.info("Downloaded model from Hugging Face Hub.")
         if max_seq_length > tokenizer.model_max_length:
             raise RuntimeError(
@@ -123,12 +137,14 @@ def apply_transform(
             # Try to load from local folder
             tokenizer = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
             config = AutoConfig.from_pretrained(hf_model, local_files_only=True)
+            output_dim = config.hidden_size
             logging.info("Loaded model from local cache.")
         except (OSError, EntryNotFoundError, LocalEntryNotFoundError):
             logging.warning("No local model cache found")
             # Fallback: download from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(hf_model)
             config = AutoConfig.from_pretrained(hf_model)
+            output_dim = config.hidden_size
             logging.info("Downloaded model from Hugging Face Hub.")
         if max_seq_length > tokenizer.model_max_length:
             # TODO: Could we possibly raise this at config time?
@@ -172,7 +188,7 @@ def apply_transform(
     else:
         raise ValueError(f"The input action needs to be {HUGGINGFACE_TOKENIZE}")
 
-    return transformed_df
+    return transformed_df, output_dim
 
 
 class DistHFTransformation(DistributedTransformation):
@@ -199,14 +215,22 @@ class DistHFTransformation(DistributedTransformation):
         self.action = action
         self.hf_model = hf_model
         self.max_seq_length = max_seq_length
+        self.output_dim = None
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        transformed_df = apply_transform(
+        transformed_df, output_dim = apply_transform(
             self.cols, self.action, self.hf_model, self.max_seq_length, input_df
         )
 
+        self.output_dim = output_dim
         return transformed_df
 
     @staticmethod
     def get_transformation_name() -> str:
         return "DistHFTransformation"
+
+    def get_output_dim(self) -> int:
+        """Get the output dimension for HF transformation"""
+        if not self.output_dim:
+            raise ValueError("output_dim can only be determined after feature transformation.")
+        return self.output_dim

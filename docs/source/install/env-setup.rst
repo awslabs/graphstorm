@@ -165,8 +165,10 @@ to build first.
 The ``build_graphstorm_image.sh`` script can build the image
 locally and tag it. It only requires providing the intended execution environment,
 using the ``-e/--environment`` argument. The supported environments
-are ``sagemaker`` to run jobs on Amazon SageMaker and ``local`` to run jobs
-on local instances, like a custom cluster of EC2 instances.
+are ``local`` to run jobs on local instances, like a custom cluster of EC2 instances,
+``sagemaker`` to run jobs on Amazon SageMaker, and ``sagemaker-endpoint``to run real-time
+inference on an Amazon SageMaker endpoint.
+ .
 
 For example, you can use the following commands to build the local image
 with GPU support:
@@ -184,12 +186,11 @@ The script also supports other arguments to customize the image name,
 tag and other aspects of the build. We list the full argument list below:
 
 * ``-x, --verbose``       Print script debug info (set -x)
-* ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
-* ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
+* ``-e, --environment``   Image execution environment. Must be one of ``local``, ``sagemaker`` or, ``sagemaker-endpoint``. Required.
+* ``-d, --device``        Device type, must be one of ``cpu`` or ``gpu``. Default is ``gpu``.
 * ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
-* ``-i, --image``         Docker image name, default is 'graphstorm'.
-* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is
-  "<environment>-<device>", e.g. ``sagemaker-gpu``.
+* ``-i, --image``         Docker image name, default is ``graphstorm``.
+* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is ``<environment>-<device>``, e.g. ``sagemaker-gpu``.
 * ``-b, --build``         Docker build directory prefix, default is ``/tmp/graphstorm-build/docker``.
 * ``--use-parmetis``      When this flag is set we add the `ParMETIS <https://license.umn.edu/product/parmetis---mesh-graph-partitioning-algorithm>`_
   dependencies to the image. ParMETIS is an advanced distributed graph partitioning algorithm designed
@@ -217,6 +218,14 @@ Launch a GraphStorm Container
 
 Once you have built the image, you can launch a local container to run test jobs.
 
+
+Create a GraphStorm Container
+..............................
+
+First, you need to create a GraphStorm container based on the Docker image built in the previous step.
+
+Run the following command:
+
 If your host has access to a GPU run the following command:
 
 .. code:: bash
@@ -236,7 +245,6 @@ If successful, the command prompt will change to the container's, like
 .. code-block:: console
 
     root@<ip-address>:/#
-
 
 .. note::
 
@@ -260,28 +268,24 @@ ECR allows you to easily store, manage, and deploy container images.
 This will allow you to use the image in SageMaker jobs using SageMaker Bring-Your-Own-Container, or to launch
 EC2 clusters.
 
-The script requires you to provide the intended execution environment again using
-the ``-e/--environment`` argument.
-By default it will create a repository named ``graphstorm`` in the ``us-east-1`` region,
-on the default AWS account ``aws-cli`` is configured for.
-It tags the image as ``<environment>-<device>``, creates a new ECR repository if one
-doesn't exist, and pushes the image to it.
+The script again requires us to provide the intended execution environment using the ``-e/--environment``
+argument, and by default will create a repository named ``graphstorm`` in the ``us-east-1`` region,
+on the default AWS account ``aws-cli`` is configured for, and push the image tagged as ``<environment>-<device>``.
 
 In addition to ``-e/--environment``, the script supports several optional arguments, for a full list use
 ``bash push_graphstorm_image.sh --help``. We list the most important below:
 
-* ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
-* ``-a, --account``       AWS Account ID to use, we try retrieve the default from the AWS CLI configuration.
-* ``-r, --region``        AWS Region to push the image to, we retrieve the default from the AWS CLI configuration.
-* ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
+* ``-e, --environment``   Image execution environment. Must be one of ``local``, ``sagemaker`` or, ``sagemaker-endpoint``. Required.
+* ``-a, --account``       AWS Account ID to use, we retrieve the default from the AWS cli configuration.
+* ``-r, --region``        AWS Region to push the image to, we retrieve the default from the AWS cli configuration.
+* ``-d, --device``        Device type, must be one of ``cpu`` or ``gpu``. Default is ``gpu``.
 * ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
-* ``-i, --image``         Docker image name, default is 'graphstorm'.
-* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>", e.g. ``sagemaker-gpu``.
-* ``-x, --verbose``       Print script debug info (set -x)
+* ``-i, --image``         Docker image name, default is ``graphstorm``.
+* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is ``<environment>-<device>``.
 
 Examples:
 
 .. code-block:: bash
 
     # Push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu'
-    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" --account "123456789012" --device cpu
+    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu
