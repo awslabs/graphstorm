@@ -48,6 +48,7 @@ parse_params() {
   ARCH='x86_64'
   SUFFIX=""
 
+
   while :; do
     case "${1-}" in
     -h | --help) usage ;;
