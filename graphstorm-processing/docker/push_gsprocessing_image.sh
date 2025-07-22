@@ -40,7 +40,7 @@ die() {
 parse_params() {
   # default values of variables set from params
   IMAGE='graphstorm-processing'
-  VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d | sort --version-sort | tail -1 | xargs basename)
+  VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d -name "[0-9]*.[0-9]*" | sort --version-sort | tail -1 | xargs basename)
   LATEST_VERSION=${VERSION}
   # If the user did not provide a region, try to get from config
   REGION=$(aws configure get region) || REGION=""
@@ -99,6 +99,12 @@ cleanup() {
 }
 
 parse_params "${@}"
+
+# Add version validation
+if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Error: Invalid determine valid version number, got '$VERSION'"
+    exit 1
+fi
 
 if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" || ${EXEC_ENV} == "emr" ]]; then
     :  # Do nothing

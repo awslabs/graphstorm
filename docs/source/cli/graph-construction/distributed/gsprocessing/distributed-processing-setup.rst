@@ -81,7 +81,7 @@ locally and tag it, provided the intended execution environment,
 using the ``-e/--environment`` argument. The supported environments
 are ``sagemaker``, ``emr``, and ``emr-serverless``.
 For example, assuming our current directory is where
-we cloned ``graphstorm/graphstorm-processing/``, we can use
+we cloned ``graphstorm/graphstorm-processing``, we can use
 the following to build the SageMaker image:
 
 .. code-block:: bash
