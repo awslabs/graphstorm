@@ -195,7 +195,8 @@ class GSGraphMetadata():
 
         Return
         -------
-        list: graph node types in a list of 3-element tuples.
+        list
+            graph node types in a list of 3-element tuples.
         """
         return self._etypes
 
