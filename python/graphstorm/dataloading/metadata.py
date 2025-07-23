@@ -1016,7 +1016,7 @@ def load_metadata_from_json(config_json):
         nfeat_dims = {}
         for node_obj in graph_obj['nodes']:
             ntypes.append(node_obj['type'])
-            # extract feature name and dimensions if have
+            # extract feature name and dimensions if they exist
             if 'features' in node_obj:
                 feat_dims = {}
                 for feat_obj in node_obj['features']:
