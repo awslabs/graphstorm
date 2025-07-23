@@ -251,7 +251,8 @@ def update_feat_transformation_conf(conf, feat_dim_dict):
         if FEAT_DIM_COLUMN_NAME in feat_conf:
             # JSON will write tuple into list
             assert feat_conf[FEAT_DIM_COLUMN_NAME] == list(feat_dim_dict[feat_name]), \
-                "Feature dimension for one feature transformation should keep the same"
+                ("Feature dimension for one feature transformation should remain the same, got "
+                f"{feat_conf[FEAT_DIM_COLUMN_NAME]} != {list(feat_dim_dict[feat_name])}")
         feat_conf[FEAT_DIM_COLUMN_NAME] = list(feat_dim_dict[feat_name])
 
     return conf
