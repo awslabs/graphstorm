@@ -244,7 +244,7 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
     """ Process json payload node input
 
     Nodes must be processed before edges, as edges need access to the node mappings.
-    This function initializes all unique node mapping and do feature transformation.
+    This function initializes all unique node mappings and performs feature transformations.
 
     The node conf in the payload is defined as follows:
     {
