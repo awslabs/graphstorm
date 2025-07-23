@@ -505,7 +505,7 @@ class GSgnnData():
             Add ``get_blocks_edge_feat`` in 0.4.0 to support edge features in message passing.
 
         .. versionchanged:: 0.5
-            Moved the implementatino of this function out of `GSgnnData` class in v0.5 to support
+            Moved the implementation of this function out of `GSgnnData` class in v0.5 to support
             real-time node-level inference.
 
         Parameters
