@@ -1031,7 +1031,7 @@ def load_metadata_from_json(config_json):
             dst_ntype = edge_obj['dest']['type']
             etype = edge_obj['relation']['type']
             etypes.append((src_ntype, etype, dst_ntype))  # create a tuple as can_etype
-            # extract feature name and dimensions if have
+            # extract feature name and dimensions if they exist
             if 'features' in edge_obj:
                 feat_dims = {}
                 for feat_obj in edge_obj['features']:
