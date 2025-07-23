@@ -403,8 +403,10 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
         for feat_name in list(feat_data):
             if feat_name in after_merge_feat_ops:
                 # do data transformation with the entire feat array.
-                merged_feat = \
-                    after_merge_feat_ops[feat_name].after_merge_transform(feat_data[feat_name])
+                merged_feat = (
+                    after_merge_feat_ops[feat_name]
+                        .after_merge_transform(feat_data[feat_name])
+                )
                 feat_data[feat_name] = merged_feat
         mapped_src_node_ids = map_node_id(src_node_ids, node_id_map, edge_type[0])
         mapped_dst_node_ids = map_node_id(dest_node_ids, node_id_map, edge_type[2])
