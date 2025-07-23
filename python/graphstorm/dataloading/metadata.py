@@ -967,7 +967,7 @@ def load_metadata_from_json(config_json):
     Parameters
     ----------
     config_json: json
-        An JSON object containing graph configuration information. The JSON object may come from
+        A Python dict containing graph configuration information. The JSON object may come from
         either GraphStorm gconstruct or GSProcessing commands as a configuration JSON file.
 
     Returns
