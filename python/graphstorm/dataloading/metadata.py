@@ -40,7 +40,7 @@ class GSGraphMetadata():
     instances without read in actual data, i.e., DistDGLGraph or DGLGraph, or to work as a
     source for graph metadata retrieving.
 
-    In addition, the graph metadata is agonistic to graph libraries, e.g., DGL and PyG.
+    In addition, the graph metadata is agnostic to graph libraries, e.g., DGL and PyG.
 
     Parameters
     ----------
