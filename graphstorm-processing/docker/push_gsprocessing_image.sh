@@ -103,7 +103,7 @@ parse_params "${@}"
 
 # Add version validation
 if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Error: Invalid determine valid version number, got '$VERSION'"
+    echo "Error: Invalid version number, got '$VERSION'. Set desired version with --version argument"
     exit 1
 fi
 
