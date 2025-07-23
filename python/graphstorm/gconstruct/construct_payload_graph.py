@@ -334,7 +334,7 @@ def map_node_id(str_node_list, node_id_map, node_type):
 
 def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list, node_id_map):
     """ Process json payload edge data
-     1. Maps 'src_node_id' and 'dest_node_id' to integer IDs and stores edges infor.
+     1. Maps 'src_node_id' and 'dest_node_id' to integer IDs and stores edges information.
      2. Transforms the input edge features based on the configuration.
      Returns the edge information definition and the transformed edge feature data.
 
