@@ -46,7 +46,7 @@ parse_params() {
   # default values of variables set from params
   GSP_HOME="${SCRIPT_DIR}/../"
   IMAGE_NAME='graphstorm-processing'
-  VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d | sort --version-sort | tail -1 | xargs basename)
+  VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d -name "[0-9]*.[0-9]*" | sort --version-sort | tail -1 | xargs basename)
   BUILD_DIR='/tmp'
   TARGET='prod'
   ARCH='x86_64'
@@ -117,6 +117,12 @@ cleanup() {
 }
 
 parse_params "$@"
+
+# Add version validation
+if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Error: Invalid version number, got '$VERSION'. Set desired version with --version argument"
+    exit 1
+fi
 
 if [[ ${EXEC_ENV} == "emr" || ${EXEC_ENV} == "emr-serverless" || ${EXEC_ENV} == "sagemaker" ]]; then
     :  # Do nothing
