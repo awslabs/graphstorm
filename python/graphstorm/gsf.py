@@ -1500,9 +1500,11 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     model_dir: str
         The path where the trained model file exists.
     json_file: str
-        The name of the JSON file. This file is expected to be in the path of model_dir.
+        The name of the graph construction configuration JSON file with data-derived
+        transformations. This file is expected to be in the path of model_dir.
     yaml_file: str
-        The name of the YAML file. This file is expected to be in the path of model_dir.
+        The name of the train configuration YAML file updated with runtime arguments. This file
+        is expected to be in the path of model_dir.
 
     Returns
     -------
