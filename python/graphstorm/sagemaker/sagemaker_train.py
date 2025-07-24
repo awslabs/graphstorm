@@ -335,7 +335,7 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
                 best_epoch_path)
             best_epoch = None
 
-    # If best_epoch aws not provided or not found, find the latest epoch
+    # If best_epoch was not provided or not found, find the latest epoch
     if best_epoch is None:
         # Find the latest epoch directory
         latest_epoch_dir = None
@@ -380,10 +380,10 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
                 logging.warning("Model destination path %s already exists, removing...", dst_path)
                 shutil.rmtree(dst_path)
             shutil.copytree(src_path, dst_path)
-            logging.info("Copied directory %s to %s", item, SM_MODEL_OUTPUT)
+            logging.info("Copied directory %s to %s", src_path, dst_path)
         else:
             shutil.copy2(src_path, dst_path)
-            logging.info("Copied file %s to %s", item, SM_MODEL_OUTPUT)
+            logging.info("Copied file %s to %s", src_path, dst_path)
 
     # Also copy any YAML/JSON files from the root model save directory to /opt/ml/model
     for file in os.listdir(save_model_path):
