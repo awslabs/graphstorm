@@ -1508,7 +1508,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     -------
     model: GraphStorm model
         The restored GraphStorm model.
-    graph_metadata_json:
+    graph_metadata_json: dict
         A graph configuration JSON object loaded from the given json_file under the model_dir
         path.
     gs_config: GSConfig
