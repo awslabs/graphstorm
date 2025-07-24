@@ -1496,7 +1496,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     model, and return both the model and the graph construction and model configuration objects.
 
     Parameters
-    -----------
+    ----------
     model_dir: str
         The path where the trained model file exists.
     json_file: str
@@ -1508,9 +1508,9 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
 
     Returns
     -------
-    model: GraphStorm model
+    model: GSGnnModel
         The restored GraphStorm model.
-    graph_metadata_json:
+    graph_metadata_json: dict
         A graph configuration JSON object loaded from the given json_file under the model_dir
         path.
     gs_config: GSConfig

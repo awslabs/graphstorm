@@ -243,7 +243,7 @@ class GSGraphMetadata():
             The edge type name in a three element tuple.
 
         Returns
-        ------
+        -------
         list or None: the feature dimensions of the given etype in the format of a dictionary, or
                       None if either the graph metadata has no edge feature or the given etype has
                       no feature.
@@ -367,7 +367,7 @@ class GSGraphMetadata():
     def __str__(self) -> str:
         """Informal object representation for readability
 
-        Display a dictionary of the metedata attributes.
+        Display a dictionary of the metadata attributes.
 
         Returns
         -------
