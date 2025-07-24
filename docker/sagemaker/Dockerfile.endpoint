@@ -1,0 +1,69 @@
+# Docker file for building a docker image for running GraphStorm code on Amazon SageMaker
+
+ARG DEVICE=cpu
+ARG DGL_VERSION=2.5.0
+ARG DGL_BRANCH=2.5.x
+ARG SOURCE
+
+FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker} as branch-gpu
+ENV dev_type=GPU
+ARG DGL_VERSION
+
+# Uninstall preset Pytorch packages
+RUN pip3 uninstall -y torchdata torch torchvision torchaudio
+
+# Install Dependencies to fit DGL GraphBolt requirements
+RUN pip3 install \
+        torchdata==0.9.0 \
+        pydantic==2.7.1 \
+        transformers==4.47.1 \
+        ogb==1.3.6 \
+    && rm -rf /root/.cache
+
+RUN pip3 install \
+    torch==2.3 \
+    --index-url https://download.pytorch.org/whl/cu121 \
+    && rm -rf /root/.cache
+
+# Install DGL GPU version
+RUN pip3 install dgl==${DGL_VERSION}+cu121 -f https://data.dgl.ai/wheels-internal/torch-2.3/cu121/repo.html \
+    && rm -rf /root/.cache
+
+FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-cpu-py311-ubuntu20.04-sagemaker} as branch-cpu
+ENV dev_type=CPU
+ARG DGL_VERSION
+
+# Uninstall preset Pytorch packages
+RUN pip3 uninstall -y torchdata torch torchvision torchaudio
+
+# Install Dependencies to fit DGL GraphBolt requirements
+RUN pip3 install \
+        torchdata==0.9.0 \
+        pydantic==2.7.1 \
+        transformers==4.47.1 \
+        ogb==1.3.6 \
+    && rm -rf /root/.cache
+
+RUN pip3 install \
+    torch==2.3 \
+    --index-url https://download.pytorch.org/whl/cpu \
+    && rm -rf /root/.cache
+
+# Install DGL CPU version
+RUN pip3 install dgl==${DGL_VERSION} -f https://data.dgl.ai/wheels-internal/torch-2.3/repo.html \
+    && rm -rf /root/.cache
+
+FROM branch-${DEVICE} AS final
+
+ARG DGL_BRANCH
+LABEL maintainer="Amazon AI Graph ML team"
+
+# /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
+COPY code/graphstorm/ /opt/ml/code/graphstorm/
+ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
+
+# Download DGL source code
+RUN cd /root; git clone --branch ${DGL_BRANCH} --single-branch https://github.com/dmlc/dgl.git
+
+# Set path configuration
+ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"

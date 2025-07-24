@@ -17,6 +17,7 @@
 import os
 import argparse
 import dgl
+import json
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from numpy.testing import assert_almost_equal
 
@@ -48,13 +49,23 @@ def check_reverse_edge(args):
             assert_almost_equal(g_rev_feat[feat_type].numpy()[g_orig.number_of_edges(DEFAULT_ETYPE):],
                                 [0] * g_orig.number_of_edges(DEFAULT_ETYPE))
 
+
+def check_homogeneous_flag(args):
+    with open(args.conf_file, 'r') as f:
+        conf = json.load(f)
+    assert conf["is_homogeneous"]
+
+
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Check edge prediction remapping")
     argparser.add_argument("--orig-graph-path", type=str, default="/tmp/movielen_100k_train_val_1p_4t_homogeneous/part0/",
                            help="Path to save the generated data")
     argparser.add_argument("--rev-graph-path", type=str, default="/tmp/movielen_100k_train_val_1p_4t_homogeneous_rev/part0/",
                            help="Path to save the generated data")
+    argparser.add_argument("--conf-file", type=str, default="/tmp/movielen_100k_train_val_1p_4t_homogeneous_rev/data_transform_new.json",
+                           help="Path to save the generated data")
 
     args = argparser.parse_args()
 
     check_reverse_edge(args)
+    check_homogeneous_flag(args)

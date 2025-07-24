@@ -217,7 +217,7 @@ def test_feat_ops_noop():
     data = {
         "test1": np.random.rand(4, 2),
     }
-    proc_res = process_features(data, res)
+    proc_res, _ = process_features(data, res)
     assert "test2" in proc_res
     assert proc_res["test2"].dtype == np.float32
     np.testing.assert_allclose(proc_res["test2"], data["test1"])
@@ -245,9 +245,22 @@ def test_feat_ops_noop():
     assert res[0].feat_name == feat_op1[0]["feature_col"]
     assert isinstance(res[0], Noop)
 
+    # When the feature_dim is specified.
+    # GConstruct will not load feature_dim from config,
+    # so do not check the value of the feature_dim
+    feat_op1 = [{
+        "feature_col": "test1",
+        "feature_dim": [2]
+    }]
+    (res, _, _, _) = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_col"]
+    assert isinstance(res[0], Noop)
+
 def test_noop_string():
     text_vector_data = {
-        "test2": np.array(["1;2;3", "4;5;6"], dtype=object)
+        "test2": np.array(np.array(["1;2;3", "4;5;6"], dtype=object), dtype=object)
     }
     feature_name = "test3"
     text_vector_config = [{
@@ -264,7 +277,7 @@ def test_noop_string():
     assert isinstance(noop_transform, Noop)
     assert noop_transform.separator == ";"
 
-    vector_data_processed = process_features(text_vector_data, res)
+    vector_data_processed, _ = process_features(text_vector_data, res)
     expected_array = np.array([[1, 2, 3], [4, 5, 6]])
 
     assert_equal(vector_data_processed[feature_name], expected_array)
@@ -281,7 +294,7 @@ def test_noop_string():
     }]
     (res, _, _, _) = parse_feat_ops(text_vector_config)
     expected_array = np.array([[1, 2], [4, 5]])
-    vector_data_processed = process_features(text_vector_data, res)
+    vector_data_processed, _ = process_features(text_vector_data, res)
 
     assert_equal(vector_data_processed[feature_name], expected_array)
 
@@ -300,7 +313,6 @@ def test_noop_string():
         match=f"The feature {feature_name} has to be integers or floats, got 'object'."
     ):
         process_features(text_vector_data, res)
-
 
 def test_feat_ops_tokenize():
     feat_op2 = [
@@ -338,7 +350,7 @@ def test_feat_ops_tokenize():
         "test1": np.random.rand(2, 4).astype(np.float32),
         "test3": ["hello world", "hello world"],
     }
-    proc_res = process_features(data, res)
+    proc_res, _ = process_features(data, res)
     np.testing.assert_array_equal(data['test1'], proc_res['test2'])
     assert "input_ids" in proc_res
     assert "attention_mask" in proc_res
@@ -363,7 +375,7 @@ def test_feat_ops_bert():
         "test1": np.random.rand(2, 4).astype(np.float32),
         "test3": ["hello world", "hello world"],
     }
-    proc_res = process_features(data, res)
+    proc_res, _ = process_features(data, res)
     assert "test4" in proc_res
     assert len(proc_res['test4']) == 2
     # There are two text strings and both of them are "hello world".
@@ -385,7 +397,7 @@ def test_feat_ops_bert():
     assert len(res2) == 1
     assert res2[0].col_name == feat_op4[0]["feature_col"]
     assert res2[0].feat_name == feat_op4[0]["feature_name"]
-    proc_res2 = process_features(data, res2)
+    proc_res2, _ = process_features(data, res2)
     assert "test4" in proc_res2
     assert len(proc_res2['test4']) == 2
     np.testing.assert_allclose(proc_res['test4'], proc_res2['test4'], rtol=1e-3)
@@ -427,9 +439,9 @@ def test_feat_ops_maxmin():
     max1 = max(data_col1)
     min1 = min(data_col1)
 
-    proc_res3 = process_features(data0, res)
+    proc_res3, _ = process_features(data0, res)
     assert "test5" in proc_res3
-    proc_res4 = process_features(data1, res)
+    proc_res4, _ = process_features(data1, res)
     assert "test5" in proc_res4
     proc_res5 = np.concatenate([proc_res3["test5"], proc_res4["test5"]], axis=0)
     assert proc_res5.dtype == np.float32
@@ -474,9 +486,9 @@ def test_feat_ops_maxmin():
     data_col1 = [val if val < max1 else max1 for val in data_col1]
     data_col1 = [val if val > min1 else min1 for val in data_col1]
 
-    proc_res3 = process_features(data0, res2)
+    proc_res3, _ = process_features(data0, res2)
     assert "test6" in proc_res3
-    proc_res4 = process_features(data1, res2)
+    proc_res4, _ = process_features(data1, res2)
     assert "test6" in proc_res4
     proc_res6 = np.concatenate([proc_res3["test6"], proc_res4["test6"]], axis=0)
     assert proc_res6.dtype == np.float32
@@ -506,8 +518,8 @@ def test_feat_ops_rank_gauss():
     assert len(res) == 1
     assert res[0].col_name == feat_op7[0]["feature_col"]
     assert res[0].feat_name == feat_op7[0]["feature_name"]
-    proc_res7_0 = process_features(data7_0, res)
-    proc_res7_1 = process_features(data7_1, res)
+    proc_res7_0, _ = process_features(data7_0, res)
+    proc_res7_1, _ = process_features(data7_1, res)
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
     trans_feat = res[0].after_merge_transform(new_feat)
     assert trans_feat.dtype == np.float32
@@ -539,8 +551,8 @@ def test_feat_ops_rank_gauss():
     assert len(res) == 1
     assert res[0].col_name == feat_op7[0]["feature_col"]
     assert res[0].feat_name == feat_op7[0]["feature_name"]
-    proc_res7_0 = process_features(data7_0, res)
-    proc_res7_1 = process_features(data7_1, res)
+    proc_res7_0, _ = process_features(data7_0, res)
+    proc_res7_1, _ = process_features(data7_1, res)
     new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
     trans_feat = res[0].after_merge_transform(new_feat)
     assert trans_feat.dtype == np.float32
@@ -576,7 +588,7 @@ def test_feat_ops_categorical():
         1: preproc_res1
     }
     update_two_phase_feat_ops(return_dict, res)
-    proc_res3 = process_features(data0, res)
+    proc_res3, _ = process_features(data0, res)
     assert "test7" in proc_res3
     assert 'mapping' in feat_op7[0]["transform"]
     for one_hot, str_i in zip(proc_res3["test7"], data0["test1"]):
@@ -607,7 +619,7 @@ def test_feat_ops_categorical():
         1: preproc_res1
     }
     update_two_phase_feat_ops(return_dict, res2)
-    proc_res3 = process_features(data0, res2)
+    proc_res3, _ = process_features(data0, res2)
     assert "test8" in proc_res3
     # We only need to test the first 10
     for multi_hot, str_i in zip(proc_res3["test8"][:10], data0["test1"][:10]):
@@ -615,7 +627,6 @@ def test_feat_ops_categorical():
         assert multi_hot[int(str_i1)] == 1
         assert multi_hot[int(str_i2)] == 1
     assert 'mapping' in feat_op8[0]["transform"]
-
 
 def test_process_features_fp16():
     np.random.seed(1)
@@ -642,7 +653,7 @@ def test_process_features_fp16():
         "out_dtype": "int8",
     }]
     (ops_rst, _, _, _) = parse_feat_ops(feat_op1)
-    rst = process_features(data, ops_rst)
+    rst, _ = process_features(data, ops_rst)
     assert len(rst) == 3
     assert 'test1' in rst
     assert 'test2' in rst
@@ -658,7 +669,7 @@ def test_process_features_fp16():
     assert_almost_equal(rst['test3'], data['test3'].reshape(-1, 1).astype(np.int8))
 
     data1 = read_data_hdf5(tmpfile, ['test1', 'test2', 'test3'], in_mem=False)
-    rst2 = process_features(data1, ops_rst)
+    rst2, _ = process_features(data1, ops_rst)
     assert isinstance(rst2["test1"], HDF5Array)
     assert len(rst2) == 3
     assert 'test1' in rst2
@@ -691,7 +702,7 @@ def test_process_features():
         "feature_name": "test2",
     }]
     (ops_rst, _, _, _) = parse_feat_ops(feat_op1)
-    rst = process_features(data, ops_rst)
+    rst, _ = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
     assert 'test2' in rst
@@ -2011,10 +2022,13 @@ def test_parse_edge_data():
         conf = {
             "source_id_col": "src_id",
             "dest_id_col": "dst_id",
-            "relation": ("src", "rel", "dst")
+            "relation": ("src", "rel", "dst"),
+            "features": [
+                {"feature_col": "feat", "feature_name": "feat", "feature_dim": [10]}
+            ]
         }
         keys = ["src_id", "dst_id", "feat"]
-        src_ids, dst_ids, feat_data = \
+        src_ids, dst_ids, feat_data, _ = \
             parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
                             partial(read_data_parquet, data_fields=keys),
                             conf, skip_nonexist_edges=True)
@@ -2053,10 +2067,13 @@ def test_parse_edge_data():
         conf = {
             "source_id_col": "src_id",
             "dest_id_col": "dst_id",
-            "relation": ("src", "rel", "dst")
+            "relation": ("src", "rel", "dst"),
+            "features": [
+                {"feature_col": "feat", "feature_name": "feat"}
+            ]
         }
         keys = ["src_id", "dst_id", "feat"]
-        src_ids, dst_ids, feat_data = \
+        src_ids, dst_ids, feat_data, _ = \
             parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
                             partial(read_data_parquet, data_fields=keys),
                             conf, skip_nonexist_edges=True)
@@ -2130,7 +2147,7 @@ def test_multicolumn(ext_mem_path):
         "test2": np.random.rand(4, 2)
     }
     data["test3"] = np.column_stack((data['test1'], data['test2']))
-    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
+    proc_res, _ = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
     if isinstance(proc_res, ExtMemArrayWrapper):
@@ -2156,7 +2173,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op2[0]["feature_col"]
     assert res[0].feat_name == feat_op2[0]["feature_name"]
     assert isinstance(res[0], BucketTransform)
-    bucket_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    bucket_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -2173,7 +2190,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_bucket_single1)
-    bucket_feat_single1 = process_features(data_bucket1, res)
+    bucket_feat_single1, _ = process_features(data_bucket1, res)
 
     data_bucket2 = {
         "test2": data["test2"]
@@ -2188,7 +2205,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_bucket_single2)
-    bucket_feat_single2 = process_features(data_bucket2, res)
+    bucket_feat_single2, _ = process_features(data_bucket2, res)
     bucket_expec = np.column_stack((bucket_feat_single1["test3"],
                                     bucket_feat_single2["test3"]))
     if isinstance(proc_res, ExtMemArrayWrapper):
@@ -2212,7 +2229,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
     assert isinstance(res[0], RankGaussTransform)
-    rg_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    rg_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -2228,7 +2245,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_rg_single1)
-    rg_feat_single1 = process_features(data_rg1, res)
+    rg_feat_single1, _ = process_features(data_rg1, res)
 
     data_rg2 = {
         "test2": data["test2"]
@@ -2242,7 +2259,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_rg_single2)
-    rg_feat_single2 = process_features(data_rg2, res)
+    rg_feat_single2, _ = process_features(data_rg2, res)
     rg_expec = np.column_stack((rg_feat_single1["test3"],
                                 rg_feat_single2["test3"]))
     if isinstance(rg_feats, ExtMemArrayWrapper):
@@ -2268,7 +2285,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op4[0]["feature_col"]
     assert res[0].feat_name == feat_op4[0]["feature_name"]
     assert isinstance(res[0], Text2BERT)
-    bert_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    bert_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
 
     data_bert1 = {
@@ -2283,7 +2300,7 @@ def test_multicolumn(ext_mem_path):
                       },
     }]
     (res, _, _, _) = parse_feat_ops(feat_bert_single1)
-    bert_feat_single1 = process_features(data_bert1, res)
+    bert_feat_single1, _ = process_features(data_bert1, res)
 
     data_bert2 = {
         "test2": data["test2"]
@@ -2297,7 +2314,7 @@ def test_multicolumn(ext_mem_path):
                       },
     }]
     (res, _, _, _) = parse_feat_ops(feat_bert_single2)
-    bert_feat_single2 = process_features(data_bert2, res)
+    bert_feat_single2, _ = process_features(data_bert2, res)
     bert_expec = np.column_stack((bert_feat_single1["test3"],
                                 bert_feat_single2["test3"]))
     if isinstance(bert_feats, ExtMemArrayWrapper):
@@ -2323,7 +2340,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
     assert isinstance(res[0], NumericalMinMaxTransform)
-    maxmin_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    maxmin_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -2340,7 +2357,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_maxmin_single1)
-    maxmin_feat_single1 = process_features(data_maxmin1, res)
+    maxmin_feat_single1, _ = process_features(data_maxmin1, res)
 
     data_maxmin2 = {
         "test2": data["test2"]
@@ -2355,7 +2372,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_maxmin_single2)
-    maxmin_feat_single2 = process_features(data_maxmin2, res)
+    maxmin_feat_single2, _ = process_features(data_maxmin2, res)
     maxmin_expec = np.column_stack((maxmin_feat_single1["test3"],
                                 maxmin_feat_single2["test3"]))
     if isinstance(maxmin_feats, ExtMemArrayWrapper):
@@ -2451,7 +2468,7 @@ def test_multicolumn(ext_mem_path):
         "test3": np.random.rand(4, 2)
     }
     data["test4"] = np.column_stack((data['test1'], data['test2'], data['test3']))
-    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
+    proc_res, _ = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test4" in proc_res
     assert proc_res["test4"].dtype == np.float32
     if isinstance(proc_res, ExtMemArrayWrapper):
@@ -2584,12 +2601,15 @@ def test_homogeneous():
     }
     assert is_homogeneous(conf)
     verify_confs(conf)
+    assert conf["is_homogeneous"]
     assert conf['nodes'][0]["node_type"] == "_N"
     assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
     conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
     conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
     conf["nodes"][0]["node_type"] = "movie"
     conf["nodes"][1]["node_type"] = "movie_fake"
+    verify_confs(conf)
+    assert not conf["is_homogeneous"]
     assert not is_homogeneous(conf)
 
 
@@ -2642,7 +2662,11 @@ def test_collect_parsed_edge_data():
                       {
                           "feat0": data["feat0"][file_ids[i]],
                           "feat1": data["feat1"][file_ids[i]]
-                      }) \
+                      },
+                      [
+                          {"feature_col": "feat0", "feature_dim": [1]},
+                          {"feature_col": "feat1", "feature_dim": [2]}
+                      ]) \
         for i in range(len(file_ids))
     }
 

@@ -1,5 +1,5 @@
 """
-    Copyright 2023 Contributors
+    Copyright 2025 Contributors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import tempfile
 import pytest
 import multiprocessing as mp
 import h5py
-
 import torch as th
 import numpy as np
 import dgl

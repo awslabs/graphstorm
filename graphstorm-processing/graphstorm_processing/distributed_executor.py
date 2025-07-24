@@ -69,7 +69,10 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     HeterogeneousLoaderConfig,
     ProcessedGraphRepresentation,
 )
-from graphstorm_processing.config.config_parser import create_config_objects
+from graphstorm_processing.config.config_parser import (
+    create_config_objects,
+    update_dict_if_homogeneous,
+)
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
 from graphstorm_processing.constants import TRANSFORMATIONS_FILENAME
 from graphstorm_processing.data_transformations import spark_utils, s3_utils
@@ -79,7 +82,7 @@ from graphstorm_processing.repartition_files import (
     ParquetRepartitioner,
 )
 from graphstorm_processing.graph_loaders.row_count_utils import verify_metadata_match
-from graphstorm_processing.constants import ExecutionEnv, FilesystemType
+from graphstorm_processing.constants import ExecutionEnv, FilesystemType, HOMOGENEOUS_FLAG
 
 
 @dataclasses.dataclass
@@ -251,8 +254,10 @@ class DistributedExecutor:
         self.spark = spark_utils.create_spark_session(self.execution_env, self.filesystem_type)
 
         # Initialize the graph loader
+        update_dict_if_homogeneous(self.gsp_config_dict)
         data_configs = create_config_objects(self.gsp_config_dict)
         loader_config = HeterogeneousLoaderConfig(
+            is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
             add_reverse_edges=self.add_reverse_edges,
             data_configs=data_configs,
             enable_assertions=False,
@@ -395,12 +400,70 @@ class DistributedExecutor:
             )
             json.dump(sorted_timers, f, indent=4)
 
+        # Update saved feature dim in input config
+        self._merge_config_with_feat_dim(self.gsp_config_dict, graph_meta_dict)
+
+        # If pre-computed representations exist, merge them with the input dict and save to disk
+        with open(
+            os.path.join(
+                self.local_metadata_output_path,
+                f"{os.path.splitext(self.config_filename)[0]}_with_transformations.json",
+            ),
+            "w",
+            encoding="utf-8",
+        ) as f:
+            input_dict_with_transforms = self._merge_config_with_transformations(
+                self.gsp_config_dict, processed_representations.transformation_representations
+            )
+            json.dump(input_dict_with_transforms, f, indent=4)
+
         # This is used to upload the output output JSON files to S3 on non-SageMaker runs,
         # since we can't rely on SageMaker to do it
         if self.filesystem_type == FilesystemType.S3:
             self._upload_output_files(
                 self.loader, force=(not self.execution_env == ExecutionEnv.SAGEMAKER)
             )
+
+    def _merge_config_with_feat_dim(self, gsp_config_dict: dict, graph_meta_dict: dict):
+        """Merge the config dict with the feature dimension dict.
+
+        Parameters
+        ----------
+        gsp_config_dict : dict
+            The input configuration dictionary, using GSProcessing schema
+        graph_meta_dict: dict
+            The output graph metadata dictionary
+        """
+        nfeat_size = graph_meta_dict["graph_info"]["nfeat_size"]
+        efeat_size = graph_meta_dict["graph_info"]["efeat_size"]
+        # Nodes may not be defined in the node config
+        if "nodes" in gsp_config_dict:
+            for gsp_node_config in gsp_config_dict["nodes"]:
+                node_type = gsp_node_config["type"]
+                if "features" in gsp_node_config:
+                    for gsp_node_feat in gsp_node_config["features"]:
+                        feat_name = (
+                            gsp_node_feat["name"]
+                            if "name" in gsp_node_feat
+                            else gsp_node_feat["column"]
+                        )
+                        # Align with gconstruct to allow dim a list for 3-D features
+                        gsp_node_feat["dim"] = [nfeat_size[node_type][feat_name]]
+
+        for gsp_edge_config in gsp_config_dict["edges"]:
+            src_type = gsp_edge_config["source"]["type"]
+            dst_type = gsp_edge_config["dest"]["type"]
+            relation = gsp_edge_config["relation"]["type"]
+            edge_type = f"{src_type}:{relation}:{dst_type}"
+            if "features" in gsp_edge_config:
+                for gsp_edge_feat in gsp_edge_config["features"]:
+                    feat_name = (
+                        gsp_edge_feat["name"]
+                        if "name" in gsp_edge_feat
+                        else gsp_edge_feat["column"]
+                    )
+                    # Align with gconstruct to allow dim a list for 3-D features
+                    gsp_edge_feat["dim"] = [efeat_size[edge_type][feat_name]]
 
     def _merge_config_with_transformations(
         self,

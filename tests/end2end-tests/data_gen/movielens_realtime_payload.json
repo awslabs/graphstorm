@@ -1,0 +1,73 @@
+{
+  "version": "gs-realtime-v0.1",
+  "gml_task": "node_classification",
+  "graph": {
+    "nodes": [
+      {
+        "node_type": "user",
+        "features": {
+            "feat": [
+                -0.0032965524587780237, -0.1
+            ]
+        },
+        "node_id": "a1"
+      },
+      {
+        "node_type": "movie",
+        "features": {
+            "feat": [
+                0.011269339360296726, 0.1
+            ],
+            "title": "sample text 1"
+        },
+        "node_id": "m1"
+      },
+      {
+        "node_type": "movie",
+        "features": {
+            "feat": [
+                0.0235343543, 0.1
+            ],
+            "title": "sample text 2"
+        },
+        "node_id": "m2"
+      }
+    ],
+    "edges": [{
+      "edge_type": [
+          "movie",
+          "rating-rev",
+          "user"
+      ],
+      "features": {
+        "rate": [0.1235435765, 0.1]
+      },
+      "src_node_id": "m1",
+      "dest_node_id": "a1"
+    },
+    {
+      "edge_type": [
+          "user",
+          "rating",
+          "movie"
+      ],
+      "features": {
+        "rate": [0.1235435765, 0.1]
+      },
+      "src_node_id": "a1",
+      "dest_node_id": "m1"
+    },
+    {
+      "edge_type": [
+          "user",
+          "rating",
+          "movie"
+      ],
+      "features": {
+        "rate": [0.23143243, 0.1]
+      },
+      "src_node_id": "a1",
+      "dest_node_id": "m2"
+    }]
+  }
+}

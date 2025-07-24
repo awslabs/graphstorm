@@ -7,7 +7,7 @@ cd ../../
 
 GS_HOME=$(pwd)
 # Add SageMaker launch scripts to make the scripts testable
-export PYTHONPATH="${PYTHONPATH}:${GS_HOME}/sagemaker/launch/"
+export PYTHONPATH="${PYTHONPATH}:${GS_HOME}/sagemaker/launch/:${GS_HOME}/sagemaker/run/"
 
 python3 -m pip install pytest tensorboard
 FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation

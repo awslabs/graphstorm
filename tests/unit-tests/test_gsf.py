@@ -12,17 +12,30 @@
 
     Unit tests for gsf.py
 """
-import pytest
 
+import os
+import json
+import yaml
+import pytest
+import tempfile
+from argparse import Namespace
+from pathlib import Path
+
+from graphstorm.config import GSConfig
 from graphstorm.gsf import (get_edge_feat_size,
                             create_builtin_node_decoder,
                             create_builtin_edge_decoder,
-                            create_builtin_lp_decoder)
+                            create_builtin_lp_decoder,
+                            create_builtin_node_gnn_model,
+                            create_builtin_edge_gnn_model,
+                            create_builtin_lp_gnn_model,
+                            restore_builtin_model_from_artifacts)
 from graphstorm.utils import check_graph_name
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_TASK_LINK_PREDICTION,
                                BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_DISTMULT_DECODER,
                                BUILTIN_LP_ROTATE_DECODER,
@@ -34,7 +47,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_LP_LOSS_BPR,
                                BUILTIN_REGRESSION_LOSS_MSE,
                                BUILTIN_REGRESSION_LOSS_SHRINKAGE)
-
+from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 from graphstorm.model.node_decoder import (EntityClassifier,
                                            EntityRegression)
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
@@ -63,7 +76,9 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         FocalLossFunc,
                                         ShrinkageLossFunc)
 
-from data_utils import generate_dummy_hetero_graph
+from data_utils import generate_dummy_dist_graph, generate_dummy_hetero_graph
+from config_utils import create_dummy_config_obj
+
 
 class GSTestConfig:
     def __init__(self, dictionary):
@@ -853,3 +868,167 @@ def test_get_edge_feat_size():
     except:
         edge_feat_size = {}
     assert edge_feat_size == {}
+
+def test_restore_builtin_model_from_artifacts():
+    """ Test restore a builtin mode from artifacts
+    
+    The test needs three inputs: 1/ model dir path, 2/ josn file name, 3/ yaml file name.
+    """
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # create a dummy gdsg dist graph
+        g, _, graph_config = generate_dummy_dist_graph(tmpdirname,
+                                                       graph_name='test',
+                                                       return_graph_config=True)
+
+        # create dummy YAML config 
+        yaml_object = create_dummy_config_obj()
+        yaml_object["gsf"]["basic"] = {
+            "backend": "gloo",
+            "ip_config": os.path.join(tmpdirname, "ip.txt"),
+            "part_config": os.path.join(tmpdirname, "part.json"),
+            "model_encoder_type": "rgcn",
+            "eval_frequency": 100,
+            "no_validation": True,
+        }
+        yaml_object["gsf"]["gnn"]["hidden_size"] = 128
+        yaml_object["gsf"]["input"] = {
+            "node_feat_name": ["n0:feat,feat1", "n1:feat,feat1"]
+        }
+        # create dummpy ip.txt
+        with open(os.path.join(tmpdirname, "ip.txt"), "w") as f:
+            f.write("127.0.0.1\n")
+        # create dummpy part.json
+        with open(os.path.join(tmpdirname, "part.json"), "w") as f:
+            json.dump({
+                "graph_name": "test"
+            }, f)
+
+    # Case 1: test node classification model restoration
+        # set to be a NC task
+        yaml_object["gsf"]["node_classification"] ={
+            "target_ntype": "n1",
+            "label_field": "label",
+            "multilabel": False,
+            "num_classes": 10
+        }
+        with open(os.path.join(tmpdirname, "nc_basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+
+        # use dummy dist hetero graph and yaml file to build a NC model and save
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'nc_basic.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        nc_model = create_builtin_node_gnn_model(g, config, train_task=False)
+        nc_model.save_model(tmpdirname)
+
+        # restore the model from the current temp file
+        graph_config_file = os.path.basename(graph_config)
+
+        nc_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'nc_basic.yaml')
+
+        assert nc_model.gnn_encoder.num_layers == yaml_object["gsf"]["gnn"]["num_layers"]
+        assert nc_model.gnn_encoder.h_dims == yaml_object["gsf"]["gnn"]["hidden_size"]
+        assert nc_model.gnn_encoder.out_dims == yaml_object["gsf"]["gnn"]["hidden_size"]
+        assert isinstance(nc_model.gnn_encoder, RelationalGCNEncoder)
+        assert isinstance(nc_model.decoder, EntityClassifier)
+        assert nc_model.decoder.decoder.shape[1] == yaml_object["gsf"]["node_classification"]["num_classes"]
+
+    # Case 2: test node regression model restoration   
+        # set to be a NR task
+        yaml_object["gsf"].pop('node_classification')
+        yaml_object["gsf"]["node_regression"] ={
+            "target_ntype": "n1",
+            "label_field": "label",
+            "eval_metric": "mse"
+        }
+        with open(os.path.join(tmpdirname, "nr_basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+
+        # use dummy dist hetero graph and yaml file to build a NC model and save
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'nr_basic.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        nr_model = create_builtin_node_gnn_model(g, config, train_task=False)
+        nr_model.save_model(tmpdirname)
+
+        # restore the model from the current temp file
+        nr_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'nr_basic.yaml')
+
+        # only check decoder shape as other model configurations are the same as nc model,
+        # and regression decoder 
+        assert nr_model.decoder.decoder.shape[1] == 1
+
+    # Case 3: test edge classification model restoration   
+        # set to be a EC task
+        yaml_object["gsf"].pop('node_regression')
+        yaml_object["gsf"]["edge_classification"] ={
+            "target_ntype": "n0,r1,n1",
+            "label_field": "label",
+            "multilabel": False,
+            "num_classes": 2
+        }
+        with open(os.path.join(tmpdirname, "ec_basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+
+        # use dummy dist hetero graph and yaml file to build a NC model and save
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'ec_basic.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        ec_model = create_builtin_edge_gnn_model(g, config, train_task=False)
+        ec_model.save_model(tmpdirname)
+
+        # restore the model from the current temp file
+        ec_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'ec_basic.yaml')
+
+        # only check decoder output features as other model configurations are the same as nc model,
+        assert ec_model.decoder.combine_basis.out_features == yaml_object["gsf"]["edge_classification"]["num_classes"]
+
+    # Case 4: test edge regression model restoration   
+        # set to be a ER task
+        yaml_object["gsf"].pop('edge_classification')
+        yaml_object["gsf"]["edge_regression"] ={
+            "target_ntype": "n0,r1,n1",
+            "label_field": "label",
+            "multilabel": False,
+            "eval_metric": "mse"
+        }
+        with open(os.path.join(tmpdirname, "er_basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+
+        # use dummy dist hetero graph and yaml file to build a NC model and save
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'er_basic.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        er_model = create_builtin_edge_gnn_model(g, config, train_task=False)
+        er_model.save_model(tmpdirname)
+
+        # restore the model from the current temp file
+        er_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'er_basic.yaml')
+
+        # only check decoder output features as other model configurations are the same as nc model,
+        assert er_model.decoder.regression_head.out_features == 1
+
+    # Case 5: test link prediction model restoration   
+        # set to be a LP task
+        yaml_object["gsf"].pop('edge_regression')
+        yaml_object["gsf"]["link_prediction"] = {
+            "num_negative_edges": 4,
+            "num_negative_edges_eval": 10,
+            "train_negative_sampler": "joint",
+            "train_etype": ["n0,r1,n1", "n0,r2,n1"]
+        }
+        with open(os.path.join(tmpdirname, "lp_basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+
+        # use dummy dist hetero graph and yaml file to build a NC model and save
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_basic.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        lp_model = create_builtin_lp_gnn_model(g, config, train_task=False)
+        lp_model.save_model(tmpdirname)
+
+        # restore the model from the current temp file
+        lp_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'lp_basic.yaml')
+
+        # only check decoder output features as other model configurations are the same as nc model,
+        assert lp_model.decoder._w_relation.embedding_dim == yaml_object['gsf']['gnn']['hidden_size']

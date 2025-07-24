@@ -73,9 +73,17 @@ NODE_CLASS_GRAPHINFO_UPDATES = {
             "multi": 2,
             "no-op-truncated": 1,
             "state": 3,
+            "occupation": 768,
         }
     },
-    "efeat_size": {},
+    "efeat_size": {
+        "user:rated:movie": {
+            "input_ids": 16,
+            "attention_mask": 16,
+            "token_type_ids": 16,
+            "rating": 768,
+        }
+    },
     "etype_label": [],
     "etype_label_property": [],
     "ntype_label": ["user"],
@@ -118,6 +126,32 @@ def data_configs_with_label_fixture():
     return data_configs_dict
 
 
+@pytest.fixture(scope="function", name="data_configs_homogeneous")
+def data_configs_homogeneous_fixture():
+    """Create data configuration object that contain features and labels"""
+    gsprocessing_config = {
+        "version": "gsprocessing-v1.0",
+        "graph": {
+            "edges": [
+                {
+                    "data": {
+                        "format": "csv",
+                        "files": ["./edges/user-rated-movie.csv"],
+                        "separator": ",",
+                    },
+                    "source": {"column": "~from", "type": "_N"},
+                    "dest": {"column": "~to", "type": "_N"},
+                    "relation": {"type": "_E"},
+                }
+            ]
+        },
+    }
+
+    data_configs_dict = create_config_objects(gsprocessing_config["graph"])
+
+    return data_configs_dict
+
+
 @pytest.fixture(scope="function", name="no_label_data_configs")
 def no_label_data_configs_fixture():
     """Create data configuration object without labels"""
@@ -139,6 +173,7 @@ def dghl_loader_fixture(spark, data_configs_with_label, tempdir) -> DistHeteroge
     """Create a re-usable loader that includes labels"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
     loader_config = HeterogeneousLoaderConfig(
+        is_homogeneous=False,
         add_reverse_edges=True,
         data_configs=data_configs_with_label,
         enable_assertions=True,
@@ -164,6 +199,33 @@ def dghl_loader_no_label_fixture(
     """Create a re-usable loader without labels"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
     loader_config = HeterogeneousLoaderConfig(
+        is_homogeneous=False,
+        add_reverse_edges=True,
+        data_configs=no_label_data_configs,
+        enable_assertions=True,
+        graph_name="small_heterogeneous_graph",
+        input_prefix=input_path,
+        local_input_path=input_path,
+        local_metadata_output_path=tempdir,
+        num_output_files=1,
+        output_prefix=tempdir,
+        precomputed_transformations={},
+    )
+    dhgl = DistHeterogeneousGraphLoader(
+        spark,
+        loader_config,
+    )
+    return dhgl
+
+
+@pytest.fixture(scope="function", name="dghl_loader_homogeneous")
+def dghl_loader_homogeneous_fixture(
+    spark, no_label_data_configs, tempdir
+) -> DistHeterogeneousGraphLoader:
+    """Create a re-usable loader without labels"""
+    input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
+    loader_config = HeterogeneousLoaderConfig(
+        is_homogeneous=True,
         add_reverse_edges=True,
         data_configs=no_label_data_configs,
         enable_assertions=True,
@@ -189,6 +251,7 @@ def dghl_loader_no_reverse_edges_fixture(
     """Create a re-usable loader that doesn't produce reverse edegs"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
     loader_config = HeterogeneousLoaderConfig(
+        is_homogeneous=False,
         add_reverse_edges=False,
         data_configs=data_configs_with_label,
         enable_assertions=True,
@@ -364,6 +427,95 @@ def test_load_dist_hgl_without_labels(
     expected_edge_data = {}
 
     assert metadata["edge_data"] == expected_edge_data
+
+
+def test_write_edge_structure_homogeneous_reverse_edges(
+    spark: SparkSession,
+    data_configs_homogeneous,
+    dghl_loader_homogeneous: DistHeterogeneousGraphLoader,
+    user_rated_movie_df: DataFrame,
+    tempdir,
+):
+    edge_configs = data_configs_homogeneous["edges"]
+
+    # We need these two for the side-effects of creating the mappings
+    missing_node_types = dghl_loader_homogeneous._get_missing_node_types(edge_configs, [])
+    dghl_loader_homogeneous.create_node_id_maps_from_edges(edge_configs, missing_node_types)
+
+    edge_dict: Dict[str, Dict] = {
+        "data": {
+            "format": "csv",
+            "files": ["edges/user-rated-movie.csv"],
+            "separator": ",",
+        },
+        "source": {"column": "~from", "type": "_N"},
+        "relation": {"type": "_E"},
+        "dest": {"column": "~to", "type": "_N"},
+    }
+
+    edge_config = EdgeConfig(edge_dict, edge_dict["data"])
+    _, path_list, rev_edge_path_list = dghl_loader_homogeneous.write_edge_structure(
+        user_rated_movie_df, edge_config
+    )
+
+    assert len(rev_edge_path_list) == 0
+
+    edge_file_path = [
+        os.path.join(dghl_loader_homogeneous.local_meta_output_path, x) for x in path_list
+    ]
+    edge_df = spark.read.parquet(*edge_file_path)
+
+    # Only one node type in the homogeneous graph
+    assert len(dghl_loader_homogeneous.node_mapping_paths) == 1
+    for node_type, mapping_files in dghl_loader_homogeneous.node_mapping_paths.items():
+        files_with_prefix = [
+            os.path.join(dghl_loader_homogeneous.local_meta_output_path, x) for x in mapping_files
+        ]
+        mapping_df = spark.read.parquet(*files_with_prefix)
+
+    # Mapping source id to int
+    user_rated_movie_df_int_id = user_rated_movie_df.join(
+        mapping_df, F.col("`~from`") == F.col("orig"), "inner"
+    ).select(F.col("new").alias("src_int_id"), F.col("~to"))
+    # Mapping dest id to int
+    user_rated_movie_df_int_id = user_rated_movie_df_int_id.join(
+        mapping_df, F.col("`~to`") == F.col("orig"), "inner"
+    ).select(F.col("src_int_id"), F.col("new").alias("dst_int_id"))
+    user_rated_movie_df_int_id_reverse = user_rated_movie_df_int_id.select(
+        F.col("dst_int_id").alias("src_int_id"), F.col("src_int_id").alias("dst_int_id")
+    )
+    user_rated_movie_df_int_id = user_rated_movie_df_int_id.union(
+        user_rated_movie_df_int_id_reverse
+    )
+    processing_result_row = set(edge_df.collect())
+    expected_edge_row = set(user_rated_movie_df_int_id.collect())
+    assert (
+        processing_result_row == expected_edge_row
+    ), "Homogeneous graph should add reverse edges to its original edge type"
+
+    # Check homogeneous graph label
+    homogeneous_edge_df = create_edges_df_homogeneous_reverse_edge(spark)
+    output_dicts = dghl_loader_homogeneous._create_split_files(
+        homogeneous_edge_df,
+        STR_LABEL_COL,
+        SplitRates(0.8, 0.1, 0.1),
+        os.path.join(tempdir, "sample_homogeneous_reverse_masks"),
+        None,
+        seed=42,
+    )
+
+    train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
+        spark, dghl_loader_homogeneous, output_dicts
+    )
+
+    # For homogeneous graph, reverse edges should not be assigned masks.
+    ensure_masks_are_correct(
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        int(NUM_DATAPOINTS / 2),
+        SplitRates(0.8, 0.1, 0.1).todict(),
+    )
 
 
 def test_write_edge_structure_no_reverse_edges(
@@ -562,6 +714,19 @@ def create_nodes_df_num_labels(
     )
     df = spark.createDataFrame(pandas_df)
 
+    return df
+
+
+def create_edges_df_homogeneous_reverse_edge(spark: SparkSession):
+    """Create an edges DF with a numeric and a string label for testing"""
+    edges_data = [("src_id_val", "dst_id_val", -1, "label_val_1", False)] * NUM_DATAPOINTS
+    edges_data[: (NUM_DATAPOINTS // 2)] = [("src_id_val", "dst_id_val", 1, "label_val_2", True)] * (
+        NUM_DATAPOINTS // 2
+    )
+
+    edge_columns = ["src", "dst", NUM_LABEL_COL, STR_LABEL_COL, "is_reverse_flag"]
+    df = spark.createDataFrame(edges_data, schema=edge_columns)
+    df = df.withColumn(NUM_LABEL_COL, F.col(NUM_LABEL_COL).cast("float").alias(NUM_LABEL_COL))
     return df
 
 

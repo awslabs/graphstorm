@@ -15,43 +15,41 @@
 
     Various dataloaders for the GSF
 """
-import math
+import importlib.metadata
 import inspect
 import logging
-import importlib.metadata
-from packaging import version
+import math
+from typing import Dict, List, Union, Optional
+
 import dgl
 import torch as th
-from torch.utils.data import DataLoader
 import torch.distributed as dist
+from packaging import version
+from torch.utils.data import DataLoader
 
-from ..utils import get_device, is_distributed, get_backend
-from .utils import (verify_label_field,
-                    verify_node_feat_fields,
-                    verify_edge_feat_fields)
-
-from .sampler import (LocalUniform,
-                      JointUniform,
-                      GlobalUniform,
-                      JointLocalUniform,
-                      InbatchJointUniform,
-                      FastMultiLayerNeighborSampler,
-                      DistributedFileSampler,
-                      GSHardEdgeDstNegativeSampler,
-                      GSFixedEdgeDstNegativeSampler)
-from .utils import trim_data, modify_fanout_for_target_etype
-from .dataset import GSDistillData
+from ..utils import get_backend, get_device, is_distributed
+from .dataset import GSDistillData, GSgnnData
+from .sampler import (DistributedFileSampler, FastMultiLayerNeighborSampler,
+                      GlobalUniform, GSFixedEdgeDstNegativeSampler,
+                      GSHardEdgeDstNegativeSampler, InbatchJointUniform,
+                      JointLocalUniform, JointUniform, LocalUniform)
+from .utils import (modify_fanout_for_target_etype, trim_data,
+                    verify_edge_feat_fields, verify_label_field,
+                    verify_node_feat_fields)
 
 dgl_version = importlib.metadata.version("dgl")
 if version.parse(dgl_version).base_version <= version.parse("2.3.0").base_version:
     # Backward compatible with DGL 2.3 or lower.
-    from dgl.dataloading import DistDataLoader
-    from dgl.dataloading import EdgeCollator
+    from dgl.dataloading import DistDataLoader, EdgeCollator
     from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 else:
     # Compatible with DGL 2.4+ or higher.
     from dgl.distributed import DistDataLoader
-    from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
+    from dgl.distributed.dist_dataloader import (EdgeCollator,
+                                                 _remove_kwargs_dist)
+
+GS_WARNING_REALTIME_BATCH_SIZE = 100
+
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
 class _ReconstructedNeighborSampler():
@@ -1435,6 +1433,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
         pos_eids = self._target_idx[etype][current_pos:self._fixed_test_size[etype]] \
             if end_of_etype \
             else self._target_idx[etype][current_pos:current_pos+self._batch_size]
+        # TODO: Verify that given _negative_sampler provides the gen_etype_neg_pairs function
         pos_neg_tuple = self._negative_sampler.gen_etype_neg_pairs(g, etype, pos_eids)
         self._current_pos[etype] += self._batch_size
         return pos_neg_tuple, end_of_etype
@@ -1475,8 +1474,12 @@ class GSgnnNodeDataLoaderBase():
 
         Default: None.
     """
-    def __init__(self, dataset, target_idx, fanout,
-                 label_field, node_feats=None, edge_feats=None):
+    def __init__(self, dataset: GSgnnData,
+                 target_idx: Dict[str, th.Tensor],
+                 fanout: Union[List[int], Dict[str, List[int]]],
+                 label_field: Union[str, Dict[str, str]],
+                 node_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 edge_feats: Optional[Union[str, Dict[str, List[str]]]] = None):
         self._data = dataset
         self._target_idx = target_idx
         self._fanout = fanout
@@ -1597,6 +1600,8 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     fanout: list of int, or dict of list
         Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
         edge type.
+    batch_size: int
+        Mini-batch size.
     label_field: str
         Label field of the node task.
     node_feats: str, list of str or dict of list of str
@@ -1615,11 +1620,9 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
-    batch_size: int
-        Mini-batch size.
     train_task : bool
-        Whether or not it is the dataloader for training.
-    construct_feat_ntype : list of str
+        Whether or not the dataloader will be used for training.
+    construct_feat_ntype : list of str, optional
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout used when constructing node features for feature-less nodes.
@@ -1645,10 +1648,17 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size,
-                 label_field, node_feats=None, edge_feats=None,
-                 train_task=True,
-                 construct_feat_ntype=None, construct_feat_fanout=5):
+    def __init__(self,
+                 dataset: GSgnnData,
+                 target_idx: Dict[str, th.Tensor],
+                 fanout: Union[List[int], Dict[str, List[int]]],
+                 batch_size: int,
+                 label_field: Union[str, Dict[str, str]],
+                 node_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 edge_feats: Optional[Union[str, Dict[str, List[str]]]] = None,
+                 train_task: bool = True,
+                 construct_feat_ntype: Optional[List[str]] = None,
+                 construct_feat_fanout: int = 5):
         super().__init__(dataset, target_idx, fanout,
                          label_field=label_field,
                          node_feats=node_feats,
@@ -1789,6 +1799,119 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         """
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
+
+class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
+    """ Mini-batch dataloader for real-time node inference task
+
+    .. versionadded:: 0.5
+        Add `GSgnnRealtimeInferNodeDataLoader` class to support node-level dataloader for
+        real-time inference.
+
+    This dataloader extends from the ``GSgnnNodeDataLoaderBase`` class for real-time inference.
+    It will use DGL's `MultiLayerFullNeighborSampler` sampler to extract all nodes from the given
+    subgraph during real-time inference. Graph sampling can be achieved before invoking the
+    real-time inference endpoint when building the subgraph payload.
+
+    Parameters
+    -----------
+    g: DGLGraph
+        A DGLGraph instance.
+    target_idx : dict of Tensors
+        The target node indexes for prediction.
+    num_layers: int
+        The number of layers dataloader will use as the number of GNN layers. Default is 1.
+    """
+    def __init__(self,
+                 g,
+                 target_idx,
+                 num_layers=1):
+        assert isinstance(g, dgl.DGLGraph), ('The argument \"g\" should be a DGLGraph ' \
+            f'instance, but got {g}.')
+        assert isinstance(target_idx, dict), ('The argument \"target_idx\" should be a ' \
+            f'dictionary, but got {target_idx}.')
+        for ntype in target_idx:
+            assert ntype in g.ntypes, (f'node type {ntype} does not exist in the graph.')
+
+        # GSgnnNodeDataLoaderBase requires a valid label_field, but in real-time inference
+        # dataloading, no label is available normally. So here we provide a dummy name for
+        # using the base class.
+        super().__init__(g,
+                         target_idx,
+                         fanout=[-1],
+                         label_field="label",   # use a dummy name for using the base class
+                         node_feats=None,
+                         edge_feats=None)
+
+        self.dataloader = self._prepare_dataloader(g, target_idx, num_layers)
+
+    def _prepare_dataloader(self,
+                            g: dgl.DGLGraph,
+                            target_idx: dict,
+                            num_layers: int):
+        """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader.
+        
+        Parameters
+        ----------
+        g: DGLGraph
+            A DGLGraph instance.
+        target_idx : dict of Tensors
+            The target node indexes for prediction.
+        num_layers: int
+            The number of layers dataloader will use as the number of GNN layers. Default is 1.
+        Returns
+        -------
+        dataloader: DataLoader
+            A DGL DataLoader instance of dgl.dataloading.DataLoader.
+        """
+        # to shorten real-time inference time, here set the batch size to be the largest number
+        # of target indexes, so that only use one mini batch.
+        batch_size = 0
+        for _, idx in target_idx.items():
+            if len(idx) > batch_size:
+                batch_size = len(idx)
+
+        if batch_size > GS_WARNING_REALTIME_BATCH_SIZE:
+            logging.warning(('The number of target nodes %s is larger than %s'
+                ', please advise the invokers to use smaller number of target nodes.'),
+                batch_size, GS_WARNING_REALTIME_BATCH_SIZE
+                )
+
+        # because node sampling could happen in subgraph payload building, here we always use a
+        # full neighbor sampler.
+        sampler = dgl.dataloading.MultiLayerFullNeighborSampler(num_layers)
+
+        # for an endpoint, just use one GPU if in a GPU instance
+        # TODO (Jian) investigate the efficiency of using multiple GPUs and decide next design
+        device = th.device('cuda:0') if th.cuda.is_available() else th.device('cpu')
+
+        # to avoid naming conflict with torch Dataloader, use dgl name directly.
+        # and force to NOT shuffle and NOT drop last
+        dataloader = dgl.dataloading.DataLoader(g, target_idx, sampler, device=device,
+                                                batch_size=batch_size, shuffle=False,
+                                                drop_last=False)
+        return dataloader
+
+    def __iter__(self):
+        """ Returns an iterator object of the dataloader
+        """
+        self.dataloader = iter(self.dataloader)
+        return self
+
+    def __next__(self):
+        """ Return a mini-batch data for node tasks.
+        """
+        return self.dataloader.__next__()
+
+    def __len__(self):
+        """ Return the length (number of mini-batches) of the dataloader.
+
+        For real-time inference, all targets will be processed once. So, the length will be one.
+
+        Returns
+        -------
+        int: length
+        """
+        return self.dataloader.__len__()
 
 
 ####################### Multi-task Dataloader ####################
