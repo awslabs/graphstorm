@@ -367,7 +367,7 @@ class GSGraphMetadata():
     def __str__(self) -> str:
         """Informal object representation for readability
 
-        Display a dictionary of the metedata attributes.
+        Display a dictionary of the metadata attributes.
 
         Returns
         -------
