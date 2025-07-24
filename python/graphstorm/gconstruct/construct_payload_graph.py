@@ -261,7 +261,7 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
     }
 
     Parameters
-    ------------
+    ----------
         gconstruct_node_conf_list: dict
             GConstruct node configuration.
         payload_node_conf_list: dict
