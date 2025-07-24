@@ -31,6 +31,8 @@ from botocore.errorfactory import ClientError
 from sagemaker.s3 import S3Downloader
 from sagemaker.s3 import S3Uploader
 
+from ..config import GS_RUNTIME_GCONSTRUCT_FILENAME
+
 PORT_MIN = 10000  # Avoid privileged ports
 PORT_MAX = 65535  # Maximum TCP port number
 
@@ -217,7 +219,14 @@ def download_model(model_artifact_s3, model_path, sagemaker_session):
 def download_graph(graph_data_s3, graph_name, part_id, world_size,
                    local_path, sagemaker_session,
                    raw_node_mapping_prefix_s3=None):
-    """ download graph data
+    """ Download graph data from S3.
+
+    Will download:
+
+    1. The graph partition data for the current partition.
+    2. The graph partition metadata JSON file that describes the partitioned data.
+    3. The runtime-updated graph construction transformation config if one exists.
+    4. The string-to-int node ID mappings
 
     Parameters
     ----------
@@ -291,6 +300,17 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
          f"under {graph_data_s3}")
     S3Downloader.download(os.path.join(graph_data_s3, graph_config),
             graph_path, sagemaker_session=sagemaker_session)
+
+    # Try to download data_transform_new.json from input
+    try:
+        S3Downloader.download(os.path.join(graph_data_s3, GS_RUNTIME_GCONSTRUCT_FILENAME),
+            graph_path, sagemaker_session=sagemaker_session)
+    except Exception as err: # pylint: disable=broad-except
+        logging.warning(("Could not download '%s' from %s, %s. "
+                       "You will need this file to deploy the trained model."),
+                      GS_RUNTIME_GCONSTRUCT_FILENAME, graph_data_s3, str(err))
+
+    # Try to download graph partition data
     try:
         logging.info("Download graph from %s to %s",
                      os.path.join(os.path.join(graph_data_s3, graph_part), ""),
