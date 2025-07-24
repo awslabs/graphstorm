@@ -48,7 +48,7 @@ else:
     from dgl.distributed.dist_dataloader import (EdgeCollator,
                                                  _remove_kwargs_dist)
 
-MAX_REALTIME_BATCH_SIZE = 1000
+GS_WARNING_REALTIME_BATCH_SIZE = 100
 
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
@@ -1844,8 +1844,24 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
 
         self.dataloader = self._prepare_dataloader(g, target_idx, num_layers)
 
-    def _prepare_dataloader(self, g, target_idx, num_layers):
+    def _prepare_dataloader(self,
+                            g: dgl.DGLGraph,
+                            target_idx: dict,
+                            num_layers: int):
         """ Use `MultiLayerFullNeighborSampler` to build a DGL DataLoader.
+        
+        Parameters
+        ----------
+        g: DGLGraph
+            A DGLGraph instance.
+        target_idx : dict of Tensors
+            The target node indexes for prediction.
+        num_layers: int
+            The number of layers dataloader will use as the number of GNN layers. Default is 1.
+        Returns
+        -------
+        dataloader: DataLoader
+            A DGL DataLoader instance of dgl.dataloading.DataLoader.
         """
         # to shorten real-time inference time, here set the batch size to be the largest number
         # of target indexes, so that only use one mini batch.
@@ -1854,16 +1870,14 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
             if len(idx) > batch_size:
                 batch_size = len(idx)
 
-        if batch_size > MAX_REALTIME_BATCH_SIZE:
-            logging.warning(('The maximum number of target '
-                'nodes %s is larger than %s.'
-                'This may cause longer response latency or other unexpected issues. '
-                'Please use smaller number of target nodes.'),
-                batch_size, MAX_REALTIME_BATCH_SIZE
+        if batch_size > GS_WARNING_REALTIME_BATCH_SIZE:
+            logging.warning(('The number of target nodes %s is larger than %s'
+                ', please advise the invokers to use smaller number of target nodes.'),
+                batch_size, GS_WARNING_REALTIME_BATCH_SIZE
                 )
 
-        # use a full neighbor sampler because it is unclear if callers have done sampling when
-        # building the subgraph payload.
+        # because node sampling could happen in subgraph payload building, here we always use a
+        # full neighbor sampler.
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(num_layers)
 
         # for an endpoint, just use one GPU if in a GPU instance
@@ -1897,7 +1911,6 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         -------
         int: length
         """
-        # TODO(Jian), provide meaningful length if the number of targets is relatively large.
         return self.dataloader.__len__()
 
 

@@ -1486,18 +1486,34 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     """ Restores a trained GraphStorm model from model artifacts
 
     This method provides a lightweight method to restore a built-in model by using the three model
-    artifacts. Under the input model path there needs to be a PyTorch `model.bin` file with the
-    trained model weights, a JSON file that is the GConstruct configuration specification with
-    data-derived transformations, and a YAML file that is the Graphstorm train configuration
-    updated with runtime arguments. These files are created during the graph construction and model
-    training phases.
+    artifacts. Under the input model path (model_dir) there needs to be a PyTorch `model.bin` file
+    with the trained model weights, a JSON file that is the GConstruct configuration specification
+    with data-derived transformations, and a YAML file that is the Graphstorm train configuration
+    updated with runtime arguments.
+    
+    This method uses the `GSMetaData` and `GSDglDistGraphFromMetadata` to create a lightweight
+    graph that only contains graph structure, and then use it to restore a built-in GraphStorm
+    model, and return both the model and the graph construction and model configuration objects.
 
-    This method is different from the other create model functions as it does not rely on a DGL
-    distributed graph instance as the input argument. Instead this method use the `GSMetaData`,
-    and `GSDglDistGraphFromMetadata` to create a lightweight graph that only contains graph
-    structure, and then use it to create a built-in model. A common use case of this method is
-    loading a pre-trained model for real-time node inference inside a SageMaker real-time inference
-    endpoint without recreating the distributed graph used in model training.
+    Parameters
+    -----------
+    model_dir: str
+        The path where the trained model file exists.
+    json_file: str
+        The name of the JSON file. This file is expected to be in the path of model_dir.
+    yaml_file: str
+        The name of the YAML file. This file is expected to be in the path of model_dir.
+
+    Returns
+    -------
+    model: GraphStorm model
+        The restored GraphStorm model.
+    graph_metadata_json:
+        A graph configuration JSON object loaded from the given json_file under the model_dir
+        path.
+    gs_config: GSConfig
+        A model configuration, GSConfig, object created based on the yaml_file under the
+        model_dir path.
     """
     # intialize gsf environment first
     initialize()

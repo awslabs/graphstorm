@@ -88,13 +88,13 @@ class MissingValError(BaseApplicationError):
                          input_name=input_name, **kwargs)
 
 
-class MissingColumnError(BaseApplicationError):
-    """Raised when a required column is missing."""
-    message_template = "Missing required column: {column_name} in {input_name}."
-    error_code: str = "MISSING_COLUMN_ERROR"
+class MissingKeyError(BaseApplicationError):
+    """Raised when a required key is missing."""
+    message_template = "Missing required key: {key_name} in {input_name}."
+    error_code: str = "MISSING_KEY_ERROR"
 
-    def __init__(self, column_name, input_name, **kwargs):
-        super().__init__(column_name=column_name, input_name=input_name, **kwargs)
+    def __init__(self, key_name, input_name, **kwargs):
+        super().__init__(key_name=key_name, input_name=input_name, **kwargs)
 
 
 class MisMatchedTypeError(BaseApplicationError):

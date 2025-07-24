@@ -105,27 +105,27 @@ def wrap_model_artifacts(path_to_model, path_to_yaml, path_to_json, path_to_entr
     return output_file
 
 
-def parse_s3_url(s3_url):
-    """ Parse the given S3 url and checkif it is a valid S3 url.
+def parse_s3_uri(s3_uri):
+    """ Parse the given S3 uri and checkif it is a valid S3 uri.
 
     Parameters:
     -----------
-    s3_url: str
-        The given S3 url string. Should start with "https://" or "s3://". If not, will raise
+    s3_uri: str
+        The given S3 uri string. Should start with "https://" or "s3://". If not, will raise
         an assertion error.
     
     Returns:
     --------
     bucket_name: str
-        The name of S3 bucket in the url.
+        The name of S3 bucket in the uri.
     key: str
-        The S3 object in the url.
+        The S3 object in the uri.
     """
-    parsed_url = urlparse(s3_url)
-    assert parsed_url.scheme in ['s3', 'https'], (f'Incorrect S3 url was given {s3_url}')
+    parsed_uri = urlparse(s3_uri)
+    assert parsed_uri.scheme in ['s3', 'https'], (f'Incorrect S3 uri was given {s3_uri}')
 
-    bucket_name = parsed_url.netloc
-    key = parsed_url.path.lstrip('/')
+    bucket_name = parsed_uri.netloc
+    key = parsed_uri.path.lstrip('/')
     return bucket_name, key
 
 
@@ -172,7 +172,7 @@ def check_tarfile_s3_object(s3_url):
     bool: 
         True if the S3 object exists and ends with ``.tar.gz``, False otherwise.
     """
-    bucket_name, key = parse_s3_url(s3_url)
+    bucket_name, key = parse_s3_uri(s3_url)
     s3_object = key.split('/')[-1]
     assert s3_object.endswith('.tar.gz'), (f'The S3 object, {s3_url}, is not a compressed ' + \
                                             'tar file.')

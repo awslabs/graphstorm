@@ -608,6 +608,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
         type_node_data = {}
         for i, (node_ids, data, feat_dim_dict) in return_dict.items():
             if process_conf and ("features" in process_conf):
+                # Write feature dim to the updated gconstruct config json
                 update_feat_transformation_conf(process_conf["features"], feat_dim_dict)
             for feat_name in data:
                 if feat_name not in type_node_data:

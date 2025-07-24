@@ -20,7 +20,7 @@ import json
 import torch as th
 
 from graphstorm.gconstruct.construct_payload_graph import (process_json_payload_graph,
-                                            get_conf, merge_payload_input,
+                                            get_gconstruct_conf, merge_payload_input,
                                             verify_payload_conf,
                                             PAYLOAD_PROCESSING_STATUS,
                                             PAYLOAD_PROCESSING_RETURN_MSG,
@@ -172,7 +172,7 @@ def test_with_after_merge_transformation():
 
 def test_get_gconstruct_conf():
     # Test merge feature transformation
-    node_movie_config = get_conf(gconstruct_confs["nodes"], "movie", "Node")
+    node_movie_config = get_gconstruct_conf(gconstruct_confs["nodes"], "movie", "Node")
     assert node_movie_config["features"] == [
         {'feature_col': 'title', 'transform': {
             'name': 'bert_hf', 'bert_model': 'bert-base-uncased',

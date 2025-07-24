@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 
 from launch_utils import (wrap_model_artifacts,
                           check_tarfile_s3_object,
-                          parse_s3_url,
+                          parse_s3_uri,
                           extract_ecr_region,
                           upload_data_to_s3,
                           check_name_format)
@@ -234,32 +234,32 @@ def test_wrap_model_artifacts():
             wrap_model_artifacts(model_path, yaml_path, json_path, entry_path,
                                  output_path=output_path, output_tarfile_name='model')
 
-def test_parse_s3_url():
-    """ Test the parse S3 url function.
+def test_parse_s3_uri():
+    """ Test the parse S3 uri function.
     """
-    # Test case 1:  normal case, using valid S3 url.
+    # Test case 1:  normal case, using valid S3 uri.
     #       1.1: start with 's3://' or 'S3://'
-    test_s3_url = 's3://a_bucket/a_path/test.pptx'
-    bucket_name, key = parse_s3_url(test_s3_url)
+    test_s3_uri = 's3://a_bucket/a_path/test.pptx'
+    bucket_name, key = parse_s3_uri(test_s3_uri)
     assert bucket_name == 'a_bucket'
     assert key == 'a_path/test.pptx'
 
-    test_s3_url = 'S3://a_bucket/a_path/test.pptx'
-    bucket_name, key = parse_s3_url(test_s3_url)
+    test_s3_uri = 'S3://a_bucket/a_path/test.pptx'
+    bucket_name, key = parse_s3_uri(test_s3_uri)
     assert bucket_name == 'a_bucket'
     assert key == 'a_path/test.pptx'
     
     #       1.2: start with 'https://'
-    test_s3_url = 'https://a_bucket/a_path/test.pptx'
-    bucket_name, key = parse_s3_url(test_s3_url)
+    test_s3_uri = 'https://a_bucket/a_path/test.pptx'
+    bucket_name, key = parse_s3_uri(test_s3_uri)
     
     assert bucket_name == 'a_bucket'
     assert key == 'a_path/test.pptx'
 
     # Test case 2: abnormal cases, not start either s3:// or https://
-    test_s3_url = '/a_bucket/a_path/test.pptx'
+    test_s3_uri = '/a_bucket/a_path/test.pptx'
     with pytest.raises(AssertionError, match='Incorrect S3 *'):
-        parse_s3_url(test_s3_url)
+        parse_s3_uri(test_s3_uri)
 
 def test_extract_ecr_region():
     """ Test the extract_ecr_region function.

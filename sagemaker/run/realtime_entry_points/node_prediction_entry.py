@@ -238,7 +238,7 @@ def transform_fn(model,
     res: JSON format of GSRealTimeInferenceResponseMessage
         The JSON representations of an instance of GSRealTimeInferenceResponseMessage.
     response_content_type: str
-        A string to indicate what is the format of the response.
+        A string to indicate the format of the response. Currently support 'application/json' only.
     """
     model_obj, gconstruct_config_dict, gs_train_config = model
 

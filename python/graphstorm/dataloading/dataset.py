@@ -176,7 +176,7 @@ def prepare_batch_edge_input(g, input_edges,
     return feat
 
 def prepare_blocks_edge_feats(g, input_blocks, efeat_fields, device='cpu'):
-    """ An individual function to prepare edge features for blocks.
+    """ Prepare edge features for blocks.
 
     .. versionadded:: 0.5
         Separate this function from `GSgnnData` class in v0.5 to support real-time node-level
@@ -197,7 +197,9 @@ def prepare_blocks_edge_feats(g, input_blocks, efeat_fields, device='cpu'):
     Returns
     -------
     block_edge_input_feats: list of dict of Tensors
-        The returned edge features for all blocks.
+        The returned edge features for all blocks in the format of
+        [{etype1: tensor, etype2: tensor}, ...]. If features do not exist, will return a list
+        of empty dictionaries, e.g., [{}, {}].
     """
     block_edge_input_feats = []
     for block in input_blocks:

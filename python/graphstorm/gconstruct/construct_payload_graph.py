@@ -22,7 +22,7 @@ from .utils import update_two_phase_feat_ops
 from .payload_utils import (BaseApplicationError, MissingValError,
                             InvalidFeatTypeError,
                             DGLCreateError, MisMatchedTypeError,
-                            MissingColumnError, MisMatchedFeatureError)
+                            MissingKeyError, MisMatchedFeatureError)
 
 PAYLOAD_PROCESSING_STATUS = "status_code"
 PAYLOAD_PROCESSING_ERROR_CODE = "error_code"
@@ -62,7 +62,7 @@ def prepare_data(input_data, feat_ops):
     return {PROCESS_INDEX: feat_info}
 
 
-def get_conf(gconstruct_conf_list, type_name, structure_type):
+def get_gconstruct_conf(gconstruct_conf_list, type_name, structure_type):
     """ Retrieve node/edge type gconstruct config. Will combine all feature configuration
     for one node/edge type
 
@@ -146,7 +146,12 @@ def get_conf(gconstruct_conf_list, type_name, structure_type):
 def merge_payload_input(payload_input_list):
     """Merge the payload input within the same node/edge type
 
-    There may be multiple node/edge definitions within one node/edge type. For example:
+    According to GraphStorm endpoint payload specification, nodes and edges are stored in a list,
+    in which each node or edge is individually a dictionary. For one node or edge type there could
+    be multiple nodes or edges. This function is expected to group all the nodes or edges with the
+    same node or edge type to fit in the gconstruct feature transformation input format.
+    
+    For example:
 
     [{
         "node_type":    "user",
@@ -164,9 +169,7 @@ def merge_payload_input(payload_input_list):
     },
     ]
 
-    This function is expected to group all the blocks with the same node_type/edge_type
-    to fit in the gconstruct feature transformation input.
-    The above return should be like:
+    Return value of the above example would be:
 
     [{
         "node_type":    "user",
@@ -175,13 +178,14 @@ def merge_payload_input(payload_input_list):
             "feat": [[feat_val1], [feat_val2]]
         }
     }]
+
     Parameters:
     ------------
         payload_input_list: list of dict
             input payload
     Return:
     -------
-        dict: merged payload input
+        dict: merged payload input.
     """
     merged_data_temp = {}
 
@@ -237,6 +241,7 @@ def merge_payload_input(payload_input_list):
     for item in final_merged_list:
         if "edge_type" in item:
             item["edge_type"] = item["edge_type"].split("<>")
+
     return final_merged_list
 
 
@@ -254,13 +259,15 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
             "<feat_name>": [feat_val]
         }
     }
-    Parameters:
+
+    Parameters
     ------------
         gconstruct_node_conf_list: dict
             GConstruct node configuration.
         payload_node_conf_list: dict
             Payload node configuration.
-    Returns:
+
+    Returns
     -------
         node_id_map: {str_node_id: int_node_id}
             A mapping from original node string ID to unique integer IDs.
@@ -273,7 +280,7 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
     for node_conf in merged_payload_node_conf_list:
         node_type = node_conf["node_type"]
         node_ids = np.array(node_conf["node_id"])
-        gconstruct_node_conf = get_conf(gconstruct_node_conf_list, node_type, "Node")
+        gconstruct_node_conf = get_gconstruct_conf(gconstruct_node_conf_list, node_type, "Node")
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
             parse_feat_ops(gconstruct_node_conf["features"],
                            gconstruct_node_conf["format"]["name"]) \
@@ -369,7 +376,7 @@ def process_json_payload_edges(gconstruct_edge_conf_list, payload_edge_conf_list
         edge_type = edge_conf["edge_type"]
         src_node_ids = np.array(edge_conf["src_node_id"])
         dest_node_ids = np.array(edge_conf["dest_node_id"])
-        gconstruct_edge_conf = get_conf(gconstruct_edge_conf_list, edge_type, "Edge")
+        gconstruct_edge_conf = get_gconstruct_conf(gconstruct_edge_conf_list, edge_type, "Edge")
 
         # List is not hashable
         edge_type = tuple(edge_type)
@@ -437,11 +444,11 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
         GConstruct configuration JSON object.
     """
     if "graph" not in request_json_payload:
-        raise MissingColumnError("graph", "JSON request payload")
+        raise MissingKeyError("graph", "JSON request payload")
     if "nodes" not in request_json_payload["graph"]:
-        raise MissingColumnError("nodes", "JSON request payload graph field")
+        raise MissingKeyError("nodes", "JSON request payload graph field")
     if "edges" not in request_json_payload["graph"]:
-        raise MissingColumnError("edges", "JSON request payload graph field")
+        raise MissingKeyError("edges", "JSON request payload graph field")
 
     unique_node_types_set = {node['node_type'] for node in gconstruct_confs["nodes"]}
     unique_edge_types_set = {tuple(edge['relation']) for edge in gconstruct_confs["edges"]}
@@ -449,12 +456,12 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     node_feature_keys_by_type = {}
     for node_conf in request_json_payload["graph"]["nodes"]:
         if "node_type" not in node_conf:
-            raise MissingColumnError("node_type", "JSON request payload graph nodes field")
+            raise MissingKeyError("node_type", "JSON request payload graph nodes field")
         node_type = node_conf["node_type"]
         if node_type not in unique_node_types_set:
             raise MisMatchedTypeError(structure_type="node type", type_name=node_type)
         if "node_id" not in node_conf:
-            raise MissingColumnError("node_id", "JSON request payload graph nodes field")
+            raise MissingKeyError("node_id", "JSON request payload graph nodes field")
         if "features" in node_conf:
             if not isinstance(node_conf["features"], dict):
                 raise InvalidFeatTypeError()
@@ -472,20 +479,20 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     for node_config in request_json_payload["graph"]["nodes"]:
         node_type = node_config.get("node_type")
         if node_type in node_feature_keys_by_type and "features" not in node_config:
-            raise MissingColumnError("features",
+            raise MissingKeyError("features",
                         f"certain JSON request payload graph nodes field for node type {node_type}")
 
     edge_feature_keys_by_type = {}
     for edge_conf in request_json_payload["graph"]["edges"]:
         if "edge_type" not in edge_conf:
-            raise MissingColumnError("edge_type", "JSON request payload graph edges field")
+            raise MissingKeyError("edge_type", "JSON request payload graph edges field")
         edge_type = edge_conf["edge_type"]
         if tuple(edge_type) not in unique_edge_types_set:
             raise MisMatchedTypeError(structure_type="edge type", type_name=tuple(edge_type))
         if "src_node_id" not in edge_conf:
-            raise MissingColumnError("src_node_id", "JSON request payload graph edges field")
+            raise MissingKeyError("src_node_id", "JSON request payload graph edges field")
         if "dest_node_id" not in edge_conf:
-            raise MissingColumnError("dest_node_id", "JSON request payload graph edges field")
+            raise MissingKeyError("dest_node_id", "JSON request payload graph edges field")
         src_node_id, dest_node_id = edge_conf["src_node_id"], edge_conf["dest_node_id"]
         if "features" in edge_conf:
             if not isinstance(edge_conf["features"], dict):
@@ -505,8 +512,8 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
     for edge_config in request_json_payload["graph"]["edges"]:
         edge_type = tuple(edge_config.get("edge_type"))
         if edge_type in edge_feature_keys_by_type and "features" not in edge_config:
-            raise MissingColumnError("features",
-                    f"certain JSON request payload graph edges field "
+            raise MissingKeyError("features",
+                    "certain JSON request payload graph edges field "
                     f"for edge type {tuple(edge_type)}")
 
 

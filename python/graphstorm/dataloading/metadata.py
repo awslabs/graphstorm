@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 import torch as th
 from dgl.distributed.constants import DEFAULT_ETYPE, DEFAULT_NTYPE
 
-METADATA_VERSION = 'metadata_v0.1'
+METADATA_VERSION = 'gsgraph_metadata_v0.1'
 HOMO_GRAPH_TYPE = 'homogeneous'
 HETE_GRAPH_TYPE = 'heterogeneous'
 SUPPORT_GPAPH_TYPES = [HOMO_GRAPH_TYPE, HETE_GRAPH_TYPE]
@@ -161,7 +161,7 @@ class GSGraphMetadata():
     def is_homogeneous(self):
         """ Check if the graph metadata is for a homogeneous graph.
 
-        Return
+        Returns
         -------
         bool: if the graph metadata is for a homogeneous graph.
         """
@@ -170,7 +170,7 @@ class GSGraphMetadata():
     def get_ntypes(self):
         """ Get node types.
 
-        Return
+        Returns
         -------
         list: graph node types in a list of strings.
         """
@@ -179,12 +179,12 @@ class GSGraphMetadata():
     def has_ntype(self, ntype):
         """ Check if a node type exists in the graph metadata.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         ntype: str
             The node type name.
 
-        Return
+        Returns
         -------
         bool: True if the graph metadata contains the given node type, false otherwise.
         """
@@ -193,7 +193,7 @@ class GSGraphMetadata():
     def get_etypes(self):
         """ Get edge types.
 
-        Return
+        Returns
         -------
         list
             graph node types in a list of 3-element tuples.
@@ -203,12 +203,12 @@ class GSGraphMetadata():
     def has_etype(self, etype):
         """ Check if an edge type exists in the graph metadata.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         etype: (str, str, str)
             The edge type name in a three element tuple.
 
-        Return
+        Returns
         -------
         bool: True if the graph metadata contains the given edge type, false otherwise.
         """
@@ -217,12 +217,12 @@ class GSGraphMetadata():
     def get_nfeat_all_dims(self, ntype):
         """ Get all feature dimensions of the given node type.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         ntype: str
             The node type name.
 
-        Return
+        Returns
         -------
         dict or None: the feature dimensions of the given ntype in the format of a dictionary, or
                       None if either the graph metadata has no node feature or the given ntype has
@@ -237,12 +237,12 @@ class GSGraphMetadata():
 
     def get_efeat_all_dims(self, etype):
         """
-        Parameter
-        ---------
+        Parameters
+        ----------
         etype: (str, str, str)
             The edge type name in a three element tuple.
 
-        Return
+        Returns
         ------
         list or None: the feature dimensions of the given etype in the format of a dictionary, or
                       None if either the graph metadata has no edge feature or the given etype has
@@ -299,7 +299,7 @@ class GSGraphMetadata():
             ]
         }
 
-        Return
+        Returns
         -------
         metadata_dict: dict
             The hierarchy structure of the graph metadata like the example above.
@@ -355,6 +355,11 @@ class GSGraphMetadata():
 
     def __repr__(self) -> str:
         """Formal object representation for debugging
+
+        Returns
+        -------
+        str:
+            A reader-friendly repsentation string of contents of an GSGraphMetadata instance.
         """
         attrs = ', '.join(f"{k}={v!r}" for k, v in self.__dict__.items())
         return f"{self.__class__.__name__}({attrs})"
@@ -363,6 +368,11 @@ class GSGraphMetadata():
         """Informal object representation for readability
 
         Display a dictionary of the metedata attributes.
+
+        Returns
+        -------
+        str:
+            A string with dictionary foramt, representing contents of an GSGraphMetadata instance.
         """
         metadata_dict = self.to_dict()
         return str(metadata_dict)
@@ -398,6 +408,11 @@ class GSGraphFromMetadata(ABC):
 
     def gtype(self):
         """ Get the metadata graph type.
+
+        Returns
+        -------
+        str:
+            The graph type. One of 'homogeneous' or 'heterogeneous'.
         """
         return self._graph_metadata._gtype
 
@@ -521,7 +536,7 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
         graph cannot provide the NodeView class, but can provide its node type data retrieval
         interface, i.e., g.nodes[ntype].data and g.nodes[ntype].data[nfeat_name].
 
-        Return
+        Returns
         ------
         dict : the dictionary of nodes and their DataView classes.
         """
@@ -542,8 +557,8 @@ class GSDglGraphFromMetadata(GSGraphFromMetadata):
         graph cannot provide the EdgeView class, but can provide its edge type data retrieval
         interface, i.e., g.edges[etype].data and g.edges[etype].data[efeat_name].
 
-        Return
-        ------
+        Returns
+        -------
         dict : the dictionary of edges and their DataView classes.
         """
         logging.warning(('This %s is a metadata graph that simulates a DGL graph without '
@@ -966,7 +981,7 @@ def load_metadata_from_json(config_json):
 
     Parameters
     ----------
-    config_json: json
+    config_json: dict
         A Python dict containing graph configuration information. The JSON object may come from
         either GraphStorm gconstruct or GSProcessing commands as a configuration JSON file.
 
