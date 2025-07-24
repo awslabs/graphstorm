@@ -85,8 +85,10 @@ def run_job(input_args, image, unknowargs):
     estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
 
     est = PyTorch(
+        # Disable SM profiler
         debugger_hook_config=False,
         disable_profiler=True,
+        # Disable output compression to maintain b/w compat with GS < 0.5
         disable_output_compression=True,
         entry_point=os.path.basename(entry_point),
         hyperparameters=params,

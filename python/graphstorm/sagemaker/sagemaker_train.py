@@ -326,17 +326,18 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
         return
 
     # If best_epoch is provided, try to use it directly
+    epoch_to_save = None
     if best_epoch is not None:
-        best_epoch_dir = best_epoch
-        best_epoch_path = os.path.join(save_model_path, best_epoch_dir)
-        if not os.path.exists(best_epoch_path):
+        epoch_to_save = best_epoch
+        epoch_to_save_path = os.path.join(save_model_path, epoch_to_save)
+        if not os.path.exists(epoch_to_save_path):
             logging.warning(
                 "Best epoch directory %s does not exist, falling back to latest epoch",
-                best_epoch_path)
+                epoch_to_save_path)
             best_epoch = None
 
-    # If best_epoch was not provided or not found, find the latest epoch
-    if best_epoch is None:
+    # If best_epoch aws not provided or not found, find the latest epoch
+    if epoch_to_save is None:
         # Find the latest epoch directory
         latest_epoch_dir = None
         latest_epoch = None
@@ -356,15 +357,15 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
                     ):
                         latest_epoch = (epoch, iteration)
                         latest_epoch_dir = item
-
         if not latest_epoch_dir:
             logging.warning("No epoch directory found, cannot copy model")
             return
-
-        best_epoch_dir = latest_epoch_dir
+        epoch_to_save = latest_epoch_dir
+    else:
+        logging.info("Selected best epoch %s for model saving", epoch_to_save)
 
     # Source directory (best or latest epoch)
-    src_dir = os.path.join(save_model_path, best_epoch_dir)
+    src_dir = os.path.join(save_model_path, epoch_to_save)
 
     # Create the destination directory if it doesn't exist
     os.makedirs(SM_MODEL_OUTPUT, exist_ok=True)
@@ -382,8 +383,11 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
             shutil.copytree(src_path, dst_path)
             logging.info("Copied directory %s to %s", src_path, dst_path)
         else:
-            shutil.copy2(src_path, dst_path)
-            logging.info("Copied file %s to %s", src_path, dst_path)
+            try:
+                shutil.copy2(src_path, dst_path)
+                logging.info("Copied file %s to %s", item, SM_MODEL_OUTPUT)
+            except Exception as e: # pylint: disable=broad-exception-caught
+                logging.warning("Failed to copy %s: %s", item, str(e))
 
     # Also copy any YAML/JSON files from the root model save directory to /opt/ml/model
     for file in os.listdir(save_model_path):
