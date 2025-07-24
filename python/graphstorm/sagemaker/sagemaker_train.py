@@ -328,20 +328,22 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
     # If best_epoch is provided, try to use it directly
     epoch_to_save = None
     if best_epoch is not None:
-        epoch_to_save = best_epoch
-        epoch_to_save_path = os.path.join(save_model_path, epoch_to_save)
-        if not os.path.exists(epoch_to_save_path):
+        best_epoch_path = os.path.join(save_model_path, best_epoch)
+        if not os.path.exists(best_epoch_path):
             logging.warning(
                 "Best epoch directory %s does not exist, falling back to latest epoch",
-                epoch_to_save_path)
-            best_epoch = None
+                best_epoch_path)
+            epoch_to_save = None
+        else:
+            epoch_to_save = best_epoch
 
-    # If best_epoch aws not provided or not found, find the latest epoch
+    # If best_epoch was not provided or not found, find the latest epoch
     if epoch_to_save is None:
         # Find the latest epoch directory
         latest_epoch_dir = None
         latest_epoch = None
 
+        # Iterate over every epoch/saved iteration directory
         for item in os.listdir(save_model_path):
             item_path = os.path.join(save_model_path, item)
             if os.path.isdir(item_path) and item.startswith('epoch-'):
@@ -351,6 +353,7 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
                     epoch = int(match.group(1))
                     iteration = int(match.group(2)) if match.group(2) else 0
 
+                    # If current epoch is latest, use that
                     if (latest_epoch is None
                         or epoch > latest_epoch[0]
                         or (epoch == latest_epoch[0] and iteration > latest_epoch[1])
