@@ -322,6 +322,20 @@ class DistributedExecutor:
             streaming_repartitioning=False,
         )
 
+        # If pre-computed representations exist, merge them with the input dict and save to disk
+        with open(
+            os.path.join(
+                self.local_metadata_output_path,
+                f"{os.path.splitext(self.config_filename)[0]}_with_transformations.json",
+            ),
+            "w",
+            encoding="utf-8",
+        ) as f:
+            input_dict_with_transforms = self._merge_config_with_transformations(
+                self.gsp_config_dict, processed_representations.transformation_representations
+            )
+            json.dump(input_dict_with_transforms, f, indent=4)
+
         repartition_start = time.perf_counter()
         updated_metadata = {}
         if all_match:
@@ -380,20 +394,6 @@ class DistributedExecutor:
                 sorted(processed_representations.timers.items(), key=lambda x: x[1], reverse=True)
             )
             json.dump(sorted_timers, f, indent=4)
-
-        # If pre-computed representations exist, merge them with the input dict and save to disk
-        with open(
-            os.path.join(
-                self.local_metadata_output_path,
-                f"{os.path.splitext(self.config_filename)[0]}_with_transformations.json",
-            ),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            input_dict_with_transforms = self._merge_config_with_transformations(
-                self.gsp_config_dict, processed_representations.transformation_representations
-            )
-            json.dump(input_dict_with_transforms, f, indent=4)
 
         # This is used to upload the output output JSON files to S3 on non-SageMaker runs,
         # since we can't rely on SageMaker to do it
