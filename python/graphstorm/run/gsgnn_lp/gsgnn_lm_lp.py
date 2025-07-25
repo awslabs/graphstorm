@@ -84,6 +84,7 @@ def main(config_args):
             val_dataloader = test_dataloader_cls(train_data, val_idxs,
                 config.eval_batch_size,
                 config.eval_etypes_negative_dstnode,
+                fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
                 edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)
@@ -91,6 +92,7 @@ def main(config_args):
             val_dataloader = test_dataloader_cls(train_data, val_idxs,
                 config.eval_batch_size,
                 config.num_negative_edges_eval,
+                fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
                 edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)
@@ -101,6 +103,7 @@ def main(config_args):
             test_dataloader = test_dataloader_cls(train_data, test_idxs,
                 config.eval_batch_size,
                 config.eval_etypes_negative_dstnode,
+                fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
                 edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)
@@ -108,6 +111,7 @@ def main(config_args):
             test_dataloader = test_dataloader_cls(train_data, test_idxs,
                 config.eval_batch_size,
                 config.num_negative_edges_eval,
+                fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
                 edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)

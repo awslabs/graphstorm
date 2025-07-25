@@ -811,6 +811,11 @@ python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp 
 
 error_and_exit $?
 
+echo "**************dataset: Movielens, input encoder with Bert, inference: fixed-test-size, negative_sampler: joint, decoder: Dot, save model"
+python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lm_lp.py --cf ml_lm_lp.yaml  --lp-decoder-type dot_product --model-encoder-type mlp --report-eval-per-type True --fixed-test-size 10000 --num-epochs 1
+
+error_and_exit $?
+
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, enough hard neg"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_hard_neg_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_hard_dot/  --save-model-frequency 1000 --train-etypes-negative-dstnode hard_0 --num-train-hard-negatives 4 --num-negative-edges 10 --target-etype user,rating,movie
 
