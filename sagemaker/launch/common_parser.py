@@ -2,7 +2,7 @@
 Common parsers for all launcher scripts.
 """
 import argparse
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from ast import literal_eval
 
 import boto3
@@ -103,9 +103,10 @@ def get_common_parser() -> argparse.ArgumentParser:
 
     return parser
 
-def parse_estimator_kwargs(arg_string: str) -> Dict[str, Any]:
-    """
-    Parses Estimator/Processor arguments for SageMaker tasks. See
+def parse_estimator_kwargs(arg_string: str, sm_job_type: Optional[str] = None) -> Dict[str, Any]:
+    """Parses Estimator/Processor arguments for SageMaker tasks.
+
+    See
     https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html
     for the full list of arguments for train/infer/partition tasks.
     For GConstruct see
@@ -113,9 +114,24 @@ def parse_estimator_kwargs(arg_string: str) -> Dict[str, Any]:
     Argument values are evaluated as Python
     literals using ast.literal_eval.
 
-    :param arg_string: String of arguments in the form of
-        <key>=<val> separated by spaces.
-    :return: Dictionary of parsed arguments.
+    Parameters
+    ----------
+    arg_string : str
+        String of arguments in the form of '<key>=<val>' separated by spaces.
+    sm_job_type : Optional[str], optional
+        Intended SageMaker job type, can be None, 'training', or 'processing',
+        by default None
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary of parsed arguments for use in a sagemaker.training.Estimator
+        or ScriptProcessor
+
+    Raises
+    ------
+    ValueError
+        If `sm_job_type` is not one of 'training', 'processing', or None
     """
     if arg_string is None:
         return {}
@@ -123,6 +139,25 @@ def parse_estimator_kwargs(arg_string: str) -> Dict[str, Any]:
     for param in arg_string.split(" "):
         k, v =param.split("=")
         typed_args_dict[k] = literal_eval(v)
+
+    # Convert processing job args to training and vice versa
+    if sm_job_type:
+        if sm_job_type == "training":
+            if "volume_size_in_gb" in typed_args_dict:
+                typed_args_dict["volume_size"] = typed_args_dict["volume_size_in_gb"]
+                del typed_args_dict["volume_size_in_gb"]
+            if "max_runtime_in_seconds" in typed_args_dict:
+                typed_args_dict["max_run"] = typed_args_dict["max_runtime_in_seconds"]
+                del typed_args_dict["max_runtime_in_seconds"]
+        elif sm_job_type == "processing":
+            if "volume_size" in typed_args_dict:
+                typed_args_dict["volume_size_in_gb"] = typed_args_dict["volume_size"]
+                del typed_args_dict["volume_size"]
+            if "max_run" in typed_args_dict:
+                typed_args_dict["max_runtime_in_seconds"] = typed_args_dict["max_run"]
+                del typed_args_dict["max_run"]
+        else:
+            raise ValueError(f"Unknown SageMaker job type: {sm_job_type}")
 
     return typed_args_dict
 

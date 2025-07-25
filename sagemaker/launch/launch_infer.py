@@ -16,8 +16,10 @@
     Launch SageMaker inference task
 """
 import os
+from time import strftime, gmtime
 
 from sagemaker.pytorch.estimator import PyTorch
+from sagemaker.processing import ScriptProcessor
 
 
 from common_parser import (
@@ -30,7 +32,103 @@ from common_parser import (
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
 
-def run_job(input_args, image, unknownargs):
+def run_processing_job(input_args, image, unknownargs):
+    timestamp = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+    # SageMaker base job name
+    sm_task_name = input_args.task_name if input_args.task_name else timestamp
+    role = input_args.role # SageMaker ARN role
+    instance_type = input_args.instance_type # SageMaker instance type
+    instance_count = input_args.instance_count # Number of infernece instances
+    region = input_args.region # AWS region
+    entry_point = input_args.entry_point # GraphStorm inference entry_point
+    task_type = input_args.task_type # Inference task type
+    graph_name = input_args.graph_name # Inference graph name
+    graph_data_s3 = input_args.graph_data_s3 # S3 location storing partitioned graph data
+    infer_yaml_s3 = input_args.yaml_s3 # S3 location storing the yaml file
+    output_emb_s3_path = input_args.output_emb_s3 # S3 location to save node embeddings
+    output_predict_s3_path = input_args.output_prediction_s3 # S3 location to save prediction results
+    model_artifact_s3 = input_args.model_artifact_s3 # S3 location of saved model artifacts
+    output_chunk_size = input_args.output_chunk_size # Number of rows per chunked prediction result or node embedding file.
+    log_level = input_args.log_level # SageMaker runner logging level
+
+    boto_session = boto3.session.Session(region_name=region)
+    sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
+    # need to skip s3://
+    assert model_artifact_s3.startswith('s3://'), \
+        "Saved model artifact should be stored in S3"
+    sagemaker_session = sagemaker.session.Session(boto_session=boto_session,
+        sagemaker_client=sagemaker_client)
+
+    arguments = [
+        "--graph-data-s3", graph_data_s3,
+        "--graph-name", graph_name,
+        "--infer-yaml-s3", infer_yaml_s3,
+        "--log-level", log_level,
+        "--model-artifact-s3", model_artifact_s3,
+        "--num-trainers", input_args.num_trainers,
+        "--output-chunk-size", output_chunk_size,
+        "--output-emb-s3", output_emb_s3_path,
+        "--task-type", task_type,
+    ]
+
+    # In Link Prediction, no prediction outputs
+    if task_type not in ["link_prediction", "compute_emb"]:
+        arguments.extend(["--output-prediction-s3", output_predict_s3_path])
+    # If no raw mapping files are provided, remapping is skipped
+    if input_args.raw_node_mappings_s3 is not None:
+        arguments.extend(["--raw-node-mappings-s3", input_args.raw_node_mappings_s3])
+    # TODO: Handle unknown args
+    # We must handle cases like
+    # --target-etype query,clicks,asin query,search,asin
+    # --feat-name ntype0:feat0 ntype1:feat1
+    # --column-names nid,~id emb,embedding
+    # unknow_idx = 0
+    # while unknow_idx < len(unknownargs):
+    #     print(unknownargs[unknow_idx])
+    #     assert unknownargs[unknow_idx].startswith("--")
+    #     sub_params = []
+    #     for i in range(unknow_idx+1, len(unknownargs)+1):
+    #         # end of loop or stand with --
+    #         if i == len(unknownargs) or \
+    #             unknownargs[i].startswith("--"):
+    #             break
+    #         sub_params.append(unknownargs[i])
+    #     arguments[unknownargs[unknow_idx]] = ' '.join(sub_params)
+    #     unknow_idx = i
+
+    print(f"Parameters {arguments}")
+    print(f"GraphStorm Parameters {unknownargs}")
+
+    arguments = [str(arg) for arg in arguments]
+
+    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters, sm_job_type="processing")
+
+    if input_args.sm_estimator_parameters:
+        print(f"SageMaker Estimator parameters: '{estimator_kwargs}'")
+
+
+    script_processor = ScriptProcessor(
+        image_uri=image,
+        role=role,
+        instance_count=instance_count,
+        instance_type=instance_type,
+        command=["python3"],
+        base_job_name=f"gs-infer-{sm_task_name}",
+        sagemaker_session=sagemaker_session,
+        tags=[{"Key":"GraphStorm", "Value":"beta"},
+              {"Key":"GraphStorm_Task", "Value":"Inference"}],
+        **estimator_kwargs
+    )
+
+    script_processor.run(
+        code=entry_point,
+        arguments=arguments,
+        inputs=[],
+        outputs=[],
+        wait=not input_args.async_execution
+    )
+
+def run_training_job(input_args, image, unknownargs):
     """ Run job using SageMaker estimator.PyTorch
 
         We use SageMaker training task to run offline inference.
@@ -74,7 +172,9 @@ def run_job(input_args, image, unknownargs):
         "graph-data-s3": graph_data_s3,
         "graph-name": graph_name,
         "infer-yaml-s3": infer_yaml_s3,
+        "log-level": log_level,
         "model-artifact-s3": model_artifact_s3,
+        "num-trainers": input_args.num_trainers,
         "output-chunk-size": output_chunk_size,
         "output-emb-s3": output_emb_s3_path,
         "task-type": task_type,
@@ -95,7 +195,7 @@ def run_job(input_args, image, unknownargs):
     if input_args.sm_estimator_parameters:
         print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
 
-    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
+    estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters, sm_job_type="training")
 
     est = PyTorch(
         entry_point=os.path.basename(entry_point),
@@ -151,7 +251,7 @@ def get_inference_parser():
              "(Only works with node classification/regression " \
              "and edge classification/regression tasks)",
         default=None)
-    parser.add_argument("--output-chunk-size", type=int, default=100000,
+    parser.add_argument("--output-chunk-size", type=int, default=10**6,
         help="Number of rows per chunked prediction result or node embedding file.")
     inference_args.add_argument("--model-sub-path", type=str, default=None,
         help="Relative path to the trained model under <model_artifact_s3>."
@@ -159,6 +259,13 @@ def get_inference_parser():
              "<model_artifact_s3>, this argument is used to choose one.")
     inference_args.add_argument('--log-level', default='INFO',
         type=str, choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL', 'FATAL'])
+    inference_args.add_argument("--sagemaker-job-type", type=str, default="training",
+        help=("Choose the type of SageMaker job to run, "
+              "options are 'training' or 'processing'. Default: 'training'"),
+        choices=["training", "processing"]
+        )
+    inference_args.add_argument('--num-trainers', default=1,
+        type=int, help="Number of trainers to use during inference")
 
     return parser
 
@@ -173,4 +280,7 @@ if __name__ == "__main__":
         args.instance_type = INSTANCE_TYPE
 
 
-    run_job(args, infer_image, unknownargs)
+    if args.sagemaker_job_type == "training":
+        run_training_job(args, infer_image, unknownargs)
+    else:
+        run_processing_job(args, infer_image, unknownargs)

@@ -16,6 +16,7 @@
     SageMaker inference entry point
 """
 import argparse
+import json
 import os
 import subprocess
 
@@ -25,12 +26,18 @@ from graphstorm.sagemaker.sagemaker_infer import run_infer
 def parse_inference_args():
     """  Add arguments for model inference
     """
+    try:
+        with open("/opt/ml/config/resourceconfig.json", "r", encoding="utf-8") as f:
+            train_env = json.load(f)
+    except FileNotFoundError:
+        train_env = json.loads(os.environ['SM_TRAINING_ENV'])
+
     parser = argparse.ArgumentParser(description='gs sagemaker inference pipeline')
 
     parser.add_argument("--task-type", type=str,
         help=f"task type, builtin task type includes: {SUPPORTED_TASKS}")
 
-    # disrributed training
+    # distributed training
     parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", type=str,
         help="S3 location of input training graph",
@@ -59,12 +66,21 @@ def parse_inference_args():
         help="Number of rows per chunked prediction result or node embedding file.")
     parser.add_argument('--log-level', default='INFO',
         type=str, choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL', 'FATAL'])
+    parser.add_argument('--num-trainers', type=str, default='1')
 
+    # TODO: Remove dynamic args
+    if "SM_CHANNEL_TRAIN" in os.environ:
+        data_path = os.environ['SM_CHANNEL_TRAIN']
+    else:
+        data_path = "/opt/ml/input/data/training"
+    if "SM_MASTER_ADDR" in os.environ:
+        master_addr = os.environ['SM_MASTER_ADDR']
+    else:
+        master_addr = train_env["hosts"][0]
     # following arguments are required to launch a distributed GraphStorm training task
-    parser.add_argument('--data-path', type=str, default=os.environ['SM_CHANNEL_TRAIN'])
-    parser.add_argument('--num-gpus', type=str, default=os.environ['SM_NUM_GPUS'])
-    parser.add_argument('--sm-dist-env', type=str, default=os.environ['SM_TRAINING_ENV'])
-    parser.add_argument('--master-addr', type=str, default=os.environ['MASTER_ADDR'])
+    parser.add_argument('--data-path', type=str, default=data_path)
+    parser.add_argument('--sm-dist-env', type=str, default=train_env)
+    parser.add_argument('--master-addr', type=str, default=master_addr)
     parser.add_argument('--region', type=str, default=os.environ['AWS_REGION'])
 
     # Add your args if any

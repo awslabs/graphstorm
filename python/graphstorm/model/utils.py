@@ -18,6 +18,7 @@
 import os
 import math
 import json
+import pickle
 import shutil
 import logging
 
@@ -884,7 +885,8 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         for name, emb in embeddings.items():
             os.makedirs(os.path.join(emb_path, name), exist_ok=True)
             th.save(emb, os.path.join(os.path.join(emb_path, name),
-                                      f'embed-{pad_file_index(rank)}.pt'))
+                                      f'embed-{pad_file_index(rank)}.pt'),
+                                      pickle_protocol=pickle.HIGHEST_PROTOCOL,)
             emb_info["emb_name"].append(name)
             emb_info["emb_dim"][name] = emb.shape[1]
     else:
@@ -892,7 +894,8 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         # There is no ntype for the embedding
         # use NTYPE
         th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
-                                         f'embed-{pad_file_index(rank)}.pt'))
+                                         f'embed-{pad_file_index(rank)}.pt'),
+                                         pickle_protocol=pickle.HIGHEST_PROTOCOL,)
         emb_info["emb_name"] = NTYPE
         emb_info["emb_dim"][NTYPE] = embeddings.shape[1]
 
@@ -999,9 +1002,11 @@ def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_for
         assert len(nids) == len(embs), \
             f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
         th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'embed-{pad_file_index(rank)}.pt'))
+                                  f'embed-{pad_file_index(rank)}.pt'),
+                                  pickle_protocol=pickle.HIGHEST_PROTOCOL)
         th.save(nids, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'embed_nids-{pad_file_index(rank)}.pt'))
+                                  f'embed_nids-{pad_file_index(rank)}.pt'),
+                                  pickle_protocol=pickle.HIGHEST_PROTOCOL)
         emb_info["emb_name"].append(ntype)
 
         if len(embs.shape) == 1: # Embedding is a 1D tensor
