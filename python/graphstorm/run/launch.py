@@ -32,13 +32,11 @@ import subprocess
 import sys
 import time
 import tempfile
-import copy
 
 from functools import partial
 from threading import Thread
 from typing import List, Optional
 from argparse import REMAINDER
-from typing import List
 
 
 def remote_cleanup_proc(get_all_remote_pids_func, conn):

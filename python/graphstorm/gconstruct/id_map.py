@@ -17,19 +17,14 @@ import logging
 import os
 import time
 
-from numba import njit
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
 from graphstorm.data.constants import (
-    GSP_MAPPING_INPUT_ID,
-    GSP_MAPPING_OUTPUT_ID,
     MAPPING_INPUT_ID,
     MAPPING_OUTPUT_ID,
 )
-from .file_io import read_data_parquet
 from .utils import ExtMemArrayWrapper
 
 GIB_BYTES = 1024**3
@@ -101,7 +96,10 @@ class IdReverseMap:
             f"No parquet file found in id map directory {id_map_prefix}"
 
         if "node_str_id" in col_names:
-            map_schema = pa.schema([("node_str_id", pa.large_string()), ("node_int_id", pa.int64())])
+            map_schema = pa.schema(
+                    [("node_str_id", pa.large_string()),
+                    ("node_int_id", pa.int64())]
+                )
         else:
             map_schema = pa.schema([("orig", pa.large_string()), ("new", pa.int64())])
 

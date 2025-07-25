@@ -28,12 +28,11 @@ import math
 from functools import partial
 from typing import Callable, Dict
 
-from joblib import Parallel, delayed, dump, load
+from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 import torch as th
 
-from graphstorm import get_rank
 from ..model.utils import pad_file_index
 from .id_map import IdReverseMap
 from ..utils import get_log_level
@@ -153,26 +152,6 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     data_frame = pd.DataFrame(csv_data)
     data_frame.to_csv(output_fname, index=False, sep=delimiter)
 
-def thread_remap_node_data(rank, i, node_data, dgl_ids, ntype, data_col_key,
-    output_fname_prefix, chunk_size, output_func: Callable[[Dict, str], None]):
-
-    nid_map = id_maps[ntype] # type: IdReverseMap
-    num_chunks = math.ceil(len(node_data) / chunk_size)
-
-    chunk_start = time.perf_counter()
-    start = i * chunk_size
-    end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
-
-    output_func(
-        {
-            data_col_key: node_data[start:end].tolist(),
-            GS_REMAP_NID_COL: nid_map.map_id(dgl_ids[start:end]).tolist()
-        },
-        f"{output_fname_prefix}_{pad_file_index(i)}"
-    )
-    logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
-                    rank, i, num_chunks, time.perf_counter() - chunk_start)
-
 
 def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
     output_fname_prefix, chunk_size, output_func: Callable[[Dict, str], None]):
@@ -222,7 +201,8 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
         #                 rank, i+1, num_chunks, time.perf_counter() - chunk_start)
 
     Parallel(n_jobs=int(os.cpu_count()/4), backend="threading", verbose=1)(
-        delayed(thread_remap_node_data)(i, data_chunks[i], dgl_ids_chunks[i]) for i in range(num_chunks)
+        delayed(thread_remap_node_data)(
+            i, data_chunks[i], dgl_ids_chunks[i]) for i in range(num_chunks)
     )
 
     # for i in range(num_chunks):
@@ -344,7 +324,7 @@ def _remove_inputs(with_shared_fs, files_to_remove,
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
                    num_proc, rank, world_size,
-                   with_shared_fs, output_func, id_mapping_path=None):
+                   with_shared_fs, output_func,):
     """ Remap node embeddings.
 
         The function will iterate all the node types that
@@ -1028,7 +1008,8 @@ def main(args, gs_config_args):
                  "Embeddings will remain in PyTorch format."),
                 mapping_prefix)
             sys.exit(0)
-    logging.info("Rank %d: Retrieving id_maps took %f seconds", rank, time.perf_counter() - id_map_start)
+    logging.info(
+        "Rank %d: Retrieving id_maps took %f seconds", rank, time.perf_counter() - id_map_start)
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
     logging.info("Number of processes %d", num_proc)

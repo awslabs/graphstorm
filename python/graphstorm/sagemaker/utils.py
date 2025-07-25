@@ -38,6 +38,8 @@ from graphstorm import get_rank
 
 PORT_MIN = 10000  # Avoid privileged ports
 PORT_MAX = 65535  # Maximum TCP port number
+DOWNLOAD_THREADS = min(16, os.cpu_count() or 16)
+UPLOAD_THREADS = min(16, os.cpu_count() or 16)
 
 def run(launch_cmd, state_q, env=None):
     """ Running cmd using shell
@@ -249,7 +251,6 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
     """
     # Download partitioned graph data.
     # Each training instance only download 1 partition.
-    DOWNLOAD_THREADS = os.cpu_count()
     rank = get_rank()
     graph_part = f"part{part_id}"
 
@@ -305,8 +306,8 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
             return "0B"
         size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
         i = int(math.floor(math.log(size_bytes, 1024)))
-        p = math.pow(1024, i)
-        s = round(size_bytes / p, 2)
+        denom = math.pow(1024, i)
+        s = round(size_bytes / denom, 2)
         return "%s %s" % (s, size_name[i])
 
 
@@ -315,10 +316,10 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
 
     def download_large_file(client, bucket, key, local_filepath, parallel_threads):
         start = time.time()
-        md = s3_get_meta_data(client, bucket, key)
-        chunk = get_cunks(md["ContentLength"], parallel_threads)
-        logging.debug("Making %s parallel s3 calls with a chunk size of %s each..." % (
-            parallel_threads, convert_size(chunk))
+        s3_md = s3_get_meta_data(client, bucket, key)
+        chunk = get_cunks(s3_md["ContentLength"], parallel_threads)
+        logging.debug("Making %s parallel s3 calls with a chunk size of %s each...",
+            parallel_threads, convert_size(chunk)
         )
         client.download_file(
             Bucket=bucket,
@@ -329,7 +330,7 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
             )
         )
         end = time.time() - start
-        logging.debug("Finished downloading %s in %s seconds" % (key, end))
+        logging.debug("Finished downloading %s in %s seconds", key, end)
 
 
     graph_part_s3_prefix = os.path.join(os.path.join(graph_data_s3, graph_part), "")
@@ -503,7 +504,6 @@ def upload_directory_parallel(local_prefix: str, s3_prefix: str, s3_client=None)
             region_name=os.environ.get("AWS_REGION", None)
         )
     rank = get_rank()
-    UPLOAD_THREADS=min(64, os.cpu_count()*2)
 
     local_src_s3_dst_tuples = get_upload_tuples(local_prefix, s3_prefix, include_filename=True)
 
@@ -566,8 +566,13 @@ def remove_embs(emb_path):
     """
     remove_data(emb_path)
 
-# From https://github.com/aws/sagemaker-python-sdk/blob/fb16a269daf4db6a717ef26c1a6bf7631c0c8d2d/src/sagemaker/session.py#L390-L406
-def get_upload_tuples(local_path: str, key_prefix: str, include_filename: bool = False) -> List[Tuple[str]]:
+# From
+# https://github.com/aws/sagemaker-python-sdk/blob/fb16a269daf4db6a717ef26c1a6bf7631c0c8d2d/src/sagemaker/session.py#L390-L406
+def get_upload_tuples(
+        local_path: str,
+        key_prefix: str,
+        include_filename: bool = False
+    ) -> List[Tuple[str]]:
     """Walks a directory to create a list of (local_src, s3_dst) paths for upload.
 
     Parameters
@@ -591,9 +596,10 @@ def get_upload_tuples(local_path: str, key_prefix: str, include_filename: bool =
         for dirpath, _, filenames in os.walk(local_path):
             for name in filenames:
                 file_path = os.path.join(dirpath, name)
-                s3_relative_prefix = (
-                    "" if local_path == dirpath else os.path.relpath(dirpath, start=local_path) + "/"
-                )
+                if local_path == dirpath:
+                    s3_relative_prefix = ""
+                else:
+                    s3_relative_prefix = os.path.relpath(dirpath, start=local_path) + "/"
                 if include_filename:
                     s3_key = "{}/{}{}".format(key_prefix, s3_relative_prefix, name)
                 else:
