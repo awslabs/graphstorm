@@ -12,23 +12,19 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-    Generate example graph data using built-in datasets for node classification,
-    node regression, edge classification and edge regression.
 """
-import os
 import logging
+import os
+import time
+
+import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
-import numpy as np
 
 from graphstorm.data.constants import (
-    GSP_MAPPING_INPUT_ID,
-    GSP_MAPPING_OUTPUT_ID,
     MAPPING_INPUT_ID,
     MAPPING_OUTPUT_ID,
 )
-from .file_io import read_data_parquet
 from .utils import ExtMemArrayWrapper
 
 GIB_BYTES = 1024**3
@@ -85,23 +81,43 @@ class IdReverseMap:
             Id mapping file prefix
     """
     def __init__(self, id_map_prefix):
+        load_data_start = time.perf_counter()
         assert os.path.exists(id_map_prefix), \
             f"{id_map_prefix} does not exist."
-        try:
-            data = read_data_parquet(id_map_prefix, [MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
-        except AssertionError:
-            # To maintain backwards compatibility with GraphStorm v0.2.1
-            data = read_data_parquet(id_map_prefix, [GSP_MAPPING_INPUT_ID, GSP_MAPPING_OUTPUT_ID])
-            data[MAPPING_OUTPUT_ID] = data[GSP_MAPPING_OUTPUT_ID]
-            data[MAPPING_INPUT_ID] = data[GSP_MAPPING_INPUT_ID]
-            data.pop(GSP_MAPPING_INPUT_ID)
-            data.pop(GSP_MAPPING_OUTPUT_ID)
 
-        sort_idx = np.argsort(data[MAPPING_OUTPUT_ID])
-        self._ids = data[MAPPING_INPUT_ID][sort_idx]
+        mapping_files = os.listdir(id_map_prefix)
+
+        col_names = None
+        for filename in mapping_files:
+            if filename.endswith(".parquet"):
+                col_names = pq.read_metadata(os.path.join(id_map_prefix, filename)).schema.names
+                break
+        assert col_names is not None, \
+            f"No parquet file found in id map directory {id_map_prefix}"
+
+        if "node_str_id" in col_names:
+            map_schema = pa.schema(
+                    [("node_str_id", pa.large_string()),
+                    ("node_int_id", pa.int64())]
+                )
+        else:
+            map_schema = pa.schema([("orig", pa.large_string()), ("new", pa.int64())])
+
+        mapping_table = pq.read_table(
+            id_map_prefix,
+            memory_map=True,
+            schema=map_schema)  # type: pa.Table
+        if "node_str_id" in mapping_table.column_names:
+            mapping_table = mapping_table.rename_columns(["orig", "new"])
+
+            logging.info("Time to load id data: %f", time.perf_counter() - load_data_start)
+
+        sort_ids_start = time.perf_counter()
+        self._ordered_raw_ids = mapping_table.sort_by("new")['orig'].to_numpy()
+        logging.info("Time to sort id data: %f", time.perf_counter() - sort_ids_start)
 
     def __len__(self):
-        return len(self._ids)
+        return len(self._ordered_raw_ids)
 
     def map_range(self, start, end):
         """ Map a range of GraphStorm IDs to the raw IDs.
@@ -117,24 +133,25 @@ class IdReverseMap:
         -------
         tensor: A numpy array of raw IDs.
         """
-        return self._ids[start:end]
+        return self._ordered_raw_ids[start:end]
 
-    def map_id(self, ids):
-        """ Map the GraphStorm IDs to the raw IDs.
+    def map_id(self, dgl_ids: np.ndarray) -> np.ndarray:
+        """Maps GraphStorm IDs to raw IDs.
 
         Parameters
         ----------
-        ids : numpy array
-            The input IDs
+        ids : np.ndarray
+            The input Graphstorm/DGL IDs
 
         Returns
         -------
-        tensor: A numpy array of raw IDs.
+        np.ndarray
+            A numpy array of raw IDs.
         """
-        if len(ids) == 0:
+        if len(dgl_ids) == 0:
             return np.array([], dtype=np.str)
 
-        return self._ids[ids]
+        return self._ordered_raw_ids[dgl_ids]
 
 class IdMap:
     """ Map an ID to a new ID.

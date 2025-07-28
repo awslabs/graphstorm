@@ -26,11 +26,14 @@ import time
 import sys
 import math
 from functools import partial
+from typing import Callable, Dict
 
+from joblib import Parallel, delayed
+import numpy as np
 import pandas as pd
 import torch as th
+
 from ..model.utils import pad_file_index
-from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level
 from .utils import multiprocessing_exec_no_return as multiprocessing_remap
@@ -58,6 +61,7 @@ GS_REMAP_BUILTIN_COLS = [GS_REMAP_NID_COL,
                          GS_REMAP_DST_NID_COL,
                          GS_REMAP_EMBED_COL]
 
+
 # Id_maps is a global variable.
 # When using multi-processing to do id remap,
 # we do not want to pass id_maps to each worker process
@@ -65,7 +69,7 @@ GS_REMAP_BUILTIN_COLS = [GS_REMAP_NID_COL,
 # data. By making id_maps as a global variable, we
 # can rely on Linux copy-on-write to provide a zero-copy
 # id_maps to each worker process.
-id_maps = {}
+id_maps = {} # type: Dict[str, IdReverseMap]
 
 def write_data_parquet_file(data, file_prefix, col_name_map=None):
     """ Write data into disk using parquet format.
@@ -89,7 +93,7 @@ def write_data_parquet_file(data, file_prefix, col_name_map=None):
         data = updated_data
 
     output_fname = f"{file_prefix}.parquet"
-    write_data_parquet(data, output_fname)
+    pd.DataFrame.from_dict(data).to_parquet(output_fname)
 
 def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     """ Write data into disk using csv format.
@@ -148,8 +152,9 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     data_frame = pd.DataFrame(csv_data)
     data_frame.to_csv(output_fname, index=False, sep=delimiter)
 
+
 def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
-    output_fname_prefix, chunk_size, output_func):
+    output_fname_prefix, chunk_size, output_func: Callable[[Dict, str], None]):
     """ Do one node prediction remapping task
 
         Parameters
@@ -157,7 +162,7 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
         data_file_path: str
             The path to the node data.
         nid_path: str
-            The path to the file storing node ids
+            The path to the file storing DGL/GraphStorm node ids
         ntype: str
             Node type.
         data_col_key: str
@@ -165,23 +170,56 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
         output_fname_prefix: str
             Output file name prefix.
         chunk_size: int
-            Max number of raws per output file.
-        output_func: func
-            Function used to write data to disk.
+            Max number of node ids per output file.
+        output_func: Callable[[Dict, str], None]
+            Function used to write data dictionary to disk.
+            The function must accept two arguments, its first argument a dict from
+            column name(s) to an array-like, the second argument must be
+            filepath string.
     """
+    # rank = get_rank()
     node_data = th.load(data_file_path).numpy()
-    nids = th.load(nid_path).numpy()
-    nid_map = id_maps[ntype]
+    dgl_ids = th.load(nid_path).numpy()
+    # nid_map = id_maps[ntype] # type: IdReverseMap
     num_chunks = math.ceil(len(node_data) / chunk_size)
 
-    for i in range(num_chunks):
-        start = i * chunk_size
-        end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
-        data = node_data[start:end]
-        nid = nid_map.map_id(nids[start:end])
-        data = {data_col_key: data,
-                GS_REMAP_NID_COL: nid}
-        output_func(data, f"{output_fname_prefix}_{pad_file_index(i)}")
+    data_chunks = np.array_split(node_data, num_chunks)
+    dgl_ids_chunks = np.array_split(dgl_ids, num_chunks)
+
+    def thread_remap_node_data(i, node_data_chunk, dgl_ids_chunk):
+        # chunk_start = time.perf_counter()
+        nid_map = id_maps[ntype] # type: IdReverseMap
+
+        output_func(
+            {
+                data_col_key: node_data_chunk.tolist(),
+                GS_REMAP_NID_COL: nid_map.map_id(dgl_ids_chunk).tolist()
+            },
+            f"{output_fname_prefix}_{pad_file_index(i)}"
+        )
+        # logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
+        #                 rank, i+1, num_chunks, time.perf_counter() - chunk_start)
+
+    Parallel(n_jobs=int(os.cpu_count()/4), backend="threading", verbose=1)(
+        delayed(thread_remap_node_data)(
+            i, data_chunks[i], dgl_ids_chunks[i]) for i in range(num_chunks)
+    )
+
+    # for i in range(num_chunks):
+    #     chunk_start = time.perf_counter()
+    #     start = i * chunk_size
+    #     end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
+
+    #     output_func(
+    #         {
+    #             data_col_key: node_data[start:end].tolist(),
+    #             GS_REMAP_NID_COL: nid_map.map_id(dgl_ids[start:end]).tolist()
+    #         },
+    #         f"{output_fname_prefix}_{pad_file_index(i)}"
+    #     )
+    #     logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
+    #                  rank, i, num_chunks, time.perf_counter() - chunk_start)
+
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,
@@ -286,7 +324,7 @@ def _remove_inputs(with_shared_fs, files_to_remove,
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
                    num_proc, rank, world_size,
-                   with_shared_fs, output_func):
+                   with_shared_fs, output_func,):
     """ Remap node embeddings.
 
         The function will iterate all the node types that
@@ -297,7 +335,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
 
         Example
         --------
-        # embedddings:
+        # embeddings:
         #   ntype0:
         #     embed_nids-00000.pt
         #     embed_nids-00001.pt
@@ -317,7 +355,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
 
         Example
         --------
-        # embedddings:
+        # embeddings:
         #   ntype0:
         #     embed-00000_00000.parquet
         #     embed-00000_00001.parquet
@@ -344,7 +382,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         world_size: int
             The total number of processes in the cluster.
         with_shared_fs: bool
-            Whether shared file system is avaliable.
+            Whether shared file system is available.
         output_func: func
             Function used to write data to disk.
 
@@ -353,11 +391,13 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         list of str
             The list of files to be removed.
     """
+    embedding_remap_start = time.perf_counter()
     task_list = []
     files_to_remove = []
     for ntype in emb_ntypes:
         input_emb_dir = os.path.join(node_emb_dir, ntype)
         out_embdir = os.path.join(output_dir, ntype)
+        os.makedirs(out_embdir, exist_ok=True)
         ntype_emb_files = os.listdir(input_emb_dir)
         # please note nid_files can be empty.
         nid_files = [fname for fname in ntype_emb_files \
@@ -404,7 +444,10 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
                 "output_func": output_func,
             })
 
+    logging.info("Rank %d: Length of task list: %d", rank, len(task_list))
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
+    logging.info("Rank %d: Remap node embeddings done. Time elapsed: %f",
+                 rank, time.perf_counter() - embedding_remap_start)
     return files_to_remove
 
 def remap_node_pred(pred_ntypes, pred_dir,
@@ -715,6 +758,7 @@ def main(args, gs_config_args):
     rank = args.rank
     world_size = args.world_size
     with_shared_fs = args.with_shared_fs
+    remap_program_start = time.perf_counter()
 
     if args.yaml_config_file is not None:
         # Case 1: remap_result is called right after the
@@ -949,6 +993,8 @@ def main(args, gs_config_args):
                         "Embeddings will remain in PyTorch format.")
         sys.exit(0)
 
+    logging.info("Retrieving id_maps from %s", id_mapping_path)
+    id_map_start = time.perf_counter()
     for ntype in set(ntypes):
         mapping_prefix = os.path.join(id_mapping_path, ntype)
         logging.debug("loading mapping file %s",
@@ -962,8 +1008,11 @@ def main(args, gs_config_args):
                  "Embeddings will remain in PyTorch format."),
                 mapping_prefix)
             sys.exit(0)
+    logging.info(
+        "Rank %d: Retrieving id_maps took %f seconds", rank, time.perf_counter() - id_map_start)
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
+    logging.info("Number of processes %d", num_proc)
     col_name_map = None
     if args.column_names is not None:
         col_name_map = {}
@@ -1072,6 +1121,9 @@ def main(args, gs_config_args):
         # predict_dir is not None.
         _remove_inputs(with_shared_fs, files_to_remove, rank, world_size,
                        node_emb_dir if node_emb_dir is not None else predict_dir)
+
+    logging.info("Rank %d: Remapping program finished in %.4f seconds",
+                 rank, time.perf_counter() - remap_program_start)
 
 def add_distributed_remap_args(parser):
     """ Distributed remapping only

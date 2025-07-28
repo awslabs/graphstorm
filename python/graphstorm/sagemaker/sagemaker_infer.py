@@ -18,18 +18,20 @@
     We have to put all code in one file.
 """
 # Install additional requirements
-import os
-import logging
-import socket
-import time
 import json
-import subprocess
-from threading import Thread, Event
-import sys
+import logging
+import os
 import queue
+import socket
+import subprocess
+import sys
+import time
+from threading import Thread, Event
 
 import boto3
+import botocore
 import sagemaker
+
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -44,16 +46,15 @@ from .utils import (download_yaml_config,
                     barrier,
                     terminate_workers,
                     wait_for_exit,
-                    upload_data_to_s3,
                     update_gs_params,
                     download_model,
-                    upload_embs,
-                    remove_embs)
+                    remove_embs,
+                    upload_directory_parallel)
 
-def launch_infer_task(task_type, num_gpus, graph_config,
+def launch_infer_task(task_type, num_trainers, graph_config,
     load_model_path, save_emb_path, ip_list,
     yaml_path, extra_args, state_q, custom_script,
-    output_chunk_size=100000):
+    output_chunk_size=10**6):
     """ Launch SageMaker training task
 
     Parameters
@@ -62,8 +63,8 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         Task type. It can be node classification/regression,
         edge classification/regression, link prediction, etc.
         Refer to graphstorm.config.config.SUPPORTED_TASKS for more details.
-    num_gpus: int
-        Number of gpus per instance
+    num_trainers: int
+        Number of trainers to use per instance
     graph_config: str
         Where does the graph partition config reside.
     load_model_path: str
@@ -82,7 +83,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         Custom inference script provided by a customer to run customer inference logic.
     output_chunk_size: int
         Number of rows per chunked prediction result or node embedding file.
-        Default: 100000
+        Default: 10^6
 
     Return
     ------
@@ -108,7 +109,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         raise RuntimeError(f"Unsupported task type {task_type}")
 
     launch_cmd = ["python3", "-u",  "-m", cmd,
-        "--num-trainers", f"{num_gpus if int(num_gpus) > 0 else 1}",
+        "--num-trainers", f"{num_trainers if int(num_trainers) > 0 else 1}",
         "--num-servers", "1",
         "--num-samplers", "0",
         "--part-config", f"{graph_config}",
@@ -164,27 +165,18 @@ def run_infer(args, unknownargs):
             customer training logic. Can be None.
         data_path: str
             Local working path.
-        num_gpus: int
-            Number of gpus.
+        num_trainers: int
+            Number of trainer processes to use during inference.
         sm_dist_env: json str
             SageMaker distributed env.
         region: str
             AWS Region.
     """
-    num_gpus = args.num_gpus
-    data_path = args.data_path
-    model_path = '/tmp/gsgnn_model'
-    output_path = '/tmp/infer_output'
-    os.makedirs(model_path, exist_ok=True)
-    os.makedirs(output_path, exist_ok=True)
-
-    # start the ssh server
-    subprocess.run(["service", "ssh", "start"], check=True)
-
-    logging.info("Known args %s", args)
-    logging.info("Unknown args %s", unknownargs)
-
-    train_env = json.loads(args.sm_dist_env)
+    try:
+        with open("/opt/ml/config/resourceconfig.json", "r", encoding="utf-8") as f:
+            train_env = json.load(f)
+    except FileNotFoundError:
+        train_env = json.loads(os.environ['SM_TRAINING_ENV'])
     hosts = train_env['hosts']
     current_host = train_env['current_host']
     world_size = len(hosts)
@@ -196,6 +188,19 @@ def run_infer(args, unknownargs):
         level=getattr(logging, args.log_level.upper(), None),
         format=f'{current_host}: %(asctime)s - %(levelname)s - %(message)s',
         force=True)
+
+    num_trainers = args.num_trainers
+    data_path = args.data_path
+    model_path = '/tmp/gsgnn_model'
+    output_path = '/tmp/infer_output'
+    os.makedirs(model_path, exist_ok=True)
+    os.makedirs(output_path, exist_ok=True)
+
+    # start the ssh server
+    subprocess.run(["service", "ssh", "start"], check=True)
+
+    logging.info("Known args %s", args)
+    logging.info("Unknown args %s", unknownargs)
 
     try:
         for host in hosts:
@@ -228,6 +233,7 @@ def run_infer(args, unknownargs):
         logging.info("Connected")
 
     # write ip list info into disk
+    os.makedirs(data_path, exist_ok=True)
     ip_list_path = os.path.join(data_path, 'ip_list.txt')
     with open(ip_list_path, 'w', encoding='utf-8') as f:
         for host in hosts:
@@ -251,17 +257,26 @@ def run_infer(args, unknownargs):
         update_gs_params(gs_params, "--save-prediction-path", os.path.join(output_path, "predict"))
 
     ### Download Partitioned graph data
+    s3_client = boto3.client(
+        "s3",
+        config=botocore.config.Config(max_pool_connections=150),
+        region_name=args.region
+    )
     boto_session = boto3.session.Session(region_name=args.region)
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
+    download_start = time.perf_counter()
     yaml_path = download_yaml_config(infer_yaml_s3,
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
-        host_rank, world_size, data_path, sagemaker_session, args.raw_node_mappings_s3)
+        host_rank, world_size, data_path, sagemaker_session, args.raw_node_mappings_s3,
+        s3_client)
 
     # Download Saved model
     download_model(model_artifact_s3, model_path, sagemaker_session)
     logging.info("Successfully downloaded the model into %s.\n The model files are: %s.",
                  model_path, os.listdir(model_path))
+    logging.info("Rank %d: Time to download all data: %f",
+                 host_rank, time.perf_counter() - download_start)
 
     err_code = 0
     if host_rank == 0:
@@ -278,7 +293,7 @@ def run_infer(args, unknownargs):
             # launch distributed training here
             state_q = queue.Queue()
             train_task = launch_infer_task(task_type,
-                                           num_gpus,
+                                           num_trainers,
                                            graph_config_path,
                                            model_path,
                                            emb_path,
@@ -300,8 +315,11 @@ def run_infer(args, unknownargs):
         terminate_workers(client_list, world_size)
         logging.info("Master End")
         if err_code != -1:
-            upload_embs(output_emb_s3, emb_path, sagemaker_session)
+            upload_emb_start = time.perf_counter()
+            upload_directory_parallel(emb_path, output_emb_s3, s3_client)
             # clean embs, so SageMaker does not need to upload embs again
+            logging.info("Rank %d: Time to upload data: %f",
+                     host_rank, time.perf_counter() - upload_emb_start)
             remove_embs(emb_path)
     else:
         barrier(sock)
@@ -309,12 +327,13 @@ def run_infer(args, unknownargs):
         # Block util training finished
         # Listen to end command
         wait_for_exit(sock)
-        upload_embs(output_emb_s3, emb_path, sagemaker_session)
+        upload_emb_start = time.perf_counter()
+        upload_directory_parallel(emb_path, output_emb_s3, s3_client)
         # clean embs, so SageMaker does not need to upload embs again
+        logging.info("Rank %d: Time to upload data: %f",
+                     host_rank, time.perf_counter() - upload_emb_start)
         remove_embs(emb_path)
-        logging.info("Worker End")
 
-    sock.close()
     if err_code != 0:
         # Report an error
         logging.error("Task failed")
@@ -323,6 +342,8 @@ def run_infer(args, unknownargs):
     if args.output_prediction_s3 is not None:
         # remove tailing /
         output_prediction_s3 = args.output_prediction_s3.rstrip('/')
-        upload_data_to_s3(output_prediction_s3,
-                          os.path.join(output_path, "predict"),
-                          sagemaker_session)
+        upload_directory_parallel(
+            os.path.join(output_path, "predict"),
+            output_prediction_s3,
+            s3_client,
+        )
