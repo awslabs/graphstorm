@@ -37,9 +37,9 @@ def upload_file_to_s3(s3_data_path, local_data_path, sagemaker_session=None):
     Parameters
     ----------
     s3_data_path: str
-        S3 prefix to upload the data under
+        S3 path prefix for data upload
     local_data_path: str
-        Path to local data that we will upload, filenames will be appended
+        Path to local data that we will upload. Filenames will be appended
         to S3 prefix during upload
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run upload
@@ -62,9 +62,9 @@ def list_s3_files(s3_file_path, sagemaker_session=None) -> List[str]:
     Parameters
     ----------
     s3_file_path: str
-        S3 uri to list files (e.g. s3://bucket/prefix/path)
+        S3 URI to list files (e.g. s3://bucket/prefix/path)
     sagemaker_session: sagemaker.session.Session
-        sagemaker_session to run upload
+        sagemaker_session to run file listing
 
     Returns
     -------

@@ -35,7 +35,7 @@ def partition_arg_parser():
         required=True)
     parser.add_argument("--metadata-filename", type=str,
         default="updated_row_counts_metadata.json",
-        help="file name of input 'chunked' DGL metadata config file")
+        help="The file name of input 'chunked' DGL metadata config file")
     parser.add_argument("--partition-algorithm", type=str, default='random',
         choices=['random'],
         help="Partition algorithm to use.")

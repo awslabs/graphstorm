@@ -243,7 +243,7 @@ the graph structure, features, and labels. In more detail:
 
 * ``gsprocessing-config_with_transformations.json``: This is the input configuration
   we used, modified to include representations of any supported transformations
-  we applied. This file can be used to re-apply the transformations on new data,
+  we applied. This file can be used to re-apply the transformations on new data and restore built-in models from saved model files,
   for example during online inference.
 * ``launch_arguments.json``: Contains the arguments that were used
   to launch the processing job, allowing you to check the parameters after the
@@ -360,7 +360,7 @@ There are five files for the partition
 
 * ``metadata.json``: This file contains metadata about the distributed DGL graph.
 * ``data_transform_new.json``: This file contains the feature transformations applied during processing,
-  and can be used to re-apply the same transformations after training a model, e.g. during online inference.
+  and can be used to re-apply the same transformations on new data or restore built-in models, e.g. during online inference.
 
 The ``partition_assignment`` directory contains different partition results for different node types,
 which can reused for the `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
