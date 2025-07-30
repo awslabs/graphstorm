@@ -456,9 +456,10 @@ def run_partition(job_config: PartitionJobConfig):
                 s3_dglgraph_output
             )
         else:
-            warnings.warn("No runtime GSProcessing configuration file found under "
-                          f"{graph_data_s3_no_trailing}. This file is needed to deploy an "
-                          "endpoint after training a model on the input data.")
+            warnings.warn(
+                "No GSProcessing launch arguments file (launch_arguments.json) "
+                f"found under {graph_data_s3_no_trailing}. This file is needed for "
+                "zero-touch deployment of an endpoint after training a model on the input data.")
 
 
         # Indicate we can stop sending keepalive messages
