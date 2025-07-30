@@ -28,12 +28,15 @@ In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to
 - **Amazon EC2** (optional). Please refer to `Amazon EC2 service <https://aws.amazon.com/ec2/>`_
   for how to get access to Amazon EC2.
 
+.. _build_rt_inference_docker:
+
 Setup GraphStorm Real-time Inference Docker Image
 ..................................................
 Same as :ref:`GraphStorm model training and inference on SageMaker <distributed-sagemaker>`, you will
 need to build a GraphStorm real-time inference Docker image. In addtion, your executing role should
 have full ECR access to be able to pull from ECR to build the image, create an ECR repository if it
-doesn't exist, and push the real-time inference image to the repository. See the `official ECR docs <https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_ for details.
+doesn't exist, and push the real-time inference image to the repository. See the `official ECR docs
+<https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_ for details.
 
 In short you can run the following:
 
@@ -41,21 +44,22 @@ In short you can run the following:
 
     git clone https://github.com/awslabs/graphstorm.git
     cd graphstorm/
-    bash docker/build_graphstorm_image.sh --environment sagemaker-endpoint
-    bash docker/push_graphstorm_image.sh --environment sagemaker-endpoint --region "us-east-1" --account "123456789012"
-    # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-gpu'
+    # Build the GraphStorm real-time inference Docker image using CPU
+    bash docker/build_graphstorm_image.sh --environment sagemaker-endpoint --device cpu
+    # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-endpoint-cpu'
+    bash docker/push_graphstorm_image.sh --environment sagemaker-endpoint --device cpu --region "us-east-1" --account "123456789012"
 
 Replace the ``123456789012`` with your own AWS account ID. For more build and push options, see 
 ``bash docker/build_graphstorm_image.sh --help`` and ``bash docker/push_graphstorm_image.sh --help``.
 
 Deploy a SageMaker Real-time Inference endpoint
 ................................................
-To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that generated
-from graph construciton and model training.
+To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that generated from
+graph construciton and model training.
 
 - Saved model path that contains the ``model.bin`` file. This path has the same purpose as the
-  ``--restore-model-path`` used during offline inference CLIs. You will used the model binary to restore
-  a model deployed at endpoint.
+  ``--restore-model-path`` used during offline inference CLIs in which GraphStorm looks for the ``model.bin``
+  file to restore a model at endpoint.
 - Updated graph construciton JSON file, ``data_transform_new.json``. This JSON file is one of the outputs of
   graph construction. It contains the updated information about feature transformation and feature
   dimensions. If using the :ref:`Single Machine Graph Construction <single-machine-gconstruction>` CLIs, the
@@ -81,10 +85,33 @@ In short you can run the following:
 
 .. code-block:: bash
 
-    git clone https://github.com/awslabs/graphstorm.git
-    cd graphstorm/
-    bash docker/build_graphstorm_image.sh --environment sagemaker-endpoint
+    # assume graphstorm source code has been cloned to the current folder
+    cd graphstorm/sagemaker/launch
+    python launch_realtime_endpoint.py \
+        --image-uri <account_id>.dkr.ecr.<region>.amazonaws.com/graphstorm:sagemaker-endpoint-cpu \
+        --role arn:aws:iam::<account_id>:role/<your_role> \
+        --region <region> \
+        --restore-model-path <restore-model-path>/<epoch-XX> \
+        --model-yaml-config-file /<path-to-yaml>/GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml \
+        --graph-json-config-file /<path-to-json>/data_transform_new.json \
+        --infer-task-type node_classification \
+        --upload-tarfile-s3 s3://<a-bucket> \
+        --model-name <model-name>
 
+Arguments of the launch CLI include:
+
+- **--image-uri**: the URI of your GraphStorm real-time inference Docker image you built and pushed in the
+  previous :ref:`Setup  GraphStorm Real-time Inference Docker Image <build_rt_inference_docker>` step.
+- **--region**: the AWS region to deploy endpoint. This region should be **same** as the ECR where your Docker
+  image is stored.
+- **--role**: the role ARN that has SageMaker execution role. Please refer to the
+  `Configure <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-models-python>`_
+  section for details.
+- **--instance-type**: the instance types to be used for endpoints. (Default: ``ml.c6i.xlarge``)
+- **--instance-count**: the number of endpoints to be deployed. (Default: 1)
+- **--custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
+  ProductionVariant. For details, please refer to `ProductionVariant Documentation
+  <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
 
 While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
 
