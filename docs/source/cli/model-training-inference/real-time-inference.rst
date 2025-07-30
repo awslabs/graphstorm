@@ -18,19 +18,15 @@ Prerequisites
 In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to the following AWS services.
 
 - **SageMaker service**. Please refer to `Amazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_
-for how to get access to Amazon SageMaker.
-
+  for how to get access to Amazon SageMaker.
 - **Amazon ECR**. Please refer to `Amazon Elastic Container Registry service <https://aws.amazon.com/ecr/>`_
-for how to get access to Amazon ECR.
-
+  for how to get access to Amazon ECR.
 - **S3 service**. Please refer to `Amazon S3 service <https://aws.amazon.com/s3/>`_
-for how to get access to Amazon S3.
-
+  for how to get access to Amazon S3.
 - **SageMaker Framework Containers**. Please follow `AWS Deep Learning Containers guideline <https://github.com/aws/deep-learning-containers>`_
-to get access to the image.
-
+  to get access to the image.
 - **Amazon EC2** (optional). Please refer to `Amazon EC2 service <https://aws.amazon.com/ec2/>`_
-for how to get access to Amazon EC2.
+  for how to get access to Amazon EC2.
 
 Setup GraphStorm Real-time Inference Docker Image
 ..................................................
@@ -57,10 +53,11 @@ Deploy a SageMaker Real-time Inference endpoint
 To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that generated
 from graph construciton and model training.
 
-* Saved model path that contains the `model.bin` file. This path is same as the ``--restore-model-path`` used
-  during offline inference CLIs. 
-* `data_transform_new.json` file.
-* `GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml` file.
+* Saved model path that contains the `model.bin` file. This path has the same purpose as the
+  ``--restore-model-path`` used during offline inference CLIs. You will used the model binary to restore
+  a model deployed at endpoint.
+* Updated graph construciton JSON file, `data_transform_new.json`.
+* Updated model training configuration YAML file, `GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml`.
 
 
 
