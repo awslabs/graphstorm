@@ -100,11 +100,11 @@ In short you can run the following:
 
 Arguments of the launch CLI include:
 
-- **--image-uri**(Required): the URI of your GraphStorm real-time inference Docker image you built and pushed in the
+- **--image-uri** (Required): the URI of your GraphStorm real-time inference Docker image you built and pushed in the
   previous :ref:`Setup  GraphStorm Real-time Inference Docker Image <build_rt_inference_docker>` step.
-- **--region**(Required): the AWS region to deploy endpoint. This region should be **same** as the ECR where your Docker
+- **--region** (Required): the AWS region to deploy endpoint. This region should be **same** as the ECR where your Docker
   image is stored.
-- **--role**(Required): the role ARN that has SageMaker execution role. Please refer to the
+- **--role** (Required): the role ARN that has SageMaker execution role. Please refer to the
   `Configure <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-models-python>`_
   section for details.
 - **--instance-type**: the instance types to be used for endpoints. (Default: ``ml.c6i.xlarge``)
