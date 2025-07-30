@@ -100,11 +100,11 @@ In short you can run the following:
 
 Arguments of the launch CLI include:
 
-- **--image-uri**: the URI of your GraphStorm real-time inference Docker image you built and pushed in the
+- **--image-uri**(Required): the URI of your GraphStorm real-time inference Docker image you built and pushed in the
   previous :ref:`Setup  GraphStorm Real-time Inference Docker Image <build_rt_inference_docker>` step.
-- **--region**: the AWS region to deploy endpoint. This region should be **same** as the ECR where your Docker
+- **--region**(Required): the AWS region to deploy endpoint. This region should be **same** as the ECR where your Docker
   image is stored.
-- **--role**: the role ARN that has SageMaker execution role. Please refer to the
+- **--role**(Required): the role ARN that has SageMaker execution role. Please refer to the
   `Configure <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-models-python>`_
   section for details.
 - **--instance-type**: the instance types to be used for endpoints. (Default: ``ml.c6i.xlarge``)
@@ -112,6 +112,10 @@ Arguments of the launch CLI include:
 - **--custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
   ProductionVariant. For details, please refer to `ProductionVariant Documentation
   <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
+- **--async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
+  or ``False`` to wait for creation completed. (Default: ``True``)
+- **--restore-model-path**(Required): the path where GraphStorm model parameters were saved.
+- **--model-yaml-config-file**(Required):
 
 While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
 
