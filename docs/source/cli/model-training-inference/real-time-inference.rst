@@ -13,15 +13,59 @@ real-time inference endpoint. To invoke this endpoint, you will need to extract 
 target nodes/edges and convert the subgraph and associated features into a JSON object as payload of
 an invoke request.
 
-Inductive versus Deductive Inference
-.....................................
-One caveat about GraphStorm real-time is the inference mode. Models in transductive inference mode can
-not make predictions for newly appeared nodes and edges, whereas in inductive mode, models can handle
-new nodes and edges. A demonstration of the difference between transductive and inductive mode is shown
-in the following figure.
+Prerequisites
+..............
+In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to the following AWS services.
 
-.. figure:: ../../../tutorial/inductive-deductive.jp
-    :align: center
+- **SageMaker service**. Please refer to `Amazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_
+for how to get access to Amazon SageMaker.
+- **Amazon ECR**. Please refer to `Amazon Elastic Container Registry service <https://aws.amazon.com/ecr/>`_
+for how to get access to Amazon ECR.
+- **S3 service**. Please refer to `Amazon S3 service <https://aws.amazon.com/s3/>`_
+for how to get access to Amazon S3.
+- **SageMaker Framework Containers**. Please follow `AWS Deep Learning Containers guideline <https://github.com/aws/deep-learning-containers>`_
+to get access to the image.
+- **Amazon EC2** (optional). Please refer to `Amazon EC2 service <https://aws.amazon.com/ec2/>`_
+for how to get access to Amazon EC2.
+
+Setup GraphStorm Real-time Inference Docker Image
+..................................................
+Same as :ref:`GraphStorm model training and inference on SageMaker <distributed-sagemaker>`, you will
+need to build a GraphStorm real-time inference Docker image. In addtion, your executing role should
+have full ECR access to be able to pull from ECR to build the image, create an ECR repository if it
+doesn't exist, and push the real-time inference image to the repository. See the `official ECR docs <https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_ for details.
+
+In short you can run the following:
+
+.. code-block:: bash
+
+    git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm/
+    bash docker/build_graphstorm_image.sh --environment sagemaker-endpoint
+    bash docker/push_graphstorm_image.sh --environment sagemaker-endpoint --region "us-east-1" --account "123456789012"
+    # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-gpu'
+
+Replace the "123456789012" with your own AWS account ID. For more build and push options, see 
+``bash docker/build_graphstorm_image.sh --help`` and ``bash docker/push_graphstorm_image.sh --help``.
+
+Deploy a SageMaker Real-time Inference endpoint
+................................................
+To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that generated
+from graph construciton and model training.
+
+* `model.bin` file.
+* `data_transform_new.json` file.
+* `GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml` file.
+
+
+
+
+.. note:: 
+
+    GraphStorm v0.5 
+    * .
+
+GraphStorm's built-in models 
 
 While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
 
