@@ -45,7 +45,7 @@ In short you can run the following:
     bash docker/push_graphstorm_image.sh --environment sagemaker-endpoint --region "us-east-1" --account "123456789012"
     # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-gpu'
 
-Replace the "123456789012" with your own AWS account ID. For more build and push options, see 
+Replace the ``123456789012`` with your own AWS account ID. For more build and push options, see 
 ``bash docker/build_graphstorm_image.sh --help`` and ``bash docker/push_graphstorm_image.sh --help``.
 
 Deploy a SageMaker Real-time Inference endpoint
@@ -53,21 +53,26 @@ Deploy a SageMaker Real-time Inference endpoint
 To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that generated
 from graph construciton and model training.
 
-* Saved model path that contains the `model.bin` file. This path has the same purpose as the
+- Saved model path that contains the ``model.bin`` file. This path has the same purpose as the
   ``--restore-model-path`` used during offline inference CLIs. You will used the model binary to restore
   a model deployed at endpoint.
-* Updated graph construciton JSON file, `data_transform_new.json`.
-* Updated model training configuration YAML file, `GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml`.
-
-
-
+- Updated graph construciton JSON file, ``data_transform_new.json``. This JSON file is one of the outputs of
+  graph construction. It contains the updated information about feature transformation and feature
+  dimensions. If using the :ref:`Single Machine Graph Construction <single-machine-gconstruction>` CLIs, the
+  file is saved at the path specified by the ``--output-dir`` argument. For :ref:`Distributed Graph Construction
+  <distributed-gconstruction>` CLIs, the file is saved at the path specified by either ``--output-data-s3``
+  or ``--output-dir`` argument.
+- Updated model training configuration YAML file, ``GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml``. This
+  YAML file is one of the outputs of model training. It contains the updated configurations of a model by
+  updating the values of configuration YAML file with values given in CLIs arguments. If set
+  ``--save-model-path`` or ``--model-artifact-s3`` configuration, this updated YAML file will be saved to
+  the location specified.
 
 .. note:: 
 
-    GraphStorm v0.5 
-    * .
+    Since v0.5, GraphStorm will save both updated JSON and YAML files into the same location as trained model
+    automatically, if the ``--save-model-path`` or ``--model-artifact-s3``  configuration is set.
 
-GraphStorm's built-in models 
 
 While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
 
