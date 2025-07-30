@@ -243,12 +243,13 @@ the graph structure, features, and labels. In more detail:
 
 * ``gsprocessing-config_with_transformations.json``: This is the input configuration
   we used, modified to include representations of any supported transformations
-  we applied. This file can be used to re-apply the transformations on new data.
+  we applied. This file can be used to re-apply the transformations on new data and restore built-in models from saved model files,
+  for example during online inference.
 * ``launch_arguments.json``: Contains the arguments that were used
   to launch the processing job, allowing you to check the parameters after the
   job finishes.
 * ``metadata.json``: Created by ``gs-processing`` and used as input
-  for ``gs-repartition``, can be removed the ``gs-repartition`` step.
+  for ``gs-repartition``, can be removed after the ``gs-repartition`` step.
 * ``perf_counters.json``: A JSON file that contains runtime measurements
   for the various components of GSProcessing. Can be used to profile the
   application and discover bottlenecks.
@@ -260,7 +261,7 @@ the graph structure, features, and labels. In more detail:
   instead of creating new ones, ensuring that models trained with the original
   data can still be used in the newly transformed data. Currently only
   categorical and numerical transformations can be re-applied. Note that
-  the Rank-Gauss transformation does not support re-application, it may
+  the Rank-Gauss transformation does not support re-application, it can
   only work for transductive tasks.
 * ``updated_row_counts_metadata.json``:
   This file is meant to be used as the input configuration for the
@@ -333,6 +334,7 @@ Once the partition job is done, you can examine the outputs.
 
     dist_graph/
         metadata.json
+        data_transform_new.json
         |- part0/
             edge_feat.dgl
             graph.dgl
@@ -357,6 +359,8 @@ There are five files for the partition
     * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and the partitioned graph node IDs.
 
 * ``metadata.json``: This file contains metadata about the distributed DGL graph.
+* ``data_transform_new.json``: This file contains the feature transformations applied during processing,
+  and can be used to re-apply the same transformations on new data or restore built-in models, e.g. during online inference.
 
 The ``partition_assignment`` directory contains different partition results for different node types,
 which can reused for the `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
