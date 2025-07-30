@@ -73,6 +73,18 @@ from graph construciton and model training.
     Since v0.5, GraphStorm will save both updated JSON and YAML files into the same location as trained model
     automatically, if the ``--save-model-path`` or ``--model-artifact-s3``  configuration is set.
 
+GraphStorm provides CLIs to package these model artifacts as a tar file and upload it to an S3 bucket, and then
+invoke SageMaker endpoint APIs with the inference Docker image previousely built and the tar file to deploy
+endpoint(s).
+
+In short you can run the following:
+
+.. code-block:: bash
+
+    git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm/
+    bash docker/build_graphstorm_image.sh --environment sagemaker-endpoint
+
 
 While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
 
