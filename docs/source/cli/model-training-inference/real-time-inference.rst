@@ -144,106 +144,119 @@ GraphStorm defines a specification of the payload contents for your reference.
 
 Payload Content specification
 ******************************
+
 The payload should be a JSON object in the format explained below. In the highest level, the JSON object
-contains four fields: ``version``, ``gml_task`` ``nodes``, and ``edges``.
+contains four fields: ``version``, ``gml_task``, and ``graph``.
 
-``version`` (**required**)
+``version`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>>>
-version object ()
 
-version value is a string. This object is used to identify the version of a specification. As the specification might change in later version, providing version values can help to avoid compatibility issues. This version’s default value is gs-realtime-v0.1.
+This field is used to identify the version of a specification, helping to avoid compatibility issues. This
+current (and expected) version is ``gs-realtime-v0.1``.
 
-gml_task object (required)
+``gml_task`` (**Required**)
+>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-gml_task value is a string. This object provide an indicator of what graph machine learning task this payload is for. This version’s valid options include: 
+This field indicates what graph machine learning task this payload is for. Current built-in endpoint file
+support two options: 
 
-* node_classification,
-* node_regression,
-* edge_classification, and
-* edge_regression. 
+* ``node_classification``
+* ``node_regression``
 
-In future version, we will support:
+``graph`` (**Required**)
+>>>>>>>>>>>>>>>>>>>>>>>>>
 
-* link_prediction, and
-* embedding_generation.
+This ``graph`` field is similar to :ref:`graph construction JSON specification <_gconstruction-json>`. It
+contains three types of sub-fields, i.e., ``nodes``, ``edges``, and ``targets``.
 
-graph object (required) - Option 1 : one object for one node/edge
+A ``nodes`` filed contains a list of ``node`` fileds. A ``node`` includes the raw input data values
+of a node in the subgraph. It has the following required attributes.
 
-The graph object contains three types of objects, i.e., nodes, edges, and targets. nodes object contains a list of node objects, while edges object contains a list of edge objects. And targets object contains a list of target objects according to the gml_task value.
+* ``node_type``: string, the raw node type name in a graph. It should be same as these ``node_type`` defined in
+  gconstruct JSON files or the ``type`` values of ``nodes`` defined in  in gsprocessing JSON files.
+* ``node_id``: the raw node ID.
+* ``features``: a dictionary, whose key is a feature name, and its value is the value of the feature.
+  feaure names should be same as these ``feature_name`` defined in gconstruct JSON files, or these ``name``
+  values of ``features`` fields defined defined in gsprocessing JSON files.
 
-A node object includes the raw input data values of a node in the subgraph. It has the following required attributes.
+An ``edges`` field contains a list of ``edge`` fields. An ``edge`` includes the raw input data values of an
+edge in the subgraph. It has the following required attributes.
 
-* node_type (required): string, the raw node type name in a heterogeneous graph.
-* node_id (required): user defined node index.
-* features (required): a dictionary, whose key is a feature column name, and its value is value of the feature column.
+* ``edge_type``: list, the raw edge type name in the format of a list with three elements, which indicate
+  source node type, edge type, and destination edge type. It should be same as these ``relation`` fileds defined
+  in gconstruct JSON files or these ``type`` values of ``source``, ``relation``, and ``dest`` fileds defined in
+  gsprocessing JSON files.
+* ``src_node_id``: user defined node ID for the source node.
+* ``dest_node_id``: user defined node ID for the destination node.
+* ``features``: a dictionary, whose key is a feature name, and its key is value of the feature. 
+  feaure names should be same as these ``feature_name`` defined in gconstruct JSON files, or these ``name``
+  values of ``features`` fields defined defined in gsprocessing JSON files.
 
-An edge object includes the raw input data values of an edge in the subgraph. It has the following required attributes.
+A ``targets`` filed contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
+field. These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
+required. And they should be in the ``nodes`` or ``edges`` list.
 
-* edge_type (required): tuple, the raw edge type name tuple in a heterogeneous graph.
-* src_node_id (required): user defined node index for the source node.
-* dest_node_id (required): user defined node index for the destination node.
-* features (required): a dictionary, whose key is a feature column name, and its key is value of the feature column.
+An example JSON file is like:
 
-A targets object includes a list of target node/edge objects. But all features values will be ignored. 
+.. code:: yaml
 
-An example JSON file
-
-{
-    "version": "gs-realtime-v0.1",
-    "gml_task": "node_classification",
-    "graph": {
-        "nodes": [
-            {
-                "node_type": "author",
-                "features": {
-                    "feat": [
-                        0.011269339360296726,
-                        ......
-                    ]
+    {
+        "version": "gs-realtime-v0.1",
+        "gml_task": "node_classification",
+        "graph": {
+            "nodes": [
+                {
+                    "node_type": "author",
+                    "features": {
+                        "feat": [
+                            0.011269339360296726,
+                            ......
+                        ]
+                    },
+                    "node_id": "a4444"
                 },
-                "node_id": "a4444"
+                {
+                    "node_type": "author",
+                    "features": {
+                        "feat": [
+                            -0.0032965524587780237,
+                            .....
+                        ]
+                    },
+                    "node_id": "s39"
+                }
+            ],
+            "edges": [
+                {
+                    "edge_type": [
+                        "author",
+                        "writing",
+                        "paper"
+                    ],
+                    "features": {},
+                    "src_node_id": "p4463",
+                    "dest_node_id": "p4463"
+                },
+                ......
+            ]
+        },
+        "targets": [
+            {
+                "node_type": "paper",
+                "node_id": "p4463"
             },
-            {
-                "node_type": "author",
-                "features": {
-                    "feat": [
-                        -0.0032965524587780237,
-                        .....
-                    ]
-                },
-                "node_id": "s39"
-            }
-        ],
-        "edges": [
+            or 
             {
                 "edge_type": [
-                    "author",
-                    "writing",
-                    "paper"
-                ],
-                "features": {},
-                "src_node_id": "p4463",
-                "dest_node_id": "p4463"
-            },
-            ......
+                        "paper",
+                        "citing",
+                        "paper"
+                    ]
+                "src_node_id": "p3551",
+                "dest_node_id": "p3551"
+            }
         ]
-    },
-    "targets": [
-        {
-            "node_type": "paper",
-            "node_id": "p4463"
-        },
-        or 
-        {
-            "edge_type": [
-                    "paper",
-                    "citing",
-                    "paper"
-                ]
-            "src_node_id": "p3551",
-            "dest_node_id": "p3551"
-        }
-    ]
-}
+    }
 
-
+Response from Endpoint
+***********************
