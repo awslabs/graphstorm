@@ -167,7 +167,7 @@ support two options:
 This ``graph`` field is similar to :ref:`graph construction JSON specification <_gconstruction-json>`. It
 contains three types of sub-fields, i.e., ``nodes``, ``edges``, and ``targets``.
 
-A ``nodes`` filed contains a list of ``node`` fileds. A ``node`` includes the raw input data values
+A ``nodes`` field contains a list of ``node`` fileds. A ``node`` includes the raw input data values
 of a node in the subgraph. It has the following required attributes.
 
 * ``node_type``: string, the raw node type name in a graph. It should be same as these ``node_type`` defined in
@@ -190,7 +190,7 @@ edge in the subgraph. It has the following required attributes.
   feaure names should be same as these ``feature_name`` defined in gconstruct JSON files, or these ``name``
   values of ``features`` fields defined defined in gsprocessing JSON files.
 
-A ``targets`` filed contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
+A ``targets`` field contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
 field. These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
 required. And they should be in the ``nodes`` or ``edges`` list.
 
@@ -293,23 +293,40 @@ Here is an example of reading a payload from a JSON file, and using boto3 API to
 Response from Endpoint
 ***********************
 As illustrated in the above invoke example, GraphStorm real-time inference endpoint will return a JSON object as
-the ``Body`` filed of the SageMaker API's response. The JSON object has five fields.
+the ``Body`` field of the SageMaker API's response. The JSON object has five fields.
 
-``status_code`` (**Always included**)
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+``status_code``
+>>>>>>>>>>>>>>>>
 The JSON object will always include a ``status_code`` field, indicating the outcome status by an integer, including
 
 - ``200``: request processed successfully.
 - ``400``: the request payload contains JSON format errors.
 - ``401``: the request payload missing certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
 - ``402``: the request payload missing values on certain fileds.
-- ``403``: ``node_type`` fields of nodes in the request payload ``target`` do not exist in the ``graph`` filed.
-- ``404``: values of the ``node_id`` fileds of nodes in the request payload ``target`` do not exist in the ``graph`` filed.
+- ``403``: ``node_type`` fields of nodes in the request payload ``target`` do not exist in the ``graph`` field.
+- ``404``: values of the ``node_id`` fileds of nodes in the request payload ``target`` do not exist in the ``graph`` field.
 - ``411``: errors occurred when converting the request payload into DGL graph format for inference.
 - ``421``: the task in ``gml_task`` does not match the task that deployed model targets for.
 - ``500``: internal Server Error.
 
-``request_uid`` (**Always included**)
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+``request_uid``
+>>>>>>>>>>>>>>>>
+The JSON object will always include a ``request_uid`` field, serving as a unique ID of the request payload, which will
+be logged in endpoint side and return to invokers for error debugging.
 
+``message``
+>>>>>>>>>>>>
+The JSON object will always include a ``message`` field, providing detailed explanations of the ``status_code``.
 
+``data``
+>>>>>>>>>
+If the value of ``status_code`` is ``200``, the JSON object will include values in the ``data`` field. For other values,
+the value will be empty.
+
+The values of ``200`` status response is an JSON object containing inference results with one field, ``results``, only.
+Its values is a list, including the inference value for all nodes specified in payload's ``target`` field.
+
+Besides the ``node_type`` and ``node_id`` fields, which are identical as those in the payload ``target`` field, there is
+a ``prediction`` field in the ``results``, including the inference results for each node or edge. For classification,
+the value of ``prediction`` is a list of logits to be used for classification method, e.g., `argmax`. For regression,
+the value of ``prediction`` is a list with one element, which is the regression results.
