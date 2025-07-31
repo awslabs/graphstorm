@@ -128,7 +128,7 @@ Arguments of the launch CLI include:
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$``. (Default: ``GSF-Model4Realtime``)
 
 Outputs of the CLI include the deployed endpoint name based on the value for ``--model-name``, e.g.,
-``GSF-Model4Realtime-2025-06-04-23-47-11``, to be used in the invoke step.
+``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, to be used in the invoke step.
 
 Invoke Real-time Inference Endpoint
 .....................................
@@ -142,7 +142,7 @@ models for real-time inference
 <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
 GraphStorm defines a specification of the payload contents for your reference.
 
-Payload Content specification
+Payload content specification
 ******************************
 
 The payload should be a JSON object in the format explained below. In the highest level, the JSON object
@@ -196,7 +196,7 @@ A ``targets`` filed contains a list of target ``node`` or ``edge`` fileds depend
 field. These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
 required. And they should be in the ``nodes`` or ``edges`` list.
 
-An example JSON file is like:
+An example payload JSON object is like:
 
 .. code:: yaml
 
@@ -257,6 +257,41 @@ An example JSON file is like:
             }
         ]
     }
+
+Invoke endpoint
+****************
+
+There are multiple ways to invoke a Sagemaker real-time inference endpoint as documented in
+`SageMaker Developer Guide <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
+
+Here is an example of reading a payload from a JSON file, and use boto3 API to invoke an endpoint.
+
+.. code-block:: python
+
+    import boto3
+    import json
+
+    # Create a SageMaker client object\n",
+    sagemaker = boto3.client('sagemaker')
+    # Create a SageMaker runtime client object using your IAM role ARN\n",
+    runtime = boto3.client('sagemaker-runtime',
+                           aws_access_key_id='your access key string',
+                           aws_secret_access_key='your secret key string',
+                           region_name='asw region' # e.g., us-east-1
+    endpoint_name='your endpoint name'              # e.g., GraphStorm-Endpoint-2025-07-11-21-44-36
+    # load payload from a JSON file
+    with open('subg.json', 'r') as f:
+         payload = json.load(f)
+    content_type = 'application/json'
+
+    # invoke endpoint
+    response = runtime.invoke_endpoint(
+        EndpointName=endpoint_name,
+        Body=json.dumps(payload),
+        ContentType=content_type,
+        )
+    # Decodes and prints the response body
+    print(response['Body'].read().decode('utf-8'))
 
 Response from Endpoint
 ***********************
