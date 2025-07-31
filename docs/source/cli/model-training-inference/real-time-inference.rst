@@ -4,15 +4,15 @@ Real-time Inference on Amazon SageMaker
 ----------------------------------------
 GraphStorm CLIs for model inference on :ref:`signle machine <single-machine-training-inference>`,
 :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`
-are designed to handle enterprise-level data, which could take minutes to hours for predicting a large
-number of target nodes/edges or generating embeddings for all nodes.
+are designed to tackle large dataset, which could take minutes to hours for predicting a large
+number of target nodes/edges or generating embeddings for all nodes. In certain cases when you want to
+predict a few targets only and hope to obtain results quickly, e.g., less than one second, you will need
+a 7*24 running server to host trained model and response to inference requests in real time.
 
-In certain cases when you want to predict a few targets only and hope to obtain results in short time,
-e.g., less than one second, you will need a 7*24 running server to host trained model and response to
-inference requests in real time. GraphStorm provides a CLI to deploy a trained model as a SageMaker
-real-time inference endpoint. To invoke this endpoint, you will need to extract a subgraph around a few
-target nodes/edges and convert the subgraph and associated features into a JSON object as payload of
-invoke requests.
+Since version 0.5, GraphStorm offers a CLI to deploy a trained model as a SageMaker real-time inference
+endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges and
+convert it and associated features into a JSON object as payload of requests. Below sections provide details
+of how to deloy an endpoint, and how to invoke it for real-time infernce.
 
 Prerequisites
 ..............
