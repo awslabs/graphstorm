@@ -1,6 +1,6 @@
 .. _distributed-sagemaker:
 
-Model Training and Inference on on SageMaker
+Model Training and Inference on SageMaker
 =============================================
 
 GraphStorm can run on Amazon Sagemaker to leverage SageMaker's ML DevOps capabilities.
