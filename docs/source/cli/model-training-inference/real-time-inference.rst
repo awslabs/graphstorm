@@ -142,21 +142,20 @@ models for real-time inference
 <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
 GraphStorm defines a specification of the payload contents for your reference.
 
+.. _reat-time-payload-spec:
+
 Payload content specification
 ******************************
-
 The payload should be a JSON object in the format explained below. In the highest level, the JSON object
 contains four fields: ``version``, ``gml_task``, and ``graph``.
 
 ``version`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 This field is used to identify the version of a specification, helping to avoid compatibility issues. This
 current (and expected) version is ``gs-realtime-v0.1``.
 
 ``gml_task`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 This field indicates what graph machine learning task this payload is for. Current built-in endpoint file
 support two options: 
 
@@ -165,7 +164,6 @@ support two options:
 
 ``graph`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>
-
 This ``graph`` field is similar to :ref:`graph construction JSON specification <_gconstruction-json>`. It
 contains three types of sub-fields, i.e., ``nodes``, ``edges``, and ``targets``.
 
@@ -260,11 +258,10 @@ An example payload JSON object is like:
 
 Invoke endpoint
 ****************
-
 There are multiple ways to invoke a Sagemaker real-time inference endpoint as documented in
 `SageMaker Developer Guide <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
 
-Here is an example of reading a payload from a JSON file, and use boto3 API to invoke an endpoint.
+Here is an example of reading a payload from a JSON file, and using boto3 API to invoke an endpoint.
 
 .. code-block:: python
 
@@ -295,3 +292,24 @@ Here is an example of reading a payload from a JSON file, and use boto3 API to i
 
 Response from Endpoint
 ***********************
+As illustrated in the above invoke example, GraphStorm real-time inference endpoint will return a JSON object as
+the ``Body`` filed of the SageMaker API's response. The JSON object has five fields.
+
+``status_code`` (**Always included**)
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+The JSON object will always include a ``status_code`` field, indicating the outcome status by an integer, including
+
+- ``200``: request processed successfully.
+- ``400``: the request payload contains JSON format errors.
+- ``401``: the request payload missing certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
+- ``402``: the request payload missing values on certain fileds.
+- ``403``: ``node_type`` fields of nodes in the request payload ``target`` do not exist in the ``graph`` filed.
+- ``404``: values of the ``node_id`` fileds of nodes in the request payload ``target`` do not exist in the ``graph`` filed.
+- ``411``: errors occurred when converting the request payload into DGL graph format for inference.
+- ``421``: the task in ``gml_task`` does not match the task that deployed model targets for.
+- ``500``: internal Server Error.
+
+``request_uid`` (**Always included**)
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
