@@ -316,7 +316,11 @@ be logged in endpoint side and return to invokers for error debugging.
 
 ``message``
 >>>>>>>>>>>>
-The JSON object will always include a ``message`` field, providing detailed explanations of the ``status_code``.
+The JSON object will always include a ``message`` field, providing additional information of the 200 ``status_code``.
+
+``error``
+>>>>>>>>>>>>
+The JSON object will always include an ``error`` field, providing detailed explanations of the non-200 ``status_code``.
 
 ``data``
 >>>>>>>>>
@@ -330,3 +334,71 @@ Besides the ``node_type`` and ``node_id`` fields, which are identical as those i
 a ``prediction`` field in the ``results``, including the inference results for each node or edge. For classification,
 the value of ``prediction`` is a list of logits to be used for classification method, e.g., `argmax`. For regression,
 the value of ``prediction`` is a list with one element, which is the regression results.
+
+An example of a successful inference response will like:
+
+.. code:: yaml
+
+    {
+        "status_code": 200,
+        "request_uid": "569d90892909c2f8",
+        "message": "Request processed successfully.",
+        "error": "",
+        "data": {
+            "results": [
+                {
+                    "node_type": "paper",
+                    "node_id": "p9604",
+                    "prediction": [
+                        0.03836942836642265,
+                        0.06707385182380676,
+                        0.11153795570135117,
+                        0.027591131627559662,
+                        0.03496604412794113,
+                        0.11081098765134811,
+                        0.005487487651407719,
+                        0.027667740359902382,
+                        0.11663214862346649,
+                        0.11842530965805054,
+                        0.020509174093604088,
+                        0.031869057565927505,
+                        0.27694952487945557,
+                        0.012110156007111073
+                    ]
+                },
+                {
+                    "node_type": "paper",
+                    "node_id": "p8946",
+                    "prediction": [
+                        0.03848873823881149,
+                        0.06991259753704071,
+                        0.057228244841098785,
+                        0.02898392826318741,
+                        0.046037621796131134,
+                        0.09567245841026306,
+                        0.008081010542809963,
+                        0.02855496294796467,
+                        0.2774551510810852,
+                        0.07382062822580338,
+                        0.03699302300810814,
+                        0.047642651945352554,
+                        0.1794610172510147,
+                        0.011668065562844276
+                    ]
+                }
+            ]
+        }
+    }
+
+An example of a inference response reporting errors will like:
+
+.. code:: yaml
+
+    {
+        "status_code": 401,
+        "request_uid": "d3f2eaea2c2c7c76",
+        "message": "",
+        "error": "Missing Required Field: The input payload missed the 'targets' field. Please refer to the GraphStorm realtime inference documentation for required fields.",
+        "data": {}
+    }
+
