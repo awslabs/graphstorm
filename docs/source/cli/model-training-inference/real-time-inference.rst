@@ -179,12 +179,12 @@ A ``nodes`` field contains a list of ``node`` fileds. A ``node`` includes the ra
 of a node in the subgraph. It has the following required attributes.
 
 * ``node_type``: string, the raw node type name in a graph. It should be same as these ``node_type`` defined in
-  :ref:`gconstruct JSON specification <gconstruction-json>`` or the ``type`` values of ``nodes`` defined in 
+  :ref:`gconstruct JSON specification <gconstruction-json>` or the ``type`` values of ``nodes`` defined in 
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``node_id``: the raw node identifier.
 * ``features``: a dictionary, whose key is a feature name, and its value is the value of the feature.
   feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
-  <gconstruction-json>``, or these ``name`` values of ``features`` fields defined in
+  <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 
 An ``edges`` field contains a list of ``edge`` fields. An ``edge`` includes the raw input data values of an
@@ -192,13 +192,13 @@ edge in the subgraph. It has the following required attributes.
 
 * ``edge_type``: list, the raw edge type name in the format of a list with three elements, which indicate
   source node type, edge type, and destination edge type. It should be same as these ``relation`` fileds defined
-  in :ref:`gconstruct JSON specification <gconstruction-json>`` or these ``type`` values of ``source``
+  in :ref:`gconstruct JSON specification <gconstruction-json>` or these ``type`` values of ``source``
   ``relation``, and ``dest`` fileds defined in :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``src_node_id``: user defined node identifier for the source node.
 * ``dest_node_id``: user defined node identifier for the destination node.
 * ``features``: a dictionary, whose key is a feature name, and its key is value of the feature. 
   feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
-  <gconstruction-json>``, or these ``name`` values of ``features`` fields defined in
+  <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 
 A ``targets`` field contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
