@@ -9,7 +9,7 @@ number of target nodes/edges or generating embeddings for all nodes. In certain 
 predict a few targets only and hope to obtain results quickly, e.g., less than one second, you will need
 a 7*24 running server to host trained model and response to inference requests in real time.
 
-Since version 0.5, GraphStorm offers a CLI to deploy a trained model as a SageMaker real-time inference
+Since version 0.5, GraphStorm offers CLIs to deploy a trained model as a SageMaker real-time inference
 endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges and
 convert it and associated features into a JSON object as payload of requests. Below sections provide details
 of how to deloy an endpoint, and how to invoke it for real-time infernce.
@@ -45,33 +45,40 @@ In short you can run the following:
 
     git clone https://github.com/awslabs/graphstorm.git
     cd graphstorm/
-    # Build the GraphStorm real-time inference Docker image using CPU
+
+    # Build the GraphStorm real-time inference Docker image to be used on CPUs
     bash docker/build_graphstorm_image.sh --environment sagemaker-endpoint --device cpu
+
     # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-endpoint-cpu'
     bash docker/push_graphstorm_image.sh --environment sagemaker-endpoint --device cpu --region "us-east-1" --account "123456789012"
 
 Replace the ``123456789012`` with your own AWS account ID. For more build and push options, see 
 ``bash docker/build_graphstorm_image.sh --help`` and ``bash docker/push_graphstorm_image.sh --help``.
 
+.. note::
+
+    CPU instances are more cost-effective and have similar inference latency as GPU instances, it is recommended
+    to use CPU instances first for real-time inference.
+
 Deploy a SageMaker Real-time Inference endpoint
 ................................................
-To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that generated from
-graph construciton and model training.
+To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that were generated
+by graph construciton and model training pipelines.
 
-- Saved model path that contains the ``model.bin`` file. This path has the same purpose as the
-  ``--restore-model-path`` used during offline inference CLIs in which GraphStorm looks for the ``model.bin``
-  file to restore a model at endpoint.
-- Updated graph construciton JSON file, ``data_transform_new.json``. This JSON file is one of the outputs of
-  graph construction. It contains the updated information about feature transformation and feature
+- The saved model path that contains the ``model.bin`` file. This path has the same purpose as the
+  ``--restore-model-path`` used during offline inference CLIs in which GraphStorm code looks for the ``model.bin``
+  file, and uses it to restore a trained model.
+- The updated graph construciton JSON file, ``data_transform_new.json``. This JSON file is one of the outputs of
+  graph construction pipeline. It contains the updated information about feature transformation and feature
   dimensions. If using the :ref:`Single Machine Graph Construction <single-machine-gconstruction>` CLIs, the
   file is saved at the path specified by the ``--output-dir`` argument. For :ref:`Distributed Graph Construction
   <distributed-gconstruction>` CLIs, the file is saved at the path specified by either ``--output-data-s3``
   or ``--output-dir`` argument.
-- Updated model training configuration YAML file, ``GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml``. This
-  YAML file is one of the outputs of model training. It contains the updated configurations of a model by
-  updating the values of configuration YAML file with values given in CLIs arguments. If set
-  ``--save-model-path`` or ``--model-artifact-s3`` configuration, this updated YAML file will be saved to
-  the location specified.
+- The updated model training configuration YAML file, ``GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml``. This
+  YAML file is one of the outputs of model training pipeline. It contains the updated configurations of a model by
+  replacing values of configuration YAML file with values given in CLIs arguments. If set
+  ``--save-model-path`` or ``--model-artifact-s3`` configuration in model training, this updated YAML file will
+  be saved to the location specified.
 
 .. note:: 
 
@@ -79,8 +86,7 @@ graph construciton and model training.
     automatically, if the ``--save-model-path`` or ``--model-artifact-s3``  configuration is set.
 
 GraphStorm provides CLIs to package these model artifacts as a tar file and upload it to an S3 bucket, and then
-invoke SageMaker endpoint APIs with the inference Docker image previousely built and the tar file to deploy
-endpoint(s).
+invoke SageMaker endpoint APIs with the inference Docker image previousely built to deploy endpoint(s).
 
 In short you can run the following:
 
@@ -89,35 +95,35 @@ In short you can run the following:
     # assume graphstorm source code has been cloned to the current folder
     cd graphstorm/sagemaker/launch
     python launch_realtime_endpoint.py \
-        --image-uri <account_id>.dkr.ecr.<region>.amazonaws.com/graphstorm:sagemaker-endpoint-cpu \
-        --role arn:aws:iam::<account_id>:role/<your_role> \
-        --region <region> \
-        --restore-model-path <restore-model-path>/<epoch-XX> \
-        --model-yaml-config-file /<path-to-yaml>/GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml \
-        --graph-json-config-file /<path-to-json>/data_transform_new.json \
-        --infer-task-type node_classification \
-        --upload-tarfile-s3 s3://<a-bucket> \
-        --model-name <model-name>
+            --image-uri <account_id>.dkr.ecr.<region>.amazonaws.com/graphstorm:sagemaker-endpoint-cpu \
+            --role arn:aws:iam::<account_id>:role/<your_role> \
+            --region <region> \
+            --restore-model-path <restore-model-path>/<epoch-XX-iter-XX> \
+            --model-yaml-config-file /<path-to-yaml>/GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml \
+            --graph-json-config-file /<path-to-json>/data_transform_new.json \
+            --infer-task-type node_classification \
+            --upload-tarfile-s3 s3://<a-bucket> \
+            --model-name <model-name>
 
 Arguments of the launch CLI include:
 
-- **--image-uri** (Required): the URI of your GraphStorm real-time inference Docker image you built and
+- **-\-image-uri** (Required): the URI of your GraphStorm real-time inference Docker image built and
   pushed in the previous :ref:`Setup  GraphStorm Real-time Inference Docker Image <build_rt_inference_docker>` step.
-- **--region** (Required): the AWS region to deploy endpoint. This region should be **same** as the ECR
+- **-\-region** (Required): the AWS region to deploy endpoint. This region should be **same** as the ECR
   where your Docker image is stored.
-- **--role** (Required): the role ARN that has SageMaker execution role. Please refer to the
-  `Configure <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-models-python>`_
+- **-\-role** (Required): the role ARN that has SageMaker execution role. Please refer to the
+  `SageMaker AI document <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-prereqs>`_
   section for details.
-- **--instance-type**: the instance types to be used for endpoints. (Default: ``ml.c6i.xlarge``)
+- **-\-instance-type**: the instance types to be used for endpoints. (Default: ``ml.c6i.xlarge``)
 - **--instance-count**: the number of endpoints to be deployed. (Default: 1)
 - **--custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
   ProductionVariant. For details, please refer to `ProductionVariant Documentation
   <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
 - **--async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
   or ``False`` to wait for creation completed. (Default: ``True``)
-- **--restore-model-path** (Required): the path where GraphStorm model parameters are saved.
-- **--model-yaml-config-file** (Required): the path where updated model configuration YAML file is saved.
-- **--graph-json-config-file** (Required): the path where updated graph construction configuration JSON file
+- **--restore-model-path** (Required): the path where the ``model.bin`` file is saved.
+- **--model-yaml-config-file** (Required): the path where the updated model configuration YAML file is saved.
+- **--graph-json-config-file** (Required): the path where the updated graph construction configuration JSON file
   is saved.
 - **--upload-tarfile-s3** (Required): the S3 location for uploading the packed and compressed model artifacts
   tar file.
@@ -130,7 +136,7 @@ Arguments of the launch CLI include:
 Outputs of the CLI include the deployed endpoint name based on the value for ``--model-name``, e.g.,
 ``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, to be used in the invoke step.
 
-Invoke Real-time Inference Endpoint
+Invoke Real-time Inference Endpoints
 .....................................
 For real-time inference, you will need to extract a subgraph around the target nodes/edges from a large
 graph, and use the subgraph as input of model, which is exactly how models are trained. Because time is
@@ -256,7 +262,7 @@ An example payload JSON object is like:
         ]
     }
 
-Invoke endpoint
+Invoke endpoints
 ****************
 There are multiple ways to invoke a Sagemaker real-time inference endpoint as documented in
 `SageMaker Developer Guide <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
@@ -290,8 +296,8 @@ Here is an example of reading a payload from a JSON file, and using boto3 API to
     # Decodes and prints the response body
     print(response['Body'].read().decode('utf-8'))
 
-Response from Endpoint
-***********************
+The response format
+********************
 As illustrated in the above invoke example, GraphStorm real-time inference endpoint will return a JSON object as
 the ``Body`` field of the SageMaker API's response. The JSON object has five fields.
 
