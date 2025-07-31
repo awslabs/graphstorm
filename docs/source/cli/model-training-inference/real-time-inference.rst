@@ -7,11 +7,12 @@ GraphStorm CLIs for model inference on :ref:`signle machine <single-machine-trai
 are designed to handle enterprise-level data, which could take minutes to hours for predicting a large
 number of target nodes/edges or generating embeddings for all nodes.
 
-In certain cases when you want to predict a few targets only and hope to obtain results in short time, e.g., less than one second, you will need a 7*24 running server to host trained model and response to
-inference request in real time. GraphStorm provides a CLI to deploy a trained model as a SageMaker
+In certain cases when you want to predict a few targets only and hope to obtain results in short time,
+e.g., less than one second, you will need a 7*24 running server to host trained model and response to
+inference requests in real time. GraphStorm provides a CLI to deploy a trained model as a SageMaker
 real-time inference endpoint. To invoke this endpoint, you will need to extract a subgraph around a few
 target nodes/edges and convert the subgraph and associated features into a JSON object as payload of
-an invoke request.
+invoke requests.
 
 Prerequisites
 ..............
@@ -131,43 +132,118 @@ Outputs of the CLI include the deployed endpoint name based on the value for ``-
 
 Invoke Real-time Inference Endpoint
 .....................................
+For real-time inference, you will need to extract a subgraph around the target nodes/edges from a large
+graph, and use the subgraph as input of model, which is exactly how models are trained. Because time is
+critical for real-time infernce, it is recommened to use OLTP graph database, e.g., Amazon Neptune Database,
+as data source for subgraph extraction. 
+
+Once the subgraph is extracted, you will need to prepare it as the payload of different APIs of `Invoke 
+models for real-time inference
+<https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
+GraphStorm defines a specification of the payload contents for your reference.
+
+Payload Content specification
+******************************
+The payload should be a JSON object in the format explained below. In the highest level, the JSON object
+contains four fields: ``version``, ``gml_task`` ``nodes``, and ``edges``.
+
+``version`` (**required**)
+>>>>>>>>>>>>>>>>>>>>>>>>>>>
+version object ()
+
+version value is a string. This object is used to identify the version of a specification. As the specification might change in later version, providing version values can help to avoid compatibility issues. This version’s default value is gs-realtime-v0.1.
+
+gml_task object (required)
+
+gml_task value is a string. This object provide an indicator of what graph machine learning task this payload is for. This version’s valid options include: 
+
+* node_classification,
+* node_regression,
+* edge_classification, and
+* edge_regression. 
+
+In future version, we will support:
+
+* link_prediction, and
+* embedding_generation.
+
+graph object (required) - Option 1 : one object for one node/edge
+
+The graph object contains three types of objects, i.e., nodes, edges, and targets. nodes object contains a list of node objects, while edges object contains a list of edge objects. And targets object contains a list of target objects according to the gml_task value.
+
+A node object includes the raw input data values of a node in the subgraph. It has the following required attributes.
+
+* node_type (required): string, the raw node type name in a heterogeneous graph.
+* node_id (required): user defined node index.
+* features (required): a dictionary, whose key is a feature column name, and its value is value of the feature column.
+
+An edge object includes the raw input data values of an edge in the subgraph. It has the following required attributes.
+
+* edge_type (required): tuple, the raw edge type name tuple in a heterogeneous graph.
+* src_node_id (required): user defined node index for the source node.
+* dest_node_id (required): user defined node index for the destination node.
+* features (required): a dictionary, whose key is a feature column name, and its key is value of the feature column.
+
+A targets object includes a list of target node/edge objects. But all features values will be ignored. 
+
+An example JSON file
+
+{
+    "version": "gs-realtime-v0.1",
+    "gml_task": "node_classification",
+    "graph": {
+        "nodes": [
+            {
+                "node_type": "author",
+                "features": {
+                    "feat": [
+                        0.011269339360296726,
+                        ......
+                    ]
+                },
+                "node_id": "a4444"
+            },
+            {
+                "node_type": "author",
+                "features": {
+                    "feat": [
+                        -0.0032965524587780237,
+                        .....
+                    ]
+                },
+                "node_id": "s39"
+            }
+        ],
+        "edges": [
+            {
+                "edge_type": [
+                    "author",
+                    "writing",
+                    "paper"
+                ],
+                "features": {},
+                "src_node_id": "p4463",
+                "dest_node_id": "p4463"
+            },
+            ......
+        ]
+    },
+    "targets": [
+        {
+            "node_type": "paper",
+            "node_id": "p4463"
+        },
+        or 
+        {
+            "edge_type": [
+                    "paper",
+                    "citing",
+                    "paper"
+                ]
+            "src_node_id": "p3551",
+            "dest_node_id": "p3551"
+        }
+    ]
+}
 
 
-
-While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
-
-GraphStorm can support graph machine learning (GML) model training and inference for common GML tasks, including **node classification**, **node regression**, **edge classification**, **edge regression**, and **link prediction**. Since the :ref:`multi-task learning <multi_task_learning>` feature released in v0.3 is in experimental stage, formal documentations about this feature will be released later when it is mature.
-
-For each task, GraphStorm provide a dedicated CLI for model training and inference. These CLIs share the same command template and some configurations, while each CLI has its unique task-specific configurations. GraphStorm also has a task-agnostic CLI for users to run your customized models.
-
-While the CLIs could be very simple as the template demonstrated, users can leverage a YAML file to set a variaty of GraphStorm configurations that could make full use of the rich functions and features provided by GraphStorm. The YAML file will be specified to the **-\-cf** argument. GraphStorm has a set of `example YAML files <https://github.com/awslabs/graphstorm/tree/main/training_scripts>`_ available for reference.
-
-.. note:: 
-
-    * Users can set CLI configurations either in CLI arguments or the configuration YAML file. But values set in CLI arguments will overwrite the values of the same configuration set in the YAML file.
-    * This guide only explains a few commonly used configurations. For the detailed explanations of GraphStorm CLI configurations, please refer to the :ref:`Model Training and Inference Configurations <configurations-run>` section.
-
-Task-agnostic CLI for model training and inference
-...................................................
-While task-specific CLIs allow users to quickly perform GML tasks supported by GraphStorm, users may build their own GNN models as described in the :ref:`Use Your Own Models <use-own-models>` tutorial. To put these customized models into GraphStorm model training and inference pipeline, users can use the task-agnostic CLI as shown in the examples below.
-
-
-.. code-block:: bash
-
-    # Model training
-    python -m graphstorm.run.launch \
-              --num-trainers 1 \
-              --part-config data.json \
-              customized_model.py --save-model-path model_path/ \
-                                  customized_arguments 
-
-    # Model inference
-    python -m graphstorm.run.launch \
-              --inference \
-              --num-trainers 1 \
-              --part-config data.json \
-              customized_model.py --restore-model-path model_path/ \
-                                  --save-prediction-path pred_path/ \
-                                  customized_arguments
-
-The task-agnostic CLI command (``launch``) has similar tempalte as the task-specific CLIs except that it takes the customized model, which is stored as a ``.py`` file, as an argument. And in case the customized model has its own arguments, they should be placed after the customized model python file.
