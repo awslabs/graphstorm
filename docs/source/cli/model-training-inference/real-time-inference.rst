@@ -100,10 +100,10 @@ In short you can run the following:
 
 Arguments of the launch CLI include:
 
-- **--image-uri** (Required): the URI of your GraphStorm real-time inference Docker image you built and pushed in the
-  previous :ref:`Setup  GraphStorm Real-time Inference Docker Image <build_rt_inference_docker>` step.
-- **--region** (Required): the AWS region to deploy endpoint. This region should be **same** as the ECR where your Docker
-  image is stored.
+- **--image-uri** (Required): the URI of your GraphStorm real-time inference Docker image you built and
+  pushed in the previous :ref:`Setup  GraphStorm Real-time Inference Docker Image <build_rt_inference_docker>` step.
+- **--region** (Required): the AWS region to deploy endpoint. This region should be **same** as the ECR
+  where your Docker image is stored.
 - **--role** (Required): the role ARN that has SageMaker execution role. Please refer to the
   `Configure <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-models-python>`_
   section for details.
@@ -114,8 +114,25 @@ Arguments of the launch CLI include:
   <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
 - **--async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
   or ``False`` to wait for creation completed. (Default: ``True``)
-- **--restore-model-path**(Required): the path where GraphStorm model parameters were saved.
-- **--model-yaml-config-file**(Required):
+- **--restore-model-path** (Required): the path where GraphStorm model parameters are saved.
+- **--model-yaml-config-file** (Required): the path where updated model configuration YAML file is saved.
+- **--graph-json-config-file** (Required): the path where updated graph construction configuration JSON file
+  is saved.
+- **--upload-tarfile-s3** (Required): the S3 location for uploading the packed and compressed model artifacts
+  tar file.
+- **--infer-task-type** (Required): the name of real-time inference task. Options include ``node_classification``
+  and ``node_regression``.
+- **--model-name** (Required): the name of model. This name will be used to define name of SageMaker Model,
+  EndpointConfig, and Endpoint by appending datetime to this model name. The name should follow a regular
+  expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$``. (Default: ``GSF-Model4Realtime``)
+
+Outputs of the CLI include the deployed endpoint name based on the value for ``--model-name``, e.g.,
+``GSF-Model4Realtime-2025-06-04-23-47-11``, to be used in the invoke step.
+
+Invoke Real-time Inference Endpoint
+.....................................
+
+
 
 While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
 
