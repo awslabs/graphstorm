@@ -57,8 +57,8 @@ Replace the ``123456789012`` with your own AWS account ID. For more build and pu
 
 .. note::
 
-    CPU instances are more cost-effective and have similar inference latency as GPU instances, it is recommended
-    to use CPU instances first for real-time inference.
+    CPU instances are more cost-effective and have similar inference latency as GPU instances. Therefore, it is
+    recommended to use CPU instances for real-time inference.
 
 Deploy a SageMaker Real-time Inference endpoint
 ................................................
@@ -115,92 +115,97 @@ Arguments of the launch CLI include:
   `SageMaker AI document <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-prereqs>`_
   section for details.
 - **-\-instance-type**: the instance types to be used for endpoints. (Default: ``ml.c6i.xlarge``)
-- **--instance-count**: the number of endpoints to be deployed. (Default: 1)
-- **--custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
+- **-\-instance-count**: the number of endpoints to be deployed. (Default: 1)
+- **-\-custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
   ProductionVariant. For details, please refer to `ProductionVariant Documentation
   <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
-- **--async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
+- **-\-async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
   or ``False`` to wait for creation completed. (Default: ``True``)
-- **--restore-model-path** (Required): the path where the ``model.bin`` file is saved.
-- **--model-yaml-config-file** (Required): the path where the updated model configuration YAML file is saved.
-- **--graph-json-config-file** (Required): the path where the updated graph construction configuration JSON file
+- **-\-restore-model-path** (Required): the path where the ``model.bin`` file is saved.
+- **-\-model-yaml-config-file** (Required): the path where the updated model configuration YAML file is saved.
+- **-\-graph-json-config-file** (Required): the path where the updated graph construction configuration JSON file
   is saved.
-- **--upload-tarfile-s3** (Required): the S3 location for uploading the packed and compressed model artifacts
+- **-\-upload-tarfile-s3** (Required): the S3 location for uploading the packed and compressed model artifacts
   tar file.
-- **--infer-task-type** (Required): the name of real-time inference task. Options include ``node_classification``
+- **-\-infer-task-type** (Required): the name of real-time inference task. Options include ``node_classification``
   and ``node_regression``.
-- **--model-name** (Required): the name of model. This name will be used to define name of SageMaker Model,
+- **-\-model-name**: the name of model. This name will be used to define names of SageMaker Model,
   EndpointConfig, and Endpoint by appending datetime to this model name. The name should follow a regular
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$``. (Default: ``GSF-Model4Realtime``)
 
-Outputs of the CLI include the deployed endpoint name based on the value for ``--model-name``, e.g.,
-``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, to be used in the invoke step.
+This command will log out the deployed endpoint name based on the value for ``--model-name``, e.g.,
+``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, to be used in the invoke step. The same endpoint name
+can also be found from Amazon SageMaker AI Web console under the "Inference -> Endpoints" menu.
 
 Invoke Real-time Inference Endpoints
 .....................................
 For real-time inference, you will need to extract a subgraph around the target nodes/edges from a large
-graph, and use the subgraph as input of model, which is exactly how models are trained. Because time is
+graph, and use the subgraph as input of model, which is similar to how models are trained. Because time is
 critical for real-time infernce, it is recommened to use OLTP graph database, e.g., Amazon Neptune Database,
 as data source for subgraph extraction. 
 
-Once the subgraph is extracted, you will need to prepare it as the payload of different APIs of `Invoke 
+Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke 
 models for real-time inference
 <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
-GraphStorm defines a specification of the payload contents for your reference.
+GraphStorm defines a specification of the payload contents.
 
 .. _reat-time-payload-spec:
 
 Payload content specification
 ******************************
 The payload should be a JSON object in the format explained below. In the highest level, the JSON object
-contains four fields: ``version``, ``gml_task``, and ``graph``.
+contains three fields: ``version``, ``gml_task``, and ``graph``.
 
 ``version`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>>>
-This field is used to identify the version of a specification, helping to avoid compatibility issues. This
-current (and expected) version is ``gs-realtime-v0.1``.
+This field is used to identify the version of a specification, helping to avoid compatibility issues of different
+versions. The current version is ``gs-realtime-v0.1``.
 
 ``gml_task`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>>>
-This field indicates what graph machine learning task this payload is for. Current built-in endpoint file
-support two options: 
+This field indicates what graph machine learning task this payload is for. Current specification supports two
+options: 
 
 * ``node_classification``
 * ``node_regression``
 
 ``graph`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>
-This ``graph`` field is similar to :ref:`graph construction JSON specification <_gconstruction-json>`. It
-contains three types of sub-fields, i.e., ``nodes``, ``edges``, and ``targets``.
+
+This ``graph`` field is similar to fields, e.g., ``graph`` field, in :ref:`GSProcessing input specification
+<gsprocessing_input_configuration>`. It contains three sub-fields, i.e., ``nodes``, ``edges``, and ``targets``.
 
 A ``nodes`` field contains a list of ``node`` fileds. A ``node`` includes the raw input data values
 of a node in the subgraph. It has the following required attributes.
 
 * ``node_type``: string, the raw node type name in a graph. It should be same as these ``node_type`` defined in
-  gconstruct JSON files or the ``type`` values of ``nodes`` defined in  in gsprocessing JSON files.
+  :ref:`gconstruct JSON specification <gconstruction-json>`` or the ``type`` values of ``nodes`` defined in 
+  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``node_id``: the raw node ID.
 * ``features``: a dictionary, whose key is a feature name, and its value is the value of the feature.
-  feaure names should be same as these ``feature_name`` defined in gconstruct JSON files, or these ``name``
-  values of ``features`` fields defined defined in gsprocessing JSON files.
+  feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
+  <gconstruction-json>``, or these ``name`` values of ``features`` fields defined in
+  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 
 An ``edges`` field contains a list of ``edge`` fields. An ``edge`` includes the raw input data values of an
 edge in the subgraph. It has the following required attributes.
 
 * ``edge_type``: list, the raw edge type name in the format of a list with three elements, which indicate
   source node type, edge type, and destination edge type. It should be same as these ``relation`` fileds defined
-  in gconstruct JSON files or these ``type`` values of ``source``, ``relation``, and ``dest`` fileds defined in
-  gsprocessing JSON files.
+  in :ref:`gconstruct JSON specification <gconstruction-json>`` or these ``type`` values of ``source``
+  ``relation``, and ``dest`` fileds defined in :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``src_node_id``: user defined node ID for the source node.
 * ``dest_node_id``: user defined node ID for the destination node.
 * ``features``: a dictionary, whose key is a feature name, and its key is value of the feature. 
-  feaure names should be same as these ``feature_name`` defined in gconstruct JSON files, or these ``name``
-  values of ``features`` fields defined defined in gsprocessing JSON files.
+  feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
+  <gconstruction-json>``, or these ``name`` values of ``features`` fields defined in
+  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 
 A ``targets`` field contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
-field. These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
-required. And they should be in the ``nodes`` or ``edges`` list.
+These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
+required. And they should be in the ``nodes`` or ``edges`` list of a ``graph``.
 
-An example payload JSON object is like:
+An example payload JSON object is like the following:
 
 .. code:: yaml
 
@@ -267,7 +272,8 @@ Invoke endpoints
 There are multiple ways to invoke a Sagemaker real-time inference endpoint as documented in
 `SageMaker Developer Guide <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
 
-Here is an example of reading a payload from a JSON file, and using boto3 API to invoke an endpoint.
+Here is an example of how you can read a payload from a JSON file and use the boto3 APIs to
+invoke an endpoint.
 
 .. code-block:: python
 
@@ -298,22 +304,24 @@ Here is an example of reading a payload from a JSON file, and using boto3 API to
 
 The response format
 ********************
-As illustrated in the above invoke example, GraphStorm real-time inference endpoint will return a JSON object as
-the ``Body`` field of the SageMaker API's response. The JSON object has five fields.
+As shown in the previous invoke example, the response from GraphStorm's real-time inference endpoint will include
+a JSON object in the ``Body`` field of the SageMaker API response. This JSON object contains five fields:
 
 ``status_code``
 >>>>>>>>>>>>>>>>
-The JSON object will always include a ``status_code`` field, indicating the outcome status by an integer, including
+
+The JSON object always includes a ``status_code`` field, which indicates the outcome status with an integer value,
+including:
 
 - ``200``: request processed successfully.
-- ``400``: the request payload contains JSON format errors.
-- ``401``: the request payload missing certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
-- ``402``: the request payload missing values on certain fileds.
-- ``403``: ``node_type`` fields of nodes in the request payload ``target`` do not exist in the ``graph`` field.
-- ``404``: values of the ``node_id`` fileds of nodes in the request payload ``target`` do not exist in the ``graph`` field.
+- ``400``: the request payload has JSON format errors.
+- ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
+- ``402``: the request payload missed values on certain fileds.
+- ``403``: ``node_type`` of nodes in the ``target`` field does not exist in the ``graph`` field.
+- ``404``: values of the ``node_id`` fileds of nodes in the ``target`` field do not exist in the ``graph`` field.
 - ``411``: errors occurred when converting the request payload into DGL graph format for inference.
-- ``421``: the task in ``gml_task`` does not match the task that deployed model targets for.
-- ``500``: internal Server Error.
+- ``421``: the task in ``gml_task`` does not match the task that the deployed model is for.
+- ``500``: internal server errors.
 
 ``request_uid``
 >>>>>>>>>>>>>>>>
