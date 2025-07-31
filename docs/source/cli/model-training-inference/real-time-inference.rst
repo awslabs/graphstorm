@@ -181,7 +181,7 @@ of a node in the subgraph. It has the following required attributes.
 * ``node_type``: string, the raw node type name in a graph. It should be same as these ``node_type`` defined in
   :ref:`gconstruct JSON specification <gconstruction-json>`` or the ``type`` values of ``nodes`` defined in 
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
-* ``node_id``: the raw node ID.
+* ``node_id``: the raw node identifier.
 * ``features``: a dictionary, whose key is a feature name, and its value is the value of the feature.
   feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
   <gconstruction-json>``, or these ``name`` values of ``features`` fields defined in
@@ -194,8 +194,8 @@ edge in the subgraph. It has the following required attributes.
   source node type, edge type, and destination edge type. It should be same as these ``relation`` fileds defined
   in :ref:`gconstruct JSON specification <gconstruction-json>`` or these ``type`` values of ``source``
   ``relation``, and ``dest`` fileds defined in :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
-* ``src_node_id``: user defined node ID for the source node.
-* ``dest_node_id``: user defined node ID for the destination node.
+* ``src_node_id``: user defined node identifier for the source node.
+* ``dest_node_id``: user defined node identifier for the destination node.
 * ``features``: a dictionary, whose key is a feature name, and its key is value of the feature. 
   feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
   <gconstruction-json>``, or these ``name`` values of ``features`` fields defined in
@@ -325,31 +325,34 @@ including:
 
 ``request_uid``
 >>>>>>>>>>>>>>>>
-The JSON object will always include a ``request_uid`` field, serving as a unique ID of the request payload, which will
-be logged in endpoint side and return to invokers for error debugging.
+
+The JSON object always includes a ``request_uid`` field, which serves as a unique identifier for the request payload.
+This identifier is logged on the endpoint side and returned to invokers, facilitating error debugging.
 
 ``message``
 >>>>>>>>>>>>
-The JSON object will always include a ``message`` field, providing additional information of the 200 ``status_code``.
+
+The JSON object always include a ``message`` field, which provide additional information when the ``status_code`` is 200.
 
 ``error``
 >>>>>>>>>>>>
-The JSON object will always include an ``error`` field, providing detailed explanations of the non-200 ``status_code``.
+The JSON object always include an ``error`` field, which provide detailed explanations when the ```status_code`` is not 200.
 
 ``data``
 >>>>>>>>>
-If the value of ``status_code`` is ``200``, the JSON object will include values in the ``data`` field. For other values,
-the value will be empty.
+When the ``status_code`` is 200, the JSON object includes a populated ``data`` field. Otherwise, the data field is empty.
 
-The values of ``200`` status response is an JSON object containing inference results with one field, ``results``, only.
-Its values is a list, including the inference value for all nodes specified in payload's ``target`` field.
+A ``200`` status response includes a JSON object containing inference results, with a single field called ``results``.
+The values of ``results`` is a list that includes the inference values for all nodes specified in the payload's
+``target`` field.
 
-Besides the ``node_type`` and ``node_id`` fields, which are identical as those in the payload ``target`` field, there is
-a ``prediction`` field in the ``results``, including the inference results for each node or edge. For classification,
-the value of ``prediction`` is a list of logits to be used for classification method, e.g., `argmax`. For regression,
-the value of ``prediction`` is a list with one element, which is the regression results.
+In addtion to the ``node_type`` and ``node_id`` fields, which match those in the payload ``target`` field, each result
+in the list include a ``prediction`` field. This field contains the inference results for each node or edge. For
+classification tasks, the value of ``prediction`` is a list of logits that can be used with classification method such
+as `argmax`. For regression tasks, the value of ``prediction`` is a list with a single element, which represents the
+regression result.
 
-An example of a successful inference response will like:
+An example of a successful inference response:
 
 .. code:: yaml
 
@@ -404,7 +407,7 @@ An example of a successful inference response will like:
         }
     }
 
-An example of a inference response reporting errors will like:
+An example of an error response:
 
 .. code:: yaml
 
@@ -415,4 +418,3 @@ An example of a inference response reporting errors will like:
         "error": "Missing Required Field: The input payload missed the 'targets' field. Please refer to the GraphStorm realtime inference documentation for required fields.",
         "data": {}
     }
-
