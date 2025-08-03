@@ -6,7 +6,7 @@ GraphStorm CLIs for model inference on :ref:`signle machine <single-machine-trai
 :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`
 are designed to tackle large dataset, which could take minutes to hours for predicting a large
 number of target nodes/edges or generating embeddings for all nodes. In certain cases when you want to
-predict a few targets only and hope to obtain results quickly, e.g., less than one second, you will need
+predict a few targets only and expect to get results immediately, e.g., with in one second, you will need
 a 7*24 running server to host trained model and response to inference requests in real time.
 
 Since version 0.5, GraphStorm offers CLIs to deploy a trained model as a SageMaker real-time inference
