@@ -66,7 +66,7 @@ To deploy a SageMaker real-time inference endpoint, you will need three model ar
 by graph construciton and model training pipelines.
 
 - The saved model path that contains the ``model.bin`` file. This path has the same purpose as the
-  ``--restore-model-path`` used during offline inference CLIs in which GraphStorm code looks for the ``model.bin``
+  ``--restore-model-path`` used during offline inference CLIs in which GraphStorm looks for the ``model.bin``
   file, and uses it to restore a trained model.
 - The updated graph construciton JSON file, ``data_transform_new.json``. This JSON file is one of the outputs of
   graph construction pipeline. It contains the updated information about feature transformation and feature
