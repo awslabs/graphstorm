@@ -86,7 +86,7 @@ during  graph construction (GConstruct/GSProcessing) and model training.
     automatically, if the ``--save-model-path`` or ``--model-artifact-s3``  configuration is set.
 
 GraphStorm provides a helper script to package these model artifacts as a tar file and upload it to an S3 bucket, and then
-invoke SageMaker endpoint APIs with the inference Docker image previousely built to deploy endpoint(s).
+deploy a SageMaker endpoint APIs with the inference Docker image previously built to deploy endpoint(s).
 
 In short you can run the following:
 
