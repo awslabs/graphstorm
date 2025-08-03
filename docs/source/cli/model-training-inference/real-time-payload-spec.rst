@@ -29,6 +29,13 @@ Contents of objects in the ``graph`` field
 
 A ``graph`` object contains three objects, i.e., ``nodes``, ``edges``, and ``targets``.
 
+.. code: json
+
+    {
+        "nodes"     : [ ... ],
+        "edges"     : [ ... ],
+        "targets"   : [ ... ]
+    }
 
 A ``nodes`` field contains a list of ``node`` fileds. A ``node`` includes the raw input data values
 of a node in the subgraph. It has the following required attributes.
