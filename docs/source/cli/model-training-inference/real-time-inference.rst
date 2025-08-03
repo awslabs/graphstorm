@@ -34,7 +34,7 @@ In order to use GraphStorm on Amazon SageMaker, users need to have an AWS accoun
 Setup GraphStorm Real-time Inference Docker Image
 ..................................................
 Similarly to :ref:`GraphStorm model training and inference on SageMaker <distributed-sagemaker>`, you will
-need to build a GraphStorm real-time inference Docker image. In addtion, your executing role should
+need to build a GraphStorm Docker image specifically for real-time inference. In addition, your executing role should
 have full ECR access to be able to pull from ECR to build the image, create an ECR repository if it
 doesn't exist, and push the real-time inference image to the repository. See the `official ECR docs
 <https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_ for details.
