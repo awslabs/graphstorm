@@ -10,7 +10,7 @@ predict a few targets only and expect to get results immediately, e.g., with in 
 a 7*24 running server to host trained model and response to inference requests in real time.
 
 Since version 0.5, GraphStorm offers CLIs to deploy a trained model as a SageMaker real-time inference
-endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges and
+endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges,
 convert it and associated features into a JSON object as payload of requests. Below sections provide details
 of how to deloy an endpoint, and how to invoke it for real-time infernce.
 
