@@ -72,7 +72,7 @@ during  graph construction (GConstruct/GSProcessing) and model training.
   graph construction pipeline. It contains updated information about feature transformations and feature
   dimensions. If using the :ref:`Single Machine Graph Construction <single-machine-gconstruction>`(GConstruct), the
   file is saved at the path specified by the ``--output-dir`` argument. For :ref:`Distributed Graph Construction
-  <distributed-gconstruction>` CLIs, the file is saved at the path specified by either ``--output-data-s3``
+  <distributed-gconstruction>`(GSProcessing), the file is saved at the path specified by either ``--output-data-s3``
   or ``--output-dir`` argument.
 - The updated model training configuration YAML file, ``GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml``. This
   YAML file is one of the outputs of model training pipeline. It contains the updated configurations of a model by
