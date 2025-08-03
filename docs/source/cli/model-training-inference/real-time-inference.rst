@@ -18,16 +18,12 @@ Prerequisites
 ..............
 In order to use GraphStorm on Amazon SageMaker, users need to have an AWS account and access to the following AWS services.
 
-- **SageMaker service**. Please refer to `Amazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_
+- **SageMaker service**. Needed to deploy endpoint, and optionally train models. Please refer to `Amazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_
   for how to get access to Amazon SageMaker.
-- **Amazon ECR**. Please refer to `Amazon Elastic Container Registry service <https://aws.amazon.com/ecr/>`_
+- **Amazon ECR**. Needed to store GraphStorm Sagemaker Docker images. Please refer to `Amazon Elastic Container Registry service <https://aws.amazon.com/ecr/>`_
   for how to get access to Amazon ECR.
-- **S3 service**. Please refer to `Amazon S3 service <https://aws.amazon.com/s3/>`_
+- **S3 service**. Needed for input and output for SageMaker. Please refer to `Amazon S3 service <https://aws.amazon.com/s3/>`_
   for how to get access to Amazon S3.
-- **SageMaker Framework Containers**. Please follow `AWS Deep Learning Containers guideline <https://github.com/aws/deep-learning-containers>`_
-  to get access to the image.
-- **Amazon EC2** (optional). Please refer to `Amazon EC2 service <https://aws.amazon.com/ec2/>`_
-  for how to get access to Amazon EC2.
 
 .. _build_rt_inference_docker:
 
