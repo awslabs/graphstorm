@@ -75,7 +75,7 @@ during  graph construction (GConstruct/GSProcessing) and model training.
   <distributed-gconstruction>`(GSProcessing), the file is saved at the path specified by either ``--output-data-s3``
   or ``--output-dir`` argument.
 - The updated model training configuration YAML file, ``GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml``. This
-  YAML file is one of the outputs of model training pipeline. It contains the updated configurations of a model by
+  YAML file is one of the outputs of model training. It contains the updated configurations of a model by
   replacing values of configuration YAML file with values given in the training CLI arguments. If set
   ``--save-model-path`` or ``--model-artifact-s3`` configuration in model training, this updated YAML file will
   be saved to the location specified.
