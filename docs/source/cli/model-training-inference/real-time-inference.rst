@@ -133,7 +133,7 @@ Arguments of the launch endpoint script include:
   EndpointConfig, and Endpoint by appending datetime to this model name. The name should follow a regular
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$``. (Default: ``GSF-Model4Realtime``)
 
-This command will log out the deployed endpoint name based on the value for ``--model-name``, e.g.,
+This command will print the deployed endpoint name based on the value for ``--model-name``, e.g.,
 ``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, to be used in the invoke step. The same endpoint name
 can also be found from Amazon SageMaker AI Web console under the "Inference -> Endpoints" menu.
 
