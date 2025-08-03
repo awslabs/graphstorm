@@ -105,7 +105,7 @@ In short you can run the following:
             --upload-tarfile-s3 s3://<a-bucket> \
             --model-name <model-name>
 
-Arguments of the launch CLI include:
+Arguments of the launch endpoint script include:
 
 - **-\-image-uri** (Required): the URI of your GraphStorm real-time inference Docker image built and
   pushed in the previous :ref:`Setup  GraphStorm Real-time Inference Docker Image <build_rt_inference_docker>` step.
