@@ -37,7 +37,15 @@ A ``graph`` object contains three objects, i.e., ``nodes``, ``edges``, and ``tar
         "targets"   : [ ... ]
     }
 
-A ``nodes`` field contains a list of ``node`` fileds. A ``node`` includes the raw input data values
+- ``nodes`` -- (array of JSON objects) Each object specifies a ``node`` object. 
+- ``edges`` -- (array of JSON objects) Each object specifies an ``edge`` object.
+
+A ``targets`` field contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
+These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
+required. And they should be in the ``nodes`` or ``edges`` list of a ``graph``.
+
+
+A ``node`` includes the raw input data values
 of a node in the subgraph. It has the following required attributes.
 
 * ``node_type``: string, the raw node type name in a graph. It should be same as these ``node_type`` defined in
@@ -49,7 +57,7 @@ of a node in the subgraph. It has the following required attributes.
   <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 
-An ``edges`` field contains a list of ``edge`` fields. An ``edge`` includes the raw input data values of an
+ field contains a list of ``edge`` fields. An ``edge`` includes the raw input data values of an
 edge in the subgraph. It has the following required attributes.
 
 * ``edge_type``: list, the raw edge type name in the format of a list with three elements, which indicate
@@ -62,10 +70,6 @@ edge in the subgraph. It has the following required attributes.
   feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
   <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
-
-A ``targets`` field contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
-These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
-required. And they should be in the ``nodes`` or ``edges`` list of a ``graph``.
 
 An example payload JSON object is like the following:
 
