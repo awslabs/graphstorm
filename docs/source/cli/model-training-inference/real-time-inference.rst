@@ -120,7 +120,7 @@ Arguments of the launch endpoint script include:
   ProductionVariant. For details, please refer to `ProductionVariant Documentation
   <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
 - **-\-async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
-  or ``False`` to wait for creation completed. (Default: ``True``)
+  or ``False`` to wait for deployment to finish before exiting. (Default: ``True``)
 - **-\-restore-model-path** (Required): the path where the ``model.bin`` file is saved.
 - **-\-model-yaml-config-file** (Required): the path where the updated model configuration YAML file is saved.
 - **-\-graph-json-config-file** (Required): the path where the updated graph construction configuration JSON file
