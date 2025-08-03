@@ -191,7 +191,7 @@ An ``edges`` field contains a list of ``edge`` fields. An ``edge`` includes the 
 edge in the subgraph. It has the following required attributes.
 
 * ``edge_type``: list, the raw edge type name in the format of a list with three elements, which indicate
-  source node type, edge type, and destination edge type. It should be same as these ``relation`` fileds defined
+  source node type, edge type, and destination edge type. It should be same as the ``relation`` fileds defined
   in :ref:`gconstruct JSON specification <gconstruction-json>` or these ``type`` values of ``source``
   ``relation``, and ``dest`` fileds defined in :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``src_node_id``: user defined node identifier for the source node.
