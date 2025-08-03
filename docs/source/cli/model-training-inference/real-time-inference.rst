@@ -183,7 +183,7 @@ of a node in the subgraph. It has the following required attributes.
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``node_id``: the raw node identifier.
 * ``features``: a dictionary, whose key is a feature name, and its value is the value of features.
-  feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
+  feaure names should be same as the ``feature_name`` defined in :ref:`gconstruct JSON specification
   <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 
