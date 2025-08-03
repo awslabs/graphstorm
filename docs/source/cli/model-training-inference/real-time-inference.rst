@@ -172,7 +172,7 @@ options:
 ``graph`` (**Required**)
 >>>>>>>>>>>>>>>>>>>>>>>>>
 
-This ``graph`` field is similar to fields, e.g., ``graph`` field, in :ref:`GSProcessing input specification
+This ``graph`` specifies the workload.
 <gsprocessing_input_configuration>`. It contains three sub-fields, i.e., ``nodes``, ``edges``, and ``targets``.
 
 A ``nodes`` field contains a list of ``node`` fileds. A ``node`` includes the raw input data values
