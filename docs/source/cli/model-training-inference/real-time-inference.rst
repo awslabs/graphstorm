@@ -67,7 +67,7 @@ during  graph construction (GConstruct/GSProcessing) and model training.
 
 - The saved model path that contains the ``model.bin`` file. This path has the same purpose as the
   ``--restore-model-path`` used during offline inference CLIs in which GraphStorm looks for the ``model.bin``
-  file, and uses it to restore a trained model.
+  file, and uses it to restore the trained model weights.
 - The updated graph construciton JSON file, ``data_transform_new.json``. This JSON file is one of the outputs of
   graph construction pipeline. It contains the updated information about feature transformation and feature
   dimensions. If using the :ref:`Single Machine Graph Construction <single-machine-gconstruction>` CLIs, the
