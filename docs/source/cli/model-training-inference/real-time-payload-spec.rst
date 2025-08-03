@@ -1,12 +1,12 @@
 .. _real-time-payload-spec:
 
-The specification of Real-time Inference Payload Contents
-----------------------------------------------------------
+Specification of Real-time Inference Payload Contents
+------------------------------------------------------
 
 The payload should be a JSON object. In the highest level, the JSON object contains three fields:
 ``version``, ``gml_task``, and ``graph``.
 
-.. code: json
+.. code:: json
 
     {
         "version"   : string,
@@ -29,7 +29,7 @@ Contents of objects in the ``graph`` field
 
 A ``graph`` object contains three objects, i.e., ``nodes``, ``edges``, and ``targets``.
 
-.. code: json
+.. code:: json
 
     {
         "nodes"     : [ ... ],
@@ -39,8 +39,10 @@ A ``graph`` object contains three objects, i.e., ``nodes``, ``edges``, and ``tar
 
 - ``nodes`` -- (array of JSON objects) Each object specifies a ``node`` object. 
 - ``edges`` -- (array of JSON objects) Each object specifies an ``edge`` object.
+- ``targets``  -- (array of JSON objects) Each object specifies a ``node`` object or an ``edge`` object,
+  depending on the value of ``gml_task``.
 
-A ``targets`` field contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
+field contains a list of target ``node`` or ``edge`` fileds depending 
 These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
 required. And they should be in the ``nodes`` or ``edges`` list of a ``graph``.
 
