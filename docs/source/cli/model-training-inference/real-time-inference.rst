@@ -63,7 +63,7 @@ Replace the ``123456789012`` with your own AWS account ID. For more build and pu
 Deploy a SageMaker Real-time Inference endpoint
 ................................................
 To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that were generated
-by graph construciton and model training pipelines.
+during  graph construction (GConstruct/GSProcessing) and model training.
 
 - The saved model path that contains the ``model.bin`` file. This path has the same purpose as the
   ``--restore-model-path`` used during offline inference CLIs in which GraphStorm looks for the ``model.bin``
