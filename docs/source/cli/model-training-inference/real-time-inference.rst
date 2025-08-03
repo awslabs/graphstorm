@@ -129,16 +129,17 @@ Arguments of the launch endpoint script include:
   EndpointConfig, and Endpoint by appending datetime to this model name. The name should follow a regular
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$``. (Default: ``GSF-Model4Realtime``)
 
-This command will print the deployed endpoint name based on the value for ``--model-name``, e.g.,
-``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, to be used in the invoke step. The same endpoint name
-can also be found from Amazon SageMaker AI Web console under the "Inference -> Endpoints" menu.
+Outputs of this command include the deployed endpoint ARN based on the value for ``--model-name``, e.g.,
+``arn:aws:sagemaker:us-east-1:123456789012:endpoint/GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``,
+to be used in the invoke step. The same endpoint ARN can also be found from Amazon SageMaker AI Web
+console under the "Inference -> Endpoints" menu.
 
 Invoke Real-time Inference Endpoints
 .....................................
 For real-time inference, you will need to extract a subgraph around the target nodes/edges from a large
 graph, and use the subgraph as input of model, which is similar to how models are trained. Because time is
-critical for real-time infernce, it is recommened to use OLTP graph database, e.g., Amazon Neptune Database,
-as data source for subgraph extraction. 
+critical for real-time infernce, it is recommened to use OLTP graph database, e.g.,
+`Amazon Neptune Database <https://aws.amazon.com/neptune/>`_, as data source for subgraph extraction.
 
 Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke 
 models for real-time inference
