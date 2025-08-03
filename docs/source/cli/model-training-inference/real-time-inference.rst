@@ -99,8 +99,8 @@ In short you can run the following:
             --role arn:aws:iam::<account_id>:role/<your_role> \
             --region <region> \
             --restore-model-path <restore-model-path>/<epoch-XX-iter-XX> \
-            --model-yaml-config-file /<path-to-yaml>/GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml \
-            --graph-json-config-file /<path-to-json>/data_transform_new.json \
+            --model-yaml-config-file <restore-model-path>/GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml \
+            --graph-json-config-file <restore-model-path>/data_transform_new.json \
             --infer-task-type node_classification \
             --upload-tarfile-s3 s3://<a-bucket> \
             --model-name <model-name>
