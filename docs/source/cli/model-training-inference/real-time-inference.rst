@@ -144,65 +144,9 @@ critical for real-time infernce, it is recommened to use OLTP graph database, e.
 Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke 
 models for real-time inference
 <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
-GraphStorm defines a specification of the payload contents.
+GraphStorm defines a :ref:`specification of the payload contents <real-time-payload-spec>` for your reference.
 
-.. _reat-time-payload-spec:
-
-Payload content specification
-******************************
-The payload should be a JSON object in the format explained below. In the highest level, the JSON object
-contains three fields: ``version``, ``gml_task``, and ``graph``.
-
-``version`` (**Required**)
->>>>>>>>>>>>>>>>>>>>>>>>>>>
-This field is used to identify the version of a specification, helping to avoid compatibility issues of different
-versions. The current version is ``gs-realtime-v0.1``.
-
-``gml_task`` (**Required**)
->>>>>>>>>>>>>>>>>>>>>>>>>>>
-This field indicates what graph machine learning task this payload is for. Current specification supports two
-options: 
-
-* ``node_classification``
-* ``node_regression``
-
-``graph`` (**Required**)
->>>>>>>>>>>>>>>>>>>>>>>>>
-
-This ``graph`` specifies the workload.
-<gsprocessing_input_configuration>`. It contains three sub-fields, i.e., ``nodes``, ``edges``, and ``targets``.
-
-A ``nodes`` field contains a list of ``node`` fileds. A ``node`` includes the raw input data values
-of a node in the subgraph. It has the following required attributes.
-
-* ``node_type``: string, the raw node type name in a graph. It should be same as these ``node_type`` defined in
-  :ref:`gconstruct JSON specification <gconstruction-json>` or the ``type`` values of ``nodes`` defined in 
-  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
-* ``node_id``: the raw node identifier.
-* ``features``: a dictionary, whose key is a feature name, and its value is the value of features.
-  feaure names should be same as the ``feature_name`` defined in :ref:`gconstruct JSON specification
-  <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
-  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
-
-An ``edges`` field contains a list of ``edge`` fields. An ``edge`` includes the raw input data values of an
-edge in the subgraph. It has the following required attributes.
-
-* ``edge_type``: list, the raw edge type name in the format of a list with three elements, which indicate
-  source node type, edge type, and destination edge type. It should be same as the ``relation`` fileds defined
-  in :ref:`gconstruct JSON specification <gconstruction-json>` or the ``type`` values of ``source``
-  ``relation``, and ``dest`` fileds defined in :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
-* ``src_node_id``: user defined node identifier for the source node.
-* ``dest_node_id``: user defined node identifier for the destination node.
-* ``features``: a dictionary, whose key is a feature name, and its key is value of the feature. 
-  feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
-  <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
-  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
-
-A ``targets`` field contains a list of target ``node`` or ``edge`` fileds depending on the value of ``gml_task``
-These ``node`` or ``edge`` fileds is same as ``node`` and ``edge`` above, but the features field is not
-required. And they should be in the ``nodes`` or ``edges`` list of a ``graph``.
-
-An example payload JSON object is like the following:
+Below is an example payload JSON object for node classification inference.
 
 .. code:: yaml
 
@@ -213,24 +157,15 @@ An example payload JSON object is like the following:
             "nodes": [
                 {
                     "node_type": "author",
-                    "features": {
-                        "feat": [
-                            0.011269339360296726,
-                            ......
-                        ]
-                    },
-                    "node_id": "a4444"
+                    "node_id": "a4444",
+                    "features": { "feat": [ 0.011269339360296726, ......, ]},
                 },
                 {
                     "node_type": "author",
-                    "features": {
-                        "feat": [
-                            -0.0032965524587780237,
-                            .....
-                        ]
-                    },
-                    "node_id": "s39"
-                }
+                    "node_id": "a39",
+                    "features": { "feat": [-0.0032965524587780237, ......, ]},
+                },
+                ......
             ],
             "edges": [
                 {
@@ -239,27 +174,17 @@ An example payload JSON object is like the following:
                         "writing",
                         "paper"
                     ],
-                    "features": {},
                     "src_node_id": "p4463",
-                    "dest_node_id": "p4463"
+                    "dest_node_id": "p4463",
+                    "features": { "feat": [ 1.411269339360296726, ......, ]},
                 },
                 ......
             ]
         },
         "targets": [
             {
-                "node_type": "paper",
-                "node_id": "p4463"
-            },
-            or 
-            {
-                "edge_type": [
-                        "paper",
-                        "citing",
-                        "paper"
-                    ]
-                "src_node_id": "p3551",
-                "dest_node_id": "p3551"
+                "node_type": "author",
+                "node_id": "a39"
             }
         ]
     }

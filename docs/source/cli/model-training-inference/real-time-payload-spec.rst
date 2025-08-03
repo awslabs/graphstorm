@@ -19,7 +19,7 @@ The payload should be a JSON object. In the highest level, the JSON object conta
   supports two options: 
     * ``node_classification``
     * ``node_regression``
-- ``graph`` (JSON objects) The contents of a payload.
+- ``graph`` -- (JSON objects) The contents of a payload.
 
 
 Contents of objects in the ``graph`` field
