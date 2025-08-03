@@ -16,7 +16,7 @@ of how to deloy an endpoint, and how to invoke it for real-time infernce.
 
 Prerequisites
 ..............
-In order to use GraphStorm on Amazon SageMaker, users need to have AWS access to the following AWS services.
+In order to use GraphStorm on Amazon SageMaker, users need to have an AWS account and access to the following AWS services.
 
 - **SageMaker service**. Please refer to `Amazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_
   for how to get access to Amazon SageMaker.
