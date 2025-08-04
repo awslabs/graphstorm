@@ -17,7 +17,7 @@ trained model and respond to inference requests in real time. This is known as o
 is constantly available to make predictions on new data as it comes in, ensuring immediate responses for
 time-sensitive applications.
 
-Since version 0.5, GraphStorm offers new features that can deploy a trained model as a SageMaker real-time
+Since version 0.5, GraphStorm offers the capability to deploy a trained model as a SageMaker real-time
 inference endpoint. Below sections provide details of how to deloy an endpoint, and how to invoke it.
 
 Prerequisites
