@@ -4,7 +4,7 @@
 Real-time Inference on Amazon SageMaker
 ========================================
 
-GraphStorm CLIs for model inference on :ref:`signle machine <single-machine-training-inference>`,
+GraphStorm CLIs for model inference on :ref:`single machine <single-machine-training-inference>`,
 :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`
 are designed to handle large datasets, which could take minutes to hours for predicting a large number of target
 nodes/edges or generating embeddings for all nodes. This is typically referred to as offline inference, where the
