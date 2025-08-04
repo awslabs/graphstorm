@@ -156,23 +156,23 @@ A response body is a JSON object.
 .. code:: json
 
     {
-        'status_code'   : 'int',
-        'request_uid'   : 'string',
-        'message'       : 'string',
-        'error'         : 'string',
-        'data'          : {
+        "status_code"   : "int",
+        "request_uid"   : "string",
+        "message"       : "string",
+        "error"         : "string",
+        "data"          : {
             results: [
                 {
-                    'node_type'     : 'string',
-                    'node_id'       : 'string',
-                    'predictions'   : [ ...... ]
+                    "node_type"     : "string",
+                    "node_id"       : "string",
+                    "predictions"   : [ ...... ]
                 },
                 or
                 {
-                    'edge_type'     : ['string', 'string', 'string'],
-                    'src_node_id'   : 'string',
-                    'dest_node_id'  : 'string',
-                    'predictions'   : [ ...... ]
+                    "edge_type"     : ["string", "string", "string"],
+                    "src_node_id"   : "string",
+                    "dest_node_id"  : "string",
+                    "predictions"   : [ ...... ]
                 }
             ]
         }
