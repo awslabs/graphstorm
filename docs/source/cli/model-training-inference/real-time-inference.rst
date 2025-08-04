@@ -12,7 +12,7 @@ model processes a large batch of data at once, to be used downstream at a later 
 
 However, in certain use cases such as recommendation systems, social network analysis, and fraud detection, there
 is a need for real-time predictions. For instance, you may only want to predict a few targets and expect to get
-results immediately, say within one second. In these scenarios, you will need a 7*24 running server to host the
+results immediately to perform an action in response to a user request. In these scenarios, you will need to deploy a server to host the
 trained model and respond to inference requests in real time. This is known as online inference, where the model
 is constantly available to make predictions on new data as it comes in, ensuring immediate responses for
 time-sensitive applications.
