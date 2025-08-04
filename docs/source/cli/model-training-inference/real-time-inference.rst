@@ -220,8 +220,9 @@ invoke an endpoint.
 
 .. code-block:: python
 
-    import boto3
     import json
+    import boto3
+    
 
     # Create a SageMaker client object\n",
     sagemaker = boto3.client('sagemaker')
