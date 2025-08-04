@@ -122,7 +122,7 @@ Arguments of the launch endpoint script include:
 - **-\-role** (Required): the role ARN that has SageMaker execution role. Please refer to the
   `SageMaker AI document <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-prereqs>`_
   section for details.
-- **-\-instance-type**: the instance types to be used for endpoints. (Default: ``ml.c6i.xlarge``)
+- **-\-instance-type**: the instance type to be used for endpoints. (Default: ``ml.c6i.xlarge``)
 - **-\-instance-count**: the number of endpoints to be deployed. (Default: 1)
 - **-\-custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
   ProductionVariant. For details, please refer to `ProductionVariant Documentation
