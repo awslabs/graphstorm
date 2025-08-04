@@ -149,8 +149,8 @@ Specification of Response Body Contents
 
 A response body is a JSON object.
 
-**Response syntax**:
-....................
+**Response Body Syntax**:
+.........................
 
 .. code:: json
 
@@ -165,13 +165,13 @@ A response body is a JSON object.
                     'node_type' : 'string',
                     'node_id'   : 'string',
                     'predictions' : [ ...... ]
-                }
+                },
             ]
         }
     }
 
-**Response Structure**:
-.......................
+**Response Body Structure**:
+............................
 
 - (dict) --
     - ``status_code`` (string) --
@@ -199,28 +199,28 @@ A response body is a JSON object.
     - ``data`` (JSON object) --
         When the ``status_code`` is 200, the JSON object includes a populated ``data`` field. Otherwise,
         the data field is empty.
-        - ``results`` (list) --
-            A ``200`` status response includes a JSON object containing inference results, with a single field 
-            called ``results``. The values of ``results`` is a list that includes the inference values for all
-            nodes specified in the payload's ``target`` field.
-            - (dict) --
-                For node prediction tasks (node classification and node regression):
-                - ``node_type`` (string) --
-                    Specifies a node type name in a graph.
-                - ``node_id`` (string) -- 
-                    Specifies a node identifier.
-                For edge prediciton tasks (edge classification and edge regression):
-                - ``edge_type`` (list )-- 
-                    An array specifying the edge type name in the format of three strings, which indicate
-                    source node type, edge type, and destination edge type.
-                - ``src_node_id`` (string) --
-                    Specifies the source node identifier.
-                - ``dest_node_id`` (string) --
-                    Specifies the destination node identifier.
+            - ``results`` (list) --
+                A ``200`` status response includes a JSON object containing inference results, with a single field 
+                called ``results``. The values of ``results`` is a list that includes the inference values for all
+                nodes specified in the payload's ``target`` field.
+                    - (dict) --
+                        For node prediction tasks (node classification and node regression):
+                            - ``node_type`` (string) --
+                                Specifies a node type name in a graph.
+                            - ``node_id`` (string) -- 
+                                Specifies a node identifier.
+                        For edge prediciton tasks (edge classification and edge regression):
+                            - ``edge_type`` (list )-- 
+                                An array specifying the edge type name in the format of three strings, which indicate
+                                source node type, edge type, and destination edge type.
+                            - ``src_node_id`` (string) --
+                                Specifies the source node identifier.
+                            - ``dest_node_id`` (string) --
+                                Specifies the destination node identifier.
 
-                - ``prediction`` (list) --
-                    This field contains the inference results for each node or edge. For classification
-                    tasks, the value of ``prediction`` is a list of logits that can be used with classification
-                    method such as `argmax`. For regression tasks, the value of ``prediction`` is a list with
-                    a single element, which represents the regression result.
+                        - ``prediction`` (list) --
+                            This field contains the inference results for each node or edge. For classification
+                            tasks, the value of ``prediction`` is a list of logits that can be used with classification
+                            method such as `argmax`. For regression tasks, the value of ``prediction`` is a list with
+                            a single element, which represents the regression result.
 
