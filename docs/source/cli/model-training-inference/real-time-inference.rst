@@ -18,7 +18,7 @@ is constantly available to make predictions on new data as it comes in, ensuring
 time-sensitive applications.
 
 Since version 0.5, GraphStorm offers the capability to deploy a trained model as a SageMaker real-time
-inference endpoint. Below sections provide details of how to deloy an endpoint, and how to invoke it.
+inference endpoint. The following sections provide details of how to deploy an endpoint, and how to invoke it.
 
 Prerequisites
 --------------
