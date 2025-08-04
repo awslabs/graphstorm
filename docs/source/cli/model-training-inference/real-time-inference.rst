@@ -1,7 +1,9 @@
 .. _real-time-inference-on-sagemaker:
 
+========================================
 Real-time Inference on Amazon SageMaker
-----------------------------------------
+========================================
+
 GraphStorm CLIs for model inference on :ref:`signle machine <single-machine-training-inference>`,
 :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`
 are designed to tackle large dataset, which could take minutes to hours for predicting a large
@@ -9,8 +11,8 @@ number of target nodes/edges or generating embeddings for all nodes. In certain 
 predict a few targets only and expect to get results immediately, e.g., with in one second, you will need
 a 7*24 running server to host trained model and response to inference requests in real time.
 
-Since version 0.5, GraphStorm offers CLIs to deploy a trained model as a SageMaker real-time inference
-endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges,
+Since version 0.5, GraphStorm offers new features that can deploy a trained model as a SageMaker real-time
+inference endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges,
 convert it and associated features into a JSON object as payloads of requests. Below sections provide details
 of how to deloy an endpoint, and how to invoke it for real-time infernce.
 
@@ -28,7 +30,8 @@ In order to use GraphStorm on Amazon SageMaker, users need to have an AWS accoun
 .. _build_rt_inference_docker:
 
 Setup GraphStorm Real-time Inference Docker Image
-..................................................
+-------------------------------------------------
+
 Similarly to :ref:`GraphStorm model training and inference on SageMaker <distributed-sagemaker>`, you will
 need to build a GraphStorm Docker image specifically for real-time inference. In addition, your executing role should
 have full ECR access to be able to pull from ECR to build the image, create an ECR repository if it
@@ -53,11 +56,15 @@ Replace the ``123456789012`` with your own AWS account ID. For more build and pu
 
 .. note::
 
-    CPU instances are more cost-effective and have similar inference latency as GPU instances. Therefore, it is
-    recommended to use CPU instances for real-time inference.
+    When comparing CPU instances to GPU instances for real-time inference, CPU instances prove more
+    cost-effective while maintaining similar inference latency to GPU instances. Although CPU
+    instances are generally recommended for real-time inference, users are encouraged to run their own
+    benchmarks and cost analysis to make the final decision between CPU and GPU instances based on their
+    particular workload needs.
 
 Deploy a SageMaker Real-time Inference endpoint
-................................................
+------------------------------------------------
+
 To deploy a SageMaker real-time inference endpoint, you will need three model artifacts that were generated
 during  graph construction (GConstruct/GSProcessing) and model training.
 
@@ -117,17 +124,20 @@ Arguments of the launch endpoint script include:
   <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
 - **-\-async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
   or ``False`` to wait for deployment to finish before exiting. (Default: ``True``)
-- **-\-restore-model-path** (Required): the path where the ``model.bin`` file is saved.
-- **-\-model-yaml-config-file** (Required): the path where the updated model configuration YAML file is saved.
-- **-\-graph-json-config-file** (Required): the path where the updated graph construction configuration JSON file
+- **-\-restore-model-path** (Required): a local folder path where the ``model.bin`` file is saved.
+- **-\-model-yaml-config-file** (Required): a local file path where the updated model configuration YAML file
   is saved.
-- **-\-upload-tarfile-s3** (Required): the S3 location for uploading the packed and compressed model artifacts
+- **-\-graph-json-config-file** (Required): a local file path where the updated graph construction configuration
+  JSON file is saved.
+- **-\-upload-tarfile-s3** (Required): an S3 prefix for uploading the packed and compressed model artifacts
   tar file.
 - **-\-infer-task-type** (Required): the name of real-time inference task. Options include ``node_classification``
   and ``node_regression``.
 - **-\-model-name**: the name of model. This name will be used to define names of SageMaker Model,
   EndpointConfig, and Endpoint by appending datetime to this model name. The name should follow a regular
-  expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$``. (Default: ``GSF-Model4Realtime``)
+  expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$`` as defined in
+  `SageMaker's CreateEndpoint document <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateEndpoint.html>`_.
+  (Default: ``GSF-Model4Realtime``)
 
 Outputs of this command include the deployed endpoint ARN based on the value for ``--model-name``, e.g.,
 ``arn:aws:sagemaker:us-east-1:123456789012:endpoint/GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``,
@@ -135,7 +145,8 @@ to be used in the invoke step. The same endpoint ARN can also be found from Amaz
 console under the "Inference -> Endpoints" menu.
 
 Invoke Real-time Inference Endpoints
-.....................................
+-------------------------------------
+
 For real-time inference, you will need to extract a subgraph around the target nodes/edges from a large
 graph, and use the subgraph as input of model, which is similar to how models are trained. Because time is
 critical for real-time infernce, it is recommened to use OLTP graph database, e.g.,
@@ -144,7 +155,7 @@ critical for real-time infernce, it is recommened to use OLTP graph database, e.
 Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke 
 models for real-time inference
 <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
-GraphStorm defines a :ref:`specification of the payload contents <real-time-payload-spec>` for your reference.
+GraphStorm defines a :ref:`specification of the payload contents <rt-request_payload-spec>` for your reference.
 
 Below is an example payload JSON object for node classification inference.
 
@@ -158,12 +169,14 @@ Below is an example payload JSON object for node classification inference.
                 {
                     "node_type": "author",
                     "node_id": "a4444",
-                    "features": { "feat": [ 0.011269339360296726, ......, ]},
+                    "features": {"feat_num" : [ 0.011269339360296726, ......, ],
+                                 "feat_cat" : "UK"},
                 },
                 {
                     "node_type": "author",
                     "node_id": "a39",
-                    "features": { "feat": [-0.0032965524587780237, ......, ]},
+                    "features": {"feat": [-0.0032965524587780237, ......, ],
+                                "feat_cat" : "USA"},
                 },
                 ......
             ],
@@ -176,7 +189,8 @@ Below is an example payload JSON object for node classification inference.
                     ],
                     "src_node_id": "p4463",
                     "dest_node_id": "p4463",
-                    "features": { "feat": [ 1.411269339360296726, ......, ]},
+                    "features": {"feat1": [ 1.411269339360296726, ......, ]},
+                                 "feat2" : "1980s"},
                 },
                 ......
             ]
@@ -224,55 +238,12 @@ invoke an endpoint.
     # Decodes and prints the response body
     print(response['Body'].read().decode('utf-8'))
 
-The response format
-********************
+Endpoint invoke response
+*************************
+
 As shown in the previous invoke example, the response from GraphStorm's real-time inference endpoint will include
-a JSON object in the ``Body`` field of the SageMaker API response. This JSON object contains five fields:
-
-``status_code``
->>>>>>>>>>>>>>>>
-
-The JSON object always includes a ``status_code`` field, which indicates the outcome status with an integer value,
-including:
-
-- ``200``: request processed successfully.
-- ``400``: the request payload has JSON format errors.
-- ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
-- ``402``: the request payload missed values on certain fileds.
-- ``403``: ``node_type`` of nodes in the ``target`` field does not exist in the ``graph`` field.
-- ``404``: values of the ``node_id`` fileds of nodes in the ``target`` field do not exist in the ``graph`` field.
-- ``411``: errors occurred when converting the request payload into DGL graph format for inference.
-- ``421``: the task in ``gml_task`` does not match the task that the deployed model is for.
-- ``500``: internal server errors.
-
-``request_uid``
->>>>>>>>>>>>>>>>
-
-The JSON object always includes a ``request_uid`` field, which serves as a unique identifier for the request payload.
-This identifier is logged on the endpoint side and returned to invokers, facilitating error debugging.
-
-``message``
->>>>>>>>>>>>
-
-The JSON object always include a ``message`` field, which provide additional information when the ``status_code`` is 200.
-
-``error``
->>>>>>>>>>>>
-The JSON object always include an ``error`` field, which provide detailed explanations when the ```status_code`` is not 200.
-
-``data``
->>>>>>>>>
-When the ``status_code`` is 200, the JSON object includes a populated ``data`` field. Otherwise, the data field is empty.
-
-A ``200`` status response includes a JSON object containing inference results, with a single field called ``results``.
-The values of ``results`` is a list that includes the inference values for all nodes specified in the payload's
-``target`` field.
-
-In addtion to the ``node_type`` and ``node_id`` fields, which match those in the payload ``target`` field, each result
-in the list include a ``prediction`` field. This field contains the inference results for each node or edge. For
-classification tasks, the value of ``prediction`` is a list of logits that can be used with classification method such
-as `argmax`. For regression tasks, the value of ``prediction`` is a list with a single element, which represents the
-regression result.
+a JSON object in the ``Body`` field of the SageMaker API response. The details of the response syntax can be found
+in the :ref:`specification of realt-time inference response <rt-response-body-spec>`.
 
 An example of a successful inference response:
 

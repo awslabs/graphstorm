@@ -1,9 +1,15 @@
-.. _real-time-payload-spec:
+.. _real-time-inference-spec:
 
-Specification of Real-time Inference Payload Contents
-------------------------------------------------------
+==========================================================
+Specification of Real-time Inference Request and Response
+==========================================================
 
-The payload should be a JSON object. In the highest level, the JSON object contains three fields:
+.. _rt-request_payload-spec:
+
+Specification of Request Payload Contents 
+------------------------------------------
+
+A payload should be a JSON object. In the highest level, the JSON object contains three fields:
 ``version``, ``gml_task``, and ``graph``.
 
 .. code:: json
@@ -117,12 +123,12 @@ or an ``edge`` object defined above. As a target object, the ``features`` field 
                         {
                             "node_type": "author",
                             "node_id": "a4444",
-                            "features": { "feat": [ 0.011269339360296726, ......, ]},
+                            "features": { ...... },
                         },
                         {
                             "node_type": "author",
                             "node_id": "a39",
-                            "features": { "feat": [-0.0032965524587780237, ......, ]},
+                            "features": { ...... },
                         },
                         ......
                     ],
@@ -135,3 +141,78 @@ or an ``edge`` object defined above. As a target object, the ``features`` field 
                     }
                 ]
             }
+
+.. _rt-response-body-spec:
+
+Specification of Response Body Contents 
+----------------------------------------
+
+A response body is a JSON object.
+
+**Response syntax**:
+....................
+
+.. code:: json
+
+    {
+        'status_code'   : 'int',
+        'request_uid'   : 'string',
+        'message'       : 'string',
+        'error'         : 'string',
+        'data'          : {
+            results: [
+                {
+                    'node_type' : 'string',
+                    'node_id'   : 'string',
+                    'predictions' : [ ...... ]
+                }
+            ]
+        }
+    }
+
+**Response Structure**:
+.......................
+
+- (dict) --
+    - ``status_code`` (string) --
+        The JSON object always includes a ``status_code`` field, which indicates the outcome status with an integer value,
+        including:
+            - ``200``: request processed successfully.
+            - ``400``: the request payload has JSON format errors.
+            - ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
+            - ``402``: the request payload missed values on certain fileds.
+            - ``403``: ``node_type`` of nodes in the ``target`` field does not exist in the ``graph`` field.
+            - ``404``: values of the ``node_id`` fileds of nodes in the ``target`` field do not exist in the ``graph`` field.
+            - ``411``: errors occurred when converting the request payload into DGL graph format for inference.
+            - ``421``: the task in ``gml_task`` does not match the task that the deployed model is for.
+            - ``500``: internal server errors.
+
+``request_uid``
+>>>>>>>>>>>>>>>>
+
+The JSON object always includes a ``request_uid`` field, which serves as a unique identifier for the request payload.
+This identifier is logged on the endpoint side and returned to invokers, facilitating error debugging.
+
+``message``
+>>>>>>>>>>>>
+
+The JSON object always include a ``message`` field, which provide additional information when the ``status_code`` is 200.
+
+``error``
+>>>>>>>>>>>>
+The JSON object always include an ``error`` field, which provide detailed explanations when the ```status_code`` is not 200.
+
+``data``
+>>>>>>>>>
+When the ``status_code`` is 200, the JSON object includes a populated ``data`` field. Otherwise, the data field is empty.
+
+A ``200`` status response includes a JSON object containing inference results, with a single field called ``results``.
+The values of ``results`` is a list that includes the inference values for all nodes specified in the payload's
+``target`` field.
+
+In addtion to the ``node_type`` and ``node_id`` fields, which match those in the payload ``target`` field, each result
+in the list include a ``prediction`` field. This field contains the inference results for each node or edge. For
+classification tasks, the value of ``prediction`` is a list of logits that can be used with classification method such
+as `argmax`. For regression tasks, the value of ``prediction`` is a list with a single element, which represents the
+regression result.
+

@@ -10,7 +10,7 @@ This section provides guidelines of GraphStorm model training and inference on :
 
 GraphStorm CLIs require less- or no-code operations for users to perform Graph Machine Learning (GML) tasks. In most cases, users only need to configure the parameters or arguments provided by GraphStorm to fulfill their GML tasks. Users can find the details of these configurations in the :ref:`Model Training and Inference Configurations<configurations-run>`.
 
-In senarios when inference time is critical, such as detecting fraudulent transactions in seconds, Graphstorm can deploy a trained model with Amazon SageMaker endpoint for real time inference. It takes a small subgraph in real time. :ref:`Graphstorm real-time inference user guide <real-time-inference-on-sagemaker>` explains the deployment steps. And the :ref:`specification of real-time inference payload <real-time-payload-spec>` provides details of the payload contents of endpoint invoking requests.  
+In senarios when inference time is critical, such as detecting fraudulent transactions in seconds, Graphstorm can deploy a trained model with Amazon SageMaker endpoint for real time inference. It takes a small subgraph in real time. :ref:`Graphstorm real-time inference user guide <real-time-inference-on-sagemaker>` explains the deployment steps. And the :ref:`specification of real-time inference request and response <real-time-inference-spec>` provides details of contents of endpoint invoking requests and responses.
 
 In addition, there are two node ID mapping operations during the graph construction procedure, and these mapping results are saved in a certain folder by which GraphStorm training and inference CLIs will automatically use to remap prediction results' node IDs back to the original IDs. In case when such automatic remapping does not occur, you can find the details of outputs of model training and inference without remapping in :ref:`GraphStorm Training and Inference Output <gs-output>`. In addition, users can do the remapping mannually according to the :ref:`GraphStorm Output Node ID Remapping <gs-output-remapping>` guideline.
 
@@ -23,6 +23,6 @@ In addition, there are two node ID mapping operations during the graph construct
    distributed/sagemaker
    configuration-run
    real-time-inference
-   real-time-payload-spec
+   real-time-inference-spec
    output
    output-remapping
