@@ -97,7 +97,7 @@ An ``edge`` object listed in an ``edges`` array must contain the following requi
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``src_node_id`` -- A string specifying the source node identifier.
 * ``dest_node_id`` -- A string specifying the destination node identifier.
-* ``features`` -- A dictionary, whose key is a feature name, and its key is value of the feature. 
+* ``features`` -- A dictionary, with feature names as keys, and feature values as its values.
   feaure names should be same as these ``feature_name`` defined in :ref:`gconstruct JSON specification
   <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
