@@ -90,7 +90,7 @@ during  graph construction (GConstruct/GSProcessing) and model training.
 
 .. note:: 
 
-    Starting with v0.5, GraphStorm will save both updated JSON and YAML files into the same location as trained model
+    Starting with v0.5, GraphStorm will save both updated JSON and YAML files into the same location as the trained model
     automatically, if the ``--save-model-path`` or ``--model-artifact-s3``  configuration is set.
 
 GraphStorm provides a helper script to package these model artifacts as a tar file and upload it to an S3 bucket, and then
