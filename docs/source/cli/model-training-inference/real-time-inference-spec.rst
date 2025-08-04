@@ -205,7 +205,7 @@ A response body is a JSON object.
         is empty.
             - ``results`` (list) --
                 A list that includes the inference values for all nodes or edges specified in the payload's
-                ``target`` field.
+                ``targets`` field.
                     - (dict) --
                         For node prediction tasks (node classification and node regression):
                             - ``node_type`` (string) --
