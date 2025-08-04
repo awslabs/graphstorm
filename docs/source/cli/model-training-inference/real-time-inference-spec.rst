@@ -100,7 +100,7 @@ An ``edge`` object listed in an ``edges`` array must contain the following requi
 * ``features`` -- A dictionary, with feature names as keys, and feature values as its values.
   feature names should be same as these ``feature_name`` defined in :ref:`GConstruct JSON specification
   <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
-  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
+  :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
 Contents of a target object listed in a ``targets`` array
 ..........................................................
