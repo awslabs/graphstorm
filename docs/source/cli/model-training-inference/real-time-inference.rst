@@ -7,15 +7,15 @@ Real-time Inference on Amazon SageMaker
 GraphStorm CLIs for model inference on :ref:`single machine <single-machine-training-inference>`,
 :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`
 are designed to handle large datasets, which could take minutes to hours for predicting a large number of target
-nodes/edges or generating embeddings for all nodes. This is typically referred to as offline inference, where the
-model processes a large batch of data at once, to be used downstream at a later point.
+nodes/edges or generating embeddings for all nodes. This is typically referred as offline inference, where the
+model processes a large batch of data at once and the results will be used downstream at a later point.
 
 However, in certain use cases such as recommendation systems, social network analysis, and fraud detection, there
 is a need for real-time predictions. For instance, you may only want to predict a few targets and expect to get
-results immediately to perform an action in response to a user request. In these scenarios, you will need to deploy a server to host the
-trained model and respond to inference requests in real time. This is known as online inference, where the model
-is constantly available to make predictions on new data as it comes in, ensuring immediate responses for
-time-sensitive applications.
+results immediately to perform an action in response to a user request. In these scenarios, you will need to deploy
+a server to host the trained model and respond to inference requests in real time. This is known as online inference,
+where the model is constantly available to make predictions on new data as it comes in, ensuring immediate responses
+for time-sensitive applications.
 
 Since version 0.5, GraphStorm offers the capability to deploy a trained model as a SageMaker real-time
 inference endpoint. The following sections provide details of how to deploy an endpoint, and how to invoke it.
@@ -122,13 +122,6 @@ Arguments of the launch endpoint script include:
 - **-\-role** (Required): the role ARN that has SageMaker execution role. Please refer to the
   `SageMaker AI document <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html#deploy-prereqs>`_
   section for details.
-- **-\-instance-type**: the instance type to be used for endpoints. (Default: ``ml.c6i.xlarge``)
-- **-\-instance-count**: the number of endpoints to be deployed. (Default: 1)
-- **-\-custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
-  ProductionVariant. For details, please refer to `ProductionVariant Documentation
-  <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
-- **-\-async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
-  or ``False`` to wait for deployment to finish before exiting. (Default: ``True``)
 - **-\-restore-model-path** (Required): a local folder path where the ``model.bin`` file is saved.
 - **-\-model-yaml-config-file** (Required): a local file path where the updated model configuration YAML file
   is saved.
@@ -138,6 +131,13 @@ Arguments of the launch endpoint script include:
   tar file.
 - **-\-infer-task-type** (Required): the name of real-time inference task. Options include ``node_classification``
   and ``node_regression``.
+- **-\-instance-type**: the instance type to be used for endpoints. (Default: ``ml.c6i.xlarge``)
+- **-\-instance-count**: the number of endpoints to be deployed. (Default: 1)
+- **-\-custom-production-variant**: dictionary string that includes custom configurations of the SageMaker
+  ProductionVariant. For details, please refer to `ProductionVariant Documentation
+  <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
+- **-\-async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
+  or ``False`` to wait for deployment to finish before exiting. (Default: ``True``)
 - **-\-model-name**: the name of model. This name will be used to define names of SageMaker Model,
   EndpointConfig, and Endpoint by appending datetime to this model name. The name should follow a regular
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$`` as defined in
@@ -164,46 +164,46 @@ GraphStorm defines a :ref:`specification of the payload contents <rt-request_pay
 
 Below is an example payload JSON object for node classification inference.
 
-.. code:: yaml
+.. code:: json
 
     {
-        "version": "gs-realtime-v0.1",
+        "version" : "gs-realtime-v0.1",
         "gml_task": "node_classification",
         "graph": {
-            "nodes": [
+            "nodes" : [
                 {
-                    "node_type": "author",
-                    "node_id": "a4444",
-                    "features": {"feat_num" : [ 0.011269339360296726, ......, ],
-                                 "feat_cat" : "UK"},
+                    "node_type" : "author",
+                    "node_id"   : "a4444",
+                    "features"  : {"feat_num" : [ 0.011269339360296726, ......, ],
+                                   "feat_cat" : "UK"},
                 },
                 {
-                    "node_type": "author",
-                    "node_id": "a39",
-                    "features": {"feat": [-0.0032965524587780237, ......, ],
-                                "feat_cat" : "USA"},
+                    "node_type" : "author",
+                    "node_id"   : "a39",
+                    "features"  : {"feat_num": [-0.0032965524587780237, ......, ],
+                                   "feat_cat" : "USA"},
                 },
                 ......
             ],
-            "edges": [
+            "edges" : [
                 {
-                    "edge_type": [
+                    "edge_type" : [
                         "author",
                         "writing",
                         "paper"
                     ],
-                    "src_node_id": "p4463",
-                    "dest_node_id": "p4463",
-                    "features": {"feat1": [ 1.411269339360296726, ......, ]},
-                                 "feat2" : "1980s"},
+                    "src_node_id"   : "p4463",
+                    "dest_node_id"  : "p4463",
+                    "features"      : {"feat1": [ 1.411269339360296726, ......, ]},
+                                       "feat2" : "1980s"},
                 },
                 ......
             ]
         },
-        "targets": [
+        "targets" : [
             {
-                "node_type": "author",
-                "node_id": "a39"
+                "node_type" : "author",
+                "node_id"   : "a39"
             }
         ]
     }
@@ -253,67 +253,76 @@ in the :ref:`specification of realt-time inference response <rt-response-body-sp
 
 An example of a successful inference response:
 
-.. code:: yaml
+.. code:: json
 
     {
-        "status_code": 200,
-        "request_uid": "569d90892909c2f8",
-        "message": "Request processed successfully.",
-        "error": "",
-        "data": {
-            "results": [
-                {
-                    "node_type": "paper",
-                    "node_id": "p9604",
-                    "prediction": [
-                        0.03836942836642265,
-                        0.06707385182380676,
-                        0.11153795570135117,
-                        0.027591131627559662,
-                        0.03496604412794113,
-                        0.11081098765134811,
-                        0.005487487651407719,
-                        0.027667740359902382,
-                        0.11663214862346649,
-                        0.11842530965805054,
-                        0.020509174093604088,
-                        0.031869057565927505,
-                        0.27694952487945557,
-                        0.012110156007111073
-                    ]
-                },
-                {
-                    "node_type": "paper",
-                    "node_id": "p8946",
-                    "prediction": [
-                        0.03848873823881149,
-                        0.06991259753704071,
-                        0.057228244841098785,
-                        0.02898392826318741,
-                        0.046037621796131134,
-                        0.09567245841026306,
-                        0.008081010542809963,
-                        0.02855496294796467,
-                        0.2774551510810852,
-                        0.07382062822580338,
-                        0.03699302300810814,
-                        0.047642651945352554,
-                        0.1794610172510147,
-                        0.011668065562844276
-                    ]
-                }
-            ]
+        "status_code" : 200,
+        "request_uid" : "569d90892909c2f8",
+        "message"     : "Request processed successfully.",
+        "error"       : "",
+        "data"        : {
+                          "results" : [
+                              {
+                                  "node_type" : "paper",
+                                  "node_id"   : "p9604",
+                                  "prediction": [
+                                      0.03836942836642265,
+                                      0.06707385182380676,
+                                      0.11153795570135117,
+                                      0.027591131627559662,
+                                      0.03496604412794113,
+                                      0.11081098765134811,
+                                      0.005487487651407719,
+                                      0.027667740359902382,
+                                      0.11663214862346649,
+                                      0.11842530965805054,
+                                      0.020509174093604088,
+                                      0.031869057565927505,
+                                      0.27694952487945557,
+                                      0.012110156007111073
+                                  ]
+                              },
+                              {
+                                  "node_type" : "paper",
+                                  "node_id"   : "p8946",
+                                  "prediction": [
+                                      0.03848873823881149,
+                                      0.06991259753704071,
+                                      0.057228244841098785,
+                                      0.02898392826318741,
+                                      0.046037621796131134,
+                                      0.09567245841026306,
+                                      0.008081010542809963,
+                                      0.02855496294796467,
+                                      0.2774551510810852,
+                                      0.07382062822580338,
+                                      0.03699302300810814,
+                                      0.047642651945352554,
+                                      0.1794610172510147,
+                                      0.011668065562844276
+                                  ]
+                              }
+                          ]
         }
     }
 
+In this example response for a classification task, the ``prediction`` field contains the logits of model
+predictions. You can use classification method, e.g., `argmax`, to get the final class. For example, the
+`argmax` result of the prediction of the paper node ``p9604`` is 12, which means this paper is predicted
+to belong to the 13th class as classes are normally one-hot encoded from 0. 
+
 An example of an error response:
 
-.. code:: yaml
+.. code:: json
 
     {
-        "status_code": 401,
-        "request_uid": "d3f2eaea2c2c7c76",
-        "message": "",
-        "error": "Missing Required Field: The input payload missed the 'targets' field. Please refer to the GraphStorm realtime inference documentation for required fields.",
-        "data": {}
+        "status_code"   : 401,
+        "request_uid"   : "d3f2eaea2c2c7c76",
+        "message"       : "",
+        "error"         : "Missing Required Field: The input payload missed the 'targets' field. Please refer to the
+                          GraphStorm realtime inference documentation for required fields.",
+        "data"          : {}
     }
+
+This example response provides a feedback to the invoker, explaining there is an error (401) in the payload content.
+And the detailed reason is that the request payload should include a ``targets`` field.

@@ -10,7 +10,7 @@ This section provides guidelines of GraphStorm model training and inference on :
 
 GraphStorm CLIs require less- or no-code operations for users to perform Graph Machine Learning (GML) tasks. In most cases, users only need to configure the parameters or arguments provided by GraphStorm to fulfill their GML tasks. Users can find the details of these configurations in the :ref:`Model Training and Inference Configurations<configurations-run>`.
 
-In scenarios when inference time is critical, such as detecting fraudulent transactions in seconds, Graphstorm can deploy 
+In scenarios when inference time is critical, such as detecting fraudulent transactions in seconds, Graphstorm can deploy
 a trained model with Amazon SageMaker endpoint for real time inference. :ref:`Graphstorm real-time inference 
 user guide <real-time-inference-on-sagemaker>` explains the deployment steps. 
 And the :ref:`specification of real-time inference request and response <real-time-inference-spec>` provides 

@@ -114,7 +114,7 @@ or an ``edge`` object as defined above. As a target object, the ``features`` fie
         in the ``nodes`` or ``edges`` array. For example, in the below payload example, the ``author``
         node ``a39`` is a target node, and it also is one of the nodes in the ``nodes`` list.
 
-        .. code:: yaml
+        .. code:: json
 
             {
                 "version": "gs-realtime-v0.1",
@@ -187,7 +187,7 @@ A response body is a JSON object.
             - ``200``: request processed successfully.
             - ``400``: the request payload has JSON format errors.
             - ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
-            - ``402``: the request payload missed values on certain fileds.
+            - ``402``: the request payload missed values on certain fileds, e.g., missing a node identifier in ``node_id`` field.
             - ``403``: ``node_type`` of nodes in the ``target`` field does not exist in the ``graph`` field.
             - ``404``: values of the ``node_id`` fileds of nodes in the ``target`` field do not exist in the ``graph`` field.
             - ``411``: errors occurred when converting the request payload into DGL graph format for inference.
@@ -200,7 +200,7 @@ A response body is a JSON object.
         A string provides additional information when the ``status_code`` is 200.
     - ``error`` (string) --
         A string provides detailed explanations when the ``status_code`` is **NOT** 200.
-    - ``data`` (JSON object) --
+    - ``data`` (dict) --
         When the ``status_code`` is 200, includes a populated ``data`` field. Otherwise, the ``data`` field
         is empty.
             - ``results`` (list) --
@@ -213,7 +213,7 @@ A response body is a JSON object.
                             - ``node_id`` (string) -- 
                                 Specifies a node identifier.
                         For edge prediciton tasks (edge classification and edge regression):
-                            - ``edge_type`` (list )-- 
+                            - ``edge_type`` (list ) --
                                 An array specifying the edge type name in the format of three strings, which
                                 indicate the source node type, the edge type, and the destination edge type.
                             - ``src_node_id`` (string) --
