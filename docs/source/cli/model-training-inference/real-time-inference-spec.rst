@@ -175,8 +175,8 @@ A response body is a JSON object.
 
 - (dict) --
     - ``status_code`` (string) --
-        The JSON object always includes a ``status_code`` field, which indicates the outcome status with an integer value,
-        including:
+        The JSON object always includes a ``status_code`` field, which indicates the outcome status with an
+        integer value, including:
             - ``200``: request processed successfully.
             - ``400``: the request payload has JSON format errors.
             - ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
@@ -186,33 +186,41 @@ A response body is a JSON object.
             - ``411``: errors occurred when converting the request payload into DGL graph format for inference.
             - ``421``: the task in ``gml_task`` does not match the task that the deployed model is for.
             - ``500``: internal server errors.
+    - ``request_uid`` (string) --
+        The JSON object always includes a ``request_uid`` field, which serves as a unique identifier for
+        the request payload. This identifier is logged on the endpoint side and returned to invokers,
+        facilitating error debugging.
+    -  ``message`` (string) --
+        The JSON object always include a ``message`` field, which provide additional information when the
+        ``status_code`` is 200.
+    - ``error`` (string) --
+        The JSON object always include an ``error`` field, which provide detailed explanations when the
+        ``status_code`` is not 200.
+    - ``data`` (JSON object) --
+        When the ``status_code`` is 200, the JSON object includes a populated ``data`` field. Otherwise,
+        the data field is empty.
+        - ``results`` (list) --
+            A ``200`` status response includes a JSON object containing inference results, with a single field 
+            called ``results``. The values of ``results`` is a list that includes the inference values for all
+            nodes specified in the payload's ``target`` field.
+            - (dict) --
+                For node prediction tasks (node classification and node regression):
+                - ``node_type`` (string) --
+                    Specifies a node type name in a graph.
+                - ``node_id`` (string) -- 
+                    Specifies a node identifier.
+                For edge prediciton tasks (edge classification and edge regression):
+                - ``edge_type`` (list )-- 
+                    An array specifying the edge type name in the format of three strings, which indicate
+                    source node type, edge type, and destination edge type.
+                - ``src_node_id`` (string) --
+                    Specifies the source node identifier.
+                - ``dest_node_id`` (string) --
+                    Specifies the destination node identifier.
 
-``request_uid``
->>>>>>>>>>>>>>>>
-
-The JSON object always includes a ``request_uid`` field, which serves as a unique identifier for the request payload.
-This identifier is logged on the endpoint side and returned to invokers, facilitating error debugging.
-
-``message``
->>>>>>>>>>>>
-
-The JSON object always include a ``message`` field, which provide additional information when the ``status_code`` is 200.
-
-``error``
->>>>>>>>>>>>
-The JSON object always include an ``error`` field, which provide detailed explanations when the ```status_code`` is not 200.
-
-``data``
->>>>>>>>>
-When the ``status_code`` is 200, the JSON object includes a populated ``data`` field. Otherwise, the data field is empty.
-
-A ``200`` status response includes a JSON object containing inference results, with a single field called ``results``.
-The values of ``results`` is a list that includes the inference values for all nodes specified in the payload's
-``target`` field.
-
-In addtion to the ``node_type`` and ``node_id`` fields, which match those in the payload ``target`` field, each result
-in the list include a ``prediction`` field. This field contains the inference results for each node or edge. For
-classification tasks, the value of ``prediction`` is a list of logits that can be used with classification method such
-as `argmax`. For regression tasks, the value of ``prediction`` is a list with a single element, which represents the
-regression result.
+                - ``prediction`` (list) --
+                    This field contains the inference results for each node or edge. For classification
+                    tasks, the value of ``prediction`` is a list of logits that can be used with classification
+                    method such as `argmax`. For regression tasks, the value of ``prediction`` is a list with
+                    a single element, which represents the regression result.
 
