@@ -6,15 +6,21 @@ Real-time Inference on Amazon SageMaker
 
 GraphStorm CLIs for model inference on :ref:`signle machine <single-machine-training-inference>`,
 :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`
-are designed to tackle large dataset, which could take minutes to hours for predicting a large
-number of target nodes/edges or generating embeddings for all nodes. In certain cases when you want to
-predict a few targets only and expect to get results immediately, e.g., with in one second, you will need
-a 7*24 running server to host trained model and response to inference requests in real time.
+are designed to handle large datasets, which could take minutes to hours for predicting a large number of target
+nodes/edges or generating embeddings for all nodes. This is typically referred to as offline inference, where the
+model processes a large batch of data at once, and the results are not needed immediately.
+
+However, in certain use cases such as recommendation systems, social network analysis, and fraud detection, there
+is a need for real-time predictions. For instance, you may only want to predict a few targets and expect to get
+results immediately, say within one second. In these scenarios, you will need a 7*24 running server to host the
+trained model and respond to inference requests in real time. This is known as online inference, where the model
+is constantly available to make predictions on new data as it comes in, ensuring immediate responses for
+time-sensitive applications.
 
 Since version 0.5, GraphStorm offers new features that can deploy a trained model as a SageMaker real-time
 inference endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges,
 convert it and associated features into a JSON object as payloads of requests. Below sections provide details
-of how to deloy an endpoint, and how to invoke it for real-time infernce.
+of how to deloy an endpoint, and how to invoke it.
 
 Prerequisites
 ..............
@@ -57,7 +63,7 @@ Replace the ``123456789012`` with your own AWS account ID. For more build and pu
 .. note::
 
     When comparing CPU instances to GPU instances for real-time inference, CPU instances prove more
-    cost-effective while maintaining similar inference latency to GPU instances. Although CPU
+    cost-effective while maintaining similar inference latency to GPU instances. While CPU
     instances are generally recommended for real-time inference, users are encouraged to run their own
     benchmarks and cost analysis to make the final decision between CPU and GPU instances based on their
     particular workload needs.
