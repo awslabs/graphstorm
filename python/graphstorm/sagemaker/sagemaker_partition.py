@@ -393,14 +393,15 @@ def run_partition(job_config: PartitionJobConfig):
         data_dispatch_step(local_partition_path)
 
         # Leader instance copies raw_id_mappings from input to dist_graph output on S3
-        # using aws cli, usually much faster than using boto3
         # Will also upload the updated GConstruct/GSProcessing config, if one exists
         raw_id_mappings_s3_path = os.path.join(graph_data_s3, "raw_id_mappings")
         logging.info("Copying raw_id_mappings from %s to %s",
             raw_id_mappings_s3_path, s3_dglgraph_output)
         # Copy raw_id_mappings from input to dist_graph output on S3
+        # TODO: Allow this to be configured by user/image
         subprocess.call([
             "aws", "configure", "set", "default.s3.max_concurrent_requests", "150"])
+        # using aws cli, usually much faster than using boto3
         subprocess.check_call(
             [
                 "aws",

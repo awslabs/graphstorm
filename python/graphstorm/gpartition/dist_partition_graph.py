@@ -216,7 +216,7 @@ def main():
         logging.info("Copying GSProcessing config from %s to %s", gsp_config_fpath, dst_config)
         shutil.copy2(gsp_config_fpath, dst_config)
 
-        # Optional hard negative mapping
+        # Apply hard negative sampling if needed
         shuffle_hard_negative_nids(
             gsprocessing_config=gsp_config_fpath,
             num_parts=args.num_parts,

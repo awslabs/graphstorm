@@ -80,7 +80,7 @@ def shuffle_hard_negative_nids(gsprocessing_config: str,
     """
     shuffled_edge_config = load_hard_negative_config(gsprocessing_config)
 
-    # Do not try to shuffle if no edge types with hard negatives exist
+    # If there were no edges with hard negative configuration, return
     if not shuffled_edge_config:
         return
 
