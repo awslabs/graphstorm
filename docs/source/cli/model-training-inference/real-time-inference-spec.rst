@@ -91,7 +91,7 @@ An ``edge`` object listed in an ``edges`` array must contain the following requi
     }
 
 * ``edge_type`` -- An array specifying the edge type name in the format of three strings, which indicate the
-  source node type, the edge type, and the destination edge type. It should be same as the ``relation`` fileds
+  source node type, the edge type, and the destination edge type. It should be same as the ``relation`` fields
   defined in :ref:`gconstruct JSON specification <gconstruction-json>` or the ``type`` values of ``source``
   ``relation``, and ``dest`` fileds defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
