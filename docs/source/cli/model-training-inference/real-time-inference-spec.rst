@@ -83,16 +83,16 @@ An ``edge`` object listed in an ``edges`` array can contain the following requir
         "edge_type"     : [(source node type), (edge type), (destination node type)],
         "src_node_id"   : string,
         "dest_node_id"  : string,
-        "features"  : {
-                        feature name: feature value,
-                        feature name: feature value,
-                        ...
-                      }
+            "features"  : {
+                            feature name: feature value,
+                            feature name: feature value,
+                            ...
+                        }
     }
 
-* ``edge_type`` -- An array specifying the edge type name in the format of three strings, which indicate
-  source node type, edge type, and destination edge type. It should be same as the ``relation`` fileds defined
-  in :ref:`gconstruct JSON specification <gconstruction-json>` or the ``type`` values of ``source``
+* ``edge_type`` -- An array specifying the edge type name in the format of three strings, which indicate the
+  source node type, the edge type, and the destination edge type. It should be same as the ``relation`` fileds
+  defined in :ref:`gconstruct JSON specification <gconstruction-json>` or the ``type`` values of ``source``
   ``relation``, and ``dest`` fileds defined in
   :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
 * ``src_node_id`` -- A string specifying the source node identifier.
@@ -106,12 +106,13 @@ Contents of a target object listed in a ``targets`` array
 ..........................................................
 
 Depending on the value of ``gml_task``, a target object in a ``targets`` array could be a ``node`` object
-or an ``edge`` object defined above. As a target object, the ``features`` field is not required. 
+or an ``edge`` object as defined above. As a target object, the ``features`` field is not required. 
 
     .. note::
 
-        A target objects, a ``node`` or an ``edge``, should have a same ``node`` or ``edge`` object
-        in the ``nodes`` or ``edges`` array. For example,
+        A target objects, a ``node`` or an ``edge``, should have the same ``node`` or ``edge`` object
+        in the ``nodes`` or ``edges`` array. For example, in the below payload example, the ``author``
+        node ``a39`` is a target node, and it also is one of the nodes in the ``nodes`` list.
 
         .. code:: yaml
 
@@ -162,10 +163,17 @@ A response body is a JSON object.
         'data'          : {
             results: [
                 {
-                    'node_type' : 'string',
-                    'node_id'   : 'string',
-                    'predictions' : [ ...... ]
+                    'node_type'     : 'string',
+                    'node_id'       : 'string',
+                    'predictions'   : [ ...... ]
                 },
+                or
+                {
+                    'edge_type'     : ['string', 'string', 'string'],
+                    'src_node_id'   : 'string',
+                    'dest_node_id'  : 'string',
+                    'predictions'   : [ ...... ]
+                }
             ]
         }
     }
@@ -174,9 +182,8 @@ A response body is a JSON object.
 ............................
 
 - (dict) --
-    - ``status_code`` (string) --
-        The JSON object always includes a ``status_code`` field, which indicates the outcome status with an
-        integer value, including:
+    - ``status_code`` (int) --
+        An integer indicates the outcome status, including:
             - ``200``: request processed successfully.
             - ``400``: the request payload has JSON format errors.
             - ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <reat-time-payload-spec>`.
@@ -187,22 +194,18 @@ A response body is a JSON object.
             - ``421``: the task in ``gml_task`` does not match the task that the deployed model is for.
             - ``500``: internal server errors.
     - ``request_uid`` (string) --
-        The JSON object always includes a ``request_uid`` field, which serves as a unique identifier for
-        the request payload. This identifier is logged on the endpoint side and returned to invokers,
-        facilitating error debugging.
+        A string serves as a unique identifier for the request payload. This identifier is logged on the
+        endpoint side and returned to invokers, facilitating error debugging.
     -  ``message`` (string) --
-        The JSON object always include a ``message`` field, which provide additional information when the
-        ``status_code`` is 200.
+        A string provides additional information when the ``status_code`` is 200.
     - ``error`` (string) --
-        The JSON object always include an ``error`` field, which provide detailed explanations when the
-        ``status_code`` is not 200.
+        A string provides detailed explanations when the ``status_code`` is **NOT** 200.
     - ``data`` (JSON object) --
-        When the ``status_code`` is 200, the JSON object includes a populated ``data`` field. Otherwise,
-        the data field is empty.
+        When the ``status_code`` is 200, includes a populated ``data`` field. Otherwise, the ``data`` field
+        is empty.
             - ``results`` (list) --
-                A ``200`` status response includes a JSON object containing inference results, with a single field 
-                called ``results``. The values of ``results`` is a list that includes the inference values for all
-                nodes or edges specified in the payload's ``target`` field.
+                A list that includes the inference values for all nodes or edges specified in the payload's
+                ``target`` field.
                     - (dict) --
                         For node prediction tasks (node classification and node regression):
                             - ``node_type`` (string) --
@@ -211,16 +214,16 @@ A response body is a JSON object.
                                 Specifies a node identifier.
                         For edge prediciton tasks (edge classification and edge regression):
                             - ``edge_type`` (list )-- 
-                                An array specifying the edge type name in the format of three strings, which indicate
-                                source node type, edge type, and destination edge type.
+                                An array specifying the edge type name in the format of three strings, which
+                                indicate the source node type, the edge type, and the destination edge type.
                             - ``src_node_id`` (string) --
                                 Specifies the source node identifier.
                             - ``dest_node_id`` (string) --
                                 Specifies the destination node identifier.
 
                         - ``prediction`` (list) --
-                            This field contains the inference results for each node or edge. For classification
+                            A list contains the inference results of target nodes or edges. For classification
                             tasks, the value of ``prediction`` is a list of logits that can be used with classification
-                            method such as `argmax`. For regression tasks, the value of ``prediction`` is a list with
+                            methods such as `argmax`. For regression tasks, the value of ``prediction`` is a list with
                             a single element, which represents the regression result.
 
