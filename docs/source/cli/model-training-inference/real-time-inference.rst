@@ -8,7 +8,7 @@ GraphStorm CLIs for model inference on :ref:`single machine <single-machine-trai
 :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`
 are designed to handle large datasets, which could take minutes to hours for predicting a large number of target
 nodes/edges or generating embeddings for all nodes. This is typically referred to as offline inference, where the
-model processes a large batch of data at once, and the results are not needed immediately.
+model processes a large batch of data at once, to be used downstream at a later point.
 
 However, in certain use cases such as recommendation systems, social network analysis, and fraud detection, there
 is a need for real-time predictions. For instance, you may only want to predict a few targets and expect to get
