@@ -68,7 +68,7 @@ A ``node`` object listed in a ``nodes`` array can contain the following required
   values of ``nodes`` defined in :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 * ``node_id`` -- A string specifying a unique node identifier. The identifiers are used to build a sub-graph according to the contents of the `edges` object.
 * ``features`` -- A dictionary, with feature names as keys, and feature values as its values.
-  feaure names should be same as the ``feature_name`` defined in :ref:`gconstruct JSON specification
+  Features names must match the ``feature_name`` entries defined in :ref:`GConstruct JSON specification
   <gconstruction-json>`, or the ``name`` values of ``features`` fields defined in
   :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
