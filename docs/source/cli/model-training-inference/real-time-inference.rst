@@ -18,13 +18,12 @@ is constantly available to make predictions on new data as it comes in, ensuring
 time-sensitive applications.
 
 Since version 0.5, GraphStorm offers new features that can deploy a trained model as a SageMaker real-time
-inference endpoint. To invoke this endpoint, you will need to extract a subgraph around a few target nodes/edges,
-convert it and associated features into a JSON object as payloads of requests. Below sections provide details
-of how to deloy an endpoint, and how to invoke it.
+inference endpoint. Below sections provide details of how to deloy an endpoint, and how to invoke it.
 
 Prerequisites
-..............
-In order to use GraphStorm on Amazon SageMaker, users need to have an AWS account and access to the following AWS services.
+--------------
+In order to use GraphStorm real-time inference on Amazon SageMaker, users need to have an AWS account and access
+to the following AWS services.
 
 - **SageMaker service**. Needed to deploy endpoint, and optionally train models. Please refer to `Amazon SageMaker service <https://aws.amazon.com/pm/sagemaker/>`_
   for how to get access to Amazon SageMaker.
@@ -95,7 +94,7 @@ during  graph construction (GConstruct/GSProcessing) and model training.
     automatically, if the ``--save-model-path`` or ``--model-artifact-s3``  configuration is set.
 
 GraphStorm provides a helper script to package these model artifacts as a tar file and upload it to an S3 bucket, and then
-deploy a SageMaker endpoint APIs with the inference Docker image previously built to deploy endpoint(s).
+use SageMaker APIs with the inference Docker image previously built to deploy endpoint(s).
 
 In short you can run the following:
 
@@ -110,7 +109,7 @@ In short you can run the following:
             --restore-model-path <restore-model-path>/<epoch-XX-iter-XX> \
             --model-yaml-config-file <restore-model-path>/GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml \
             --graph-json-config-file <restore-model-path>/data_transform_new.json \
-            --infer-task-type node_classification \
+            --infer-task-type <task_type> \
             --upload-tarfile-s3 s3://<a-bucket> \
             --model-name <model-name>
 
@@ -147,8 +146,8 @@ Arguments of the launch endpoint script include:
 
 Outputs of this command include the deployed endpoint ARN (Amazon Resource Name) based on the value for
 ``--model-name``, e.g., ``arn:aws:sagemaker:us-east-1:123456789012:endpoint/GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``,
-to be used in the invoke step. The same endpoint ARN can also be found from Amazon SageMaker AI Web
-console under the "Inference -> Endpoints" menu.
+This endpoint name will be used in the invoke step. The endpoint ARN can also be found from Amazon SageMaker
+AI Web console under the "Inference -> Endpoints" menu.
 
 Invoke Real-time Inference Endpoints
 -------------------------------------
@@ -214,6 +213,8 @@ Invoke endpoints
 There are multiple ways to invoke a Sagemaker real-time inference endpoint as documented in
 `SageMaker Developer Guide <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
 
+.. note:: GraphStorm real-time inference endpoints currently only support "application/json" as content type.
+
 Here is an example of how you can read a payload from a JSON file and use the boto3 APIs to
 invoke an endpoint.
 
@@ -229,7 +230,7 @@ invoke an endpoint.
                            aws_access_key_id='your access key string',
                            aws_secret_access_key='your secret key string',
                            region_name='asw region' # e.g., us-east-1
-    endpoint_name='your endpoint name'              # e.g., GraphStorm-Endpoint-2025-07-11-21-44-36
+    endpoint_name='your endpoint name'    # e.g., GSF-Model4Realtime-Endpoint-2025-07-11-21-44-36
     # load payload from a JSON file
     with open('subg.json', 'r') as f:
          payload = json.load(f)
@@ -247,7 +248,7 @@ invoke an endpoint.
 Endpoint invoke response
 *************************
 
-As shown in the previous invoke example, the response from GraphStorm's real-time inference endpoint will include
+As shown in the previous invoke example, the response from a GraphStorm real-time inference endpoint will include
 a JSON object in the ``Body`` field of the SageMaker API response. The details of the response syntax can be found
 in the :ref:`specification of realt-time inference response <rt-response-body-spec>`.
 
