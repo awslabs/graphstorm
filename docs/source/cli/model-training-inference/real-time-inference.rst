@@ -73,9 +73,9 @@ during  graph construction (GConstruct/GSProcessing) and model training.
   file, and uses it to restore the trained model weights.
 - The updated graph construciton JSON file, ``data_transform_new.json``. This JSON file is one of the outputs of
   graph construction pipeline. It contains updated information about feature transformations and feature
-  dimensions. If using the :ref:`Single Machine Graph Construction <single-machine-gconstruction>`(GConstruct), the
+  dimensions. If using the :ref:`Single Machine Graph Construction <single-machine-gconstruction>` (GConstruct), the
   file is saved at the path specified by the ``--output-dir`` argument. For :ref:`Distributed Graph Construction
-  <distributed-gconstruction>`(GSProcessing), the file is saved at the path specified by either ``--output-data-s3``
+  <distributed-gconstruction>` (GSProcessing), the file is saved at the path specified by either ``--output-data-s3``
   or ``--output-dir`` argument.
 - The updated model training configuration YAML file, ``GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFIG.yaml``. This
   YAML file is one of the outputs of model training. It contains the updated configurations of a model by
@@ -139,8 +139,8 @@ Arguments of the launch endpoint script include:
   `SageMaker's CreateEndpoint document <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateEndpoint.html>`_.
   (Default: ``GSF-Model4Realtime``)
 
-Outputs of this command include the deployed endpoint ARN based on the value for ``--model-name``, e.g.,
-``arn:aws:sagemaker:us-east-1:123456789012:endpoint/GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``,
+Outputs of this command include the deployed endpoint ARN (Amazon Resource Name) based on the value for
+``--model-name``, e.g., ``arn:aws:sagemaker:us-east-1:123456789012:endpoint/GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``,
 to be used in the invoke step. The same endpoint ARN can also be found from Amazon SageMaker AI Web
 console under the "Inference -> Endpoints" menu.
 

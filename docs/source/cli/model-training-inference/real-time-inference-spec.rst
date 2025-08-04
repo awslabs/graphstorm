@@ -202,7 +202,7 @@ A response body is a JSON object.
             - ``results`` (list) --
                 A ``200`` status response includes a JSON object containing inference results, with a single field 
                 called ``results``. The values of ``results`` is a list that includes the inference values for all
-                nodes specified in the payload's ``target`` field.
+                nodes or edges specified in the payload's ``target`` field.
                     - (dict) --
                         For node prediction tasks (node classification and node regression):
                             - ``node_type`` (string) --
