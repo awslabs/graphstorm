@@ -69,8 +69,8 @@ A ``node`` object listed in a ``nodes`` array can contain the following required
 * ``node_id`` -- A string specifying the node identifier.
 * ``features`` -- A dictionary, whose key is a feature name, and its value is the value of features.
   feaure names should be same as the ``feature_name`` defined in :ref:`gconstruct JSON specification
-  <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
-  :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
+  <gconstruction-json>`, or the ``name`` values of ``features`` fields defined in
+  :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
 Contents of an ``edge`` object listed in an ``edges`` array
 ............................................................
