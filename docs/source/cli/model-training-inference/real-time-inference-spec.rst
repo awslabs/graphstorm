@@ -64,8 +64,8 @@ A ``node`` object listed in a ``nodes`` array can contain the following required
     }
 
 * ``node_type`` -- A string specifying the node type name in a graph. It should be same as the
-  ``node_type`` defined in :ref:`gconstruct JSON specification <gconstruction-json>` or the ``type``
-  values of ``nodes`` defined in :ref:`gsprocessing JSON specification <gsprocessing_input_configuration>`.
+  ``node_type`` defined in :ref:`GConstruct JSON specification <gconstruction-json>` or the ``type``
+  values of ``nodes`` defined in :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 * ``node_id`` -- A string specifying the node identifier.
 * ``features`` -- A dictionary, whose key is a feature name, and its value is the value of features.
   feaure names should be same as the ``feature_name`` defined in :ref:`gconstruct JSON specification
