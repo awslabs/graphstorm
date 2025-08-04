@@ -20,12 +20,12 @@ A payload should be a JSON object. In the highest level, the JSON object contain
         "graph"     : [ ... ]
     }
 
-- ``version`` -- (String) The version of payload to be used. The current version is ``gs-realtime-v0.1``.
-- ``gml_task`` -- (String) The graph machine learning task this payload is for. Current specification
+- ``version`` -- (String, required) The version of payload to be used. The current version is ``gs-realtime-v0.1``.
+- ``gml_task`` -- (String, required) The graph machine learning task this payload is for. Current specification
   supports two options: 
     * ``node_classification``
     * ``node_regression``
-- ``graph`` -- (JSON objects) The contents of a payload.
+- ``graph`` -- (JSON objects, required) The contents of a payload, with "nodes", "edges" and "targets" keys. See below for details.
 
 
 Contents of objects in the ``graph`` field
