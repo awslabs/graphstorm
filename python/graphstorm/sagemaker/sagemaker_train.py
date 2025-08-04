@@ -319,7 +319,6 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
     best_epoch: str, optional
         Name of the best epoch directory (e.g., 'epoch-5'). If None, the latest epoch will be used.
     """
-    # TODO: Do we want to be moving files instead for improved perf?
     if not os.path.exists(save_model_path):
         logging.warning("Model path %s does not exist, nothing to copy",
                         save_model_path)
@@ -374,6 +373,7 @@ def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
     os.makedirs(SM_MODEL_OUTPUT, exist_ok=True)
 
     # Copy all files from the selected epoch directory to /opt/ml/model
+    # TODO: Moving instead of copying will be more performant, let's reconsider after v0.5 feedback
     for item in os.listdir(src_dir):
         src_path = os.path.join(src_dir, item)
         dst_path = os.path.join(SM_MODEL_OUTPUT, item)
