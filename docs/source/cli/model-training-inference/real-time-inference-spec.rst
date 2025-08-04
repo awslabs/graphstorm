@@ -222,7 +222,7 @@ A response body is a JSON object.
                                 Specifies the destination node identifier.
 
                         - ``prediction`` (list) --
-                            A list contains the inference results of target nodes or edges. For classification
+                            A list containing the inference results for all target nodes or edges. For classification
                             tasks, the value of ``prediction`` is a list of logits that can be used with classification
                             methods such as `argmax`. For regression tasks, the value of ``prediction`` is a list with
                             a single element, which represents the regression result.
