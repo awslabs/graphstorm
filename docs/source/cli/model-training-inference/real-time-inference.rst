@@ -230,7 +230,7 @@ invoke an endpoint.
     runtime = boto3.client('sagemaker-runtime',
                            aws_access_key_id='your access key string',
                            aws_secret_access_key='your secret key string',
-                           region_name='asw region' # e.g., us-east-1
+                           region_name='aws region' # e.g., us-east-1
     endpoint_name='your endpoint name'    # e.g., GSF-Model4Realtime-Endpoint-2025-07-11-21-44-36
     # load payload from a JSON file
     with open('subg.json', 'r') as f:
