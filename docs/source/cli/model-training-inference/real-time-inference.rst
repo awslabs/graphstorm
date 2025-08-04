@@ -154,7 +154,7 @@ Invoke Real-time Inference Endpoints
 
 For real-time inference, you will need to extract a subgraph around the target nodes/edges from a large
 graph, and use the subgraph as input of model, which is similar to how models are trained. Because time is
-critical for real-time infernce, it is recommened to use OLTP graph database, e.g.,
+critical for real-time inference, it is recommended to use an OLTP graph database, e.g.,
 `Amazon Neptune Database <https://aws.amazon.com/neptune/>`_, as data source for subgraph extraction.
 
 Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke 
