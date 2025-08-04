@@ -44,7 +44,7 @@ from .utils import (download_yaml_config,
                     barrier,
                     terminate_workers,
                     wait_for_exit,
-                    download_model,)
+                    download_model)
 
 SM_MODEL_OUTPUT = "/opt/ml/model"
 
