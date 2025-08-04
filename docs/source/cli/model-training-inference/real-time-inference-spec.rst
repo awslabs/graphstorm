@@ -75,7 +75,7 @@ A ``node`` object listed in a ``nodes`` array can contain the following required
 Contents of an ``edge`` object listed in an ``edges`` array
 ............................................................
 
-An ``edge`` object listed in an ``edges`` array can contain the following required fields.
+An ``edge`` object listed in an ``edges`` array must contain the following required fields.
 
 .. code:: json
 
