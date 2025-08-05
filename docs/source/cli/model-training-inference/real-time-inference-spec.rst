@@ -4,7 +4,7 @@
 Specification of Real-time Inference Request and Response
 ==========================================================
 
-.. _rt-request_payload-spec:
+.. _rt-request-payload-spec:
 
 Specification of Request Payload Contents 
 ------------------------------------------
@@ -186,7 +186,7 @@ A response body is a JSON object.
         An integer indicates the outcome status, including:
             - ``200``: request processed successfully.
             - ``400``: the request payload has JSON format errors.
-            - ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <real-time-payload-spec>`.
+            - ``401``: the request payload missed certain fileds, required by :ref:`Payload specification <rt-request-payload-spec>`.
             - ``402``: the request payload missed values on certain fileds, e.g., missing a node identifier in ``node_id`` field.
             - ``403``: ``node_type`` of nodes in the ``target`` field does not exist in the ``graph`` field.
             - ``404``: values of the ``node_id`` fileds of nodes in the ``target`` field do not exist in the ``graph`` field.

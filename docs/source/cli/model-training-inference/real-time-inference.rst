@@ -160,7 +160,7 @@ critical for real-time inference, it is recommended to use an OLTP graph databas
 Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke 
 models for real-time inference
 <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
-GraphStorm defines a :ref:`specification of the payload contents <rt-request_payload-spec>` for your reference.
+GraphStorm defines a :ref:`specification of the payload contents <rt-request-payload-spec>` for your reference.
 
 Below is an example payload JSON object for node classification inference.
 
