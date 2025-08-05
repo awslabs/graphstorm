@@ -21,7 +21,7 @@ A payload should be a JSON object. In the highest level, the JSON object contain
     }
 
 - ``version`` -- (String, required) The version of payload to be used. The current version is ``gs-realtime-v0.1``.
-- ``gml_task`` -- (String, required) The graph machine learning task this payload is for. Current specification
+- ``gml_task`` -- (String, required) The graph machine learning task this payload is for. The current version
   supports two options: 
     * ``node_classification``
     * ``node_regression``
