@@ -16,7 +16,7 @@ user guide <real-time-inference-on-sagemaker>` explains the deployment steps.
 And the :ref:`specification of real-time inference request and response <real-time-inference-spec>` provides 
 details of contents of endpoint invoking requests and responses.
 
-In addition, there are two node ID mapping operations during the graph construction procedure, and these mapping results are saved in a certain folder by which GraphStorm training and inference CLIs will automatically use to remap prediction results' node IDs back to the original IDs. In case when such automatic remapping does not occur, you can find the details of outputs of model training and inference without remapping in :ref:`GraphStorm Training and Inference Output <gs-output>`. In addition, users can do the remapping mannually according to the :ref:`GraphStorm Output Node ID Remapping <gs-output-remapping>` guideline.
+In addition, there are two node ID mapping operations during the graph construction procedure, and these mapping results are saved in a certain folder by which GraphStorm training and inference CLIs will automatically use to remap prediction results' node IDs back to the original IDs. In case when such automatic remapping does not occur, you can find the details of outputs of model training and inference without remapping in :ref:`GraphStorm Training and Inference Output <gs-output>`. In addition, users can do the remapping manually according to the :ref:`GraphStorm Output Node ID Remapping <gs-output-remapping>` guideline.
 
 .. toctree::
    :maxdepth: 2
