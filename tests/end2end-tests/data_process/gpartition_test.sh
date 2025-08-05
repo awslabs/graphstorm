@@ -55,6 +55,11 @@ if [ ! -f "${DIST_DGL_PATH}/dist_graph/metadata.json" ];
     die "${DIST_DGL_PATH}/dist_graph/metadata.json does not exist"
 fi
 
+if [ ! -f "${DIST_DGL_PATH}/dist_graph/data_transform_new.json" ];
+    then
+    die "${DIST_DGL_PATH}/dist_graph/data_transform_new.json does not exist"
+fi
+
 for i in $(seq 0 1); do
     if [ ! -f "${DIST_DGL_PATH}/dist_graph/part${i}/graph.dgl" ];
     then

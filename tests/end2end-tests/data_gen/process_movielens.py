@@ -196,3 +196,20 @@ chunked_meta = {
 chunked_meta_path = "/data/ml-100k/chunked_graph_meta.json"
 with open(chunked_meta_path, 'w', encoding="utf-8") as f:
     json.dump(chunked_meta, f, indent=4)
+
+# Launch args and updated GSProcessing config is used during GSPartition tests
+dummy_gsprocessing_launch_args = "/data/ml-100k/launch_arguments.json"
+with open(dummy_gsprocessing_launch_args, 'w', encoding="utf-8") as f:
+    launch_args = {
+        "config_filename": "gsprocessing_config.json"
+    }
+    json.dump(launch_args, f, indent=4)
+
+dummy_gsprocessing_config = "/data/ml-100k/gsprocessing_config_with_transformations.json"
+with open(dummy_gsprocessing_config, 'w', encoding="utf-8") as f:
+    dummy_config = {
+        "graph": {
+            "edges": [{}]
+        }
+    }
+    json.dump(dummy_config, f, indent=4)
