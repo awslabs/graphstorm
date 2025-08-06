@@ -22,6 +22,7 @@ import math
 import os
 import shutil
 import sys
+import tempfile
 import warnings
 from typing import Any, Dict
 
@@ -181,7 +182,7 @@ class GSConfig:
         """ Construct a GSConfig object.
 
         Parameters:
-        ------------
+        -----------
         cmd_args: Arguments
             Commend line arguments.
         """
@@ -230,8 +231,18 @@ class GSConfig:
         # If model output is configured, save the runtime train config as a yaml file there,
         # and the graph construction config, if one exists in the input
         if hasattr(self, "_save_model_path") and self._save_model_path:
-            # Ensure model output directory exists
-            os.makedirs(self._save_model_path, exist_ok=True)
+            try:
+                # First check if path is writable
+                self._check_path_writable(self._save_model_path)
+                # If we get here, path is writable, create directory
+                os.makedirs(self._save_model_path, exist_ok=True)
+            except PermissionError as e:
+                warnings.warn(str(e))
+                warnings.warn(
+                    "Config files will not be saved. You will need to manually copy "
+                    "the necessary config files for model deployment.")
+                return
+
 
             # Save a copy of train config with runtime args
             train_config_output_path = os.path.join(
@@ -243,6 +254,46 @@ class GSConfig:
                 self._save_model_path, GS_RUNTIME_GCONSTRUCT_FILENAME)
             self._copy_graph_construct_config(gconstruct_config_output_path)
 
+    def _check_path_writable(self, path: str) -> bool:
+        """Check if a path is writable.
+
+        Parameters
+        ----------
+            path: str
+                Path to check
+
+        Returns
+        -------
+            True if writable, False otherwise
+
+        Raises
+        ------
+            PermissionError: If path is not writable with detailed message
+        """
+
+        if os.path.exists(path):
+            # Path exists, check if we can write to it
+            try:
+                testfile = tempfile.TemporaryFile(dir=path)
+                testfile.close()
+            except (OSError, PermissionError) as e:
+                raise PermissionError(
+                    f"Directory {path} exists but is not writable: {str(e)}. "
+                    "Please ensure you have write permissions to this location."
+                )
+        else:
+            # Path doesn't exist, check if we can create it
+            try:
+                os.makedirs(path)
+                os.rmdir(path)  # Clean up
+            except (OSError, PermissionError) as e:
+                raise PermissionError(
+                    f"Cannot create directory {path}: {str(e)}. "
+                    "Please ensure you have write permissions to this location."
+                )
+        return True
+
+
     def _copy_graph_construct_config(self, output_data_config):
         """ Copy graph construct config to the model output path.
         """
@@ -252,21 +303,28 @@ class GSConfig:
                 part_config_dir = os.path.dirname(self.part_config)
                 input_data_config = os.path.join(part_config_dir, GS_RUNTIME_GCONSTRUCT_FILENAME)
                 if os.path.exists(input_data_config):
-                    shutil.copy2(
-                        input_data_config,
-                        output_data_config
-                    )
+                    try:
+                        shutil.copy2(
+                            input_data_config,
+                            output_data_config
+                        )
+                        logging.info("Copied graph construction config to %s", output_data_config)
+                    except (OSError, PermissionError) as e:
+                        warnings.warn(
+                            f"Failed to copy {GS_RUNTIME_GCONSTRUCT_FILENAME} to model output: "
+                            f"{str(e)}. You will need to manually copy over the graph "
+                            "construction config for model deployment.")
                 else:
                     warnings.warn(
                         f"Graph construction config {GS_RUNTIME_GCONSTRUCT_FILENAME} "
                         f"not found in {part_config_dir}. "
                         "This is expected for older models (trained with version < 0.5). "
-                        "You will need to copy over the graph construction  "
+                        "You will need to manually copy over the graph construction "
                         "config for model deployment.")
             except Exception as e: # pylint: disable=broad-exception-caught
                 warnings.warn(
-                    f"Failed to copy {GS_RUNTIME_GCONSTRUCT_FILENAME} to model output: {str(e)}. "
-                    "You  will need to copy over the graph construction "
+                    f"Failed to access {GS_RUNTIME_GCONSTRUCT_FILENAME}: {str(e)}. "
+                    "You will need to manually copy over the graph construction "
                     "config for model deployment.")
 
 
@@ -361,43 +419,44 @@ class GSConfig:
         output_path : str
             Path where to save the config.
         """
-        # Get the original YAML content
-        yaml_config = self.load_yaml_config(self.yaml_paths)
-
-        # Update with runtime args (all attributes starting with '_')
-        for attr_name, attr_value in vars(self).items():
-            if attr_name.startswith('_') and not attr_name.startswith('__'):
-                # Extract the key without the underscore
-                key = attr_name[1:]
-
-                # Find the appropriate section to update
-                if 'gsf' in yaml_config:
-                    for section in yaml_config['gsf'].values():
-                        if isinstance(section, dict) and key in section:
-                            section[key] = attr_value
-                            break
-                    else:
-                        # If not found in any section, add to the `runtime` section
-                        if 'runtime' not in yaml_config['gsf']:
-                            yaml_config['gsf']['runtime'] = {}
-                        yaml_config['gsf']['runtime'].update({key: attr_value})
-                else:
-                    raise ValueError("GraphStorm configuration needs a 'gsf' section")
-
-        # Try to save to model output location
+        # pylint: disable=too-many-nested-blocks
         try:
-            # Save the combined config
-            with open(output_path, 'w', encoding="utf-8") as f:
-                yaml.dump(yaml_config, f, default_flow_style=False)
+            # Get the original YAML content
+            yaml_config = self.load_yaml_config(self.yaml_paths)
 
-            logging.info("Saved combined configuration to %s", output_path)
-        except FileNotFoundError:
-            warnings.warn(
-                f"Could not save config: directory {os.path.dirname(output_path)} not accessible")
-        except PermissionError:
-            warnings.warn(f"Could not save config: permission denied for {output_path}")
+            # Update with runtime args (all attributes starting with '_')
+            for attr_name, attr_value in vars(self).items():
+                if attr_name.startswith('_') and not attr_name.startswith('__'):
+                    # Extract the key without the underscore
+                    key = attr_name[1:]
+
+                    # Find the appropriate section to update
+                    if 'gsf' in yaml_config:
+                        for section in yaml_config['gsf'].values():
+                            if isinstance(section, dict) and key in section:
+                                section[key] = attr_value
+                                break
+                        else:
+                            # If not found in any section, add to the `runtime` section
+                            if 'runtime' not in yaml_config['gsf']:
+                                yaml_config['gsf']['runtime'] = {}
+                            yaml_config['gsf']['runtime'].update({key: attr_value})
+                    else:
+                        raise ValueError("GraphStorm configuration needs a 'gsf' section")
+
+            # Save the combined config
+            try:
+                with open(output_path, 'w', encoding="utf-8") as f:
+                    yaml.dump(yaml_config, f, default_flow_style=False)
+                logging.info("Saved combined configuration to %s", output_path)
+            except (OSError, PermissionError) as e:
+                warnings.warn(
+                    f"Could not save config to {output_path}: {str(e)}. "
+                    "You will need to manually copy the training config for model deployment.")
         except Exception as e: # pylint: disable=broad-exception-caught
-            warnings.warn(f"Could not save config: {str(e)}")
+            warnings.warn(
+                f"Could not process config: {str(e)}. "
+                "You will need to manually copy the training config for model deployment.")
 
 
     def _parse_general_task_config(self, task_config):

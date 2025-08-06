@@ -13,15 +13,16 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import hashlib
 import json
 import math
 import os
+import pytest
 import shutil
+import stat
 import sys
 import tempfile
 import yaml
-import pytest
-import hashlib
 from argparse import Namespace
 from pathlib import Path
 
@@ -2628,6 +2629,51 @@ def test_missing_gconstruct_config():
         # Create GSConfig, this will try to copy the GConstruct config, ensure we log a warning:
         with pytest.warns(UserWarning, match="Graph construction config .* not found in .*"):
             _ = GSConfig(args)
+
+def test_readonly_model_directory():
+    """Test handling of read-only directory when saving configs"""
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a basic config file
+        create_basic_config(Path(tmpdirname), 'combined_test')
+
+        # Test case 1: Existing read-only directory
+        save_model_path = os.path.join(tmpdirname, "model")
+        os.makedirs(save_model_path)
+        # Make directory read-only
+        os.chmod(save_model_path, stat.S_IREAD | stat.S_IEXEC)
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            save_model_path=save_model_path,
+        )
+
+        # Create GSConfig, should warn about read-only directory
+        with pytest.warns(UserWarning, match="Directory .* exists but is not writable.*"):
+            _ = GSConfig(args)
+
+        # Restore permissions so cleanup can succeed
+        os.chmod(save_model_path, stat.S_IRWXU)
+
+        # Test case 2: Non-existent directory with read-only parent
+        save_model_path = os.path.join(tmpdirname, "readonly_parent", "model")
+        parent_dir = os.path.dirname(save_model_path)
+        os.makedirs(parent_dir)
+        os.chmod(parent_dir, stat.S_IREAD | stat.S_IEXEC)
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
+            local_rank=0,
+            save_model_path=save_model_path,
+        )
+
+        # Create GSConfig, should warn about inability to create directory
+        with pytest.warns(UserWarning, match="Cannot create directory .* Permission denied:.*"):
+            _ = GSConfig(args)
+
+        # Restore permissions so cleanup can succeed
+        os.chmod(parent_dir, stat.S_IRWXU)
+
 
 def create_fname_test_gnn_config(tmp_path, file_name):
     yaml_object = create_dummy_config_obj()
