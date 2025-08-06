@@ -249,7 +249,7 @@ Endpoint invoke response
 
 As shown in the previous example, the response from a GraphStorm real-time inference endpoint will include
 a JSON object in the ``Body`` field of the SageMaker API response. The details of the response syntax can be found
-in the :ref:`specification of realt-time inference response <rt-response-body-spec>`.
+in the :ref:`specification of real-time inference response <rt-response-body-spec>`.
 
 An example of a successful inference response:
 
