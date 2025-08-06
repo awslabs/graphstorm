@@ -17,7 +17,6 @@ import hashlib
 import json
 import math
 import os
-import pytest
 import shutil
 import stat
 import sys
@@ -2633,6 +2632,9 @@ def test_missing_gconstruct_config():
 def test_readonly_model_directory():
     """Test handling of read-only directory when saving configs"""
     with tempfile.TemporaryDirectory() as tmpdirname:
+        # Skip test if running as root since root can write to read-only dirs
+        if os.geteuid() == 0:  # 0 is root's user ID
+            pytest.skip("Test not applicable when running as root")
         # Create a basic config file
         create_basic_config(Path(tmpdirname), 'combined_test')
 
