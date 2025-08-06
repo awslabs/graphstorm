@@ -66,10 +66,10 @@ def run_job(input_args, image, unknowargs):
         "graph-data-s3": graph_data_s3,
         "graph-name": graph_name,
         "log-level": log_level,
-        "model-artifact-s3": model_artifact_s3,
         "task-type": task_type,
         "train-yaml-s3": train_yaml_s3,
     }
+
     if custom_script is not None:
         params["custom-script"] = custom_script
     if model_checkpoint_to_load is not None:
@@ -85,6 +85,11 @@ def run_job(input_args, image, unknowargs):
     estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
 
     est = PyTorch(
+        # Disable SM profiler
+        debugger_hook_config=False,
+        disable_profiler=True,
+        # Disable output compression to maintain b/w compat with GS < 0.5
+        disable_output_compression=True,
         entry_point=os.path.basename(entry_point),
         hyperparameters=params,
         image_uri=container_image_uri,
@@ -100,6 +105,7 @@ def run_job(input_args, image, unknowargs):
         **estimator_kwargs
     )
 
+    # TODO: Decide whether we'll provide the yaml as input here, or download ourselves in sagemaker_train.py
     est.fit({"train": train_yaml_s3}, job_name=sm_task_name, wait=not input_args.async_execution)
 
 def get_train_parser():

@@ -20,6 +20,8 @@ import json
 import logging
 import os
 import queue
+import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -42,8 +44,9 @@ from .utils import (download_yaml_config,
                     barrier,
                     terminate_workers,
                     wait_for_exit,
-                    download_model,
-                    upload_model_artifacts)
+                    download_model)
+
+SM_MODEL_OUTPUT = "/opt/ml/model"
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
@@ -166,14 +169,8 @@ def run_train(args, unknownargs):
     else:
         restore_model_path = None
 
-    if args.model_artifact_s3:
-        # If a user provides an S3 output destination as an input arg, the script itself
-        # will upload the model artifacts after training, so we save under /tmp.
-        output_path = "/tmp/gsgnn_model/"
-    else:
-        # If the user does not provide an output destination as an arg, we rely on SageMaker to
-        # do the model upload so we save the model to the pre-determined path /opt/ml/model
-        output_path = "/opt/ml/model"
+    # Models are saved to temporary output first
+    output_path = "/tmp/gsgnn_model"
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -183,7 +180,7 @@ def run_train(args, unknownargs):
     logging.info("Known args %s", args)
     logging.info("Unknown args %s", unknownargs)
 
-    save_model_path = os.path.join(output_path, "model_checkpoint")
+    save_model_path = os.path.join(output_path, "model_checkpoints")
 
     train_env = json.loads(args.sm_dist_env)
     hosts = train_env['hosts']
@@ -241,19 +238,17 @@ def run_train(args, unknownargs):
     graph_data_s3 = args.graph_data_s3
     task_type = args.task_type
     train_yaml_s3 = args.train_yaml_s3
-    # If the user provided an output destination, trim any trailing '/'
-    if args.model_artifact_s3:
-        gs_model_artifact_s3 = args.model_artifact_s3.rstrip('/')
-    else:
-        gs_model_artifact_s3 = None
     custom_script = args.custom_script
 
     boto_session = boto3.session.Session(region_name=args.region)
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
+
+    # Download yaml train config and graph data from S3
     yaml_path = download_yaml_config(train_yaml_s3,
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
         host_rank, world_size, data_path, sagemaker_session)
+
     if model_checkpoint_s3 is not None:
         # Download Saved model checkpoint to resume
         download_model(model_checkpoint_s3, restore_model_path, sagemaker_session)
@@ -308,7 +303,104 @@ def run_train(args, unknownargs):
         logging.error("Task failed")
         sys.exit(-1)
 
-    # We upload models only when the user explicitly set the model_artifact_s3
-    # argument. Otherwise we can rely on the SageMaker service to do the upload.
-    if gs_model_artifact_s3 and os.path.exists(save_model_path):
-        upload_model_artifacts(gs_model_artifact_s3, save_model_path, sagemaker_session)
+    # Copy model+embeddings from last epoch into local SageMaker output directory
+    # TODO: Support packing the best epoch from the run
+    copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None)
+
+
+def copy_best_model_to_sagemaker_output(save_model_path, best_epoch=None):
+    """Copy the best or latest epoch model and config files to SageMaker's
+       standard model output directory.
+
+    Parameters
+    ----------
+    save_model_path: str
+        Path to the directory containing existing model checkpoints
+    best_epoch: str, optional
+        Name of the best epoch directory (e.g., 'epoch-5'). If None, the latest epoch will be used.
+    """
+    if not os.path.exists(save_model_path):
+        logging.warning("Model path %s does not exist, nothing to copy",
+                        save_model_path)
+        return
+
+    # If best_epoch is provided, try to use it directly
+    epoch_to_save = None
+    if best_epoch is not None:
+        best_epoch_path = os.path.join(save_model_path, best_epoch)
+        if not os.path.exists(best_epoch_path):
+            logging.warning(
+                "Best epoch directory %s does not exist, falling back to latest epoch",
+                best_epoch_path)
+            epoch_to_save = None
+        else:
+            epoch_to_save = best_epoch
+
+    # If best_epoch was not provided or not found, find the latest epoch
+    if epoch_to_save is None:
+        # Find the latest epoch directory
+        latest_epoch_dir = None
+        latest_epoch = None
+
+        # Iterate over every epoch/saved iteration directory
+        for item in os.listdir(save_model_path):
+            item_path = os.path.join(save_model_path, item)
+            if os.path.isdir(item_path) and item.startswith('epoch-'):
+                # Extract epoch number from directory name
+                match = re.match(r'epoch-(\d+)(?:-iter-(\d+))?', item)
+                if match:
+                    epoch = int(match.group(1))
+                    iteration = int(match.group(2)) if match.group(2) else 0
+
+                    # If current epoch is latest, use that
+                    if (latest_epoch is None
+                        or epoch > latest_epoch[0]
+                        or (epoch == latest_epoch[0] and iteration > latest_epoch[1])
+                    ):
+                        latest_epoch = (epoch, iteration)
+                        latest_epoch_dir = item
+        if not latest_epoch_dir:
+            logging.warning("No epoch directory found, cannot copy model")
+            return
+        epoch_to_save = latest_epoch_dir
+    else:
+        logging.info("Selected best epoch %s for model saving", epoch_to_save)
+
+    # Source directory (best or latest epoch)
+    src_dir = os.path.join(save_model_path, epoch_to_save)
+
+    # Create the destination directory if it doesn't exist
+    os.makedirs(SM_MODEL_OUTPUT, exist_ok=True)
+
+    # Copy all files from the selected epoch directory to /opt/ml/model
+    # TODO: Moving instead of copying will be more performant, let's reconsider after v0.5 feedback
+    for item in os.listdir(src_dir):
+        src_path = os.path.join(src_dir, item)
+        dst_path = os.path.join(SM_MODEL_OUTPUT, item)
+
+        # Copy whole directory or individual file
+        if os.path.isdir(src_path):
+            if os.path.exists(dst_path):
+                logging.warning("Model destination path %s already exists, removing...", dst_path)
+                shutil.rmtree(dst_path)
+            shutil.copytree(src_path, dst_path)
+            logging.info("Copied directory %s to %s", src_path, dst_path)
+        else:
+            try:
+                shutil.copy2(src_path, dst_path)
+                logging.info("Copied file %s to %s", item, SM_MODEL_OUTPUT)
+            except Exception as e: # pylint: disable=broad-exception-caught
+                logging.warning("Failed to copy %s: %s", item, str(e))
+
+    # Also copy any YAML/JSON files from the root model save directory to /opt/ml/model
+    for file in os.listdir(save_model_path):
+        if (file.endswith(('.yaml', '.yml', '.json'))
+            and os.path.isfile(os.path.join(save_model_path, file))):
+            src_path = os.path.join(save_model_path, file)
+            dst_path = os.path.join(SM_MODEL_OUTPUT, file)
+            try:
+                shutil.copy2(src_path, dst_path)
+                logging.info("Copied config file %s to %s", file,
+                             SM_MODEL_OUTPUT)
+            except Exception as e: # pylint: disable=broad-exception-caught
+                logging.warning("Failed to copy %s: %s", file, str(e))
