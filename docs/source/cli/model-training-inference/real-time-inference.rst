@@ -224,7 +224,7 @@ invoke an endpoint.
     import boto3
     
 
-    # Create a SageMaker client object\n",
+    # Create a SageMaker client object,
     sagemaker = boto3.client('sagemaker')
     # Create a SageMaker runtime client object using your IAM role ARN\n",
     runtime = boto3.client('sagemaker-runtime',
