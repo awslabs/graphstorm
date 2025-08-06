@@ -28,7 +28,8 @@ import boto3  # pylint: disable=import-error
 import sagemaker as sm
 from botocore.exceptions import WaiterError
 from launch_utils import (check_name_format, extract_ecr_region,
-                          upload_data_to_s3, wrap_model_artifacts)
+                          upload_data_to_s3, wrap_model_artifacts,
+                          get_log_level)
 
 # TODO: When adding new realtime inference tasks, modify this list
 SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
@@ -105,8 +106,15 @@ def run_job(input_args):
         A string to define the name of a SageMaker inference model. This name string must follow
         SageMaker's naming format, which is ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. The default
         value is \"GSF-Model4Realtime\".
-    
+    logging_level: str
+        The level of logging. Optional values are 'debug', 'info', 'warning', 'error'.
+        Default is'info'."
     """
+    # set logging levels
+    log_level = get_log_level(input_args.logging_level) \
+                if hasattr(input_args, "logging_level") else logging.INFO
+    logging.basicConfig(level=log_level, force=True)
+
     # ================= prepare model artifacts ================= #
     # prepare sessions
     boto_session = boto3.Session(region_name=input_args.region)
@@ -190,7 +198,7 @@ def run_job(input_args):
     create_endpoint_response = sm_client.create_endpoint(
         EndpointName=sm_ep_name, EndpointConfigName=sm_ep_config_name
     )
-    logging.debug("Endpoint Arn: %s", create_endpoint_response["EndpointArn"])
+    logging.info("Endpoint Arn: %s", create_endpoint_response["EndpointArn"])
 
     if input_args.async_execution.lower() == 'true':
         resp = sm_client.describe_endpoint(EndpointName=sm_ep_name)
@@ -263,6 +271,11 @@ def get_realtime_infer_parser():
               "a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. "
               "Default is \"GSF-Model4Realtime\"."))
 
+    # common arguments
+    realtime_infer_parser.add_argument('--logging-level', type=str, default="info",
+        help=("Change the logging level. Optional values are 'debug', 'info', 'warning', 'error'."
+              "Default is 'info'."))
+    
     return realtime_infer_parser
 
 def sanity_check_realtime_infer_inputs(input_args):
