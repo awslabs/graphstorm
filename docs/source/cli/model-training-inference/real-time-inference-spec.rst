@@ -31,7 +31,7 @@ A payload should be a JSON object. In the highest level, the JSON object contain
 Contents of objects in the ``graph`` field
 ........................................... 
 
-A ``graph`` object contains three objects:``nodes``, ``edges``, and ``targets``.
+A ``graph`` object contains three objects: ``nodes``, ``edges``, and ``targets``.
 
 .. code:: json
 
