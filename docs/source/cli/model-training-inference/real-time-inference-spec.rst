@@ -110,7 +110,7 @@ or an ``edge`` object as defined above. As a target object, the ``features`` fie
 
     .. note::
 
-        A target objects, a ``node`` or an ``edge``, should have the same ``node`` or ``edge`` object
+        A target object, a ``node`` or an ``edge``, should have the same ``node`` or ``edge`` object
         in the ``nodes`` or ``edges`` array. For example, in the below payload example, the ``author``
         node ``a39`` is a target node, and it also is one of the nodes in the ``nodes`` list.
 
