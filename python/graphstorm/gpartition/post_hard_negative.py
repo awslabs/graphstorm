@@ -80,6 +80,10 @@ def shuffle_hard_negative_nids(gsprocessing_config: str,
     """
     shuffled_edge_config = load_hard_negative_config(gsprocessing_config)
 
+    # If there were no edges with hard negative configuration, return
+    if not shuffled_edge_config:
+        return
+
     node_type_list = []
     for single_shuffled_edge_config in shuffled_edge_config:
         node_type = single_shuffled_edge_config["dst_node_type"]

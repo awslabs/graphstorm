@@ -12,7 +12,7 @@ Available options:
 
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
--e, --environment   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
+-e, --environment   Image execution environment. Must be one of 'local', 'sagemaker', or 'sagemaker-endpoint'. Required.
 -d, --device        Device type. Must be one of 'gpu' or 'cpu'. Default is 'gpu'.
 -i, --image         Docker image name, default is 'graphstorm'.
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default tag is "<environment>-<device>".

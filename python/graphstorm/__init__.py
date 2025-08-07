@@ -16,7 +16,7 @@
     Graphstorm package.
 """
 # pylint: disable=wrong-import-position
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 import warnings
 
 # Don't print torchdata warnings

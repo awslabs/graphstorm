@@ -103,7 +103,8 @@ def get_partition_parser():
 
     partition_args.add_argument("--metadata-filename", type=str,
         default="updated_row_counts_metadata.json",
-        help="File name of metadata config file for chunked format data")
+        help=("File name of metadata config file that describes the input chunked-format data. "
+              "Default for GSProcessing-created data is 'updated_row_counts_metadata.json"))
 
     partition_args.add_argument("--partition-algorithm", type=str, default='random',
         help="Partition algorithm to use.", choices=['random'])
@@ -119,13 +120,17 @@ def get_partition_parser():
 
 if __name__ == "__main__":
     args = get_partition_parser()
-    print(args)
-
     # NOTE: Ensure no logging has been done before setting logging configuration
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), None),
         format='%(asctime)s - %(levelname)s - %(message)s'
         )
+
+    if args.instance_count != args.num_parts:
+        logging.warning("Instance count (%d) needs to be equal to the number of partitions (%d). "
+                        "Will update instance count to match desired number of partitions.",
+                        args.instance_count, args.num_parts)
+        args.instance_count = args.num_parts
 
     partition_image = args.image_url
     if not args.instance_type:
