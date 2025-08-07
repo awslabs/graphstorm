@@ -1014,6 +1014,7 @@ def load_metadata_from_json(config_json):
         # parse edge types
         etypes = []
         efeat_dims = {}
+        add_reverse_edges = config_json['add_reverse_edge'] in ['True', 'true']
         for edge_obj in config_json['edges']:
             etypes.append(tuple(edge_obj['relation']))  # convert a list to tuple as can_etype
             # extract feature name and dimensions if have
@@ -1022,6 +1023,15 @@ def load_metadata_from_json(config_json):
                 for feat_obj in edge_obj['features']:
                     feat_dims[feat_obj['feature_name']] = feat_obj['feature_dim']
                 efeat_dims[tuple(edge_obj['relation'])] = feat_dims
+            if add_reverse_edges:
+                reverse_relation = [edge_obj['relation'][0],
+                                    edge_obj['relation'][1] + "-rev",
+                                    edge_obj['relation'][2]]
+                if 'features' in edge_obj:
+                    feat_dims = {}
+                    for feat_obj in edge_obj['features']:
+                        feat_dims[feat_obj['feature_name']] = feat_obj['feature_dim']
+                    efeat_dims[tuple(reverse_relation)] = feat_dims
     else:
         graph_obj = config_json['graph']
         is_homo = graph_obj['is_homogeneous'] in ['True', 'true']
@@ -1041,6 +1051,7 @@ def load_metadata_from_json(config_json):
         # parse edge types
         etypes = []
         efeat_dims = {}
+        add_reverse_edges = config_json['add_reverse_edge'] in ['True', 'true']
         for edge_obj in graph_obj['edges']:
             src_ntype = edge_obj['source']['type']
             dst_ntype = edge_obj['dest']['type']
@@ -1052,6 +1063,13 @@ def load_metadata_from_json(config_json):
                 for feat_obj in edge_obj['features']:
                     feat_dims[feat_obj['name']] = feat_obj['dim']
                 efeat_dims[(src_ntype, etype, dst_ntype)] = feat_dims
+            if add_reverse_edges:
+                etypes.append((src_ntype, etype + "-rev", dst_ntype))
+                if 'features' in edge_obj:
+                    feat_dims = {}
+                    for feat_obj in edge_obj['features']:
+                        feat_dims[feat_obj['name']] = feat_obj['dim']
+                    efeat_dims[(src_ntype, etype + "-rev", dst_ntype)] = feat_dims
 
     # create the metadata instance
     if is_homo:
