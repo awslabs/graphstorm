@@ -32,7 +32,9 @@ from launch_utils import (check_name_format, extract_ecr_region,
 
 # TODO: When adding new realtime inference tasks, modify this list
 SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
-SUPPORTED_REALTIME_INFER_TASKS = [SUPPORTED_REALTIME_INFER_NC_TASK]
+SUPPORTED_REALTIME_INFER_NR_TASK = 'node_regression'
+SUPPORTED_REALTIME_INFER_TASKS = [SUPPORTED_REALTIME_INFER_NC_TASK,
+                                  SUPPORTED_REALTIME_INFER_NR_TASK]
 
 # Constants for SageMaker endpoints
 _ROOT = os.path.abspath(os.path.dirname(__file__))
