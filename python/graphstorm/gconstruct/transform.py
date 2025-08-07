@@ -1610,8 +1610,10 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
                     new_data[key] = val
 
             # Write feature dimension back to the feature config
-            # For multiple feature columns, merge the transformed value on
-            # 0-th value
+            # Updates the feature dimension, provided as a tuple in op.feat_dim. If the feature name
+            # already exists, this logic assumes the features are being concatenated along the 0-th axis.
+            # It therefore constructs a new dimension tuple by accumulating the size of
+            # this first dimension and keeping all subsequent dimension sizes constant.
             if op.feat_name not in feat_dim_dict:
                 feat_dim_dict[op.feat_name] = op.feat_dim
             else:
