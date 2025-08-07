@@ -2629,52 +2629,41 @@ def test_missing_gconstruct_config():
         with pytest.warns(UserWarning, match="Graph construction config .* not found in .*"):
             _ = GSConfig(args)
 
-def test_readonly_model_directory():
-    """Test handling of read-only directory when saving configs"""
+def test_is_path_writable():
+    """Test if writable path function behaves as expected in limited permission settings
+
+    Note: because CI executes as root user, and can write to all paths,
+    we cannot execute this test under all conditions
+    """
     with tempfile.TemporaryDirectory() as tmpdirname:
-        # Skip test if running as root since root can write to read-only dirs
-        if os.geteuid() == 0:  # 0 is root's user ID
-            pytest.skip("Test not applicable when running as root")
-        # Create a basic config file
-        create_basic_config(Path(tmpdirname), 'combined_test')
 
-        # Test case 1: Existing read-only directory
-        save_model_path = os.path.join(tmpdirname, "model")
-        os.makedirs(save_model_path)
-        # Make directory read-only
-        os.chmod(save_model_path, stat.S_IREAD | stat.S_IEXEC)
-
-        args = Namespace(
-            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
-            local_rank=0,
-            save_model_path=save_model_path,
-        )
-
-        # Create GSConfig, should warn about read-only directory
-        with pytest.warns(UserWarning, match="Directory .* exists but is not writable.*"):
-            _ = GSConfig(args)
-
-        # Restore permissions so cleanup can succeed
-        os.chmod(save_model_path, stat.S_IRWXU)
-
-        # Test case 2: Non-existent directory with read-only parent
+        # Test case 1: Non-existent directory with read-only parent
         save_model_path = os.path.join(tmpdirname, "readonly_parent", "model")
         parent_dir = os.path.dirname(save_model_path)
         os.makedirs(parent_dir)
         os.chmod(parent_dir, stat.S_IREAD | stat.S_IEXEC)
 
-        args = Namespace(
-            yaml_config_file=os.path.join(Path(tmpdirname), 'combined_test.yaml'),
-            local_rank=0,
-            save_model_path=save_model_path,
-        )
-
-        # Create GSConfig, should warn about inability to create directory
-        with pytest.warns(UserWarning, match="Cannot create directory .* Permission denied:.*"):
-            _ = GSConfig(args)
+        assert not GSConfig._is_path_writable(save_model_path), \
+            "Directory should not be writable"
 
         # Restore permissions so cleanup can succeed
         os.chmod(parent_dir, stat.S_IRWXU)
+
+        # Skip next test if running as root since root can write to read-only dirs
+        if os.geteuid() == 0:  # 0 is root's user ID
+            pytest.skip("Test not applicable when running as root")
+
+        # Test case 2: Existing read-only directory, non-root users cannot write
+        save_model_path = os.path.join(tmpdirname, "model")
+        os.makedirs(save_model_path)
+        # Make directory read-only
+        os.chmod(save_model_path, stat.S_IREAD | stat.S_IEXEC)
+
+        assert not GSConfig._is_path_writable(save_model_path), \
+            "Directory should not be writable"
+
+        # Restore permissions so cleanup can succeed
+        os.chmod(save_model_path, stat.S_IRWXU)
 
 
 def create_fname_test_gnn_config(tmp_path, file_name):
