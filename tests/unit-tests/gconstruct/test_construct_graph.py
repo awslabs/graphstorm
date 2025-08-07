@@ -2147,9 +2147,10 @@ def test_multicolumn(ext_mem_path):
         "test2": np.random.rand(4, 2)
     }
     data["test3"] = np.column_stack((data['test1'], data['test2']))
-    proc_res, _ = process_features(data, res, ext_mem_path=ext_mem_path)
+    proc_res, feat_dim_dict = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
+    assert feat_dim_dict["test3"] == data["test3"].shape[1:]
     if isinstance(proc_res, ExtMemArrayWrapper):
         proc_res = proc_res.to_numpy()
     np.testing.assert_allclose(proc_res["test3"], data["test3"])
@@ -2173,7 +2174,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op2[0]["feature_col"]
     assert res[0].feat_name == feat_op2[0]["feature_name"]
     assert isinstance(res[0], BucketTransform)
-    bucket_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
+    bucket_feats, feat_dim_dict = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -2208,6 +2209,7 @@ def test_multicolumn(ext_mem_path):
     bucket_feat_single2, _ = process_features(data_bucket2, res)
     bucket_expec = np.column_stack((bucket_feat_single1["test3"],
                                     bucket_feat_single2["test3"]))
+    assert feat_dim_dict["test3"] == bucket_expec.shape[1:]
     if isinstance(proc_res, ExtMemArrayWrapper):
         bucket_feats = bucket_feats.to_numpy()
     assert_equal(bucket_feats["test3"], bucket_expec)
@@ -2229,7 +2231,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
     assert isinstance(res[0], RankGaussTransform)
-    rg_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
+    rg_feats, feat_dim_dict = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -2262,6 +2264,7 @@ def test_multicolumn(ext_mem_path):
     rg_feat_single2, _ = process_features(data_rg2, res)
     rg_expec = np.column_stack((rg_feat_single1["test3"],
                                 rg_feat_single2["test3"]))
+    assert feat_dim_dict["test3"] == rg_expec.shape[1:]
     if isinstance(rg_feats, ExtMemArrayWrapper):
         rg_feats = rg_feats.to_numpy()
     assert_equal(rg_feats["test3"], rg_expec)
@@ -2285,7 +2288,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op4[0]["feature_col"]
     assert res[0].feat_name == feat_op4[0]["feature_name"]
     assert isinstance(res[0], Text2BERT)
-    bert_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
+    bert_feats, feat_dim_dict = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
 
     data_bert1 = {
@@ -2317,6 +2320,7 @@ def test_multicolumn(ext_mem_path):
     bert_feat_single2, _ = process_features(data_bert2, res)
     bert_expec = np.column_stack((bert_feat_single1["test3"],
                                 bert_feat_single2["test3"]))
+    assert feat_dim_dict["test3"] == bert_expec.shape[1:]
     if isinstance(bert_feats, ExtMemArrayWrapper):
         bert_feats = bert_feats.to_numpy()
     assert_equal(bert_feats["test3"], bert_expec)
@@ -2340,7 +2344,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
     assert isinstance(res[0], NumericalMinMaxTransform)
-    maxmin_feats, _ = process_features(data, res, ext_mem_path=ext_mem_path)
+    maxmin_feats, feat_dim_dict = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -2375,6 +2379,7 @@ def test_multicolumn(ext_mem_path):
     maxmin_feat_single2, _ = process_features(data_maxmin2, res)
     maxmin_expec = np.column_stack((maxmin_feat_single1["test3"],
                                 maxmin_feat_single2["test3"]))
+    assert feat_dim_dict["test3"] == maxmin_expec.shape[1:]
     if isinstance(maxmin_feats, ExtMemArrayWrapper):
         maxmin_feats = maxmin_feats.to_numpy()
     assert_equal(maxmin_feats["test3"], maxmin_expec)
@@ -2468,11 +2473,12 @@ def test_multicolumn(ext_mem_path):
         "test3": np.random.rand(4, 2)
     }
     data["test4"] = np.column_stack((data['test1'], data['test2'], data['test3']))
-    proc_res, _ = process_features(data, res, ext_mem_path=ext_mem_path)
+    proc_res, feat_dim_dict = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test4" in proc_res
     assert proc_res["test4"].dtype == np.float32
     if isinstance(proc_res, ExtMemArrayWrapper):
         proc_res = proc_res.to_numpy()
+    assert feat_dim_dict["test4"] == data["test4"].shape[1:]
     np.testing.assert_allclose(proc_res["test4"], data["test4"])
 
 

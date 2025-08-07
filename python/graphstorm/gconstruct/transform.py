@@ -1609,8 +1609,12 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
                         if key in new_data else val
                     new_data[key] = val
 
-        # Write feature dimension back to the feature config
-        feat_dim_dict[op.feat_name] = op.feat_dim
+            # Write feature dimension back to the feature config
+            if op.feat_name not in feat_dim_dict:
+                feat_dim_dict[op.feat_name] = op.feat_dim
+            else:
+                feat_dim_dict[op.feat_name] = (op.feat_dim[0] + feat_dim_dict[op.feat_name][0],) + \
+                                        feat_dim_dict[op.feat_name][1:]
 
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()
