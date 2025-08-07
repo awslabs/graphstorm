@@ -1132,7 +1132,7 @@ def process_graph(args):
     with open(outfile_path, "w", encoding="utf8") as outfile:
         json.dump(process_confs, outfile, indent=4)
 
-    if args.add_reverse_edges:
+    if args.add_reverse_edges or process_confs.get("add_reverse_edge", False):
         edges1 = {}
         if is_homogeneous(process_confs):
             logging.warning("For homogeneous graph, the generated reverse edge will "
@@ -1167,8 +1167,11 @@ def process_graph(args):
                 assert isinstance(etype, tuple) and len(etype) == 3
                 edges1[etype] = e
                 edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
+        process_confs["add_reverse_edge"] = True
         edges = edges1
         sys_tracker.check('Add reverse edges')
+    else:
+        process_confs["add_reverse_edge"] = False
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
                      node_label_masks, edge_label_masks)
