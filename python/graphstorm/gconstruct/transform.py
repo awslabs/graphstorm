@@ -1610,6 +1610,8 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
                     new_data[key] = val
 
             # Write feature dimension back to the feature config
+            # For multiple feature columns, merge the transformed value on
+            # 0-th value
             if op.feat_name not in feat_dim_dict:
                 feat_dim_dict[op.feat_name] = op.feat_dim
             else:
