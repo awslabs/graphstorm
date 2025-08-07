@@ -143,6 +143,8 @@ Arguments of the launch endpoint script include:
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$`` as defined in
   `SageMaker's CreateEndpoint document <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateEndpoint.html>`_.
   (Default: ``GSF-Model4Realtime``)
+- **-\-ogging-level**: the level of logging. Optional values include 'debug', 'info', 'warning', and 'error'.
+  Default is 'info'.
 
 Outputs of this command include the deployed endpoint ARN (Amazon Resource Name) based on the value for
 ``--model-name``, e.g., ``arn:aws:sagemaker:us-east-1:123456789012:endpoint/GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``,

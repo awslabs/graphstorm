@@ -238,3 +238,19 @@ def check_name_format(name_str):
                                 'expression pattern: ' + \
                                 r'^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
     return name_str
+
+
+def get_log_level(log_level):
+    """ Map the logging level.
+    """
+    if log_level == "debug":
+        return logging.DEBUG
+    elif log_level == "info":
+        return logging.INFO
+    elif log_level == "warning":
+        return logging.WARNING
+    elif log_level == "error":
+        return logging.ERROR
+    else:
+        raise ValueError(f"Unknown logging level {log_level}. " + \
+                "The possible values are: debug, info, warning, error.")

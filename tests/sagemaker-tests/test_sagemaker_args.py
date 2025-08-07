@@ -102,7 +102,8 @@ def test_get_realtime_infer_argparser():
     default_args = {'--instance-type': 'ml.c6i.xlarge',
                     '--instance-count': 1,
                     '--async-execution': 'true',
-                    '--model-name': 'GSF-Model4Realtime'}
+                    '--model-name': 'GSF-Model4Realtime',
+                    '--logging-level': 'info'}
 
     # Test case 1: normal cases
     #       1.1: for the three required arguments
