@@ -2629,6 +2629,7 @@ def test_missing_gconstruct_config():
         with pytest.warns(UserWarning, match="Graph construction config .* not found in .*"):
             _ = GSConfig(args)
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="Test not applicable when running as root")
 def test_is_path_writable():
     """Test if writable path function behaves as expected in limited permission settings
 
@@ -2636,7 +2637,6 @@ def test_is_path_writable():
     we cannot execute this test under all conditions
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
-
         # Test case 1: Non-existent directory with read-only parent
         save_model_path = os.path.join(tmpdirname, "readonly_parent", "model")
         parent_dir = os.path.dirname(save_model_path)
@@ -2648,10 +2648,6 @@ def test_is_path_writable():
 
         # Restore permissions so cleanup can succeed
         os.chmod(parent_dir, stat.S_IRWXU)
-
-        # Skip next test if running as root since root can write to read-only dirs
-        if os.geteuid() == 0:  # 0 is root's user ID
-            pytest.skip("Test not applicable when running as root")
 
         # Test case 2: Existing read-only directory, non-root users cannot write
         save_model_path = os.path.join(tmpdirname, "model")
