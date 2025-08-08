@@ -13,15 +13,15 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import hashlib
 import json
 import math
 import os
 import shutil
+import stat
 import sys
 import tempfile
 import yaml
-import pytest
-import hashlib
 from argparse import Namespace
 from pathlib import Path
 
@@ -2628,6 +2628,39 @@ def test_missing_gconstruct_config():
         # Create GSConfig, this will try to copy the GConstruct config, ensure we log a warning:
         with pytest.warns(UserWarning, match="Graph construction config .* not found in .*"):
             _ = GSConfig(args)
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="Test not applicable when running as root")
+def test_is_path_writable():
+    """Test if writable path function behaves as expected in limited permission settings
+
+    Note: because CI executes as root user, and can write to all paths,
+    we cannot execute this test under all conditions
+    """
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Test case 1: Non-existent directory with read-only parent
+        save_model_path = os.path.join(tmpdirname, "readonly_parent", "model")
+        parent_dir = os.path.dirname(save_model_path)
+        os.makedirs(parent_dir)
+        os.chmod(parent_dir, stat.S_IREAD | stat.S_IEXEC)
+
+        assert not GSConfig._is_path_writable(save_model_path), \
+            "Directory should not be writable"
+
+        # Restore permissions so cleanup can succeed
+        os.chmod(parent_dir, stat.S_IRWXU)
+
+        # Test case 2: Existing read-only directory, non-root users cannot write
+        save_model_path = os.path.join(tmpdirname, "model")
+        os.makedirs(save_model_path)
+        # Make directory read-only
+        os.chmod(save_model_path, stat.S_IREAD | stat.S_IEXEC)
+
+        assert not GSConfig._is_path_writable(save_model_path), \
+            "Directory should not be writable"
+
+        # Restore permissions so cleanup can succeed
+        os.chmod(save_model_path, stat.S_IRWXU)
+
 
 def create_fname_test_gnn_config(tmp_path, file_name):
     yaml_object = create_dummy_config_obj()
