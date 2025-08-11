@@ -143,13 +143,13 @@ Arguments of the launch endpoint script include:
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$`` as defined in
   `SageMaker's CreateEndpoint document <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_CreateEndpoint.html>`_.
   (Default: ``GSF-Model4Realtime``)
-- **-\-ogging-level**: the level of logging. Optional values include 'debug', 'info', 'warning', and 'error'.
-  Default is 'info'.
+- **-\-log-level**: the level of log. Optional values include 'DEBUG', 'INFO', 'WARNING', 'ERROR', and
+  'CRITICAL'. Default is 'INFO'.
 
-Outputs of this command include the deployed endpoint ARN (Amazon Resource Name) based on the value for
-``--model-name``, e.g., ``arn:aws:sagemaker:us-east-1:123456789012:endpoint/GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``,
-This endpoint name will be used in the invoke step. The endpoint ARN can also be found from Amazon SageMaker
-AI Web console under the "Inference -> Endpoints" menu.
+Outputs of this command include the deployed endpoint name based on the value for ``--model-name``, e.g.,
+``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, and the region based on the value for ``--region``.
+This endpoint name and region will be used in the invoke step. The endpoint name can also be found from
+Amazon SageMaker AI Web console under the "Inference -> Endpoints" menu at the region.
 
 Invoke Real-time Inference Endpoints
 -------------------------------------

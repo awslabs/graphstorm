@@ -108,13 +108,13 @@ def run_job(input_args):
         A string to define the name of a SageMaker inference model. This name string must follow
         SageMaker's naming format, which is ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. The default
         value is \"GSF-Model4Realtime\".
-    logging_level: str
-        The level of logging. Optional values are 'debug', 'info', 'warning', and 'error'.
-        Default is 'info'."
+    log_level: str
+        The level of log. Optional values are 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'.
+        Default is 'INFO'."
     """
     # set the logging level
-    log_level = get_log_level(input_args.logging_level) \
-                if hasattr(input_args, "logging_level") else logging.INFO
+    log_level = input_args.log_level \
+                if hasattr(input_args, "log_level") else logging.INFO
     logging.basicConfig(level=log_level, force=True)
 
     # ================= prepare model artifacts ================= #
@@ -200,14 +200,16 @@ def run_job(input_args):
     create_endpoint_response = sm_client.create_endpoint(
         EndpointName=sm_ep_name, EndpointConfigName=sm_ep_config_name
     )
-    logging.info("Endpoint Arn: %s", create_endpoint_response["EndpointArn"])
+    logging.debug("Endpoint Arn: %s", create_endpoint_response["EndpointArn"])
 
     if input_args.async_execution.lower() == 'true':
         resp = sm_client.describe_endpoint(EndpointName=sm_ep_name)
         status = resp["EndpointStatus"]
-        logging.info("Creating endpoint name: %s, current status: %s", sm_ep_name, status)
+        logging.info("Creating endpoint name: %s at %s region, current status: %s",
+            sm_ep_name, input_args.region, status)
     else:
-        logging.info("Waiting for %s endpoint to be in service...", sm_ep_name)
+        logging.info("Waiting for %s endpoint to be in service at %s region...",
+                     sm_ep_name, input_args.region)
         waiter = sm_client.get_waiter("endpoint_in_service")
 
         try:
@@ -274,15 +276,14 @@ def get_realtime_infer_parser():
               "Default is \"GSF-Model4Realtime\"."))
 
     # common arguments
-    realtime_infer_parser.add_argument('--logging-level', type=str, default="info",
-        help=("Change the logging level. Optional values are 'debug', 'info', 'warning', 'error'."
-              "Default is 'info'."))
-    
+    levels = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
+    realtime_infer_parser.add_argument('--log-level', default="INFO", choices=levels,
+        help=(f"Change the log level. Optional values are {levels}. Default is 'INFO'."))
+
     return realtime_infer_parser
 
 def sanity_check_realtime_infer_inputs(input_args):
     """ Verify the user-provided inputs for real-time endpoint deployment
-    
 
     1. The endpoint should be deployed in the same region as the ECR Docker image.
 
