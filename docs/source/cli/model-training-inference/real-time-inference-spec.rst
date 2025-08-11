@@ -17,7 +17,10 @@ A payload should be a JSON object. In the highest level, the JSON object contain
     {
         "version"   : string,
         "gml_task"  : string,
-        "graph"     : object,
+        "graph"     : {
+                           "nodes": [ ... ],
+                           "edges": [ ... ]
+                      },
         "targets"   : [ ... ]
     }
 
