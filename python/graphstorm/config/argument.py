@@ -308,7 +308,7 @@ class GSConfig:
                     warnings.warn(
                         f"Graph construction config {GS_RUNTIME_GCONSTRUCT_FILENAME} "
                         f"not found in {part_config_dir}. "
-                        "This is expected for graph data processed with with version < 0.5. "
+                        "This is expected for graph data processed with version < 0.5. "
                         "You will need to manually copy over the graph construction "
                         "config for model deployment.")
             except Exception as e: # pylint: disable=broad-exception-caught
