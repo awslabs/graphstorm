@@ -1609,8 +1609,16 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
                         if key in new_data else val
                     new_data[key] = val
 
-        # Write feature dimension back to the feature config
-        feat_dim_dict[op.feat_name] = op.feat_dim
+            # Write feature dimension back to the feature config
+            # Updates the feature dimension, provided as a tuple in op.feat_dim. If the feature name
+            # already exists, this logic assumes the features are being concatenated
+            # along the 0-th axis. It therefore constructs a new dimension tuple by accumulating
+            # the size of this first dimension and keeping all subsequent dimension sizes constant.
+            if op.feat_name not in feat_dim_dict:
+                feat_dim_dict[op.feat_name] = op.feat_dim
+            else:
+                feat_dim_dict[op.feat_name] = (op.feat_dim[0] + feat_dim_dict[op.feat_name][0],) + \
+                                        feat_dim_dict[op.feat_name][1:]
 
         if len(col_name) > 1 and ext_mem_path is not None:
             new_data[tmp_key] = wrapper.merge()

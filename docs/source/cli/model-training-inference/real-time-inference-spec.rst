@@ -9,15 +9,16 @@ Specification of Real-time Inference Request and Response
 Specification of Request Payload Contents 
 ------------------------------------------
 
-A payload should be a JSON object. In the highest level, the JSON object contains three fields:
-``version``, ``gml_task``, and ``graph``.
+A payload should be a JSON object. In the highest level, the JSON object contains four fields:
+``version``, ``gml_task``, ``graph``, and ``targets``.
 
 .. code:: json
 
     {
         "version"   : string,
         "gml_task"  : string,
-        "graph"     : [ ... ]
+        "graph"     : object,
+        "targets"   : [ ... ]
     }
 
 - ``version`` -- (String, required) The version of payload to be used. The current version is ``gs-realtime-v0.1``.
@@ -25,29 +26,26 @@ A payload should be a JSON object. In the highest level, the JSON object contain
   supports two options: 
     * ``node_classification``
     * ``node_regression``
-- ``graph`` -- (JSON objects, required) The contents of a payload, with "nodes", "edges" and "targets" keys. See below for details.
-
+- ``graph`` -- (JSON objects, required) The contents of a payload, with "nodes", and "edges" keys. See below for details.
+- ``targets`` -- (Array of JSON objects, required) The contents of target nodes or edges for prediciton.
 
 Contents of objects in the ``graph`` field
-........................................... 
+...........................................
 
-A ``graph`` object contains three objects: ``nodes``, ``edges``, and ``targets``.
+A ``graph`` object contains two objects: ``nodes``, and ``edges``.
 
 .. code:: json
 
     {
         "nodes"     : [ ... ],
-        "edges"     : [ ... ],
-        "targets"   : [ ... ]
+        "edges"     : [ ... ]
     }
 
 - ``nodes`` -- (array of JSON objects) Each object specifies a ``node`` object. 
 - ``edges`` -- (array of JSON objects) Each object specifies an ``edge`` object.
-- ``targets``  -- (array of JSON objects) Each object specifies a ``node`` object or an ``edge`` object,
-  depending on the value of ``gml_task``.
 
 Contents of a ``node`` object listed in a ``nodes`` array
-..........................................................
+**********************************************************
 
 A ``node`` object listed in a ``nodes`` array can contain the following required fields.
 
@@ -73,7 +71,7 @@ A ``node`` object listed in a ``nodes`` array can contain the following required
   :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
 Contents of an ``edge`` object listed in an ``edges`` array
-............................................................
+************************************************************
 
 An ``edge`` object listed in an ``edges`` array must contain the following required fields.
 
