@@ -108,7 +108,7 @@ def run_job(input_args):
         SageMaker's naming format, which is ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. The default
         value is \"GSF-Model4Realtime\".
     log_level: str
-        The level of log. Optional values are 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'.
+        The level of log. Possible values are 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'.
         Default is 'INFO'."
     """
     # set the logging level
