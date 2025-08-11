@@ -17,10 +17,7 @@ A payload should be a JSON object. In the highest level, the JSON object contain
     {
         "version"   : string,
         "gml_task"  : string,
-        "graph"     : {
-                           "nodes": [ ... ],
-                           "edges": [ ... ]
-                      },
+        "graph"     : object,
         "targets"   : [ ... ]
     }
 
@@ -35,7 +32,7 @@ A payload should be a JSON object. In the highest level, the JSON object contain
 Contents of objects in the ``graph`` field
 ...........................................
 
-A ``graph`` object contains three objects: ``nodes``, and ``edges``.
+A ``graph`` object contains two objects: ``nodes``, and ``edges``.
 
 .. code:: json
 
@@ -47,8 +44,7 @@ A ``graph`` object contains three objects: ``nodes``, and ``edges``.
 - ``nodes`` -- (array of JSON objects) Each object specifies a ``node`` object. 
 - ``edges`` -- (array of JSON objects) Each object specifies an ``edge`` object.
 
-Contents of a ``node`` object listed in a ``nodes`` array
-**********************************************************
+**Contents of a ``node`` object listed in a ``nodes`` array**
 
 A ``node`` object listed in a ``nodes`` array can contain the following required fields.
 
@@ -73,8 +69,7 @@ A ``node`` object listed in a ``nodes`` array can contain the following required
   <gconstruction-json>`, or the ``name`` values of ``features`` fields defined in
   :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
-Contents of an ``edge`` object listed in an ``edges`` array
-************************************************************
+**Contents of an ``edge`` object listed in an ``edges`` array**
 
 An ``edge`` object listed in an ``edges`` array must contain the following required fields.
 
