@@ -103,7 +103,7 @@ def test_get_realtime_infer_argparser():
                     '--instance-count': 1,
                     '--async-execution': 'true',
                     '--model-name': 'GSF-Model4Realtime',
-                    '--logging-level': 'info'}
+                    '--log-level': 'INFO'}
 
     # Test case 1: normal cases
     #       1.1: for the three required arguments
