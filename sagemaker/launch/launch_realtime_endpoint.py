@@ -28,8 +28,7 @@ import boto3  # pylint: disable=import-error
 import sagemaker as sm
 from botocore.exceptions import WaiterError
 from launch_utils import (check_name_format, extract_ecr_region,
-                          upload_data_to_s3, wrap_model_artifacts,
-                          get_log_level)
+                          upload_data_to_s3, wrap_model_artifacts)
 
 # TODO: When adding new realtime inference tasks, modify this list
 SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
