@@ -144,7 +144,7 @@ def create_realtime_yaml_object(tmpdirname):
 
     return gs_config
 
-def create_realtime_json_oject(tmpdirname):
+def create_realtime_json_object(tmpdirname):
     """ Create a graph construction json file to build GraphFromMetadata
     """
     json_object = \
@@ -224,7 +224,8 @@ def create_realtime_json_oject(tmpdirname):
                         "files":        "/data/ml-100k/edges_rev.parquet",
                 }
         ],
-        "is_homogeneous": "false"
+        "is_homogeneous": "false",
+        "add_reverse_edge": "true"
     }
     with open(os.path.join(tmpdirname, "ml.json"), "w") as f:
         json.dump(json_object, f, indent=4)
@@ -239,7 +240,7 @@ def create_realtime_np_model(tmpdirname, model_error=False):
 
     This basic configuration is a subset of the `training_scripts/gsgnn_np/ml_nc.yaml`.
     """
-    gs_json = create_realtime_json_oject(tmpdirname)
+    gs_json = create_realtime_json_object(tmpdirname)
     gs_config = create_realtime_yaml_object(tmpdirname)
 
     gs_metadata = load_metadata_from_json(gs_json)

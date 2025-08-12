@@ -1053,7 +1053,7 @@ def load_metadata_from_json(config_json):
         # parse edge types
         etypes = []
         efeat_dims = {}
-        add_reverse_edges = graph_obj['add_reverse_edge'] in ['True', 'true']
+        add_reverse_edges = graph_obj['add_reverse_edge'] in ['True', 'true', True]
         for edge_obj in graph_obj['edges']:
             src_ntype = edge_obj['source']['type']
             dst_ntype = edge_obj['dest']['type']
