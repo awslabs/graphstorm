@@ -228,7 +228,7 @@ def build_gcons_json_example(gtype='heterogeneous'):
                 "dest_id_col": "dest_id"
             }
         ],
-        "add_reverse_edge": "true",
+        "add_reverse_edge": "false",
         "is_homogeneous": "false"
     }
     elif gtype == 'homogeneous':
