@@ -228,6 +228,7 @@ def build_gcons_json_example(gtype='heterogeneous'):
                 "dest_id_col": "dest_id"
             }
         ],
+        "add_reverse_edge": "true",
         "is_homogeneous": "false"
     }
     elif gtype == 'homogeneous':
@@ -313,6 +314,7 @@ def build_gcons_json_example(gtype='heterogeneous'):
                     ]
                 },
             ],
+            "add_reverse_edge": "false",
             "is_homogeneous": "true"
         }
     else:
@@ -329,6 +331,7 @@ def build_gsproc_json_example(gtype='heterogeneous'):
     if gtype == 'heterogeneous':
         conf = {
         "graph": {
+            "add_reverse_edge": "false",
             "nodes": [
                 {
                     "data": {
@@ -581,6 +584,7 @@ def build_gsproc_json_example(gtype='heterogeneous'):
     elif gtype == 'homogeneous':
         conf = {
         "graph": {
+            "add_reverse_edge": "false",
             "nodes": [
                 {
                     "data": {

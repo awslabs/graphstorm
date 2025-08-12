@@ -57,7 +57,7 @@ def convert_tensor_to_list_arrays(tensor):
 
     return list_array
 
-def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
+def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False, add_reverse_edge=False):
     """ Build the new JSON file from a gcontruct for tests
     """
     # generate node dataframe: we use the graph node ids and node name as node_type
@@ -235,7 +235,7 @@ def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
             edge_dict['labels'] = labels_list
         
         edge_jsons.append(edge_dict)
-        
+
     # generate the configuration JSON file
     data_json = {}
     data_json['version'] = 'gconstruct-v0.1'
@@ -243,6 +243,7 @@ def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
         data_json['is_homogeneous'] = True
     else:
         data_json['is_homogeneous'] = False
+    data_json['add_reverse_edge'] = add_reverse_edge
     data_json['nodes'] = node_jsons
     data_json['edges'] = edge_jsons
         

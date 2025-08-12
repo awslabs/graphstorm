@@ -360,7 +360,7 @@ class NodeConfig(StructureConfig):
         return self._node_col
 
 
-def update_gsprocessing_config(graph_config: Dict[str, Any], add_reverse_edge):
+def update_gsprocessing_config(graph_config: Dict[str, Any], add_reverse_edge=False):
     """Parses a GSProcessing JSON configuration dictionary and adjust the node/edge type
     if it is a homogeneous graph to fit the DGL requirement.
 
