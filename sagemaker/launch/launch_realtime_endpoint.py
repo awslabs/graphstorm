@@ -107,8 +107,15 @@ def run_job(input_args):
         A string to define the name of a SageMaker inference model. This name string must follow
         SageMaker's naming format, which is ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. The default
         value is \"GSF-Model4Realtime\".
-    
+    log_level: str
+        The level of log. Possible values are 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'.
+        Default is 'INFO'."
     """
+    # set the logging level
+    log_level = input_args.log_level \
+                if hasattr(input_args, "log_level") else logging.INFO
+    logging.basicConfig(level=log_level, force=True)
+
     # ================= prepare model artifacts ================= #
     # prepare sessions
     boto_session = boto3.Session(region_name=input_args.region)
@@ -197,9 +204,11 @@ def run_job(input_args):
     if input_args.async_execution.lower() == 'true':
         resp = sm_client.describe_endpoint(EndpointName=sm_ep_name)
         status = resp["EndpointStatus"]
-        logging.info("Creating endpoint name: %s, current status: %s", sm_ep_name, status)
+        logging.info("Creating endpoint name: %s at %s region, current status: %s",
+            sm_ep_name, input_args.region, status)
     else:
-        logging.info("Waiting for %s endpoint to be in service...", sm_ep_name)
+        logging.info("Waiting for %s endpoint to be in service at %s region...",
+                     sm_ep_name, input_args.region)
         waiter = sm_client.get_waiter("endpoint_in_service")
 
         try:
@@ -265,11 +274,15 @@ def get_realtime_infer_parser():
               "a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. "
               "Default is \"GSF-Model4Realtime\"."))
 
+    # common arguments
+    levels = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
+    realtime_infer_parser.add_argument('--log-level', default="INFO", choices=levels,
+        help=(f"Change the log level. Optional values are {levels}. Default is 'INFO'."))
+
     return realtime_infer_parser
 
 def sanity_check_realtime_infer_inputs(input_args):
     """ Verify the user-provided inputs for real-time endpoint deployment
-    
 
     1. The endpoint should be deployed in the same region as the ECR Docker image.
 
