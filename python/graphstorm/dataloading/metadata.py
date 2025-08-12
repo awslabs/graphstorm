@@ -1024,7 +1024,7 @@ def load_metadata_from_json(config_json):
                 for feat_obj in edge_obj['features']:
                     feat_dims[feat_obj['feature_name']] = feat_obj['feature_dim']
                 efeat_dims[tuple(edge_obj['relation'])] = feat_dims
-            if add_reverse_edges:
+            if add_reverse_edges and not is_homo:
                 reverse_relation = [edge_obj['relation'][2],
                                     edge_obj['relation'][1] + "-rev",
                                     edge_obj['relation'][0]]
@@ -1065,13 +1065,13 @@ def load_metadata_from_json(config_json):
                 for feat_obj in edge_obj['features']:
                     feat_dims[feat_obj['name']] = feat_obj['dim']
                 efeat_dims[(src_ntype, etype, dst_ntype)] = feat_dims
-            if add_reverse_edges:
+            if add_reverse_edges and not is_homo:
                 etypes.append((dst_ntype, etype + "-rev", src_ntype))
                 if 'features' in edge_obj:
                     feat_dims = {}
                     for feat_obj in edge_obj['features']:
                         feat_dims[feat_obj['name']] = feat_obj['dim']
-                    efeat_dims[(src_ntype, etype + "-rev", dst_ntype)] = feat_dims
+                    efeat_dims[(dst_ntype, etype + "-rev", src_ntype)] = feat_dims
 
     # create the metadata instance
     if is_homo:
