@@ -34,7 +34,7 @@ def build_gcons_json_example(gtype='heterogeneous'):
     """
     if gtype == 'heterogeneous':
         conf = {
-        "version": "gconstruct-v0.1",
+        "version": "gconstruct-runtime-v0.1",
         "nodes": [
             {
                 "node_type": "author",
@@ -233,7 +233,7 @@ def build_gcons_json_example(gtype='heterogeneous'):
     }
     elif gtype == 'homogeneous':
         conf = {
-            "version": "gconstruct-v0.1",
+            "version": "gconstruct-runtime-v0.1",
             "nodes": [
                 {
                     "node_type": "_N",
@@ -579,7 +579,7 @@ def build_gsproc_json_example(gtype='heterogeneous'):
             ],
             "is_homogeneous": "false"
         },
-        "version": "gsprocessing-v1.0"
+        "version": "gsprocessing-runtime-v1.0"
     }
     elif gtype == 'homogeneous':
         conf = {
@@ -693,7 +693,7 @@ def build_gsproc_json_example(gtype='heterogeneous'):
             ],
             "is_homogeneous": "true"
         },
-        "version": "gsprocessing-v1.0"
+        "version": "gsprocessing-runtime-v1.0"
     }
     else:
         raise NotImplementedError('Only support \"heterogeneous\" and \"homogeneous\" options.' \
@@ -898,6 +898,12 @@ def test_config_json_santiy_check():
     gcont_config_json = build_gcons_json_example()
     gcont_config_json.pop('version')
     with pytest.raises(AssertionError, match='A \"version\" field must be defined in the'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['version'] = 'gconstruct-v1.0'
+    with pytest.raises(AssertionError, match='The \"version\" field must contain a \"runtime\" '
+                                             'field to identify the runtime version.'):
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()
@@ -1109,7 +1115,7 @@ def test_config_json_santiy_check():
         config_json_sanity_check(gsproc_config_json)
 
     gcont_config_json = build_gcons_json_example()
-    gcont_config_json['version'] = 'another_version'
+    gcont_config_json['version'] = 'another_version-runtime'
     with pytest.raises(NotImplementedError, match='GSGraphMetadata can only be loaded'):
         config_json_sanity_check(gcont_config_json)
 

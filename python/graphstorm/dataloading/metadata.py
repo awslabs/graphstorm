@@ -680,7 +680,7 @@ def config_json_sanity_check(config_json):
 
     JSON from GS gconstruct:
         {
-            "version": "gconstruct-v0.1",
+            "version": "gconstruct-runtime-v0.1",
             "is_homogeneous": bool,
             "add_reverse_edges": bool,
             "nodes":[
@@ -713,7 +713,7 @@ def config_json_sanity_check(config_json):
         }
     JSON from GSProcessing:
         {
-            "version": "gsprocessing-v0.4.1",
+            "version": "gsprocessing-runtime-v0.4.1",
             "graph": {
                 "is_homogeneous": bool,
                 "add_reverse_edges": bool,
@@ -764,6 +764,8 @@ def config_json_sanity_check(config_json):
     assert 'version' in config_json, (
         'A "version" field must be defined in the configuration JSON object.')
     config_version = config_json['version']
+    assert 'runtime' in config_version, (
+        'The "version" field must contain a "runtime" field to identify the runtime version.')
 
     if config_version.startswith('gconstruct'):
         assert 'is_homogeneous' in config_json, (
