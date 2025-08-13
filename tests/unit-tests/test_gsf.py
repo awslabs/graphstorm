@@ -880,8 +880,7 @@ def test_restore_builtin_model_from_artifacts():
         # create a dummy gdsg dist graph
         g, _, graph_config = generate_dummy_dist_graph(tmpdirname,
                                                        graph_name='test',
-                                                       return_graph_config=True,
-                                                       add_reverse=True)
+                                                       return_graph_config=True)
         # create dummy YAML config 
         yaml_object = create_dummy_config_obj()
         yaml_object["gsf"]["basic"] = {
@@ -925,6 +924,7 @@ def test_restore_builtin_model_from_artifacts():
 
         # restore the model from the current temp file
         graph_config_file = os.path.basename(graph_config)
+        
         nc_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'nc_basic.yaml')
 
         assert nc_model.gnn_encoder.num_layers == yaml_object["gsf"]["gnn"]["num_layers"]
