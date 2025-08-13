@@ -906,9 +906,9 @@ def load_metadata_from_json(config_json):
 
     JSON from GS gconstruct:
         {
-            "version": "gconstruct-v0.1",
+            "version": "gconstruct-runtime-v0.1",
             "is_homogeneous": bool,
-            "add_reverse_edge": bool,
+            "add_reverse_edges": bool,
             "nodes":[
                 {
                     "node_id_col": str,
@@ -939,9 +939,10 @@ def load_metadata_from_json(config_json):
         }
     JSON from GSProcessing:
         {
-            "version": "gsprocessing-v0.4.1",
+            "version": "gsprocessing-runtime-v0.4.1",
             "graph": {
                 "is_homogeneous": bool,
+                "add_reverse_edges": bool,
                 "nodes": [
                     {
                         "type": str,
@@ -1015,7 +1016,7 @@ def load_metadata_from_json(config_json):
         # parse edge types
         etypes = []
         efeat_dims = {}
-        add_reverse_edges = config_json['add_reverse_edge'] in ['True', 'true', True]
+        add_reverse_edges = config_json['add_reverse_edges'] in ['True', 'true', True]
         for edge_obj in config_json['edges']:
             etypes.append(tuple(edge_obj['relation']))  # convert a list to tuple as can_etype
             # extract feature name and dimensions if have
@@ -1053,7 +1054,7 @@ def load_metadata_from_json(config_json):
         # parse edge types
         etypes = []
         efeat_dims = {}
-        add_reverse_edges = graph_obj['add_reverse_edge'] in ['True', 'true', True]
+        add_reverse_edges = graph_obj['add_reverse_edges'] in ['True', 'true', True]
         for edge_obj in graph_obj['edges']:
             src_ntype = edge_obj['source']['type']
             dst_ntype = edge_obj['dest']['type']
@@ -1084,5 +1085,4 @@ def load_metadata_from_json(config_json):
                                      etypes=etypes,
                                      nfeat_dims=nfeat_dims,
                                      efeat_dims=efeat_dims)
-
     return graph_metadata

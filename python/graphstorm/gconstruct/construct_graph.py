@@ -1107,6 +1107,8 @@ def process_graph(args):
     else:
         logging.warning("Unrecognized configuration file version name: %s",
                         process_confs["version"])
+    # Update version to runtime
+    process_confs["version"] = "gconstruct-runtime-v0.1"
 
     sys_tracker.set_rank(0)
     num_processes_for_nodes = args.num_processes_for_nodes \
@@ -1185,7 +1187,7 @@ def process_graph(args):
                 edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
         sys_tracker.check('Add reverse edges')
-    process_confs["add_reverse_edge"] = args.add_reverse_edge
+    process_confs["add_reverse_edges"] = args.add_reverse_edges
 
     write_transformed_config(args.output_conf_file, args.output_dir, process_confs)
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)

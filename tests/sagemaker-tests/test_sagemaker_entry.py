@@ -225,7 +225,7 @@ def create_realtime_json_object(tmpdirname):
                 }
         ],
         "is_homogeneous": "false",
-        "add_reverse_edge": "true"
+        "add_reverse_edges": "true"
     }
     with open(os.path.join(tmpdirname, "ml.json"), "w") as f:
         json.dump(json_object, f, indent=4)

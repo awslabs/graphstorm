@@ -236,8 +236,8 @@ def test_update_dict_reverse_edge():
 
     # Without reverse edge case
     update_gsprocessing_config(graph_config)
-    assert not graph_config["add_reverse_edge"]
+    assert not graph_config["add_reverse_edges"]
 
     # With reverse edge case
-    update_gsprocessing_config(graph_config, add_reverse_edge=True)
-    assert graph_config["add_reverse_edge"]
+    update_gsprocessing_config(graph_config, add_reverse_edges=True)
+    assert graph_config["add_reverse_edges"]

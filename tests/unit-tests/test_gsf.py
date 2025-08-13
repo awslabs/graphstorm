@@ -15,8 +15,6 @@
 
 import os
 import json
-from audioop import reverse
-
 import yaml
 import pytest
 import tempfile

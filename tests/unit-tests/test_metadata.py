@@ -228,7 +228,7 @@ def build_gcons_json_example(gtype='heterogeneous'):
                 "dest_id_col": "dest_id"
             }
         ],
-        "add_reverse_edge": "false",
+        "add_reverse_edges": "false",
         "is_homogeneous": "false"
     }
     elif gtype == 'homogeneous':
@@ -314,7 +314,7 @@ def build_gcons_json_example(gtype='heterogeneous'):
                     ]
                 },
             ],
-            "add_reverse_edge": "false",
+            "add_reverse_edges": "false",
             "is_homogeneous": "true"
         }
     else:
@@ -331,7 +331,7 @@ def build_gsproc_json_example(gtype='heterogeneous'):
     if gtype == 'heterogeneous':
         conf = {
         "graph": {
-            "add_reverse_edge": "false",
+            "add_reverse_edges": "false",
             "nodes": [
                 {
                     "data": {
@@ -584,7 +584,7 @@ def build_gsproc_json_example(gtype='heterogeneous'):
     elif gtype == 'homogeneous':
         conf = {
         "graph": {
-            "add_reverse_edge": "false",
+            "add_reverse_edges": "false",
             "nodes": [
                 {
                     "data": {
@@ -907,7 +907,17 @@ def test_config_json_santiy_check():
 
     gcont_config_json = build_gcons_json_example()
     gcont_config_json['is_homogeneous'] = 'Yes'
-    with pytest.raises(AssertionError, match='The value of \"is_homogeneous\" can only be'):
+    with pytest.raises(AssertionError, match='The value of \"is_homogeneous\" can only be True/False'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json.pop('add_reverse_edges')
+    with pytest.raises(AssertionError, match='A \"add_reverse_edges\" field must be defined'):
+        config_json_sanity_check(gcont_config_json)
+
+    gcont_config_json = build_gcons_json_example()
+    gcont_config_json['add_reverse_edges'] = 'Yes'
+    with pytest.raises(AssertionError, match='The value of \"add_reverse_edges\" can only be True/False'):
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()
@@ -1104,9 +1114,10 @@ def test_config_json_santiy_check():
         config_json_sanity_check(gcont_config_json)
 
 
-@pytest.mark.parametrize("add_reverse_edge", [False, True])
-def test_load_metadata_from_json(add_reverse_edge):
+@pytest.mark.parametrize("add_reverse_edges", [False, True])
+def test_load_metadata_from_json(add_reverse_edges):
     """ Test the load function of json to metadata.
+    For each following case, test with/without reverse edges.
     
     All field and value checks are done via the config json sanity check function. So will
     test normal cases only.
@@ -1116,7 +1127,7 @@ def test_load_metadata_from_json(add_reverse_edge):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # heterograph
         config_json_hetero = build_gcons_json_example(gtype='heterogeneous')
-        config_json_hetero["add_reverse_edge"] = add_reverse_edge
+        config_json_hetero["add_reverse_edges"] = add_reverse_edges
         with open(os.path.join(tmpdirname, 'gconstruct_acm_output_config_hetero.json'), "w") as f:
             json.dump(config_json_hetero, f, indent=4)
 
@@ -1131,7 +1142,7 @@ def test_load_metadata_from_json(add_reverse_edge):
                            ('paper', 'is-about', 'subject'),
                            ('paper', 'written-by', 'author'),
                            ('subject', 'has', 'paper')]
-        if add_reverse_edge:
+        if add_reverse_edges:
             rev_expected_etypes = [(i[2], i[1] + '-rev', i[0]) for i in expected_etypes]
             expected_etypes = expected_etypes + rev_expected_etypes
         assert not gmd.is_homogeneous()
@@ -1157,7 +1168,7 @@ def test_load_metadata_from_json(add_reverse_edge):
             ('paper', 'written-by', 'author'): None,
             ('subject', 'has', 'paper'): None
         }
-        if add_reverse_edge:
+        if add_reverse_edges:
             rev_expected_efeat_dims = {(k[2], k[1] + '-rev', k[0]): v for k, v in expected_efeat_dims.items()}
             expected_efeat_dims.update(rev_expected_efeat_dims)
         # test feature info
@@ -1168,7 +1179,7 @@ def test_load_metadata_from_json(add_reverse_edge):
 
         # homograph
         config_json_homo = build_gcons_json_example(gtype='homogeneous')
-        config_json_homo["add_reverse_edge"] = add_reverse_edge
+        config_json_homo["add_reverse_edges"] = add_reverse_edges
         with open(os.path.join(tmpdirname, 'gconstruct_acm_output_config_homo.json'), "w") as f:
             json.dump(config_json_homo, f, indent=4)
 
@@ -1192,7 +1203,7 @@ def test_load_metadata_from_json(add_reverse_edge):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # heterograph
         config_json_hetero = build_gsproc_json_example(gtype='heterogeneous')
-        config_json_hetero["graph"]["add_reverse_edge"] = add_reverse_edge
+        config_json_hetero["graph"]["add_reverse_edges"] = add_reverse_edges
         with open(os.path.join(tmpdirname, 'gsprocess_acm_output_config_hetero.json'), "w") as f:
             json.dump(config_json_hetero, f, indent=4)
 
@@ -1207,7 +1218,7 @@ def test_load_metadata_from_json(add_reverse_edge):
                            ('paper', 'is-about', 'subject'),
                            ('paper', 'written-by', 'author'),
                            ('subject', 'has', 'paper')]
-        if add_reverse_edge:
+        if add_reverse_edges:
             rev_expected_etypes = [(i[2], i[1] + '-rev', i[0]) for i in expected_etypes]
             expected_etypes = expected_etypes + rev_expected_etypes
         assert not gmd.is_homogeneous()
@@ -1233,7 +1244,7 @@ def test_load_metadata_from_json(add_reverse_edge):
             ('paper', 'written-by', 'author'): None,
             ('subject', 'has', 'paper'): None
         }
-        if add_reverse_edge:
+        if add_reverse_edges:
             rev_expected_efeat_dims = {(k[2], k[1] + '-rev', k[0]): v for k, v in expected_efeat_dims.items()}
             expected_efeat_dims.update(rev_expected_efeat_dims)
         # test feature info
@@ -1244,7 +1255,7 @@ def test_load_metadata_from_json(add_reverse_edge):
 
         # homograph
         config_json_homo = build_gsproc_json_example(gtype='homogeneous')
-        config_json_homo["graph"]["add_reverse_edge"] = add_reverse_edge
+        config_json_homo["graph"]["add_reverse_edges"] = add_reverse_edges
         with open(os.path.join(tmpdirname, 'gsprocess_acm_output_config_homo.json'), "w") as f:
             json.dump(config_json_homo, f, indent=4)
 
