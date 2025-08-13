@@ -149,7 +149,7 @@ def create_realtime_json_object(tmpdirname):
     """
     json_object = \
     {
-        "version": "gconstruct-v0.1",
+        "version": "gconstruct-runtime-v0.1",
         "nodes": [
                 {
                         "node_id_col":  "id",
