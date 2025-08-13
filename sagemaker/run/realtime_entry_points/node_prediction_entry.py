@@ -420,6 +420,7 @@ def transform_fn(model,
     except Exception as e:
         res = RTResponseMsg.internal_server_error(request_uid=request_uid, detail=e)
         logging.error(traceback.format_exc())
+        logging.error(res.to_json())
         return res.to_json(), response_content_type
 
     res = RTResponseMsg.success(request_uid=request_uid,
