@@ -1053,7 +1053,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
 def write_transformed_config(output_conf_file, output_dir, process_confs):
     """
     Write the transformed configuration file. If not specified by output_conf_file,
-    will write to the constructed graph directory.
+    will write to the output graph directory.
 
     Parameters:
     ---------
@@ -1148,7 +1148,7 @@ def process_graph(args):
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    if args.add_reverse_edges or process_confs.get("add_reverse_edge", False):
+    if args.add_reverse_edges:
         edges1 = {}
         if is_homogeneous(process_confs):
             logging.warning("For homogeneous graph, the generated reverse edge will "
@@ -1183,11 +1183,10 @@ def process_graph(args):
                 assert isinstance(etype, tuple) and len(etype) == 3
                 edges1[etype] = e
                 edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
-        process_confs["add_reverse_edge"] = True
         edges = edges1
         sys_tracker.check('Add reverse edges')
-    else:
-        process_confs["add_reverse_edge"] = False
+    process_confs["add_reverse_edge"] = args.add_reverse_edge
+
     write_transformed_config(args.output_conf_file, args.output_dir, process_confs)
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
