@@ -682,6 +682,7 @@ def config_json_sanity_check(config_json):
         {
             "version": "gconstruct-v0.1",
             "is_homogeneous": bool,
+            "add_reverse_edges": bool,
             "nodes":[
                 {
                     "node_id_col": str,
@@ -715,6 +716,7 @@ def config_json_sanity_check(config_json):
             "version": "gsprocessing-v0.4.1",
             "graph": {
                 "is_homogeneous": bool,
+                "add_reverse_edges": bool,
                 "nodes": [
                     {
                         "type": str,
@@ -771,6 +773,14 @@ def config_json_sanity_check(config_json):
             'The value of "is_homogeneous" can only be "True", "true", "False", or '
             f'"false", but got {is_homo}.')
 
+        assert "add_reverse_edges" in config_json, (
+            'A "add_reverse_edges" field must be defined in the configuration JSON object.'
+        )
+        add_reverse_edges = config_json["add_reverse_edges"]
+        assert add_reverse_edges in [True, 'true', False, 'false'], (
+            'The value of "add_reverse_edges" can only be "True", "true", "False", or '
+            f'"false", but got {add_reverse_edges}.')
+
         assert 'nodes' in config_json, (
             'A "nodes" field must be defined in the configuration JSON object.')
         assert len(config_json['nodes']) > 0, 'Need at least one node in the \"nodes\" object.'
@@ -822,9 +832,16 @@ def config_json_sanity_check(config_json):
         assert 'is_homogeneous' in graph_obj, (
             'An "is_homogeneous" field must be defined in the configuration JSON object.')
         is_homo = graph_obj['is_homogeneous']
-        assert is_homo in ['True', 'true', 'False', 'false'], (
+        assert is_homo in [True, 'true', False, 'false'], (
             'The value of "is_homogeneous" can only be "True", "true", "False", or '
             f'"false", but got {is_homo}.')
+
+        assert 'add_reverse_edges' in graph_obj, (
+            'An "add_reverse_edges" field must be defined in the configuration JSON object.')
+        add_reverse_edges = graph_obj['add_reverse_edges']
+        assert add_reverse_edges in [True, 'true', False, 'false'], (
+            'The value of "add_reverse_edges" can only be "True", "true", "False", or '
+            f'"false", but got {add_reverse_edges}.')
 
         assert 'nodes' in graph_obj, (
             'A "nodes" field must be defined in the graph object.')

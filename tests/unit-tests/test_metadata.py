@@ -907,7 +907,7 @@ def test_config_json_santiy_check():
 
     gcont_config_json = build_gcons_json_example()
     gcont_config_json['is_homogeneous'] = 'Yes'
-    with pytest.raises(AssertionError, match='The value of \"is_homogeneous\" can only be True/False'):
+    with pytest.raises(AssertionError, match='The value of \"is_homogeneous\" can only be'):
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()
@@ -917,7 +917,7 @@ def test_config_json_santiy_check():
 
     gcont_config_json = build_gcons_json_example()
     gcont_config_json['add_reverse_edges'] = 'Yes'
-    with pytest.raises(AssertionError, match='The value of \"add_reverse_edges\" can only be True/False'):
+    with pytest.raises(AssertionError, match='The value of \"add_reverse_edges\" can only be'):
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()
