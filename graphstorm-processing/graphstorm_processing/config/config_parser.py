@@ -360,9 +360,10 @@ class NodeConfig(StructureConfig):
         return self._node_col
 
 
-def update_gsprocessing_config(graph_config: Dict[str, Any], add_reverse_edge=False):
-    """Parses a GSProcessing JSON configuration dictionary and adjust the node/edge type
-    if it is a homogeneous graph to fit the DGL requirement.
+def update_gsprocessing_config(graph_config: Dict[str, Any], add_reverse_edge: bool = False):
+    """Parses a GSProcessing JSON configuration dictionary and save flag.
+    Automatically adjusting the node/edge type configurations for homogeneous graphs
+    to ensure they are compatible with DGL requirements.
 
     Parameters
     ----------

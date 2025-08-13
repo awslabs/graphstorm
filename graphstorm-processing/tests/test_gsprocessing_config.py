@@ -220,3 +220,24 @@ def test_update_dict_if_homogeneous():
     assert graph_config["edges"][0]["source"]["type"] == "movie"
     assert graph_config["edges"][0]["dest"]["type"] == "genre"
     assert graph_config["edges"][0]["relation"]["type"] == "relation"
+
+
+def test_update_dict_reverse_edge():
+    graph_config = {
+        "edges": [
+            {
+                "source": {"column": "~from", "type": "movie"},
+                "relation": {"type": "relation"},
+                "dest": {"column": "~to", "type": "genre"},
+            }
+        ],
+        "nodes": [{}],
+    }
+
+    # Without reverse edge case
+    update_gsprocessing_config(graph_config)
+    assert not graph_config["add_reverse_edge"]
+
+    # With reverse edge case
+    update_gsprocessing_config(graph_config, add_reverse_edge=True)
+    assert graph_config["add_reverse_edge"]

@@ -566,7 +566,7 @@ class DistributedExecutor:
 
         gsp_top_level_dict = {
             "graph": gsp_config_dict_copy,
-            "version": "gsprocessing-v1.0",
+            "version": "gsprocessing-runtime-v1.0",
         }
 
         return gsp_top_level_dict
