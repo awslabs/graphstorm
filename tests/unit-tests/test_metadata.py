@@ -902,8 +902,8 @@ def test_config_json_santiy_check():
 
     gcont_config_json = build_gcons_json_example()
     gcont_config_json['version'] = 'gconstruct-v1.0'
-    with pytest.raises(AssertionError, match='The \"version\" field must contain a \"runtime\" '
-                                             'field to identify the runtime version.'):
+    with pytest.raises(AssertionError, match='The value of the \"version\" field must contain '
+                                             '\"runtime\" to identify it is a runtime version.'):
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()

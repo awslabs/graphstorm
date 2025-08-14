@@ -372,7 +372,8 @@ def update_gsprocessing_config(graph_config: Dict[str, Any], add_reverse_edges: 
     graph_config : Dict[str, Any]
         A GSProcessing configuration dict, describing stored graph data.
     add_reverse_edges: Bool
-        Indicates whether reverse edges were added during processing. Used to recreate graph downstream.
+        Indicates whether reverse edges were added during processing.
+        Used to recreate graph downstream.
     """
     if "nodes" in graph_config and graph_config["nodes"] != [{}]:
         ntype = {n["type"] for n in graph_config["nodes"]}
