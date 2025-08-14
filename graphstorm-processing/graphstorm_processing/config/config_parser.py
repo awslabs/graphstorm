@@ -362,7 +362,7 @@ class NodeConfig(StructureConfig):
 
 def update_gsprocessing_config(graph_config: Dict[str, Any], add_reverse_edges: bool = False):
     """Updates input GSProcessing dictionary with runtime parameters to allow graph reconstruction.
-    
+
     Will update the edge and node type names to match DGL expecations when the graph is homogeneous,
     and adds an `add_reverse_edges` boolean value to indicate whether reverse edges were created
     during graph construction.
