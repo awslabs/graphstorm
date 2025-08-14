@@ -1050,19 +1050,19 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
             print_edge_label_stats(etype, label_name, stats)
 
 
-def write_transformed_config(output_conf_file, output_dir, process_confs):
+def write_transformed_config(output_dir, process_confs, output_conf_file=None):
     """
     Write the transformed configuration file. If not specified by output_conf_file,
     will write to the output graph directory.
 
     Parameters:
     ---------
-    output_conf_file: str
-        Path to the output configuration file, default: None
     output_dir: str
         Path to the constructed graph
     process_confs: dict
         GConstruct Transformed Config
+    output_conf_file: str
+        Path to the output configuration file, default: None
     """
     if output_conf_file is not None:
         outfile_path = output_conf_file
