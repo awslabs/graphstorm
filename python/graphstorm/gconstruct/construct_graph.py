@@ -1189,7 +1189,7 @@ def process_graph(args):
         sys_tracker.check('Add reverse edges')
     process_confs["add_reverse_edges"] = args.add_reverse_edges
 
-    write_transformed_config(args.output_conf_file, args.output_dir, process_confs)
+    write_transformed_config(args.output_dir, process_confs, args.output_conf_file)
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
                      node_label_masks, edge_label_masks)
