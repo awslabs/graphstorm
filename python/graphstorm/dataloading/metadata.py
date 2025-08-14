@@ -765,7 +765,7 @@ def config_json_sanity_check(config_json):
         'A "version" field must be defined in the configuration JSON object.')
     config_version = config_json['version']
     assert 'runtime' in config_version, (
-        'The "version" field must contain a "runtime" field to identify the runtime version.')
+        'The value of the "version" field must contain "runtime" to identify it is a runtime version.')
 
     if config_version.startswith('gconstruct'):
         assert 'is_homogeneous' in config_json, (
@@ -776,7 +776,7 @@ def config_json_sanity_check(config_json):
             f'"false", but got {is_homo}.')
 
         assert "add_reverse_edges" in config_json, (
-            'A "add_reverse_edges" field must be defined in the configuration JSON object.'
+            'An "add_reverse_edges" field must be defined in the configuration JSON object.'
         )
         add_reverse_edges = config_json["add_reverse_edges"]
         assert add_reverse_edges in [True, 'true', False, 'false'], (

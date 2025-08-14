@@ -918,7 +918,7 @@ def test_config_json_santiy_check():
 
     gcont_config_json = build_gcons_json_example()
     gcont_config_json.pop('add_reverse_edges')
-    with pytest.raises(AssertionError, match='A \"add_reverse_edges\" field must be defined'):
+    with pytest.raises(AssertionError, match='An \"add_reverse_edges\" field must be defined'):
         config_json_sanity_check(gcont_config_json)
 
     gcont_config_json = build_gcons_json_example()
