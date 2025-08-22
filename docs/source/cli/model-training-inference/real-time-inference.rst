@@ -56,7 +56,7 @@ In short you can run the following:
     # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-endpoint-cpu'
     bash docker/push_graphstorm_image.sh --environment sagemaker-endpoint --device cpu --region "us-east-1" --account "123456789012"
 
-Replace the ``123456789012`` with your own AWS account ID. For more build and push options, see 
+Replace the ``123456789012`` with your own AWS account ID. For more build and push options, see
 ``bash docker/build_graphstorm_image.sh --help`` and ``bash docker/push_graphstorm_image.sh --help``.
 
 .. note::
@@ -88,7 +88,7 @@ during  graph construction (GConstruct/GSProcessing) and model training.
   ``--save-model-path`` or ``--model-artifact-s3`` configuration in model training, this updated YAML file will
   be saved to the location specified.
 
-.. note:: 
+.. note::
 
     Starting with v0.5, GraphStorm will save both updated JSON and YAML files into the same location as the trained model
     automatically, if the ``--save-model-path`` or ``--model-artifact-s3``  configuration is set.
@@ -145,6 +145,12 @@ Arguments of the launch endpoint script include:
   (Default: ``GSF-Model4Realtime``)
 - **-\-log-level**: the level of log. Optional values include 'DEBUG', 'INFO', 'WARNING', 'ERROR', and
   'CRITICAL'. Default is 'INFO'.
+- **-\-vpc-subnet-ids**: Optional list of VPC subnet ids to deploy the endpoint into. Needed to deploy
+  the endpoint in the same VPC as e.g. a Neptune Database instance for online inference. When provided,
+  you also need to provide ``--vpc-security-group-ids``.
+- **-\-vpc-security-group-ids**: Optional list of security group ids to attach to the endpoint. Needed
+  to allow the endpoint to communicate with restricted resources like a Neptune Database instance. Needs
+  to be provided together with ``--vpc-subnet-ids``.
 
 Outputs of this command include the deployed endpoint name based on the value for ``--model-name``, e.g.,
 ``GSF-Model4Realtime-Endpoint-2025-06-04-23-47-11``, and the region based on the value for ``--region``.
@@ -159,7 +165,7 @@ graph, and use the subgraph as input of model, which is similar to how models ar
 critical for real-time inference, it is recommended to use an OLTP graph database, e.g.,
 `Amazon Neptune Database <https://aws.amazon.com/neptune/>`_, as data source for subgraph extraction.
 
-Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke 
+Once the subgraph is extracted, you will need to prepare it as the payload of different APIs for `invoke
 models for real-time inference
 <https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-test-endpoints.html#realtime-endpoints-test-endpoints-api>`_.
 GraphStorm defines a :ref:`specification of the payload contents <rt-request-payload-spec>` for your reference.
@@ -224,7 +230,7 @@ invoke an endpoint.
 
     import json
     import boto3
-    
+
 
     # Create a SageMaker client object,
     sagemaker = boto3.client('sagemaker')
@@ -311,7 +317,7 @@ An example of a successful inference response:
 In this example response for a classification task, the ``prediction`` field contains the logits of model
 predictions. You can use classification method, e.g., `argmax`, to get the final class. For example, the
 `argmax` result of the prediction of the paper node ``p9604`` is 12, which means this paper is predicted
-to belong to the 13th class as classes are normally one-hot encoded from 0. 
+to belong to the 13th class as classes are normally one-hot encoded from 0.
 
 An example of an error response:
 
