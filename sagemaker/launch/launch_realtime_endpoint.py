@@ -47,9 +47,9 @@ ENTRY_FILE_NAMES = {
 DEFAULT_GS_MODEL_FILE_NAME = 'model.bin'
 
 
-def run_job(input_args):
+def deploy_endpoint(input_args):
     """ Deploys a SageMaker real-time inference endpoint
-    
+
     SageMaker's documentation for deploying model for real-time inference is in
     https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deploy-models.html.
 
@@ -62,7 +62,7 @@ def run_job(input_args):
 
     This job follows these steps, and only work on GraphStorm's model training and inference
     pipeline.
-    
+
     For custom model deployment, we provide a tool as a courtesy under graphstorm/tools folder.
 
     Parameters:
@@ -110,6 +110,21 @@ def run_job(input_args):
     log_level: str
         The level of log. Possible values are 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'.
         Default is 'INFO'."
+    vpc_subnet_ids: list[str], optional
+        List of VPC subnet IDs for the endpoint model. Required if deploying within a VPC.
+        When connecting to a Neptune database in a VPC, these should be private subnets
+        with optional NAT Gateway access for internet connectivity. VPC configuration is applied
+        at the model level to avoid conflicts with endpoint configuration.
+    vpc_security_group_ids: list[str], optional
+        List of security group IDs for the endpoint model. Required if deploying within a VPC.
+        When connecting to a Neptune database, the security group should allow:
+        - Outbound access to Neptune DB on port 8182
+        - Outbound access to S3 VPC endpoint for model loading
+        The Neptune database's security group must allow inbound access from this security group.
+        VPC configuration is applied at the model level to avoid conflicts with endpoint configuration.
+    entry_point_path: str, optional
+        Path to entry point to use when launching the endpoint. If not provided will use
+        default, GraphStorm-provided entry point file according to the chosen task.
     """
     # set the logging level
     log_level = input_args.log_level \
@@ -125,13 +140,17 @@ def run_job(input_args):
     current_folder = os.path.dirname(__file__)
     entry_point_dir = os.path.join(current_folder, ENTRY_FOLDER_NAME)
 
-    # TODO: When adding new realtime inference tasks, add new elif here to support them
-    if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
-        entrypoint_file_name = ENTRY_FILE_NAMES[SUPPORTED_REALTIME_INFER_NC_TASK]
-        path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
+    # Handle custom entry point or use default based on task type
+    if input_args.entry_point_path:
+        entrypoint_file_name = os.path.basename(input_args.entry_point_path)
+        path_to_entry = input_args.entry_point_path
     else:
-        raise NotImplementedError(f'The given real-time inference task \
-                                    {input_args.infer_task_type} is not supported.')
+        if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
+            entrypoint_file_name = ENTRY_FILE_NAMES[SUPPORTED_REALTIME_INFER_NC_TASK]
+            path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
+        else:
+            raise NotImplementedError(f'The given real-time inference task \
+                                        {input_args.infer_task_type} is not supported.')
 
     path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODEL_FILE_NAME)
     path_to_model_yaml = input_args.model_yaml_config_file
@@ -150,7 +169,7 @@ def run_job(input_args):
     model_url_s3 = upload_data_to_s3(input_args.upload_tarfile_s3, model_tarfile_path,
                                     sm_session)
     logging.debug('Uploaded the model tar file to %s.', model_url_s3)
-    
+
     # clean up the temporary folder after model uploading
     shutil.rmtree(tmp_output_folder)
 
@@ -166,35 +185,52 @@ def run_job(input_args):
     }
 
     sm_model_name = model_name + '-' + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
-    create_model_response = sm_client.create_model(ModelName=sm_model_name,
-                                                   ExecutionRoleArn=role, Containers=[container])
+    sm_model_name = sm_model_name[:62]
+
+    # Create model with VPC configuration (if provided)
+    create_model_kwargs = {
+        "ModelName": sm_model_name,
+        "ExecutionRoleArn": role,
+        "Containers": [container]
+    }
+    if input_args.vpc_subnet_ids and input_args.vpc_security_group_ids:
+        create_model_kwargs["VpcConfig"] = {
+            "Subnets": input_args.vpc_subnet_ids,
+            "SecurityGroupIds": input_args.vpc_security_group_ids
+        }
+
+    create_model_response = sm_client.create_model(**create_model_kwargs)
     logging.debug('Model ARN: %s', create_model_response['ModelArn'])
 
     # ================= create an endpoint configuration ================= #
     sm_ep_config_name = model_name + "-EndpointConfig-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+    sm_ep_config_name = sm_ep_config_name[:62]
 
+    # Create production variant configuration
     default_production_variant = {
-                    "InstanceType": input_args.instance_type,
-                    "InitialInstanceCount": input_args.instance_count,
-                    "InitialVariantWeight": 1,
-                    "ModelName": sm_model_name,
-                    "VariantName": "AllTraffic",
-                }
+        "InstanceType": input_args.instance_type,
+        "InitialInstanceCount": input_args.instance_count,
+        "InitialVariantWeight": 1,
+        "ModelName": sm_model_name,
+        "VariantName": "AllTraffic",
+    }
     if input_args.custom_production_variant:
         # merge custom ProductionVariant to the default key arguments, and overwrite same keys
         production_variant = {**default_production_variant, **input_args.custom_production_variant}
     else:
         production_variant = default_production_variant
 
+    # Create endpoint config (VPC config is handled at model level)
     create_endpoint_config_response = sm_client.create_endpoint_config(
-            EndpointConfigName=sm_ep_config_name,
-            ProductionVariants=[production_variant],
-        )
+        EndpointConfigName=sm_ep_config_name,  # SageMaker has 63 char limit
+        ProductionVariants=[production_variant]
+    )
     endpoint_arn = create_endpoint_config_response["EndpointConfigArn"]
     logging.debug("Endpoint config Arn: %s", endpoint_arn)
 
     # ================= create an endpoint ================= #
     sm_ep_name = model_name + "-Endpoint-" + strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+    sm_ep_name = sm_ep_name[:62] # SageMaker has 63 char limit
 
     create_endpoint_response = sm_client.create_endpoint(
         EndpointName=sm_ep_name, EndpointConfigName=sm_ep_config_name
@@ -217,10 +253,11 @@ def run_job(input_args):
                             'Delay': 30,        # seconds between querying
                             'MaxAttempts': 60   # max retries (~30 minutes here)
                         })
-            logging.info('%s endpoint has been successfully created, and ready to be \
-                    invoked!', sm_ep_name)
+            logging.info(
+                ("%s endpoint has been successfully created, and ready to be "
+                 "invoked!"), sm_ep_name)
         except WaiterError as e:
-            logging.error("Timed out while creating  endpoint '%s'  " 
+            logging.error("Timed out while creating  endpoint '%s'  "
                           "or endpoint creation failed with reason: %s", sm_ep_name, e)
 
     return sm_ep_name
@@ -248,7 +285,7 @@ def get_realtime_infer_parser():
              "ProductionVariant. Used to identify which model to host and the resources "
              "chosen to deploy for hosting it. See documentation at "
         "https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html"))
-    realtime_infer_parser.add_argument("--async-execution", type=str, default='true', 
+    realtime_infer_parser.add_argument("--async-execution", type=str, default='true',
         choices=['True', 'true', 'False', 'false'],
         help="Set to 'true' to create the endpoint asynchronously, 'false' to wait for creation.")
 
@@ -268,11 +305,22 @@ def get_realtime_infer_parser():
         choices=SUPPORTED_REALTIME_INFER_TASKS,
         help=("The name of real time inference task. Options: "
                f"include {SUPPORTED_REALTIME_INFER_TASKS}"))
+    realtime_infer_parser.add_argument("--entry-point-path", type=str, required=False,
+        default=None, help="Path to entry point to use for the endpoint, optional.")
     realtime_infer_parser.add_argument("--model-name", type=check_name_format,
         default='GSF-Model4Realtime',
-        help=(r"The name for the to-be created SageMaker objects. The name should follow "
-              "a regular expression pattern: ^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$. "
-              "Default is \"GSF-Model4Realtime\"."))
+        help=("The name for the to-be created SageMaker objects. The name should follow "
+              r"a regular expression pattern: ^[a-zA-Z0-9]([\\-a-zA-Z0-9]*[a-zA-Z0-9])$. "
+              "Default is \"GSF-Model4Realtime\". Note: Names will be truncated to 62 chars "
+              "to comply with SageMaker's 63 character limit."))
+
+    # Add optional VPC configuration arguments (applied at model level)
+    realtime_infer_parser.add_argument("--vpc-subnet-ids", type=str, nargs='+',
+        help=("Optional: List of VPC subnet IDs for the endpoint model. Required if deploying within "
+              "a VPC. VPC configuration is applied at the model level to avoid endpoint conflicts."))
+    realtime_infer_parser.add_argument("--vpc-security-group-ids", type=str, nargs='+',
+        help=("Optional: List of security group IDs for the endpoint model. Required if deploying within "
+              "a VPC. VPC configuration is applied at the model level to avoid endpoint conflicts."))
 
     # common arguments
     levels = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
@@ -284,15 +332,24 @@ def get_realtime_infer_parser():
 def sanity_check_realtime_infer_inputs(input_args):
     """ Verify the user-provided inputs for real-time endpoint deployment
 
+
     1. The endpoint should be deployed in the same region as the ECR Docker image.
+    2. If VPC configuration is provided, both subnet IDs and security group IDs must be provided.
 
     """
     ecr_region = extract_ecr_region(input_args.image_uri)
     if ecr_region != input_args.region:
         raise ValueError(
-            f'The given Docker image {input_args.image_uri} ' 
-            f'is in the region {ecr_region}, but is different from the --region argument: ' 
+            f'The given Docker image {input_args.image_uri} '
+            f'is in the region {ecr_region}, but is different from the --region argument: '
             f'{input_args.region}. The endpoint should be deployed at the same region as the image.'
+        )
+
+    # Validate VPC configuration
+    if bool(input_args.vpc_subnet_ids) != bool(input_args.vpc_security_group_ids):
+        raise ValueError(
+            "Both --vpc-subnet-ids and --vpc-security-group-ids must be provided "
+            "together when configuring VPC access."
         )
 
     # TODO: Do sanity check of the YAML and JSON file.
@@ -304,4 +361,4 @@ if __name__ == "__main__":
 
     sanity_check_realtime_infer_inputs(args)
 
-    run_job(args)
+    deploy_endpoint(args)
