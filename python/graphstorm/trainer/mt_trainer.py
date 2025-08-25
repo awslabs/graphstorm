@@ -463,7 +463,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 val_score = None
                 if self.can_do_validation(val_loader) and self.evaluator.do_eval(total_steps):
                     val_score = self.eval(model.module if is_distributed() else model,
-                                          data, val_loader, test_loader, total_steps)
+                                          data, val_loader, test_loader, total_steps,
+                                          use_mini_batch_infer=use_mini_batch_infer)
                     # TODO(xiangsx): Add early stop support
 
                 # Every n iterations, save the model and keep
@@ -477,7 +478,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                         if self.can_do_validation(val_loader):
                             # for model saving, force to do evaluation if can
                             val_score = self.eval(model.module if is_distributed() else model,
-                                                data, val_loader, test_loader, total_steps)
+                                                data, val_loader, test_loader, total_steps,
+                                                use_mini_batch_infer=use_mini_batch_infer)
                     # We will save the best model when
                     # 1. There is no evaluation, we will keep the
                     #    latest K models.
