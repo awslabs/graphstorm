@@ -71,7 +71,7 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
 )
 from graphstorm_processing.config.config_parser import (
     create_config_objects,
-    update_dict_if_homogeneous,
+    update_gsprocessing_config,
 )
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
 from graphstorm_processing.constants import TRANSFORMATIONS_FILENAME
@@ -254,7 +254,7 @@ class DistributedExecutor:
         self.spark = spark_utils.create_spark_session(self.execution_env, self.filesystem_type)
 
         # Initialize the graph loader
-        update_dict_if_homogeneous(self.gsp_config_dict)
+        update_gsprocessing_config(self.gsp_config_dict, self.add_reverse_edges)
         data_configs = create_config_objects(self.gsp_config_dict)
         loader_config = HeterogeneousLoaderConfig(
             is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
@@ -566,7 +566,7 @@ class DistributedExecutor:
 
         gsp_top_level_dict = {
             "graph": gsp_config_dict_copy,
-            "version": "gsprocessing-v1.0",
+            "version": "gsprocessing-runtime-v1.0",
         }
 
         return gsp_top_level_dict

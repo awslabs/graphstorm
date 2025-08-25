@@ -1049,6 +1049,39 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
         for label_name, stats in edge_label_stats[etype].items():
             print_edge_label_stats(etype, label_name, stats)
 
+
+def write_transformed_config(output_dir, process_confs, output_conf_file=None):
+    """
+    Write the transformed configuration file. If not specified by output_conf_file,
+    will write to the output graph directory.
+
+    Parameters:
+    ---------
+    output_dir: str
+        Path to the constructed graph
+    process_confs: dict
+        GConstruct Transformed Config
+    output_conf_file: str
+        Path to the output configuration file, default: None
+    """
+    if output_conf_file is not None:
+        outfile_path = output_conf_file
+    else:
+        new_file_name = GS_RUNTIME_GCONSTRUCT_FILENAME
+        outfile_path = os.path.join(output_dir, new_file_name)
+
+    # check if the output configuration file exists. Overwrite it with a warning.
+    if os.path.exists(outfile_path):
+        logging.warning('Overwrote the existing %s file, which was generated in ' + \
+                        'the previous graph construction command. Use the --output-conf-file ' + \
+                        'argument to specify a different location if not want to overwrite the ' + \
+                        'existing configuration file.', outfile_path)
+
+    # Save the new config file.
+    with open(outfile_path, "w", encoding="utf8") as outfile:
+        json.dump(process_confs, outfile, indent=4)
+
+
 def process_graph(args):
     """ Process the graph.
     """
@@ -1074,6 +1107,8 @@ def process_graph(args):
     else:
         logging.warning("Unrecognized configuration file version name: %s",
                         process_confs["version"])
+    # Update version to runtime
+    process_confs["version"] = "gconstruct-runtime-v0.1"
 
     sys_tracker.set_rank(0)
     num_processes_for_nodes = args.num_processes_for_nodes \
@@ -1115,23 +1150,6 @@ def process_graph(args):
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    if args.output_conf_file is not None:
-        outfile_path = args.output_conf_file
-    else:
-        new_file_name = GS_RUNTIME_GCONSTRUCT_FILENAME
-        outfile_path = os.path.join(args.output_dir, new_file_name)
-
-    # check if the output configuration file exists. Overwrite it with a warning.
-    if os.path.exists(outfile_path):
-        logging.warning('Overwrote the existing %s file, which was generated in ' + \
-                        'the previous graph construction command. Use the --output-conf-file ' + \
-                        'argument to specify a different location if not want to overwrite the ' + \
-                        'existing configuration file.', outfile_path)
-
-    # Save the new config file.
-    with open(outfile_path, "w", encoding="utf8") as outfile:
-        json.dump(process_confs, outfile, indent=4)
-
     if args.add_reverse_edges:
         edges1 = {}
         if is_homogeneous(process_confs):
@@ -1169,6 +1187,9 @@ def process_graph(args):
                 edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
         sys_tracker.check('Add reverse edges')
+    process_confs["add_reverse_edges"] = args.add_reverse_edges
+
+    write_transformed_config(args.output_dir, process_confs, args.output_conf_file)
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
                      node_label_masks, edge_label_masks)

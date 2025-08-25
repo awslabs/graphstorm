@@ -235,14 +235,15 @@ def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
             edge_dict['labels'] = labels_list
         
         edge_jsons.append(edge_dict)
-        
+
     # generate the configuration JSON file
     data_json = {}
-    data_json['version'] = 'gconstruct-v0.1'
+    data_json['version'] = 'gconstruct-runtime-v0.1'
     if len(node_list) == 1 and len(edge_list) == 1:
         data_json['is_homogeneous'] = True
     else:
         data_json['is_homogeneous'] = False
+    data_json["add_reverse_edges"] = False
     data_json['nodes'] = node_jsons
     data_json['edges'] = edge_jsons
         
@@ -753,6 +754,92 @@ def generate_dummy_homogeneous_failure_graph(size='tiny', gen_mask=True, type='n
     return hetero_graph
 
 
+def generate_dummy_hetero_graph_hete_rev_edge(size='tiny', gen_mask=True):
+    """
+    Generate a dummy heterogeneous graph with reverse edges. GraphStorm output graph will
+    save the reverse edge type as <orig-edge-type>-rev.
+    """
+    size_dict = SIZE_DICT
+    data_size = int(size_dict[size])
+
+    num_nodes_dict = {
+        "n0": data_size,
+        "n1": data_size,
+    }
+
+    edges = {
+        ("n0", "r0", "n1"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+        ("n0", "r1", "n1"): (th.randint(data_size, (2 * data_size,)),
+                             th.randint(data_size, (2 * data_size,))),
+    }
+    edges[("n1", "r0-rev", "n0")] = (edges[("n0", "r0", "n1")][1], edges[("n0", "r0", "n1")][0])
+    edges[("n1", "r1-rev", "n0")] = (edges[("n0", "r1", "n1")][1], edges[("n0", "r1", "n1")][0])
+
+    hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
+
+    # set node and edge features
+    node_feat = {'n0': th.randn(data_size, 2),
+                 'n1': th.randn(data_size, 2)}
+    node_feat1 = {'n0': th.randn(data_size, 4),
+                 'n1': th.randn(data_size, 4)}
+
+    edge_feat = {'r0': th.randn(data_size, 2),
+                 'r1': th.randn(2 * data_size, 2)}
+    edge_feat['r0-rev'] = edge_feat['r0']
+    edge_feat['r1-rev'] = edge_feat['r1']
+
+    hetero_graph.nodes['n0'].data['feat'] = node_feat['n0']
+    hetero_graph.nodes['n1'].data['feat'] = node_feat['n1']
+    hetero_graph.nodes['n0'].data['feat1'] = node_feat1['n0']
+    hetero_graph.nodes['n1'].data['feat1'] = node_feat1['n1']
+    hetero_graph.nodes['n1'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n1'), ))
+
+    hetero_graph.edges['r0'].data['feat'] = edge_feat['r0']
+    hetero_graph.edges['r1'].data['feat'] = edge_feat['r1']
+    hetero_graph.edges['r0-rev'].data['feat'] = edge_feat['r0']
+    hetero_graph.edges['r1-rev'].data['feat'] = edge_feat['r1']
+    hetero_graph.edges['r1'].data['label'] = th.randint(10, (hetero_graph.number_of_edges('r1'), ))
+
+    # set train/val/test masks for nodes and edges
+    if gen_mask:
+        target_ntype = ['n1']
+        target_etype = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+
+        node_train_mask = generate_mask([0,1], data_size)
+        node_val_mask = generate_mask([2,3], data_size)
+        node_test_mask = generate_mask([4,5], data_size)
+        node_val_mask2 = generate_mask([2], data_size)
+        node_test_mask2 = generate_mask([4], data_size)
+
+        edge_train_mask = generate_mask([0,1], 2 * data_size)
+        edge_val_mask = generate_mask([2,3], 2 * data_size)
+        edge_test_mask = generate_mask([4,5], 2 * data_size)
+        edge_val_mask_2 = generate_mask([2], 2 * data_size)
+        edge_test_mask_2 = generate_mask([4], 2 * data_size)
+
+        edge_train_mask2 = generate_mask([i for i in range(data_size//2)], data_size)
+        edge_val_mask2 = generate_mask([2,3], data_size)
+        edge_test_mask2 = generate_mask([4,5], data_size)
+
+        hetero_graph.nodes[target_ntype[0]].data['train_mask'] = node_train_mask
+        hetero_graph.nodes[target_ntype[0]].data['val_mask'] = node_val_mask
+        hetero_graph.nodes[target_ntype[0]].data['test_mask'] = node_test_mask
+        hetero_graph.nodes[target_ntype[0]].data['val_mask2'] = node_val_mask2
+        hetero_graph.nodes[target_ntype[0]].data['test_mask2'] = node_test_mask2
+
+        hetero_graph.edges[target_etype[0]].data['train_mask'] = edge_train_mask
+        hetero_graph.edges[target_etype[0]].data['val_mask'] = edge_val_mask
+        hetero_graph.edges[target_etype[0]].data['test_mask'] = edge_test_mask
+        hetero_graph.edges[target_etype[0]].data['val_mask2'] = edge_val_mask_2
+        hetero_graph.edges[target_etype[0]].data['test_mask2'] = edge_test_mask_2
+
+        hetero_graph.edges[target_etype[1]].data['train_mask'] = edge_train_mask2
+        hetero_graph.edges[target_etype[1]].data['val_mask'] = edge_val_mask2
+        hetero_graph.edges[target_etype[1]].data['test_mask'] = edge_test_mask2
+
+    return hetero_graph
+
 def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'):
     """
     Partition a heterogeneous graph into a temporal directory, and reload it as a distributed graph
@@ -910,6 +997,33 @@ def generate_dummy_dist_graph_homogeneous_failure_graph(dirname, size='tiny', gr
     hetero_graph = generate_dummy_homogeneous_failure_graph(size=size, gen_mask=gen_mask, type=type)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
+
+
+def generate_dummy_dist_graph_hete_rev_edge(dirname, size='tiny', graph_name='dummy',
+                                            return_graph_config=True):
+    """
+    Generate a dummy heterogeneous graph for restoring model artifacts.
+    Parameters
+    ----------
+    dirname : str
+        the directory where the graph will be partitioned and stored.
+    size: str
+        the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+    graph_name: string
+        graph name
+    return_graph_config: bool
+        if return graph construction config
+    """
+    hetero_graph = generate_dummy_hetero_graph_hete_rev_edge(size=size)
+    dist_g, part_config = partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
+                                              graph_name=graph_name)
+
+    if return_graph_config:
+        graph_config_new = create_dummy_hetero_graph_config(dirname, hetero_graph)
+        return dist_g, part_config, graph_config_new
+    else:
+        return dist_g, part_config
+
 
 def load_lm_graph(part_config):
     with open(part_config) as f:

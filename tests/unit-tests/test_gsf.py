@@ -76,7 +76,9 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         FocalLossFunc,
                                         ShrinkageLossFunc)
 
-from data_utils import generate_dummy_dist_graph, generate_dummy_hetero_graph
+from data_utils import (generate_dummy_dist_graph,
+                        generate_dummy_hetero_graph,
+                        generate_dummy_dist_graph_hete_rev_edge)
 from config_utils import create_dummy_config_obj
 
 
@@ -869,17 +871,22 @@ def test_get_edge_feat_size():
         edge_feat_size = {}
     assert edge_feat_size == {}
 
-def test_restore_builtin_model_from_artifacts():
+@pytest.mark.parametrize("add_reverse_edges", [False, True])
+def test_restore_builtin_model_from_artifacts(add_reverse_edges):
     """ Test restore a builtin mode from artifacts
     
     The test needs three inputs: 1/ model dir path, 2/ josn file name, 3/ yaml file name.
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create a dummy gdsg dist graph
-        g, _, graph_config = generate_dummy_dist_graph(tmpdirname,
+        if not add_reverse_edges:
+            g, _, graph_config = generate_dummy_dist_graph(tmpdirname,
                                                        graph_name='test',
                                                        return_graph_config=True)
-
+        else:
+            g, _, graph_config = generate_dummy_dist_graph_hete_rev_edge(tmpdirname,
+                                                                         graph_name='test',
+                                                                         return_graph_config=True)
         # create dummy YAML config 
         yaml_object = create_dummy_config_obj()
         yaml_object["gsf"]["basic"] = {
