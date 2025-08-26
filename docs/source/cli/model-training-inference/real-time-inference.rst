@@ -137,7 +137,7 @@ Arguments of the launch endpoint script include:
   ProductionVariant. For details, please refer to `ProductionVariant Documentation
   <https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html>`_.
 - **-\-async-execution**: the mode of endpoint creation. Set ``True`` to deploy endpoint asynchronously,
-  or ``False`` to wait for deployment to finish before exiting. (Default: ``True``)
+  or ``False`` to wait for deployment to finish before exiting. (Default: ``False``)
 - **-\-model-name**: the name of model. This name will be used to define names of SageMaker Model,
   EndpointConfig, and Endpoint by appending datetime to this model name. The name should follow a regular
   expression pattern: ``^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$`` as defined in

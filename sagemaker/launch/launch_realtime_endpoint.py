@@ -122,9 +122,6 @@ def deploy_endpoint(input_args):
         - Outbound access to S3 VPC endpoint for model loading
         The Neptune database's security group must allow inbound access from this security group.
         VPC configuration is applied at the model level to avoid conflicts with endpoint configuration.
-    entry_point_path: str, optional
-        Path to entry point to use when launching the endpoint. If not provided will use
-        default, GraphStorm-provided entry point file according to the chosen task.
     """
     # set the logging level
     log_level = input_args.log_level \
@@ -140,17 +137,13 @@ def deploy_endpoint(input_args):
     current_folder = os.path.dirname(__file__)
     entry_point_dir = os.path.join(current_folder, ENTRY_FOLDER_NAME)
 
-    # Handle custom entry point or use default based on task type
-    if input_args.entry_point_path:
-        entrypoint_file_name = os.path.basename(input_args.entry_point_path)
-        path_to_entry = input_args.entry_point_path
+    # TODO: When adding new realtime inference tasks, add new elif here to support them
+    if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
+        entrypoint_file_name = ENTRY_FILE_NAMES[SUPPORTED_REALTIME_INFER_NC_TASK]
+        path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
     else:
-        if input_args.infer_task_type == SUPPORTED_REALTIME_INFER_NC_TASK:
-            entrypoint_file_name = ENTRY_FILE_NAMES[SUPPORTED_REALTIME_INFER_NC_TASK]
-            path_to_entry = os.path.join(entry_point_dir, entrypoint_file_name)
-        else:
-            raise NotImplementedError(f'The given real-time inference task \
-                                        {input_args.infer_task_type} is not supported.')
+        raise NotImplementedError(f'The given real-time inference task \
+                                    {input_args.infer_task_type} is not supported.')
 
     path_to_model = os.path.join(input_args.restore_model_path, DEFAULT_GS_MODEL_FILE_NAME)
     path_to_model_yaml = input_args.model_yaml_config_file
@@ -273,9 +266,9 @@ def get_realtime_infer_parser():
         help=("AWS region to launch jobs in. Make sure this region is where the inference "
              "image, and model tar file are located!"))
     realtime_infer_parser.add_argument("--image-uri", type=str, required=True,
-        help="GraphStorm SageMaker docker image URI")
+        help="GraphStorm SageMaker Inference docker image URI")
     realtime_infer_parser.add_argument("--role", type=str, required=True,
-        help="SageMaker execution role")
+        help="SageMaker execution role to use for the endpoint")
     realtime_infer_parser.add_argument("--instance-type", type=str, default="ml.c6i.xlarge",
         help="instance type for the SageMaker Inference Endpoint")
     realtime_infer_parser.add_argument("--instance-count", type=int, default=1,
@@ -285,9 +278,10 @@ def get_realtime_infer_parser():
              "ProductionVariant. Used to identify which model to host and the resources "
              "chosen to deploy for hosting it. See documentation at "
         "https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_ProductionVariant.html"))
-    realtime_infer_parser.add_argument("--async-execution", type=str, default='true',
+    realtime_infer_parser.add_argument("--async-execution", type=str, default='false',
         choices=['True', 'true', 'False', 'false'],
-        help="Set to 'true' to create the endpoint asynchronously, 'false' to wait for creation.")
+        help=("Set to 'true' to create the endpoint asynchronously, 'false' to wait for creation. "
+            "Default: 'false', will try to wait for endpoint to deploy before exiting."))
 
     # real-time task specific arguments
     realtime_infer_parser.add_argument("--restore-model-path", type=str, required=True,
@@ -303,10 +297,8 @@ def get_realtime_infer_parser():
         help="The S3 location for uploading the packed and compressed model artifacts tar file.")
     realtime_infer_parser.add_argument("--infer-task-type", type=str, required=True,
         choices=SUPPORTED_REALTIME_INFER_TASKS,
-        help=("The name of real time inference task. Options: "
-               f"include {SUPPORTED_REALTIME_INFER_TASKS}"))
-    realtime_infer_parser.add_argument("--entry-point-path", type=str, required=False,
-        default=None, help="Path to entry point to use for the endpoint, optional.")
+        help=("The name of real time inference task. Accepted values are: "
+               f"{SUPPORTED_REALTIME_INFER_TASKS}"))
     realtime_infer_parser.add_argument("--model-name", type=check_name_format,
         default='GSF-Model4Realtime',
         help=("The name for the to-be created SageMaker objects. The name should follow "
