@@ -83,7 +83,7 @@ from graphstorm_processing.constants import ExecutionEnv, FilesystemType, HOMOGE
 try:
     from graphstorm_processing.config.config_parser import (
         create_config_objects,
-        update_dict_if_homogeneous,
+        update_gsprocessing_config,
     )
 except ImportError:
     from graphstorm_processing.config.config_parser import create_config_objects
