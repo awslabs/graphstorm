@@ -233,11 +233,13 @@ def deploy_endpoint(input_args):
     if input_args.async_execution.lower() == 'true':
         resp = sm_client.describe_endpoint(EndpointName=sm_ep_name)
         status = resp["EndpointStatus"]
-        logging.info("Creating endpoint name: %s at %s region, current status: %s",
-            sm_ep_name, input_args.region, status)
+        print(
+            f"Creating endpoint name: '{sm_ep_name}' in "
+            f"{input_args.region} region, current status: {status}")
     else:
-        logging.info("Waiting for %s endpoint to be in service at %s region...",
-                     sm_ep_name, input_args.region)
+        print(
+            f"Waiting for endpoint '{sm_ep_name}' to "
+            f"be in service in {input_args.region} region...")
         waiter = sm_client.get_waiter("endpoint_in_service")
 
         try:
@@ -246,9 +248,9 @@ def deploy_endpoint(input_args):
                             'Delay': 30,        # seconds between querying
                             'MaxAttempts': 60   # max retries (~30 minutes here)
                         })
-            logging.info(
-                ("%s endpoint has been successfully created, and ready to be "
-                 "invoked!"), sm_ep_name)
+            print(
+                (f"Endpoint named '{sm_ep_name}' has been successfully created, and ready to be "
+                 "invoked!"), )
         except WaiterError as e:
             logging.error("Timed out while creating  endpoint '%s'  "
                           "or endpoint creation failed with reason: %s", sm_ep_name, e)
