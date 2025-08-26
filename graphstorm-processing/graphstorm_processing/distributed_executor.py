@@ -79,6 +79,7 @@ from graphstorm_processing.repartition_files import (
 )
 from graphstorm_processing.graph_loaders.row_count_utils import verify_metadata_match
 from graphstorm_processing.constants import ExecutionEnv, FilesystemType, HOMOGENEOUS_FLAG
+
 # Avoid entry script version issue
 try:
     from graphstorm_processing.config.config_parser import (
@@ -87,6 +88,7 @@ try:
     )
 except ImportError:
     from graphstorm_processing.config.config_parser import create_config_objects
+
 
 @dataclasses.dataclass
 class ExecutorConfig:
