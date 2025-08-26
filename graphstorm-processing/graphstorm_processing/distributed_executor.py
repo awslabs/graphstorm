@@ -81,11 +81,13 @@ from graphstorm_processing.graph_loaders.row_count_utils import verify_metadata_
 from graphstorm_processing.constants import ExecutionEnv, FilesystemType, HOMOGENEOUS_FLAG
 
 # Avoid entry script version issue
+update_imported_successfully = False
 try:
     from graphstorm_processing.config.config_parser import (
         create_config_objects,
         update_gsprocessing_config,
     )
+    update_imported_successfully = True
 except ImportError:
     from graphstorm_processing.config.config_parser import create_config_objects
 
@@ -259,7 +261,8 @@ class DistributedExecutor:
         self.spark = spark_utils.create_spark_session(self.execution_env, self.filesystem_type)
 
         # Initialize the graph loader
-        update_gsprocessing_config(self.gsp_config_dict, self.add_reverse_edges)
+        if update_imported_successfully:
+            update_gsprocessing_config(self.gsp_config_dict, self.add_reverse_edges)
         data_configs = create_config_objects(self.gsp_config_dict)
         loader_config = HeterogeneousLoaderConfig(
             is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
