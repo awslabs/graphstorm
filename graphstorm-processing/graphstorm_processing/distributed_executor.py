@@ -265,7 +265,7 @@ class DistributedExecutor:
         else:
             logging.warning(
                 "The installed GSProcessing version is outdated. "
-                "Please upgrade to version > 0.5 to prevent incorrect script behavior."
+                "Please upgrade image/installation to version > 0.5 for the latest features."
             )
         data_configs = create_config_objects(self.gsp_config_dict)
         loader_config = HeterogeneousLoaderConfig(
