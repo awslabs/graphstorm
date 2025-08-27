@@ -43,6 +43,8 @@ SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
 FEAT_DIM_COLUMN_NAME = "feature_dim"
+# Default dimension for individual columns in multi-column feature expansion
+INDIVIDUAL_COLUMN_DIMENSION = [1]
 VALIDATE_FEATRE= True
 
 def validate_features():
@@ -268,25 +270,25 @@ def update_feat_transformation_conf(conf, feat_dim_dict):
             # Expand multi-column configuration into separate per-column configurations
             # Each column becomes its own feature configuration with individual transform params
             per_col_transforms = feat_conf['transform']['per_column_transform']
-            for col_name in feat_conf['feature_col']:
-                if col_name in per_col_transforms:
+            for column_name in feat_conf['feature_col']:
+                if column_name in per_col_transforms:
                     # Create individual configuration for each column
                     individual_conf = feat_conf.copy()
-                    individual_conf['feature_col'] = col_name
-                    individual_conf['feature_name'] = col_name
+                    individual_conf['feature_col'] = column_name
+                    individual_conf['feature_name'] = column_name
 
                     # Copy the transformation config and replace with per-column values
                     # This gives each column its own max_val, min_val, sum, etc.
                     individual_transform = feat_conf['transform'].copy()
-                    individual_transform.update(per_col_transforms[col_name])
+                    individual_transform.update(per_col_transforms[column_name])
                     # Remove the per_column_transform key as it's no longer needed
                     individual_transform.pop('per_column_transform', None)
                     individual_conf['transform'] = individual_transform
 
-                    # Set feature dimension (each individual column has dimension 1)
+                    # Set feature dimension (each individual column has standard dimension)
                     if feat_name in feat_dim_dict:
-                        # For multi-column features, each column gets dimension 1
-                        individual_conf[FEAT_DIM_COLUMN_NAME] = [1]
+                        # For multi-column features, each expanded column gets individual dimension
+                        individual_conf[FEAT_DIM_COLUMN_NAME] = INDIVIDUAL_COLUMN_DIMENSION
 
                     updated_conf.append(individual_conf)
         else:

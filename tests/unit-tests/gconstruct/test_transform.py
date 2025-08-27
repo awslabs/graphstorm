@@ -1592,9 +1592,10 @@ def test_config_expansion_multicolumn():
             (f"per_column_transform should be removed from expanded "
              f"config for {expected_col}")
 
-        # Check feature dimension
-        assert config.get('feature_dim') == [1], \
-            (f"Each expanded column should have dimension [1], "
+        # Check feature dimension (should match INDIVIDUAL_COLUMN_DIMENSION)
+        from graphstorm.gconstruct.utils import INDIVIDUAL_COLUMN_DIMENSION
+        assert config.get('feature_dim') == INDIVIDUAL_COLUMN_DIMENSION, \
+            (f"Each expanded column should have dimension {INDIVIDUAL_COLUMN_DIMENSION}, "
              f"got {config.get('feature_dim')}")
 
 

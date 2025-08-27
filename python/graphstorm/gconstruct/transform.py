@@ -390,6 +390,39 @@ class TwoPhaseFeatTransform(FeatTransform):
     def call(self, feats):
         raise NotImplementedError
 
+    def _save_per_column_transform_config(self, transform_conf, col_params_dict):
+        """ Helper method to save per-column transformation parameters.
+
+        For multi-column features, saves parameters in per_column_transform structure.
+        For single-column features, saves parameters directly for backward compatibility.
+
+        Parameters:
+        ----------
+        transform_conf: dict
+            The transformation configuration dictionary to update
+        col_params_dict: dict
+            Dictionary mapping column names to their parameter dictionaries
+            e.g., {'col1': {'max_val': [5.0], 'min_val': [1.0]}, ...}
+        """
+        if transform_conf is not None:
+            # For multi-column features, save per-column transformation parameters
+            # This enables GSProcessing to apply transformations independently to each column
+            if isinstance(self.col_name, list) and len(self.col_name) > 1:
+                # Create per-column configurations for multi-column features
+                # Each column gets its own parameters for independent processing
+                transform_conf['per_column_transform'] = {}
+                for column_name in self.col_name:
+                    if column_name in col_params_dict:
+                        transform_conf['per_column_transform'][column_name] = \
+                            col_params_dict[column_name]
+            else:
+                # Single column case - maintain backward compatibility
+                # Save parameters directly in the transform config
+                single_col_name = (self.col_name if isinstance(self.col_name, str)
+                                   else self.col_name[0])
+                if single_col_name in col_params_dict:
+                    transform_conf.update(col_params_dict[single_col_name])
+
 class BucketTransform(FeatTransform):
     """ Convert the numerical value into buckets.
 
@@ -677,22 +710,23 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         self._min_val = min_val
 
         # We need to save the max_val and min_val in the config object.
-        if self._conf is not None:
-            # For multi-column features, save per-column transformation parameters
-            # This enables GSProcessing to apply transformations independently to each column
-            if isinstance(self.col_name, list) and len(self.col_name) > 1:
-                # Create per-column configurations for multi-column features
-                # Each column gets its own max_val and min_val for independent processing
-                self._conf['per_column_transform'] = {}
-                for i, col in enumerate(self.col_name):
-                    self._conf['per_column_transform'][col] = {
-                        'max_val': [self._max_val[i].item()],
-                        'min_val': [self._min_val[i].item()]
-                    }
-            else:
-                # Single column case - maintain backward compatibility
-                self._conf['max_val'] = self._max_val.tolist()
-                self._conf['min_val'] = self._min_val.tolist()
+        # Use helper method to handle both multi-column and single-column cases
+        col_params = {}
+        if isinstance(self.col_name, list):
+            # Multi-column case - create parameters for each column
+            for i, column_name in enumerate(self.col_name):
+                col_params[column_name] = {
+                    'max_val': [self._max_val[i].item()],
+                    'min_val': [self._min_val[i].item()]
+                }
+        else:
+            # Single column case
+            col_params[self.col_name] = {
+                'max_val': self._max_val.tolist(),
+                'min_val': self._min_val.tolist()
+            }
+
+        self._save_per_column_transform_config(self._conf, col_params)
 
     def call(self, feats):
         """ Do normalization for feats
@@ -819,20 +853,21 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
         self._summation = summation
 
         # We need to save the summation value in the config object.
-        if self._conf is not None:
-            # For multi-column features, save per-column transformation parameters
-            # This enables GSProcessing to apply transformations independently to each column
-            if isinstance(self.col_name, list) and len(self.col_name) > 1:
-                # Create per-column configurations for multi-column features
-                # Each column gets its own summation value for independent normalization
-                self._conf['per_column_transform'] = {}
-                for i, col in enumerate(self.col_name):
-                    self._conf['per_column_transform'][col] = {
-                        'sum': [self._summation[i].item()]
-                    }
-            else:
-                # Single column case - maintain backward compatibility
-                self._conf['sum'] = self._summation.tolist()
+        # Use helper method to handle both multi-column and single-column cases
+        col_params = {}
+        if isinstance(self.col_name, list):
+            # Multi-column case - create parameters for each column
+            for i, column_name in enumerate(self.col_name):
+                col_params[column_name] = {
+                    'sum': [self._summation[i].item()]
+                }
+        else:
+            # Single column case
+            col_params[self.col_name] = {
+                'sum': self._summation.tolist()
+            }
+
+        self._save_per_column_transform_config(self._conf, col_params)
 
     def call(self, feats) -> Dict[str, np.ndarray]:
         """ Do normalization for feats
