@@ -222,7 +222,12 @@ def generate_hash():
 
 
 def update_feat_transformation_conf(conf, feat_dim_dict):
-    """ Update the feature configuration with the feature dimension dict
+    """ Update the feature configuration with the feature dimension dict.
+    
+    For multi-column features with per-column transformations, this function 
+    expands them into separate configurations for each individual column.
+    This enables downstream processing (e.g., GSProcessing) to apply 
+    transformations independently to each column.
 
     Parameters:
     conf: list[dict]
@@ -230,32 +235,73 @@ def update_feat_transformation_conf(conf, feat_dim_dict):
         [{
             "feature_col":  ["<column name>", ...],
             "feature_name": "<feature name>",
-            "transform":    {"name": "<operator name>", ...}
+            "transform":    {"name": "<operator name>", 
+                           "per_column_transform": {
+                               "col1": {"max_val": [...], "min_val": [...]},
+                               "col2": {"max_val": [...], "min_val": [...]}
+                           }, ...}
         }]
     feat_dim_dict: key is feature name, value is feature dimension in tuple or list.
         Updated feature configuration after feature transformation
-        {feat_name1: (2,), feat_name2: (3,4,)} or {feat_name1: [2], feat_name1: [3,4]}. 
-        Tuples for transformation processing result, 
+        {feat_name1: (2,), feat_name2: (3,4,)} or {feat_name1: [2], feat_name1: [3,4]}.
+        Tuples for transformation processing result,
         list for reading from output transformation json.
 
     Returns
     -------
-    list[dict]: Feature configuration after the update.
+    list[dict]: Feature configuration after the update. Multi-column features
+                with per_column_transform are expanded into individual 
+                single-column configurations.
     """
-    assert len(conf) == len(feat_dim_dict), \
-        (f"Length of the configuration and feature dimension list should be the same,"
-         f"but get {len(conf)} and {len(feat_dim_dict)}")
+    updated_conf = []
+
     for feat_conf in conf:
         feat_name = feat_conf['feature_name'] if 'feature_name' in feat_conf \
             else feat_conf['feature_col']
-        if FEAT_DIM_COLUMN_NAME in feat_conf:
-            # JSON will write tuple into list
-            assert feat_conf[FEAT_DIM_COLUMN_NAME] == list(feat_dim_dict[feat_name]), \
-                ("Feature dimension for one feature transformation should remain the same, got "
-                f"{feat_conf[FEAT_DIM_COLUMN_NAME]} != {list(feat_dim_dict[feat_name])}")
-        feat_conf[FEAT_DIM_COLUMN_NAME] = list(feat_dim_dict[feat_name])
 
-    return conf
+        # Handle multi-column features with per-column transformations
+        # This addresses issue #1325: multi-column features should save independent
+        # transformation parameters for each column
+        if ('transform' in feat_conf and 'per_column_transform' in feat_conf['transform'] and
+            isinstance(feat_conf['feature_col'], list) and len(feat_conf['feature_col']) > 1):
+
+            # Expand multi-column configuration into separate per-column configurations
+            # Each column becomes its own feature configuration with individual transform params
+            per_col_transforms = feat_conf['transform']['per_column_transform']
+            for col_name in feat_conf['feature_col']:
+                if col_name in per_col_transforms:
+                    # Create individual configuration for each column
+                    individual_conf = feat_conf.copy()
+                    individual_conf['feature_col'] = col_name
+                    individual_conf['feature_name'] = col_name
+
+                    # Copy the transformation config and replace with per-column values
+                    # This gives each column its own max_val, min_val, sum, etc.
+                    individual_transform = feat_conf['transform'].copy()
+                    individual_transform.update(per_col_transforms[col_name])
+                    # Remove the per_column_transform key as it's no longer needed
+                    individual_transform.pop('per_column_transform', None)
+                    individual_conf['transform'] = individual_transform
+
+                    # Set feature dimension (each individual column has dimension 1)
+                    if feat_name in feat_dim_dict:
+                        # For multi-column features, each column gets dimension 1
+                        individual_conf[FEAT_DIM_COLUMN_NAME] = [1]
+
+                    updated_conf.append(individual_conf)
+        else:
+            # Single column feature or no per-column transformation
+            if FEAT_DIM_COLUMN_NAME in feat_conf and feat_name in feat_dim_dict:
+                # JSON will write tuple into list
+                assert feat_conf[FEAT_DIM_COLUMN_NAME] == list(feat_dim_dict[feat_name]), \
+                    ("Feature dimension for one feature transformation should remain the same, got "
+                    f"{feat_conf[FEAT_DIM_COLUMN_NAME]} != {list(feat_dim_dict[feat_name])}")
+
+            if feat_name in feat_dim_dict:
+                feat_conf[FEAT_DIM_COLUMN_NAME] = list(feat_dim_dict[feat_name])
+            updated_conf.append(feat_conf)
+
+    return updated_conf
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool

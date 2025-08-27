@@ -678,8 +678,21 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         # We need to save the max_val and min_val in the config object.
         if self._conf is not None:
-            self._conf['max_val'] = self._max_val.tolist()
-            self._conf['min_val'] = self._min_val.tolist()
+            # For multi-column features, save per-column transformation parameters
+            # This enables GSProcessing to apply transformations independently to each column
+            if isinstance(self.col_name, list) and len(self.col_name) > 1:
+                # Create per-column configurations for multi-column features
+                # Each column gets its own max_val and min_val for independent processing
+                self._conf['per_column_transform'] = {}
+                for i, col in enumerate(self.col_name):
+                    self._conf['per_column_transform'][col] = {
+                        'max_val': [self._max_val[i].item()],
+                        'min_val': [self._min_val[i].item()]
+                    }
+            else:
+                # Single column case - maintain backward compatibility
+                self._conf['max_val'] = self._max_val.tolist()
+                self._conf['min_val'] = self._min_val.tolist()
 
     def call(self, feats):
         """ Do normalization for feats
@@ -807,7 +820,19 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
 
         # We need to save the summation value in the config object.
         if self._conf is not None:
-            self._conf['sum'] = self._summation.tolist()
+            # For multi-column features, save per-column transformation parameters
+            # This enables GSProcessing to apply transformations independently to each column
+            if isinstance(self.col_name, list) and len(self.col_name) > 1:
+                # Create per-column configurations for multi-column features
+                # Each column gets its own summation value for independent normalization
+                self._conf['per_column_transform'] = {}
+                for i, col in enumerate(self.col_name):
+                    self._conf['per_column_transform'][col] = {
+                        'sum': [self._summation[i].item()]
+                    }
+            else:
+                # Single column case - maintain backward compatibility
+                self._conf['sum'] = self._summation.tolist()
 
     def call(self, feats) -> Dict[str, np.ndarray]:
         """ Do normalization for feats

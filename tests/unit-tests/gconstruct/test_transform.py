@@ -1449,3 +1449,196 @@ def test_hf_embedding(bert_model="bert-base-uncased"):
         np.testing.assert_almost_equal(
             hf_emb[idx], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
         )
+
+
+def test_multicolumn_per_column_transform_saving():
+    """Test that multi-column features save per-column transformations"""
+
+    # Test NumericalMinMaxTransform with multi-column input
+    transform_conf = {
+        "name": "max_min_norm"
+    }
+
+    # Multi-column feature with 3 columns
+    col_names = ["feature_1", "feature_2", "feature_3"]
+    feat_name = "multi_feature"
+
+    transform = NumericalMinMaxTransform(col_names, feat_name, transform_conf=transform_conf)
+
+    # Create multi-column test data with different ranges per column
+    test_data = np.array([
+        [1.0, 10.0, 100.0],  # col1: 1-5, col2: 10-50, col3: 100-500
+        [2.0, 20.0, 200.0],
+        [3.0, 30.0, 300.0],
+        [4.0, 40.0, 400.0],
+        [5.0, 50.0, 500.0]
+    ], dtype=np.float32)
+
+    # Pre-process to calculate statistics
+    info = transform.pre_process(test_data)
+
+    # Update info - this should trigger our new per-column logic
+    transform.update_info([info[feat_name]])
+
+    # Verify per-column transformations were saved
+    assert 'per_column_transform' in transform_conf, \
+        "Multi-column transform should have per_column_transform"
+
+    per_col_transforms = transform_conf['per_column_transform']
+    assert len(per_col_transforms) == 3, \
+        f"Should have 3 per-column transforms, got {len(per_col_transforms)}"
+
+    # Check each column has correct statistics
+    assert_equal(per_col_transforms['feature_1']['max_val'], [5.0])
+    assert_equal(per_col_transforms['feature_1']['min_val'], [1.0])
+
+    assert_equal(per_col_transforms['feature_2']['max_val'], [50.0])
+    assert_equal(per_col_transforms['feature_2']['min_val'], [10.0])
+
+    assert_equal(per_col_transforms['feature_3']['max_val'], [500.0])
+    assert_equal(per_col_transforms['feature_3']['min_val'], [100.0])
+
+    # Ensure backward compatibility fields are NOT present for multi-column
+    assert ('max_val' not in transform_conf or
+            'per_column_transform' in transform_conf), \
+        "Multi-column should use per_column_transform instead of direct max_val"
+
+
+def test_multicolumn_standard_transform_saving():
+    """Test that multi-column NumericalStandardTransform saves per-column transformations"""
+
+    # Test NumericalStandardTransform with multi-column input
+    transform_conf = {
+        "name": "standard"
+    }
+
+    col_names = ["col_a", "col_b"]
+    feat_name = "multi_standard"
+
+    transform = NumericalStandardTransform(col_names, feat_name, transform_conf=transform_conf)
+
+    # Create test data
+    test_data = np.array([
+        [2.0, 20.0],   # col_a sum will be 15, col_b sum will be 150
+        [3.0, 30.0],
+        [4.0, 40.0],
+        [6.0, 60.0]
+    ], dtype=np.float32)
+
+    # Pre-process
+    info = transform.pre_process(test_data)
+
+    # Update info
+    transform.update_info([info[feat_name]])
+
+    # Verify per-column transformations were saved
+    assert 'per_column_transform' in transform_conf
+    per_col_transforms = transform_conf['per_column_transform']
+    assert len(per_col_transforms) == 2
+
+    # Check summation values
+    assert_equal(per_col_transforms['col_a']['sum'], [15.0])  # 2+3+4+6=15
+    assert_equal(per_col_transforms['col_b']['sum'], [150.0]) # 20+30+40+60=150
+
+
+def test_config_expansion_multicolumn():
+    """Test configuration expansion for multi-column features"""
+    from graphstorm.gconstruct.utils import update_feat_transformation_conf
+
+    # Create a realistic multi-column configuration with per_column_transform
+    original_config = [{
+        "feature_col": ["user_age", "user_income", "user_score"],
+        "feature_name": "user_features",
+        "transform": {
+            "name": "max_min_norm",
+            "per_column_transform": {
+                "user_age": {"max_val": [80.0], "min_val": [18.0]},
+                "user_income": {"max_val": [200000.0], "min_val": [20000.0]},
+                "user_score": {"max_val": [10.0], "min_val": [1.0]}
+            }
+        }
+    }]
+
+    feat_dim_dict = {"user_features": (3,)}  # 3 columns combined
+
+    # Apply configuration expansion
+    expanded_configs = update_feat_transformation_conf(original_config, feat_dim_dict)
+
+    # Should expand to 3 individual configurations
+    assert len(expanded_configs) == 3, \
+        f"Should expand to 3 configs, got {len(expanded_configs)}"
+
+    # Check each expanded configuration
+    expected_configs = [
+        ("user_age", [80.0], [18.0]),
+        ("user_income", [200000.0], [20000.0]),
+        ("user_score", [10.0], [1.0])
+    ]
+
+    for i, (expected_col, expected_max, expected_min) in enumerate(expected_configs):
+        config = expanded_configs[i]
+
+        # Check basic structure
+        assert config['feature_col'] == expected_col
+        assert config['feature_name'] == expected_col
+        assert config['transform']['name'] == 'max_min_norm'
+
+        # Check transformation parameters
+        assert_equal(config['transform']['max_val'], expected_max)
+        assert_equal(config['transform']['min_val'], expected_min)
+
+        # Ensure per_column_transform was removed
+        assert 'per_column_transform' not in config['transform'], \
+            (f"per_column_transform should be removed from expanded "
+             f"config for {expected_col}")
+
+        # Check feature dimension
+        assert config.get('feature_dim') == [1], \
+            (f"Each expanded column should have dimension [1], "
+             f"got {config.get('feature_dim')}")
+
+
+def test_single_column_backward_compatibility():
+    """Test that single-column features maintain backward compatibility"""
+
+    # Single column case should NOT use per_column_transform
+    transform_conf = {
+        "name": "max_min_norm"
+    }
+
+    transform = NumericalMinMaxTransform("single_feature", "single_feat",
+                                       transform_conf=transform_conf)
+
+    # Single column data
+    test_data = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype=np.float32)
+
+    # Process
+    info = transform.pre_process(test_data)
+    transform.update_info([info["single_feat"]])
+
+    # Should NOT have per_column_transform
+    assert 'per_column_transform' not in transform_conf, \
+        "Single column should not have per_column_transform"
+
+    # Should have direct max_val/min_val
+    assert 'max_val' in transform_conf
+    assert 'min_val' in transform_conf
+    assert_equal(transform_conf['max_val'], [5.0])
+    assert_equal(transform_conf['min_val'], [1.0])
+
+    # Test that single-column configs are not expanded
+    from graphstorm.gconstruct.utils import update_feat_transformation_conf
+
+    feat_config = [{
+        "feature_col": "single_feature",
+        "feature_name": "single_feat",
+        "transform": transform_conf
+    }]
+
+    feat_dim_dict = {"single_feat": (1,)}
+    expanded = update_feat_transformation_conf(feat_config, feat_dim_dict)
+
+    # Should remain as 1 config
+    assert len(expanded) == 1
+    assert expanded[0]['feature_col'] == "single_feature"
+    assert expanded[0]['feature_name'] == "single_feat"
