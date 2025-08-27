@@ -88,7 +88,6 @@ try:
     )
 except ImportError:
     from graphstorm_processing.config.config_parser import create_config_objects
-
     update_gsprocessing_config = None
 
 
