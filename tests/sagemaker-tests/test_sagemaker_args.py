@@ -1,5 +1,23 @@
+"""
+    Copyright Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
+
+import os
 import pytest
 import sys
+import tempfile
 from unittest import mock
 from argparse import ArgumentTypeError
 from common_parser import parse_unknown_gs_args
@@ -7,7 +25,7 @@ from launch_realtime_endpoint import (
     get_realtime_infer_parser, 
     sanity_check_realtime_infer_inputs,
     )
-
+from config_utils import create_graph_config_json_object
 
 def test_basic_parsing():
     args = ["--num-epochs", "1", "--use-graphbolt", "true"]
@@ -167,42 +185,61 @@ def test_get_realtime_infer_argparser():
 def test_sanity_check_realtime_infer_inputs():
     """ Test the argument logics defined in the sanity_check_realtime_infer_inputs function
     """
-    test_cmd = "test_sagemaker_args.py"
-    default_args = {'--instance-type': 'ml.c6i.xlarge',
-                    '--instance-count': 1,
-                    '--async-execution': 'true',
-                    '--model-name': 'GSF-Model4Realtime'}
-    required_args = {'--image-uri': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
-                     '--role': 'role_val',
-                     '--region': 'us-west-2',
-                     '--restore-model-path': 'model_path',
-                     '--model-yaml-config-file': 'yaml_config_file',
-                     '--graph-json-config-file': 'json_config_file',
-                     '--upload-tarfile-s3': 'tarfile_s3',
-                     '--infer-task-type': 'node_classification'}
+    with tempfile.TemporaryDirectory() as tmpdir:
 
-    # Test case 1: normal cases
-    #       1.1 image url is in same region as the --region argument
-    test_args = {**required_args, **default_args}
-    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
+        test_cmd = "test_sagemaker_args.py"
+        default_args = {'--instance-type': 'ml.c6i.xlarge',
+                        '--instance-count': 1,
+                        '--async-execution': 'false',
+                        '--model-name': 'GSF-Model4Realtime'}
+        required_args = {'--image-uri': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
+                        '--role': 'role_val',
+                        '--region': 'us-west-2',
+                        '--restore-model-path': 'model_path',
+                        '--model-yaml-config-file': 'yaml_config_file',
+                        '--graph-json-config-file': os.path.join(tmpdir, 'json_config_file'),
+                        '--upload-tarfile-s3': 'tarfile_s3',
+                        '--infer-task-type': 'node_classification'}
 
-    with mock.patch.object(sys, 'argv', test_args_str):
-        arg_parser = get_realtime_infer_parser()
-        args = arg_parser.parse_args()
+        # Test case 1: normal cases
+        #       1.1 image url is in same region as the --region argument
+        test_args = {**required_args, **default_args}
+        test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
 
-        # should pass the check without raising errors
-        sanity_check_realtime_infer_inputs(args)
+        # create a real json file to test sanity check
+        _ = create_graph_config_json_object(tmpdir, has_tokenize=False, json_fname='json_config_file')
 
-    # Test case 2: abnormal cases
-    #       2.1 image url is in different region from the --region argument
-    other_args = {'--image-uri': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
-                  '--region': 'us-east-1'}
-    test_args = { **default_args, **required_args, **other_args}
-    test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
+        with mock.patch.object(sys, 'argv', test_args_str):
+            arg_parser = get_realtime_infer_parser()
+            args = arg_parser.parse_args()
 
-    with mock.patch.object(sys, 'argv', test_args_str):
-        arg_parser = get_realtime_infer_parser()
-        args = arg_parser.parse_args()
-
-        with pytest.raises(ValueError, match=r'The given Docker image * '):
+            # should pass the check without raising errors
             sanity_check_realtime_infer_inputs(args)
+
+        # Test case 2: abnormal cases
+        #       2.1 image url is in different region from the --region argument
+        other_args = {'--image-uri': '123456789012.ecr.us-west-2.amazonaws.com/my-image:latest',
+                    '--region': 'us-east-1'}
+        test_args = { **default_args, **required_args, **other_args}
+        test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
+
+        with mock.patch.object(sys, 'argv', test_args_str):
+            arg_parser = get_realtime_infer_parser()
+            args = arg_parser.parse_args()
+
+            with pytest.raises(ValueError, match=r'The given Docker image * '):
+                sanity_check_realtime_infer_inputs(args)
+
+        #       2.2 updated graph construction json contains tokenize_hf transformation
+        # create a real json file has tokenize_hf to test sanity check
+        test_args = {**required_args, **default_args}
+        test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
+
+        _ = create_graph_config_json_object(tmpdir, has_tokenize=True, json_fname='json_config_file')
+
+        with mock.patch.object(sys, 'argv', test_args_str):
+            arg_parser = get_realtime_infer_parser()
+            args = arg_parser.parse_args()
+
+            with pytest.raises(AssertionError, match=r'tokenize_hf transformation * '):
+                sanity_check_realtime_infer_inputs(args)

@@ -19,6 +19,7 @@
 import logging
 import os
 import re
+import json
 import shutil
 import tarfile
 from argparse import ArgumentTypeError
@@ -238,3 +239,33 @@ def check_name_format(name_str):
                                 'expression pattern: ' + \
                                 r'^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
     return name_str
+
+
+def has_tokenize_transformation(graph_config):
+    """ A simple sanity check of tokenize_hf transformation in graph construction JSON file
+    
+    This function only check if there is a tokenize_hf feature transformation. For a
+    comprehensive, please use the `graphstorm.dataloading.metadata.config_json_sanity_check`
+    function.
+    Because we design this sagemaker package to be independent to the core code of graphstorm,
+    this function does not import the config_json_sanity_check function, but implements a
+    simple and quick check for the tokenize transformation.
+    
+    Parameters
+    ----------
+    graph_config: JSON object
+        A JSON object from a graph construciton JSON file.
+
+    Return
+    ------
+    has_tokenize_transform: bool
+        A boolean value. If the JSON oject contains at least one tokenize transformation, return
+        True, otherwise False.
+    """
+    tokenize_str = 'tokenize_hf'
+    # Convert json object to string, and then use string search
+    json_str = json.dumps(graph_config)
+    has_tokenize_transform = tokenize_str in json_str
+
+    return has_tokenize_transform
+    
