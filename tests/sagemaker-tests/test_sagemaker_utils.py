@@ -365,13 +365,29 @@ def test_has_tokenize_transformation():
     """
     # Test case 1, dummy json object
     dummy_dict = {
-        'key1': 'tokenize_hf',
-        'key2': [784]
+        'transform': {
+            "name": 'tokenize_hf',
+            'key2': [784]}
     }
     dummy_json = json.dumps(dummy_dict)
     assert has_tokenize_transformation(dummy_json)
 
-    dummy_dict['key1'] = 'bert_hf'
+    dummy_dict['transform']['name'] = 'bert_hf'
+    dummy_json = json.dumps(dummy_dict)
+    assert not has_tokenize_transformation(dummy_json)
+
+    dummy_dict = {
+        'transformation': {
+            "name": "huggingface",
+            "kwargs": {
+                "action": "tokenize_hf"
+            }
+        }
+    }
+    dummy_json = json.dumps(dummy_dict)
+    assert has_tokenize_transformation(dummy_json)
+
+    dummy_dict['transformation']['kwargs']['action'] = 'bert_hf'
     dummy_json = json.dumps(dummy_dict)
     assert not has_tokenize_transformation(dummy_json)
 
@@ -383,3 +399,22 @@ def test_has_tokenize_transformation():
     with tempfile.TemporaryDirectory() as tmpdir:
         graph_json = create_graph_config_json_object(tmpdir, has_tokenize=False)
         assert not has_tokenize_transformation(graph_json)
+
+    # Test case 3 tokenize_hf exists in other fields, such as file path or feature name
+    dummy_dict = {
+        "node_id_col": "user_id",
+        "node_type": "user",
+        "data": {
+                    "format": 'csv',
+                    "files": 'path/tokenize_hf.csv'
+                },
+        "features": [
+            {
+                "feature_col": "age",
+                "feature_name": "tokenize_hf",
+                "feature_dim": [1]
+            }
+        ]
+    }
+    dummy_json = json.dumps(dummy_dict)
+    assert not has_tokenize_transformation(dummy_json)

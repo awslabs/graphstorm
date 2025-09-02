@@ -253,8 +253,8 @@ def has_tokenize_transformation(graph_config):
     
     Parameters
     ----------
-    graph_config: JSON object
-        A JSON object from a graph construciton JSON file.
+    graph_config: dict or str
+        A dict from a graph construciton JSON file, or a string from json.dumps() function.
 
     Return
     ------
@@ -262,10 +262,21 @@ def has_tokenize_transformation(graph_config):
         A boolean value. If the JSON oject contains at least one tokenize transformation, return
         True, otherwise False.
     """
-    tokenize_str = 'tokenize_hf'
-    # Convert json object to string, and then use string search
-    json_str = json.dumps(graph_config)
-    has_tokenize_transform = tokenize_str in json_str
+    # convert to string if the input is a dict
+    if isinstance(graph_config, dict):
+        json_str = json.dumps(graph_config)
+    else:
+        json_str = graph_config
 
-    return has_tokenize_transform
+    # for GCons: "transform": {"name": "tokenize_hf", ...}
+    gcons_pattern = r'"transform"\s*:\s*{[^}]*"name"\s*:\s*"tokenize_hf"'
     
+    # for GSProcessing: "transformation": {..., "kwargs": {"action": "tokenize_hf", ...}, ...}
+    gsproc_pattern = \
+        r'"transformation"\s*:\s*{[^}]*"kwargs"\s*:\s*{[^}]*"action"\s*:\s*"tokenize_hf"'
+    
+    # Check both patterns
+    gcons_match = re.search(gcons_pattern, json_str)
+    gsproc_match = re.search(gsproc_pattern, json_str)
+    
+    return gcons_match is not None or gsproc_match is not None
