@@ -28,7 +28,8 @@ import boto3  # pylint: disable=import-error
 import sagemaker as sm
 from botocore.exceptions import WaiterError
 from launch_utils import (check_name_format, extract_ecr_region,
-                          upload_data_to_s3, wrap_model_artifacts)
+                          upload_data_to_s3, wrap_model_artifacts,
+                          has_tokenize_transformation)
 
 # TODO: When adding new realtime inference tasks, modify this list
 SUPPORTED_REALTIME_INFER_NC_TASK = 'node_classification'
@@ -346,8 +347,19 @@ def sanity_check_realtime_infer_inputs(input_args):
             "together when configuring VPC access."
         )
 
-    # TODO: Do sanity check of the YAML and JSON file.
+    # check if graph JSON has tokenize_hf transformation. if yes, return with not support error
+    with open(input_args.graph_json_config_file, 'r') as f:
+        graph_json = json.load(f)
 
+    # TODO: remove this assertion after support tokenize in language models in later release
+    assert not has_tokenize_transformation(graph_json), (f'tokenize_hf transformation '
+                                                         'and trained language model are not '
+                                                         'supported on real-time inference'
+                                                         'endpoints. Please use bert_hf '
+                                                         'transformation to embed text attributes '
+                                                         'first, and use the embeddings as one '
+                                                         'type of feature in model training and '
+                                                         'inference.')
 
 if __name__ == "__main__":
     arg_parser = get_realtime_infer_parser()
