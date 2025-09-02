@@ -19,6 +19,7 @@
 import logging
 import os
 import re
+import json
 import shutil
 import tarfile
 from argparse import ArgumentTypeError
@@ -238,3 +239,47 @@ def check_name_format(name_str):
                                 'expression pattern: ' + \
                                 r'^[a-zA-Z0-9]([\-a-zA-Z0-9]*[a-zA-Z0-9])$.')
     return name_str
+
+
+def has_tokenize_transformation(graph_config):
+    """ A simple sanity check of tokenize_hf transformation in graph construction JSON file
+
+    This function only check if there is a tokenize_hf feature transformation. For a
+    comprehensive solution, please use the
+    `graphstorm.dataloading.metadata.config_json_sanity_check` function.
+    Because we design this sagemaker package to be independent to the core code of graphstorm,
+    this function does not import the config_json_sanity_check function, but implements a
+    simple and quick check for the tokenize transformation.
+    
+    TODO(Jian): remove this function once GraphStorm supports tokenize transformation in real-time
+        inference pipeline.
+
+    Parameters
+    ----------
+    graph_config: dict or str
+        A dict from a graph construciton JSON file, or a string from json.dumps() function.
+
+    Return
+    ------
+    has_tokenize_transform: bool
+        A boolean value. If the JSON oject contains at least one tokenize transformation, return
+        True, otherwise False.
+    """
+    # convert to string if the input is a dict
+    if isinstance(graph_config, dict):
+        json_str = json.dumps(graph_config)
+    else:
+        json_str = graph_config
+
+    # for GCons: "transform": {"name": "tokenize_hf", ...}
+    gcons_pattern = r'"transform"\s*:\s*{[^}]*"name"\s*:\s*"tokenize_hf"'
+    
+    # for GSProcessing: "transformation": {..., "kwargs": {"action": "tokenize_hf", ...}, ...}
+    gsproc_pattern = \
+        r'"transformation"\s*:\s*{[^}]*"kwargs"\s*:\s*{[^}]*"action"\s*:\s*"tokenize_hf"'
+    
+    # Check both patterns
+    gcons_match = re.search(gcons_pattern, json_str)
+    gsproc_match = re.search(gsproc_pattern, json_str)
+    
+    return gcons_match is not None or gsproc_match is not None
