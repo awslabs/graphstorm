@@ -360,14 +360,20 @@ class NodeConfig(StructureConfig):
         return self._node_col
 
 
-def update_dict_if_homogeneous(graph_config: Dict[str, Any]):
-    """Parses a GSProcessing JSON configuration dictionary and adjust the node/edge type
-    if it is a homogeneous graph to fit the DGL requirement.
+def update_gsprocessing_config(graph_config: Dict[str, Any], add_reverse_edges: bool = False):
+    """Updates input GSProcessing dictionary with runtime parameters to allow graph reconstruction.
+
+    Will update the edge and node type names to match DGL expecations when the graph is homogeneous,
+    and adds an `add_reverse_edges` boolean value to indicate whether reverse edges were created
+    during graph construction.
 
     Parameters
     ----------
     graph_config : Dict[str, Any]
         A GSProcessing configuration dict, describing stored graph data.
+    add_reverse_edges: Bool
+        Indicates whether reverse edges were added during processing.
+        Used to recreate graph downstream.
     """
     if "nodes" in graph_config and graph_config["nodes"] != [{}]:
         ntype = {n["type"] for n in graph_config["nodes"]}
@@ -394,6 +400,8 @@ def update_dict_if_homogeneous(graph_config: Dict[str, Any]):
             e_config["relation"]["type"] = "_E"
     else:
         graph_config["is_homogeneous"] = False
+
+    graph_config["add_reverse_edges"] = add_reverse_edges
 
 
 def create_config_objects(graph_config: Dict[str, Any]) -> Dict[str, Sequence[StructureConfig]]:

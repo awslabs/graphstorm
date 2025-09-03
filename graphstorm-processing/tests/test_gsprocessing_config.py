@@ -21,7 +21,7 @@ from graphstorm_processing.config.config_parser import (
     EdgeConfig,
     create_config_objects,
     parse_feat_config,
-    update_dict_if_homogeneous,
+    update_gsprocessing_config,
 )
 from graphstorm_processing.config.numerical_configs import (
     NumericalFeatureConfig,
@@ -182,7 +182,7 @@ def test_update_dict_if_homogeneous():
             }
         ],
     }
-    update_dict_if_homogeneous(graph_config)
+    update_gsprocessing_config(graph_config)
     assert graph_config["nodes"][0]["type"] == "_N"
     assert graph_config["edges"][0]["source"]["type"] == "_N"
     assert graph_config["edges"][0]["dest"]["type"] == "_N"
@@ -199,7 +199,7 @@ def test_update_dict_if_homogeneous():
             }
         ]
     }
-    update_dict_if_homogeneous(graph_config)
+    update_gsprocessing_config(graph_config)
     assert graph_config["edges"][0]["source"]["type"] == "_N"
     assert graph_config["edges"][0]["dest"]["type"] == "_N"
     assert graph_config["edges"][0]["relation"]["type"] == "_E"
@@ -216,7 +216,28 @@ def test_update_dict_if_homogeneous():
         ],
         "nodes": [{}],
     }
-    update_dict_if_homogeneous(graph_config)
+    update_gsprocessing_config(graph_config)
     assert graph_config["edges"][0]["source"]["type"] == "movie"
     assert graph_config["edges"][0]["dest"]["type"] == "genre"
     assert graph_config["edges"][0]["relation"]["type"] == "relation"
+
+
+def test_update_dict_reverse_edge():
+    graph_config = {
+        "edges": [
+            {
+                "source": {"column": "~from", "type": "movie"},
+                "relation": {"type": "relation"},
+                "dest": {"column": "~to", "type": "genre"},
+            }
+        ],
+        "nodes": [{}],
+    }
+
+    # Without reverse edge case
+    update_gsprocessing_config(graph_config)
+    assert not graph_config["add_reverse_edges"]
+
+    # With reverse edge case
+    update_gsprocessing_config(graph_config, add_reverse_edges=True)
+    assert graph_config["add_reverse_edges"]
