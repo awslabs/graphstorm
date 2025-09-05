@@ -105,7 +105,7 @@ def get_metric_definitions(
 def parse_hyperparameter_ranges(
     hyperparameter_ranges_json: str,
 ) -> dict[str, ParameterRange]:
-    """Parse the hyperparameter ranges from JSON string and determine if autotune is needed.
+    """Parse the hyperparameter ranges from JSON file or string.
 
     Expected JSON structure is at
     https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html
