@@ -119,10 +119,10 @@ def create_dummy_zero_dest_test_graph(dim):
     edges = {
     ("n0", "r0", "n1"): (th.arange(4),th.tensor([0,0,1,1])),
     ("n2", "r1", "n1"): (th.arange(1),th.tensor([0])),
-    ("n1", "r2", "n2"): (th.empty((0,), dtype=th.int64),
-                            (th.empty((0,), dtype=th.int64))),
-    }
-
+    ("n1", "r2", "n2"): (th.empty((0,), dtype=th.int64),        # In DGL 2.0+, there will be a case
+                            (th.empty((0,), dtype=th.int64))),  # where both source and dest nodes
+    }                                                           # are 0, but still DGL MFC keep this
+                                                                # edge type that might cause errors
     block = dgl.create_block(edges,
         num_src_nodes=num_src_nodes,
         num_dst_nodes=num_dst_dict)
@@ -273,8 +273,10 @@ def test_rgcn_with_zero_dstnodes(input_dim, output_dim):
     assert not 'n0' in outputs                      # No edge type to n0, so not in outputs
     assert outputs['n1'].shape[0] == 2              # 2 n1 destination nodes
     assert outputs['n1'].shape[1] == output_dim     # same as output dim
-    assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation nodes
-    assert outputs['n2'].shape[1] == output_dim     # same as output
+    assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation node, and the (n2,r2,n1)
+                                                    # edge exists in the block, so n2 will be in
+                                                    # the outputs, but has 0 in the 1st dim, and
+    assert outputs['n2'].shape[1] == output_dim     # output dim on the 2nd dim.
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
