@@ -320,7 +320,7 @@ class HGTLayer(nn.Module):
                 else:
                     # Handle zero number of dst nodes, which is an extreme case
                     if g.dstnodes[k].data.get('t') is not None:
-                        trans_out = self.a_linears[k](h[k])
+                        trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
                         continue
 
@@ -834,7 +834,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 else:
                     # Handle zero number of dst nodes, which is an extreme case
                     if g.dstnodes[k].data.get('t') is not None:
-                        trans_out = self.a_linears[k](h[k])
+                        trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
                         continue
 
