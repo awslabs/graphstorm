@@ -103,6 +103,36 @@ def create_dummy_no_indegree_test_graph(dim=16):
 
     return block, inputs, list(num_src_nodes.keys()), list(edges.keys())
 
+
+def create_dummy_zero_dest_test_graph(dim):
+    num_src_nodes = {
+        "n0": 4,
+        "n1": 2,
+        "n2": 1,
+    }
+    num_dst_dict = {
+        "n0": 0,
+        "n1": 2,
+        "n2": 0,
+    }
+
+    edges = {
+    ("n0", "r0", "n1"): (th.arange(4),th.tensor([0,0,1,1])),
+    ("n2", "r1", "n1"): (th.arange(1),th.tensor([0])),
+    ("n1", "r2", "n2"): (th.empty((0,), dtype=th.int64),        # In DGL 2.0+, there will be a case
+                            (th.empty((0,), dtype=th.int64))),  # where both source and dest nodes
+    }                                                           # are 0, but still DGL MFC keep this
+                                                                # edge type that might cause errors
+    block = dgl.create_block(edges,
+        num_src_nodes=num_src_nodes,
+        num_dst_nodes=num_dst_dict)
+
+    inputs = {"n0": th.zeros((4,dim)),
+              "n1": th.zeros((2,dim)),
+              "n2": th.zeros((1,dim)),}
+
+    return block, inputs, list(num_src_nodes.keys()), list(edges.keys())
+
     
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32])
@@ -221,13 +251,66 @@ def test_hgt_with_no_indegree_dstnodes(input_dim, output_dim):
                      etypes,
                      num_heads=4)
     outputs = layer(block, inputs)
-    
+
     assert outputs['n0'].shape[0] == 256
     assert outputs['n0'].shape[1] == output_dim
     assert outputs['n1'].shape[0] == 64
     assert outputs['n1'].shape[1] == output_dim
     assert outputs['n2'].shape[0] == 64
     assert outputs['n2'].shape[1] == output_dim
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_rgcn_with_zero_dstnodes(input_dim, output_dim):
+    block, inputs, ntypes, etypes = create_dummy_zero_dest_test_graph(input_dim)
+
+    layer = RelGraphConvLayer(
+            input_dim, output_dim, etypes,
+            2, activation=th.nn.ReLU(), self_loop=True,
+            dropout=0.1)
+    outputs = layer(block, inputs)
+
+    assert not 'n0' in outputs                      # No edge type to n0, so not in outputs
+    assert outputs['n1'].shape[0] == 2              # 2 n1 destination nodes
+    assert outputs['n1'].shape[1] == output_dim     # same as output dim
+    assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation node, and the (n2,r2,n1)
+                                                    # edge exists in the block, so n2 will be in
+                                                    # the outputs, but has 0 in the 1st dim, and
+    assert outputs['n2'].shape[1] == output_dim     # output dim on the 2nd dim.
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_rgat_with_zero_dstnodes(input_dim, output_dim):
+    block, inputs, ntypes, etypes = create_dummy_zero_dest_test_graph(input_dim)
+
+    layer = RelationalAttLayer(input_dim, output_dim, etypes,
+                               2, activation=th.nn.ReLU(), self_loop=True,
+                               dropout=0.1)
+    outputs = layer(block, inputs)
+
+    assert not 'n0' in outputs                      # No edge type to n0, so not in outputs
+    assert outputs['n1'].shape[0] == 2              # 2 n1 destination nodes
+    assert outputs['n1'].shape[1] == output_dim     # same as output dim
+    assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation nodes
+    assert outputs['n2'].shape[1] == output_dim     # same as output
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_hgt_with_zero_dstnodes(input_dim, output_dim):
+    block, inputs, ntypes, etypes = create_dummy_zero_dest_test_graph(input_dim)
+
+    layer = HGTLayer(input_dim,
+                     output_dim,
+                     ntypes,
+                     etypes,
+                     num_heads=4)
+    outputs = layer(block, inputs)
+
+    assert not 'n0' in outputs                      # No edge type to n0, so not in outputs
+    assert outputs['n1'].shape[0] == 2              # 2 n1 destination nodes
+    assert outputs['n1'].shape[1] == output_dim     # same as output dim
+    assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation nodes
+    assert outputs['n2'].shape[1] == output_dim     # same as output
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
@@ -1885,3 +1968,4 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
                         emb_a['n1'].detach().cpu().numpy())
     assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
                         emb_b['n1'].detach().cpu().numpy())
+
