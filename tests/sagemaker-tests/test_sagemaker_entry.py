@@ -1,5 +1,5 @@
 """
-    Copyright 2025 Contributors
+    Copyright Contributors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ from realtime_entry_points.node_prediction_entry import (
     transform_fn as np_transform_fn
 )
 
+from config_utils import create_graph_config_json_object
 
 # ============ helper functions ==============
 
@@ -144,102 +145,12 @@ def create_realtime_yaml_object(tmpdirname):
 
     return gs_config
 
-def create_realtime_json_oject(tmpdirname):
-    """ Create a graph construction json file to build GraphFromMetadata
-    """
-    json_object = \
-    {
-        "version": "gconstruct-v0.1",
-        "nodes": [
-                {
-                        "node_id_col":  "id",
-                        "node_type":    "user",
-                        "format":       {"name": "hdf5"},
-                        "files":        "/data/ml-100k/user.hdf5",
-                        "features":     [
-                            {
-                                    "feature_col":  "feat",
-                                    "feature_name": "feat",
-                                    "feature_dim": [
-                                        2
-                                    ]
-                            }
-                        ]
-                },
-                {
-                        "node_id_col":  "id",
-                        "node_type":    "movie",
-                        "format":       {"name": "parquet"},
-                        "files":        "/data/ml-100k/movie.parquet",
-                        "features":     [
-                            {
-                                    "feature_col":  "feat",
-                                    "feature_name": "feat",
-                                    "feature_dim": [
-                                        2
-                                    ]
-                            },
-                            {
-                                "feature_col":  "title",
-                                "transform":    {
-                                        "name": "bert_hf",
-                                        "bert_model": "bert-base-uncased",
-                                        "max_seq_length": 16
-                                },
-                                "feature_name": "title",
-                                "feature_dim": [
-                                    16
-                                ]
-                        }
-                    ],
-                        "labels":	[
-                            {
-                                "label_col":	"label",
-                                "task_type":	"classification",
-                                "split_pct":	[0.8, 0.1, 0.1]
-                            }
-                        ]
-                }
-        ],
-        "edges": [
-                {
-                        "source_id_col":    "src_id",
-                        "dest_id_col":      "dst_id",
-                        "relation":         ["user", "rating", "movie"],
-                        "format":           {"name": "parquet"},
-                        "files":        "/data/ml-100k/edges.parquet",
-                        "labels":	[
-                            {
-                                "label_col":	"rate",
-                                "task_type":	"classification",
-                                "split_pct":	[0.1, 0.1, 0.1]
-                            }
-                        ]
-                },
-                {
-                        "source_id_col":    "src_id",
-                        "dest_id_col":      "dst_id",
-                        "relation":         ["movie", "rating-rev", "user"],
-                        "format":           {"name": "parquet"},
-                        "files":        "/data/ml-100k/edges_rev.parquet",
-                }
-        ],
-        "is_homogeneous": "false"
-    }
-    with open(os.path.join(tmpdirname, "ml.json"), "w") as f:
-        json.dump(json_object, f, indent=4)
-
-    with open(os.path.join(tmpdirname, "ml.json"), "r") as f:
-        gs_json = json.load(f)
-
-    return gs_json
-
 def create_realtime_np_model(tmpdirname, model_error=False):
     """ Create a node prediction model
 
     This basic configuration is a subset of the `training_scripts/gsgnn_np/ml_nc.yaml`.
     """
-    gs_json = create_realtime_json_oject(tmpdirname)
+    gs_json = create_graph_config_json_object(tmpdirname, has_tokenize=False)
     gs_config = create_realtime_yaml_object(tmpdirname)
 
     gs_metadata = load_metadata_from_json(gs_json)

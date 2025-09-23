@@ -680,8 +680,9 @@ def config_json_sanity_check(config_json):
 
     JSON from GS gconstruct:
         {
-            "version": "gconstruct-v0.1",
+            "version": "gconstruct-runtime-v0.1",
             "is_homogeneous": bool,
+            "add_reverse_edges": bool,
             "nodes":[
                 {
                     "node_id_col": str,
@@ -712,9 +713,10 @@ def config_json_sanity_check(config_json):
         }
     JSON from GSProcessing:
         {
-            "version": "gsprocessing-v0.4.1",
+            "version": "gsprocessing-runtime-v0.4.1",
             "graph": {
                 "is_homogeneous": bool,
+                "add_reverse_edges": bool,
                 "nodes": [
                     {
                         "type": str,
@@ -762,14 +764,25 @@ def config_json_sanity_check(config_json):
     assert 'version' in config_json, (
         'A "version" field must be defined in the configuration JSON object.')
     config_version = config_json['version']
+    assert 'runtime' in config_version, (
+        'The value of the "version" field must contain "runtime" to identify '
+        'it is a runtime version.')
 
     if config_version.startswith('gconstruct'):
         assert 'is_homogeneous' in config_json, (
             'A "is_homogeneous" field must be defined in the configuration JSON object.')
         is_homo = config_json['is_homogeneous']
-        assert is_homo in [True, 'true', False, 'false'], (
+        assert is_homo in [True, "True", 'true', False, "False", 'false'], (
             'The value of "is_homogeneous" can only be "True", "true", "False", or '
             f'"false", but got {is_homo}.')
+
+        assert "add_reverse_edges" in config_json, (
+            'An "add_reverse_edges" field must be defined in the configuration JSON object.'
+        )
+        add_reverse_edges = config_json["add_reverse_edges"]
+        assert add_reverse_edges in [True, "True", 'true', False, "False", 'false'], (
+            'The value of "add_reverse_edges" can only be "True", "true", "False", or '
+            f'"false", but got {add_reverse_edges}.')
 
         assert 'nodes' in config_json, (
             'A "nodes" field must be defined in the configuration JSON object.')
@@ -822,9 +835,16 @@ def config_json_sanity_check(config_json):
         assert 'is_homogeneous' in graph_obj, (
             'An "is_homogeneous" field must be defined in the configuration JSON object.')
         is_homo = graph_obj['is_homogeneous']
-        assert is_homo in ['True', 'true', 'False', 'false'], (
+        assert is_homo in [True, "True", 'true', False, "False", 'false'], (
             'The value of "is_homogeneous" can only be "True", "true", "False", or '
             f'"false", but got {is_homo}.')
+
+        assert 'add_reverse_edges' in graph_obj, (
+            'An "add_reverse_edges" field must be defined in the configuration JSON object.')
+        add_reverse_edges = graph_obj['add_reverse_edges']
+        assert add_reverse_edges in [True, "True", 'true', False, "False", 'false'], (
+            'The value of "add_reverse_edges" can only be "True", "true", "False", or '
+            f'"false", but got {add_reverse_edges}.')
 
         assert 'nodes' in graph_obj, (
             'A "nodes" field must be defined in the graph object.')
@@ -906,8 +926,9 @@ def load_metadata_from_json(config_json):
 
     JSON from GS gconstruct:
         {
-            "version": "gconstruct-v0.1",
+            "version": "gconstruct-runtime-v0.1",
             "is_homogeneous": bool,
+            "add_reverse_edges": bool,
             "nodes":[
                 {
                     "node_id_col": str,
@@ -938,9 +959,10 @@ def load_metadata_from_json(config_json):
         }
     JSON from GSProcessing:
         {
-            "version": "gsprocessing-v0.4.1",
+            "version": "gsprocessing-runtime-v0.4.1",
             "graph": {
                 "is_homogeneous": bool,
+                "add_reverse_edges": bool,
                 "nodes": [
                     {
                         "type": str,
@@ -997,7 +1019,7 @@ def load_metadata_from_json(config_json):
     config_version = config_json['version']
 
     if config_version.startswith('gconstruct'):
-        is_homo = config_json['is_homogeneous'] in ['True', 'true']
+        is_homo = config_json['is_homogeneous'] in ['True', 'true', True]
 
         # parse node types
         ntypes = []
@@ -1014,6 +1036,7 @@ def load_metadata_from_json(config_json):
         # parse edge types
         etypes = []
         efeat_dims = {}
+        add_reverse_edges = config_json['add_reverse_edges'] in ['True', 'true', True]
         for edge_obj in config_json['edges']:
             etypes.append(tuple(edge_obj['relation']))  # convert a list to tuple as can_etype
             # extract feature name and dimensions if have
@@ -1022,9 +1045,19 @@ def load_metadata_from_json(config_json):
                 for feat_obj in edge_obj['features']:
                     feat_dims[feat_obj['feature_name']] = feat_obj['feature_dim']
                 efeat_dims[tuple(edge_obj['relation'])] = feat_dims
+            if add_reverse_edges and not is_homo:
+                reverse_relation = [edge_obj['relation'][2],
+                                    edge_obj['relation'][1] + "-rev",
+                                    edge_obj['relation'][0]]
+                etypes.append(tuple(reverse_relation))
+                if 'features' in edge_obj:
+                    feat_dims = {}
+                    for feat_obj in edge_obj['features']:
+                        feat_dims[feat_obj['feature_name']] = feat_obj['feature_dim']
+                    efeat_dims[tuple(reverse_relation)] = feat_dims
     else:
         graph_obj = config_json['graph']
-        is_homo = graph_obj['is_homogeneous'] in ['True', 'true']
+        is_homo = graph_obj['is_homogeneous'] in ['True', 'true', True]
 
         # parse node types
         ntypes = []
@@ -1041,6 +1074,7 @@ def load_metadata_from_json(config_json):
         # parse edge types
         etypes = []
         efeat_dims = {}
+        add_reverse_edges = graph_obj['add_reverse_edges'] in ['True', 'true', True]
         for edge_obj in graph_obj['edges']:
             src_ntype = edge_obj['source']['type']
             dst_ntype = edge_obj['dest']['type']
@@ -1052,6 +1086,13 @@ def load_metadata_from_json(config_json):
                 for feat_obj in edge_obj['features']:
                     feat_dims[feat_obj['name']] = feat_obj['dim']
                 efeat_dims[(src_ntype, etype, dst_ntype)] = feat_dims
+            if add_reverse_edges and not is_homo:
+                etypes.append((dst_ntype, etype + "-rev", src_ntype))
+                if 'features' in edge_obj:
+                    feat_dims = {}
+                    for feat_obj in edge_obj['features']:
+                        feat_dims[feat_obj['name']] = feat_obj['dim']
+                    efeat_dims[(dst_ntype, etype + "-rev", src_ntype)] = feat_dims
 
     # create the metadata instance
     if is_homo:
