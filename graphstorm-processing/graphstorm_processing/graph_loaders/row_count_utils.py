@@ -47,7 +47,7 @@ class ParquetRowCounter:
     """
 
     def __init__(self, metadata_dict: dict, output_prefix: str, filesystem_type: FilesystemType,
-                        num_threads: int = 16):
+                 num_threads: int = 16):
         self.output_prefix = output_prefix
         self.filesystem_type = filesystem_type
         self.metadata_dict = metadata_dict
@@ -157,7 +157,7 @@ class ParquetRowCounter:
         return row_counts_per_file
 
     def _add_counts_for_graph_structure(
-        self, top_level_key: str, edge_or_node_type_key: str
+            self, top_level_key: str, edge_or_node_type_key: str
     ) -> List[Sequence[int]]:
         """Returns a nested list of counts for each structure of the graph,
         either for edges structure or node mappings. Modifies `self.metadata_dict` in place.
@@ -273,7 +273,7 @@ class ParquetRowCounter:
 
     @staticmethod
     def verify_features_and_graph_structure_match(
-        data_meta: Dict[str, Dict], structure_meta: Dict[str, Dict]
+            data_meta: Dict[str, Dict], structure_meta: Dict[str, Dict]
     ) -> bool:
         """Verifies that the row counts of structure and feature files match.
 
@@ -445,9 +445,9 @@ def verify_metadata_match(graph_meta: Dict[str, Dict]) -> bool:
 
     all_match = True
     if (
-        not all_edge_counts_match
-        or not all_node_data_counts_match
-        or not all_edge_data_counts_match
+            not all_edge_counts_match
+            or not all_node_data_counts_match
+            or not all_edge_data_counts_match
     ):
         all_match = False
         logging.info(
