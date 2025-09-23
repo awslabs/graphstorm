@@ -107,6 +107,12 @@ def parse_args() -> argparse.Namespace:
         help="When set to True, will create reverse edges for every edge type.",
     )
     parser.add_argument(
+        "--num-threads",
+        type=int,
+        default=16,
+        help="Number of threads when writing to S3",
+    )
+    parser.add_argument(
         "--do-repartition",
         type=lambda x: (str(x).lower() in ["true", "1"]),
         default=False,
@@ -258,6 +264,8 @@ if __name__ == "__main__":
         str(args.num_output_files),
         "--add-reverse-edges",
         "True" if args.add_reverse_edges else "False",
+        "--num-threads",
+        args.num_threads,
         "--do-repartition",
         "True" if args.do_repartition else "False",
         "--log-level",

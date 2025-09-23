@@ -113,6 +113,8 @@ class ExecutorConfig:
         The name of the graph being processed. If not provided we use part of the input_prefix.
     do_repartition: bool
         Whether to apply repartitioning to the graph on the Spark leader.
+    num_threads: int
+        Number of threads to write the files to S3.
     """
 
     local_config_path: str
@@ -126,6 +128,7 @@ class ExecutorConfig:
     add_reverse_edges: bool
     graph_name: Optional[str]
     do_repartition: bool
+    num_threads: int
 
 
 @dataclasses.dataclass
@@ -140,6 +143,7 @@ class GSProcessingArguments:
     log_level: str
     graph_name: Optional[str]
     do_repartition: bool
+    num_threads: int
 
 
 class DistributedExecutor:
@@ -165,6 +169,7 @@ class DistributedExecutor:
         self.filesystem_type = executor_config.filesystem_type
         self.execution_env = executor_config.execution_env
         self.add_reverse_edges = executor_config.add_reverse_edges
+        self.num_threads = executor_config.num_threads
         # We use the data location as the graph name if a name is not provided
         if executor_config.graph_name:
             self.graph_name = executor_config.graph_name
@@ -266,6 +271,7 @@ class DistributedExecutor:
             local_input_path=self.local_config_path,
             local_metadata_output_path=self.local_metadata_output_path,
             num_output_files=self.num_output_files,
+            num_threads=self.num_threads,
             output_prefix=self.output_prefix,
             precomputed_transformations=self.precomputed_transformations,
         )
@@ -640,7 +646,15 @@ def parse_args() -> argparse.Namespace:
             "data on the Spark leader if necessary."
         ),
     )
-
+    parser.add_argument(
+        "--num-threads",
+        type=int,
+        default=16,
+        help=(
+            "Number of threads written to S3, "
+            "only effective when writing to S3."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -778,6 +792,7 @@ def main():
         add_reverse_edges=gsprocessing_args.add_reverse_edges,
         graph_name=gsprocessing_args.graph_name,
         do_repartition=gsprocessing_args.do_repartition,
+        num_threads=gsprocessing_args.num_threads,
     )
 
     dist_executor = DistributedExecutor(executor_configuration)
