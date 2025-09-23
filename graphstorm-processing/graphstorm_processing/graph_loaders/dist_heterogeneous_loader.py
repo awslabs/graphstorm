@@ -136,7 +136,7 @@ class HeterogeneousLoaderConfig:
     output_prefix: str
     precomputed_transformations: dict
     is_homogeneous: bool = False
-    num_threads: int = 4
+    num_threads: int = 16
 
 
 @dataclass
