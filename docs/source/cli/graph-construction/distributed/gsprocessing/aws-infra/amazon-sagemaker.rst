@@ -65,6 +65,7 @@ job, followed by the re-partitioning job, both on SageMaker:
         --job-name "${GRAPH_NAME}-${INSTANCE_COUNT}x-${INSTANCE_TYPE//./-}-${NUM_FILES}files" \
         --num-output-files ${NUM_FILES} \
         --do-repartition True \
+        --num-s3-threads 16 \
         --wait-for-job
 
 Launch the gs-repartition job on Amazon SageMaker
