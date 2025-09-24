@@ -121,7 +121,7 @@ class HeterogeneousLoaderConfig:
         of the graph.
     is_homogeneous: bool
         Whether the graph is a homogeneous graph, with a single edge and single node type.
-    num_threads: int
+    num_s3_threads: int
         Number of threads when writing to the S3 bucket.
     """
 
@@ -136,7 +136,7 @@ class HeterogeneousLoaderConfig:
     output_prefix: str
     precomputed_transformations: dict
     is_homogeneous: bool = False
-    num_threads: int = 16
+    num_s3_threads: int = 16
 
 
 @dataclass
@@ -214,8 +214,8 @@ class DistHeterogeneousGraphLoader(object):
             else int(spark.sparkContext.defaultParallelism)
         )
         assert self.num_output_files > 0
-        self.num_threads = loader_config.num_threads
-        assert self.num_threads > 0
+        self.num_s3_threads = loader_config.num_s3_threads
+        assert self.num_s3_threads > 0
         # Mapping from node type to filepath, each file is a node-str to node-int-id mapping
         self.node_mapping_paths: dict[str, Sequence[str]] = {}
         # Mapping from label name to value counts
@@ -780,7 +780,9 @@ class DistHeterogeneousGraphLoader(object):
         """
         logging.info("Adding row counts to metadata...")
 
-        counter = ParquetRowCounter(metadata_dict, self.output_prefix, self.filesystem_type, self.num_threads)
+        counter = ParquetRowCounter(
+            metadata_dict, self.output_prefix, self.filesystem_type, self.num_s3_threads
+        )
 
         return counter.add_row_counts_to_metadata(metadata_dict)
 

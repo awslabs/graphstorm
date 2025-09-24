@@ -42,16 +42,21 @@ class ParquetRowCounter:
         The prefix where the output data are expected.
     filesystem_type : str
         The filesystem type. Can be 'local' or 's3'.
-    num_threads: int
+    num_s3_threads: int
         The number of threads writing to S3.
     """
 
-    def __init__(self, metadata_dict: dict, output_prefix: str, filesystem_type: FilesystemType,
-                 num_threads: int = 16):
+    def __init__(
+        self,
+        metadata_dict: dict,
+        output_prefix: str,
+        filesystem_type: FilesystemType,
+        num_s3_threads: int = 16,
+    ):
         self.output_prefix = output_prefix
         self.filesystem_type = filesystem_type
         self.metadata_dict = metadata_dict
-        self.num_threads = num_threads
+        self.num_s3_threads = num_s3_threads
         if self.filesystem_type == FilesystemType.S3:
             output_bucket, _ = s3_utils.extract_bucket_and_key(output_prefix)
             bucket_region = s3_utils.get_bucket_region(output_bucket)
@@ -149,7 +154,9 @@ class ParquetRowCounter:
         cpu_count = os.cpu_count() if os.cpu_count() else 4
         # Assertion to indicate to mypy that cpu_count is not None
         assert cpu_count
-        row_counts_per_file = Parallel(n_jobs=min(self.num_threads, cpu_count), backend="threading")(
+        row_counts_per_file = Parallel(
+            n_jobs=min(self.num_s3_threads, cpu_count), backend="threading"
+        )(
             delayed(self.get_row_count_for_parquet_file)(parquet_path)
             for parquet_path in parquet_file_paths
         )
@@ -157,7 +164,7 @@ class ParquetRowCounter:
         return row_counts_per_file
 
     def _add_counts_for_graph_structure(
-            self, top_level_key: str, edge_or_node_type_key: str
+        self, top_level_key: str, edge_or_node_type_key: str
     ) -> List[Sequence[int]]:
         """Returns a nested list of counts for each structure of the graph,
         either for edges structure or node mappings. Modifies `self.metadata_dict` in place.
@@ -273,7 +280,7 @@ class ParquetRowCounter:
 
     @staticmethod
     def verify_features_and_graph_structure_match(
-            data_meta: Dict[str, Dict], structure_meta: Dict[str, Dict]
+        data_meta: Dict[str, Dict], structure_meta: Dict[str, Dict]
     ) -> bool:
         """Verifies that the row counts of structure and feature files match.
 
@@ -445,9 +452,9 @@ def verify_metadata_match(graph_meta: Dict[str, Dict]) -> bool:
 
     all_match = True
     if (
-            not all_edge_counts_match
-            or not all_node_data_counts_match
-            or not all_edge_data_counts_match
+        not all_edge_counts_match
+        or not all_node_data_counts_match
+        or not all_edge_data_counts_match
     ):
         all_match = False
         logging.info(
