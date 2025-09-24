@@ -43,7 +43,7 @@ class ParquetRowCounter:
     filesystem_type : str
         The filesystem type. Can be 'local' or 's3'.
     num_s3_threads: int
-        The number of threads writing to S3.
+        Max number of threads to use when interacting with S3.
     """
 
     def __init__(

@@ -120,7 +120,7 @@ class ExecutorConfig:
     do_repartition: bool
         Whether to apply repartitioning to the graph on the Spark leader.
     num_s3_threads: int
-        Number of threads to write the files to S3.
+        Number of threads for S3 interactions.
     """
 
     local_config_path: str
