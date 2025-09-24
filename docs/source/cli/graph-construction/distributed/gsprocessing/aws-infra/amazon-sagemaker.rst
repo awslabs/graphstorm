@@ -65,8 +65,11 @@ job, followed by the re-partitioning job, both on SageMaker:
         --job-name "${GRAPH_NAME}-${INSTANCE_COUNT}x-${INSTANCE_TYPE//./-}-${NUM_FILES}files" \
         --num-output-files ${NUM_FILES} \
         --do-repartition True \
-        --num-s3-threads 16 \
         --wait-for-job
+
+.. note::
+
+    * If you encounter a 503 S3 error, try reducing the number of S3 threads by setting the `--num-s3-threads` flag to a value less than 16.
 
 Launch the gs-repartition job on Amazon SageMaker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
