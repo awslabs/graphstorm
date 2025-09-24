@@ -134,7 +134,7 @@ class ExecutorConfig:
     add_reverse_edges: bool
     graph_name: Optional[str]
     do_repartition: bool
-    num_s3_threads: int
+    num_s3_threads: int = 16
 
 
 @dataclasses.dataclass
