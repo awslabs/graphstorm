@@ -1,5 +1,5 @@
 """
-    Copyright 2025 Contributors
+    Copyright Contributors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ import os
 import argparse
 import tempfile
 import tarfile
+import json
 import pytest
 import boto3
 import sagemaker as sm
@@ -30,8 +31,12 @@ from launch_utils import (wrap_model_artifacts,
                           parse_s3_uri,
                           extract_ecr_region,
                           upload_data_to_s3,
-                          check_name_format)
+                          check_name_format,
+                          has_tokenize_transformation)
 
+from config_utils import create_graph_config_json_object
+
+# ============ helper functions ==============
 
 def create_dummy_file(file_path):
     """ Create an empty dummy file for testing
@@ -41,6 +46,8 @@ def create_dummy_file(file_path):
 
     with open(file_path, 'w') as f:
         f.close()
+
+# ============ test functions ==============
 
 def test_wrap_model_artifacts():
     """ Test the wrapping model artifacts function.
@@ -352,3 +359,62 @@ def test_upload_data_to_s3(mock_s3uploader):
     with pytest.raises(AssertionError):
         mock_s3uploader.assert_called_once_with('s3://a_bucket/a_path/', './model.tar.gz',
                                                 sagemaker_session='session')
+
+def test_has_tokenize_transformation():
+    """ test the has_tokenize_transformation function
+    """
+    # Test case 1, dummy json object
+    dummy_dict = {
+        'transform': {
+            "name": 'tokenize_hf',
+            'key2': [784]}
+    }
+    dummy_json = json.dumps(dummy_dict)
+    assert has_tokenize_transformation(dummy_json)
+
+    dummy_dict['transform']['name'] = 'bert_hf'
+    dummy_json = json.dumps(dummy_dict)
+    assert not has_tokenize_transformation(dummy_json)
+
+    dummy_dict = {
+        'transformation': {
+            "name": "huggingface",
+            "kwargs": {
+                "action": "tokenize_hf"
+            }
+        }
+    }
+    dummy_json = json.dumps(dummy_dict)
+    assert has_tokenize_transformation(dummy_json)
+
+    dummy_dict['transformation']['kwargs']['action'] = 'bert_hf'
+    dummy_json = json.dumps(dummy_dict)
+    assert not has_tokenize_transformation(dummy_json)
+
+    # Test case 2, real json object
+    with tempfile.TemporaryDirectory() as tmpdir:
+        graph_json = create_graph_config_json_object(tmpdir)
+        assert has_tokenize_transformation(graph_json)
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        graph_json = create_graph_config_json_object(tmpdir, has_tokenize=False)
+        assert not has_tokenize_transformation(graph_json)
+
+    # Test case 3 tokenize_hf exists in other fields, such as file path or feature name
+    dummy_dict = {
+        "node_id_col": "user_id",
+        "node_type": "user",
+        "data": {
+                    "format": 'csv',
+                    "files": 'path/tokenize_hf.csv'
+                },
+        "features": [
+            {
+                "feature_col": "age",
+                "feature_name": "tokenize_hf",
+                "feature_dim": [1]
+            }
+        ]
+    }
+    dummy_json = json.dumps(dummy_dict)
+    assert not has_tokenize_transformation(dummy_json)

@@ -22,6 +22,7 @@ import math
 import os
 import shutil
 import sys
+import tempfile
 import warnings
 from typing import Any, Dict
 
@@ -181,7 +182,7 @@ class GSConfig:
         """ Construct a GSConfig object.
 
         Parameters:
-        ------------
+        -----------
         cmd_args: Arguments
             Commend line arguments.
         """
@@ -230,18 +231,56 @@ class GSConfig:
         # If model output is configured, save the runtime train config as a yaml file there,
         # and the graph construction config, if one exists in the input
         if hasattr(self, "_save_model_path") and self._save_model_path:
-            # Ensure model output directory exists
-            os.makedirs(self._save_model_path, exist_ok=True)
+            # First check if path is writable
+            if self._is_path_writable(self._save_model_path):
+                # If we get here, path is writable, create directory
+                os.makedirs(self._save_model_path, exist_ok=True)
 
-            # Save a copy of train config with runtime args
-            train_config_output_path = os.path.join(
-                self._save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
-            self._save_runtime_train_config(train_config_output_path)
+                # Save a copy of train config with runtime args
+                train_config_output_path = os.path.join(
+                    self._save_model_path, GS_RUNTIME_TRAINING_CONFIG_FILENAME)
+                self._save_runtime_train_config(train_config_output_path)
 
-            # Copy over graph construction config, if one exists
-            gconstruct_config_output_path = os.path.join(
-                self._save_model_path, GS_RUNTIME_GCONSTRUCT_FILENAME)
-            self._copy_graph_construct_config(gconstruct_config_output_path)
+                # Copy over graph construction config, if one exists
+                gconstruct_config_output_path = os.path.join(
+                    self._save_model_path, GS_RUNTIME_GCONSTRUCT_FILENAME)
+                self._copy_graph_construct_config(gconstruct_config_output_path)
+            else:
+                warnings.warn(
+                    f"Model output path {self._save_model_path} is not writable. "
+                    "You will need to manually copy over the training config and "
+                    "graph construction config for model deployment.")
+
+    @staticmethod
+    def _is_path_writable(path: str) -> bool:
+        """Check if a path is writable.
+
+        Parameters
+        ----------
+        path: str
+            Path to check
+
+        Returns
+        -------
+        True if writable, False otherwise
+        """
+
+        if os.path.exists(path):
+            # Path exists, check if we can write to it
+            try:
+                testfile = tempfile.TemporaryFile(dir=path)
+                testfile.close()
+            except (OSError, PermissionError):
+                return False
+        else:
+            # Path doesn't exist, check if we can create it
+            try:
+                os.makedirs(path)
+                os.rmdir(path)  # Clean up
+            except (OSError, PermissionError):
+                return False
+        return True
+
 
     def _copy_graph_construct_config(self, output_data_config):
         """ Copy graph construct config to the model output path.
@@ -249,24 +288,33 @@ class GSConfig:
         # Copy data configuration file if available
         if get_rank() == 0:
             try:
+                # Referring to missing self.part_config can raise an AssertionError,
+                # so we need to surround in try/except
                 part_config_dir = os.path.dirname(self.part_config)
                 input_data_config = os.path.join(part_config_dir, GS_RUNTIME_GCONSTRUCT_FILENAME)
                 if os.path.exists(input_data_config):
-                    shutil.copy2(
-                        input_data_config,
-                        output_data_config
-                    )
+                    try:
+                        shutil.copy2(
+                            input_data_config,
+                            output_data_config
+                        )
+                        logging.info("Copied graph construction config to %s", output_data_config)
+                    except (OSError, PermissionError) as e:
+                        warnings.warn(
+                            f"Failed to copy {GS_RUNTIME_GCONSTRUCT_FILENAME} to model output: "
+                            f"{str(e)}. You will need to manually copy over the graph "
+                            "construction config for model deployment.")
                 else:
                     warnings.warn(
                         f"Graph construction config {GS_RUNTIME_GCONSTRUCT_FILENAME} "
                         f"not found in {part_config_dir}. "
-                        "This is expected for older models (trained with version < 0.5). "
-                        "You will need to copy over the graph construction  "
+                        "This is expected for graph data processed with version < 0.5. "
+                        "You will need to manually copy over the graph construction "
                         "config for model deployment.")
             except Exception as e: # pylint: disable=broad-exception-caught
                 warnings.warn(
-                    f"Failed to copy {GS_RUNTIME_GCONSTRUCT_FILENAME} to model output: {str(e)}. "
-                    "You  will need to copy over the graph construction "
+                    f"Failed to access {GS_RUNTIME_GCONSTRUCT_FILENAME}: {str(e)}. "
+                    "You will need to manually copy over the graph construction "
                     "config for model deployment.")
 
 
@@ -384,20 +432,10 @@ class GSConfig:
                 else:
                     raise ValueError("GraphStorm configuration needs a 'gsf' section")
 
-        # Try to save to model output location
-        try:
-            # Save the combined config
-            with open(output_path, 'w', encoding="utf-8") as f:
-                yaml.dump(yaml_config, f, default_flow_style=False)
-
+        # Save the combined config
+        with open(output_path, 'w', encoding="utf-8") as f:
+            yaml.dump(yaml_config, f, default_flow_style=False)
             logging.info("Saved combined configuration to %s", output_path)
-        except FileNotFoundError:
-            warnings.warn(
-                f"Could not save config: directory {os.path.dirname(output_path)} not accessible")
-        except PermissionError:
-            warnings.warn(f"Could not save config: permission denied for {output_path}")
-        except Exception as e: # pylint: disable=broad-exception-caught
-            warnings.warn(f"Could not save config: {str(e)}")
 
 
     def _parse_general_task_config(self, task_config):
