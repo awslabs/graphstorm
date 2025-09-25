@@ -1,3 +1,4 @@
+# Only work with poetry version <= 1.8.0
 [tool.poetry]
 name = "graphstorm_processing"
 version = "0.5.1"
