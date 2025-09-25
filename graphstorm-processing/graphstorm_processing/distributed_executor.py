@@ -55,6 +55,7 @@ import json
 import logging
 import os
 import re
+import importlib
 from pathlib import Path
 import tempfile
 import time
@@ -273,6 +274,7 @@ class DistributedExecutor:
                 "Please upgrade image/installation to version > 0.5 for the latest features."
             )
         data_configs = create_config_objects(self.gsp_config_dict)
+        gsp_version = importlib.metadata.version("graphstorm_processing")
         loader_config = HeterogeneousLoaderConfig(
             is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
             add_reverse_edges=self.add_reverse_edges,
