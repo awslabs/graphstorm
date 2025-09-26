@@ -61,6 +61,7 @@ import tempfile
 import time
 from collections.abc import Mapping
 from typing import Any, Dict, Optional
+from packaging import version
 
 import boto3
 import botocore
@@ -274,21 +275,25 @@ class DistributedExecutor:
                 "Please upgrade image/installation to version > 0.5 for the latest features."
             )
         data_configs = create_config_objects(self.gsp_config_dict)
+        loader_kwargs = {
+            "is_homogeneous": self.gsp_config_dict[HOMOGENEOUS_FLAG],
+            "add_reverse_edges": self.add_reverse_edges,
+            "data_configs": data_configs,
+            "enable_assertions": False,
+            "graph_name": self.graph_name,
+            "input_prefix": self.input_prefix,
+            "local_input_path": self.local_config_path,
+            "local_metadata_output_path": self.local_metadata_output_path,
+            "num_output_files": self.num_output_files,
+            "output_prefix": self.output_prefix,
+            "precomputed_transformations": self.precomputed_transformations,
+        }
+
         gsp_version = importlib.metadata.version("graphstorm_processing")
-        loader_config = HeterogeneousLoaderConfig(
-            is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
-            add_reverse_edges=self.add_reverse_edges,
-            data_configs=data_configs,
-            enable_assertions=False,
-            graph_name=self.graph_name,
-            input_prefix=self.input_prefix,
-            local_input_path=self.local_config_path,
-            local_metadata_output_path=self.local_metadata_output_path,
-            num_output_files=self.num_output_files,
-            num_s3_threads=self.num_s3_threads,
-            output_prefix=self.output_prefix,
-            precomputed_transformations=self.precomputed_transformations,
-        )
+        if version.parse(gsp_version) >= version.parse("0.5.1"):
+            loader_kwargs["num_s3_threads"] = self.num_s3_threads
+
+        loader_config = HeterogeneousLoaderConfig(**loader_kwargs)
 
         self.loader = DistHeterogeneousGraphLoader(
             self.spark,
