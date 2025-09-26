@@ -55,11 +55,13 @@ import json
 import logging
 import os
 import re
+import importlib
 from pathlib import Path
 import tempfile
 import time
 from collections.abc import Mapping
 from typing import Any, Dict, Optional
+from packaging import version
 
 import boto3
 import botocore
@@ -119,6 +121,8 @@ class ExecutorConfig:
         The name of the graph being processed. If not provided we use part of the input_prefix.
     do_repartition: bool
         Whether to apply repartitioning to the graph on the Spark leader.
+    num_s3_threads: int
+        Number of threads for S3 interactions.
     """
 
     local_config_path: str
@@ -132,6 +136,7 @@ class ExecutorConfig:
     add_reverse_edges: bool
     graph_name: Optional[str]
     do_repartition: bool
+    num_s3_threads: int = 16
 
 
 @dataclasses.dataclass
@@ -146,6 +151,7 @@ class GSProcessingArguments:
     log_level: str
     graph_name: Optional[str]
     do_repartition: bool
+    num_s3_threads: int
 
 
 class DistributedExecutor:
@@ -171,6 +177,7 @@ class DistributedExecutor:
         self.filesystem_type = executor_config.filesystem_type
         self.execution_env = executor_config.execution_env
         self.add_reverse_edges = executor_config.add_reverse_edges
+        self.num_s3_threads = executor_config.num_s3_threads
         # We use the data location as the graph name if a name is not provided
         if executor_config.graph_name:
             self.graph_name = executor_config.graph_name
@@ -268,19 +275,25 @@ class DistributedExecutor:
                 "Please upgrade image/installation to version > 0.5 for the latest features."
             )
         data_configs = create_config_objects(self.gsp_config_dict)
-        loader_config = HeterogeneousLoaderConfig(
-            is_homogeneous=self.gsp_config_dict[HOMOGENEOUS_FLAG],
-            add_reverse_edges=self.add_reverse_edges,
-            data_configs=data_configs,
-            enable_assertions=False,
-            graph_name=self.graph_name,
-            input_prefix=self.input_prefix,
-            local_input_path=self.local_config_path,
-            local_metadata_output_path=self.local_metadata_output_path,
-            num_output_files=self.num_output_files,
-            output_prefix=self.output_prefix,
-            precomputed_transformations=self.precomputed_transformations,
-        )
+        loader_kwargs = {
+            "is_homogeneous": self.gsp_config_dict[HOMOGENEOUS_FLAG],
+            "add_reverse_edges": self.add_reverse_edges,
+            "data_configs": data_configs,
+            "enable_assertions": False,
+            "graph_name": self.graph_name,
+            "input_prefix": self.input_prefix,
+            "local_input_path": self.local_config_path,
+            "local_metadata_output_path": self.local_metadata_output_path,
+            "num_output_files": self.num_output_files,
+            "output_prefix": self.output_prefix,
+            "precomputed_transformations": self.precomputed_transformations,
+        }
+
+        gsp_version = importlib.metadata.version("graphstorm_processing")
+        if version.parse(gsp_version) >= version.parse("0.5.1"):
+            loader_kwargs["num_s3_threads"] = self.num_s3_threads
+
+        loader_config = HeterogeneousLoaderConfig(**loader_kwargs)
 
         self.loader = DistHeterogeneousGraphLoader(
             self.spark,
@@ -652,7 +665,12 @@ def parse_args() -> argparse.Namespace:
             "data on the Spark leader if necessary."
         ),
     )
-
+    parser.add_argument(
+        "--num-s3-threads",
+        type=int,
+        default=16,
+        help=("Number of threads written to S3, " "only effective when writing to S3."),
+    )
     return parser.parse_args()
 
 
@@ -790,6 +808,7 @@ def main():
         add_reverse_edges=gsprocessing_args.add_reverse_edges,
         graph_name=gsprocessing_args.graph_name,
         do_repartition=gsprocessing_args.do_repartition,
+        num_s3_threads=gsprocessing_args.num_s3_threads,
     )
 
     dist_executor = DistributedExecutor(executor_configuration)

@@ -42,12 +42,21 @@ class ParquetRowCounter:
         The prefix where the output data are expected.
     filesystem_type : str
         The filesystem type. Can be 'local' or 's3'.
+    num_s3_threads: int
+        Max number of threads to use when interacting with S3.
     """
 
-    def __init__(self, metadata_dict: dict, output_prefix: str, filesystem_type: FilesystemType):
+    def __init__(
+        self,
+        metadata_dict: dict,
+        output_prefix: str,
+        filesystem_type: FilesystemType,
+        num_s3_threads: int = 16,
+    ):
         self.output_prefix = output_prefix
         self.filesystem_type = filesystem_type
         self.metadata_dict = metadata_dict
+        self.num_s3_threads = num_s3_threads
         if self.filesystem_type == FilesystemType.S3:
             output_bucket, _ = s3_utils.extract_bucket_and_key(output_prefix)
             bucket_region = s3_utils.get_bucket_region(output_bucket)
@@ -145,7 +154,9 @@ class ParquetRowCounter:
         cpu_count = os.cpu_count() if os.cpu_count() else 4
         # Assertion to indicate to mypy that cpu_count is not None
         assert cpu_count
-        row_counts_per_file = Parallel(n_jobs=min(16, cpu_count), backend="threading")(
+        row_counts_per_file = Parallel(
+            n_jobs=min(self.num_s3_threads, cpu_count), backend="threading"
+        )(
             delayed(self.get_row_count_for_parquet_file)(parquet_path)
             for parquet_path in parquet_file_paths
         )

@@ -19,7 +19,7 @@ This script allows us to launch a SageMaker Processing job to
 repartition the data produced by the graph processing job.
 
 Usage:
-    run_repartitioning.py --s3-input-prefix <s3--prefix> \\
+    python3 run_repartitioning.py --s3-input-prefix <s3--prefix> \\
         --config-file metadata.json --image-uri <image-uri> --role <role>
 
 Script Parameters
@@ -36,7 +36,7 @@ Required:
     ``ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/graphstorm-processing:VERSION``
 --role: str
     ARN of the SageMaker execution IAM role to use for the processing job.
-    Should be in the form: `a`rn:aws:iam::ACCOUNT_ID:role/ROLE_NAME``
+    Should be in the form: `arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME`
 
 Optional:
 --region: str
