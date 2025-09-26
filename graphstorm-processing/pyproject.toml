@@ -1,6 +1,7 @@
+# Only work with poetry version <= 1.8.0
 [tool.poetry]
 name = "graphstorm_processing"
-version = "0.5.0"
+version = "0.5.1"
 description = "Distributed graph pre-processing for GraphStorm"
 readme = "README.md"
 packages = [{include = "graphstorm_processing"}]
