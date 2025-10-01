@@ -45,7 +45,8 @@ def split_full_edge_list(g, etype, rank):
     return th.arange(start, end)
 
 def prepare_batch_input(g, input_nodes,
-                        dev='cpu', feat_field='feat'):
+                        dev='cpu', feat_field='feat',
+                        lm_feat_ntypes=None):
     """ Prepare minibatch input features
 
     Note: The output is stored in dev.
@@ -65,6 +66,8 @@ def prepare_batch_input(g, input_nodes,
         Device to put output in.
     feat_field: str or dict of list of str or dict of list of FeatureGroup
         Fields to extract features.
+    lm_feat_ntypes: list[str]
+        List if node types with language model features.
 
     Return:
     -------
@@ -76,6 +79,18 @@ def prepare_batch_input(g, input_nodes,
         feat_name = None if feat_field is None else \
             [feat_field] if isinstance(feat_field, str) \
             else feat_field[ntype] if ntype in feat_field else None
+
+        lm_feat = None
+        if lm_feat_ntypes is not None and ntype in lm_feat_ntypes:
+            lm_feat = {}
+            for lm_feat_type in [TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX]:
+                if lm_feat_type in g.nodes[ntype].data:
+                    # store lm feature as a new dict
+                    lm_feat[ntype] = {lm_feat_type: g.nodes[ntype].data.get[lm_feat_type][nid]}
+        if lm_feat:
+            # put lm_feat in feat as a new k,v pair
+            # could define a new constant for the `lm` key name.
+            feat['lm'] = lm_feat
 
         if feat_name is not None:
             if isinstance(feat_name[0], FeatureGroup):
