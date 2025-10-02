@@ -72,6 +72,7 @@ class LMModels(nn.Module):
         self._lm_models = nn.ModuleDict()
         self._lm_model_names = {}
         self._lm_node_feats = {}
+        self._g = g
         for lm_config in node_lm_configs:
             lm_model = init_lm_model(lm_config,
                                      num_train=num_train,
@@ -80,11 +81,11 @@ class LMModels(nn.Module):
             lm_ntypes = lm_config["node_types"]
             for ntype in lm_ntypes:
                 self._lm_model_names[ntype] = lm_config["model_name"]
-            lm_node_feats = get_lm_node_feats(g, lm_model, lm_ntypes)
-            for ntype, feats in lm_node_feats.items():
-                assert ntype not in self._lm_node_feats, \
-                        f"More than one BERT model runs on Node {ntype}."
-                self._lm_node_feats[ntype] = feats
+            # lm_node_feats = get_lm_node_feats(g, lm_model, lm_ntypes)
+            # for ntype, feats in lm_node_feats.items():
+            #     assert ntype not in self._lm_node_feats, \
+            #             f"More than one BERT model runs on Node {ntype}."
+            #     self._lm_node_feats[ntype] = feats
             # We should sort the node type list before converting it to the key.
             lm_ntypes.sort()
             key = ','.join(lm_ntypes)
@@ -92,13 +93,15 @@ class LMModels(nn.Module):
             for ntype in lm_ntypes:
                 self._lm_map[ntype] = key
 
-    def forward(self, input_nodes, lm_emb_cache=None):
+    def forward(self, input_nodes, input_lm_feats, lm_emb_cache=None):
         """ Do language model forward pass on input_nodes
 
         Parameters
         ----------
         input_nodes: dict
             Input nodes for different node types
+        input_lm_feats: dict
+            Input Language Model Features
         lm_emb_cache: dict
             Language model embedding cache for different node types
         """
@@ -186,6 +189,12 @@ class LMModels(nn.Module):
         -------
         dict : the node features of the node type.
         """
+        model_key = None
+        for key, value in self._lm_models.items():
+            if ntype in key.split(','):
+                model_key = key
+        if ntype not in self._lm_node_feats:
+            self._lm_node_feats[ntype] = get_lm_node_feats(self._g, self._lm_models[model_key], [ntype])[ntype]
         return self._lm_node_feats[ntype]
 
     def get_feat_size(self, ntype):
@@ -626,7 +635,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        embs = self._lm_models(input_nodes, lm_emb_cache=cache)
+        input_lm_feats = input_feats['lm']
+        embs = self._lm_models(input_nodes, input_lm_feats, lm_emb_cache=cache)
 
         # This module is only used for computing the BERT embeddings on the node types
         # with text features. If it is asked to compute embeddings for some nodes without
@@ -862,7 +872,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         # Compute language model features first
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        lm_feats = self._lm_models(input_nodes, lm_emb_cache=cache)
+        input_lm_feats = input_feats['lm']
+        lm_feats = self._lm_models(input_nodes, input_lm_feats, lm_emb_cache=cache)
 
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device

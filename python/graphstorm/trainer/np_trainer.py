@@ -197,6 +197,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     input_nodes = {g.ntypes[0]: input_nodes}
                 nfeat_fields = train_loader.node_feat_fields
                 node_input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                print(nfeat_fields, node_input_feats)
+                exit(-1)
                 # Since v0.4, add edge features as one input
                 efeat_fields = train_loader.edge_feat_fields
                 edge_input_feats = data.get_blocks_edge_feats(blocks, efeat_fields, device)

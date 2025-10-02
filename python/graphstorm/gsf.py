@@ -304,6 +304,8 @@ def get_node_feat_size(g, node_feat_names):
                     # we do not change the data format
                     # of node_feat_size when ntype has
                     # only one feature group.
+                    if fname == 'lm':
+                        continue
                     fsize += get_fsize(fname, ntype)
                 node_feat_size[ntype] = fsize
 

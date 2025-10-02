@@ -33,6 +33,11 @@ from ..config.config import FeatureGroup
 
 from ..wholegraph import is_wholegraph_embedding
 
+TOKEN_IDX = 'input_ids'
+VALID_LEN = 'valid_len'
+ATT_MASK_IDX = 'attention_mask'
+TOKEN_TID_IDX = 'token_type_ids'
+
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
     '''
@@ -80,17 +85,10 @@ def prepare_batch_input(g, input_nodes,
             [feat_field] if isinstance(feat_field, str) \
             else feat_field[ntype] if ntype in feat_field else None
 
-        lm_feat = None
-        if lm_feat_ntypes is not None and ntype in lm_feat_ntypes:
-            lm_feat = {}
-            for lm_feat_type in [TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX]:
-                if lm_feat_type in g.nodes[ntype].data:
-                    # store lm feature as a new dict
-                    lm_feat[ntype] = {lm_feat_type: g.nodes[ntype].data.get[lm_feat_type][nid]}
-        if lm_feat:
-            # put lm_feat in feat as a new k,v pair
-            # could define a new constant for the `lm` key name.
-            feat['lm'] = lm_feat
+        if feat_name and 'lm' in feat_name:
+            feat_name.remove('lm')
+            if len(feat_name) == 0:
+                feat_name = None
 
         if feat_name is not None:
             if isinstance(feat_name[0], FeatureGroup):
@@ -132,6 +130,19 @@ def prepare_batch_input(g, input_nodes,
                 else:
                     # The feature is 2D
                     feat[ntype] = th.cat(feats, dim=1)
+
+        lm_feat = None
+        if lm_feat_ntypes is not None and ntype in lm_feat_ntypes:
+            lm_feat = {}
+            for lm_feat_type in [TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX]:
+                if lm_feat_type in g.nodes[ntype].data:
+                    # store lm feature as a new dict
+                    lm_feat[ntype] = {lm_feat_type: g.nodes[ntype].data.get[lm_feat_type][nid]}
+        if lm_feat:
+            # put lm_feat in feat as a new k,v pair
+            # could define a new constant for the `lm` key name.
+            feat['lm'] = lm_feat
+
     return feat
 
 def prepare_batch_edge_input(g, input_edges,
@@ -372,6 +383,8 @@ class GSgnnData():
                                 "or a dictionary of list of strings, " \
                                 f"but get {node_feat_field}")
             for feat_name in feat_names:
+                if feat_name == 'lm':
+                    continue
                 if isinstance(feat_name, FeatureGroup):
                     for fname in feat_name.feature_group:
                         assert fname in g.nodes[ntype].data, (
