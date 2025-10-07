@@ -601,14 +601,6 @@ class GraphStormPipelineGenerator:
             ],
         )
 
-        inference_id_mappings_path = Join(
-            on="/",
-            values=[
-                self.next_step_data_input,
-                "raw_id_mappings",
-            ],
-        )
-
         inference_params = {
             "graph-data-s3": self.next_step_data_input,
             "graph-name": self.graph_name_param,
@@ -618,7 +610,6 @@ class GraphStormPipelineGenerator:
             "infer-yaml-s3": self.inference_config_file_param,
             "num-trainers": self.num_trainers_param,
             "use-graphbolt": args.training_config.use_graphbolt_str,
-            "raw-node-mappings-s3": inference_id_mappings_path,
         }
 
         if args.inference_config.save_embeddings:
