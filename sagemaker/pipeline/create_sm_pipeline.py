@@ -69,6 +69,7 @@ class GraphStormPipelineGenerator:
         self.cache_config = CacheConfig(
             enable_caching=True, expire_after=self.args.step_cache_expiration
         )
+        self.train_step = None
 
         # Build up the output prefix
         # We use a hash of the execution parameters dict and
@@ -225,9 +226,9 @@ class GraphStormPipelineGenerator:
             "InferenceConfigFile", inference_yaml_default
         )
         # User-defined model snapshot to use, e.g. epoch-5
-        self.inference_model_snapshot_param = self._create_string_parameter(
-            "InferenceModelSnapshot", args.inference_config.inference_model_snapshot
-        )
+        # self.inference_model_snapshot_param = self._create_string_parameter(
+        #     "InferenceModelSnapshot", args.inference_config.inference_model_snapshot
+        # )
 
     def _create_pipeline_steps(
         self, args: PipelineArgs
@@ -562,6 +563,8 @@ class GraphStormPipelineGenerator:
             disable_profiler=True,
             debugger_hook_config=False,
             volume_size=self.volume_size_gb_param,
+            disable_output_compression=True,
+            output_path=model_output_path,
         )
 
         train_step = TrainingStep(
@@ -572,6 +575,7 @@ class GraphStormPipelineGenerator:
         )
 
         self.model_input_path = model_output_path
+        self.train_step = train_step
 
         return train_step
 
@@ -579,19 +583,29 @@ class GraphStormPipelineGenerator:
         # Implementation for Inference step
         # TODO: During training we should save the best model under '/best_model`
         # to make getting the best model for inference easier
-        inference_model_path = Join(
-            on="/",
-            values=[
-                self.model_input_path,
-                self.inference_model_snapshot_param,
-            ],
-        )
+        # inference_model_path = Join(
+        #     on="/",
+        #     values=[
+        #         self.model_input_path,
+        #         self.inference_model_snapshot_param,
+        #     ],
+        # )
+        # Reuse the latest training steps to retrieve the model S3 path.
+        inference_model_path = self.train_step.properties.ModelArtifacts.S3ModelArtifacts
 
         inference_output_path = Join(
             on="/",
             values=[
                 self.output_subpath,
                 "inference",
+            ],
+        )
+
+        inference_id_mappings_path = Join(
+            on="/",
+            values=[
+                self.next_step_data_input,
+                "raw_id_mappings",
             ],
         )
 
@@ -604,6 +618,7 @@ class GraphStormPipelineGenerator:
             "infer-yaml-s3": self.inference_config_file_param,
             "num-trainers": self.num_trainers_param,
             "use-graphbolt": args.training_config.use_graphbolt_str,
+            "raw-node-mappings-s3": inference_id_mappings_path,
         }
 
         if args.inference_config.save_embeddings:

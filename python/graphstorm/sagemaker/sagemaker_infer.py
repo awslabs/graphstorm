@@ -240,7 +240,8 @@ def run_infer(args, unknownargs):
     task_type = args.task_type
     infer_yaml_s3 = args.infer_yaml_s3
     # remove tailing /
-    output_emb_s3 = args.output_emb_s3.rstrip('/')
+    if args.output_emb_s3:
+        output_emb_s3 = args.output_emb_s3.rstrip('/')
     custom_script = args.custom_script
     output_chunk_size = args.output_chunk_size
     emb_path = os.path.join(output_path, "embs")
