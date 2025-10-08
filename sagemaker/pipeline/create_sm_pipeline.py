@@ -69,6 +69,7 @@ class GraphStormPipelineGenerator:
         self.cache_config = CacheConfig(
             enable_caching=True, expire_after=self.args.step_cache_expiration
         )
+        # Record the latest training step.
         self.train_step = None
 
         # Build up the output prefix
@@ -225,10 +226,6 @@ class GraphStormPipelineGenerator:
         self.inference_config_file_param = self._create_string_parameter(
             "InferenceConfigFile", inference_yaml_default
         )
-        # User-defined model snapshot to use, e.g. epoch-5
-        # self.inference_model_snapshot_param = self._create_string_parameter(
-        #     "InferenceModelSnapshot", args.inference_config.inference_model_snapshot
-        # )
 
     def _create_pipeline_steps(
         self, args: PipelineArgs
@@ -575,6 +572,7 @@ class GraphStormPipelineGenerator:
         )
 
         self.model_input_path = model_output_path
+        # Update the latest training step
         self.train_step = train_step
 
         return train_step
@@ -583,13 +581,6 @@ class GraphStormPipelineGenerator:
         # Implementation for Inference step
         # TODO: During training we should save the best model under '/best_model`
         # to make getting the best model for inference easier
-        # inference_model_path = Join(
-        #     on="/",
-        #     values=[
-        #         self.model_input_path,
-        #         self.inference_model_snapshot_param,
-        #     ],
-        # )
         # Reuse the latest training steps to retrieve the model S3 path.
         inference_model_path = self.train_step.properties.ModelArtifacts.S3ModelArtifacts
 
