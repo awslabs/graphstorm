@@ -81,25 +81,34 @@ def sparse_emb_initializer(emb):
 def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ A model should have three parts:
         * GNN model
-        * embedding layer
+        * embedding layer, including a node encoder and an edge encoder.
         The model is only used for inference.
 
-        Parameters
-        ----------
-        model_path: str
-            The path of the model is saved.
-        gnn_model: model
-            A (distributed) model of GNN
-        embed_layer: model
-            A (distributed) model of embedding layers.
-        decoder: model
-            A (distributed) model of decoder
+    .. versionchanged:: 0.5.1
+        Change the``embed_layer`` in v0.5.1 from a module into a dict with two elements to support
+        saving the edge encoder in a model.
+
+    Parameters
+    ----------
+    model_path: str
+        The path of the model is saved.
+    gnn_model: model
+        A (distributed) model of GNN
+    embed_layer: dict of model
+        A dict of (distributed) model of embedding layers in the format of
+        {'node_embed': GSNodeInputLayer, 'edge_embed': GSEdgeInputLayer}.
+    decoder: model
+        A (distributed) model of decoder
     """
     model_states = {}
     if gnn_model is not None and isinstance(gnn_model, nn.Module):
         model_states['gnn'] = gnn_model.state_dict()
-    if embed_layer is not None and isinstance(embed_layer, nn.Module):
-        model_states['embed'] = embed_layer.state_dict()
+    if embed_layer is not None and len(embed_layer)==2 and \
+        isinstance(embed_layer['node_embed'], nn.Module) and \
+        isinstance(embed_layer['edge_embed'], nn.Module):
+        model_states['embed'] = {
+            'node_embed': embed_layer['node_embed'].state_dict(),
+            'edge_embed': embed_layer['edge_embed'].state_dict()}
     if decoder is not None and isinstance(decoder, nn.Module):
         model_states['decoder'] = decoder.state_dict()
 
@@ -1499,21 +1508,32 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ Load a complete gnn model.
         A user needs to provide the correct model architectures first.
 
-        Parameters
-        ----------
-        model_path : str
-            The path of the folder where the model is saved.
-        gnn_model: model
-            GNN model to load
-        embed_layer: model
-            Embed layer model to load
-        decoder: model
-            Decoder to load
+    .. versionchanged:: 0.5.1
+        Change the``embed_layer`` in v0.5.1 from a module into a dict with two elements to support
+        saving the edge encoder in a model.
+
+    Parameters
+    ----------
+    model_path : str
+        The path of the folder where the model is saved.
+    gnn_model: model
+        GNN model to load
+    embed_layer: dict of model
+        A dict of (distributed) model of embedding layers in the format of
+        {'node_embed': GSNodeInputLayer, 'edge_embed': GSEdgeInputLayer}.
+    decoder: model
+        Decoder to load
     """
     gnn_model = gnn_model.module \
         if isinstance(gnn_model, DistributedDataParallel) else gnn_model
-    embed_layer = embed_layer.module \
-        if isinstance(embed_layer, DistributedDataParallel) else embed_layer
+    # check both node input layer and edge input layer
+    embed_layer['node_embed'] = embed_layer['node_embed'].module \
+        if isinstance(embed_layer['node_embed'], DistributedDataParallel) else \
+            embed_layer['node_embed']
+    embed_layer['edge_embed'] = embed_layer['edge_embed'].module \
+        if isinstance(embed_layer['edge_embed'], DistributedDataParallel) else \
+            embed_layer['edge_embed']
+
     decoder = decoder.module \
         if isinstance(decoder, DistributedDataParallel) else decoder
 
@@ -1531,7 +1551,8 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     if 'gnn' in checkpoint and gnn_model is not None:
         gnn_model.load_state_dict(checkpoint['gnn'])
     if 'embed' in checkpoint and embed_layer is not None:
-        embed_layer.load_state_dict(checkpoint['embed'], strict=False)
+        embed_layer['node_embed'].load_state_dict(checkpoint['embed']['node_embed'], strict=False)
+        embed_layer['edge_embed'].load_state_dict(checkpoint['embed']['edge_embed'], strict=False)
     if 'decoder' in checkpoint and decoder is not None:
         decoder.load_state_dict(checkpoint['decoder'])
 

@@ -749,10 +749,12 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         load_dense_input = GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
                 or GRAPHSTORM_MODEL_DENSE_EMBED_LAYER in model_layer_to_load
         # load dense models for gnn_encoder, node_input_encoder and decoder
+        embed_layers = {'node_embed': self.node_input_encoder,
+                        'edge_embed': self.edge_input_encoder}
         load_gsgnn_model(restore_model_path,
                          self.gnn_encoder \
                             if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
-                         self.node_input_encoder if load_dense_input else None,
+                         embed_layers if load_dense_input else None,
                          self.decoder \
                             if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
 
