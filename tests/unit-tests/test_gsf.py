@@ -18,9 +18,12 @@ import json
 import yaml
 import pytest
 import tempfile
+import copy
 from argparse import Namespace
 from pathlib import Path
-
+import numpy as np
+import torch as th
+from torch.nn.parallel import DistributedDataParallel as DDP
 from graphstorm.config import GSConfig
 from graphstorm.gsf import (get_edge_feat_size,
                             create_builtin_node_decoder,
@@ -29,6 +32,7 @@ from graphstorm.gsf import (get_edge_feat_size,
                             create_builtin_node_gnn_model,
                             create_builtin_edge_gnn_model,
                             create_builtin_lp_gnn_model,
+                            create_builtin_node_model,
                             restore_builtin_model_from_artifacts)
 from graphstorm.utils import check_graph_name
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
@@ -951,7 +955,7 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
         with open(os.path.join(tmpdirname, "nr_basic.yaml"), "w") as f:
             yaml.dump(yaml_object, f)
 
-        # use dummy dist hetero graph and yaml file to build a NC model and save
+        # use dummy dist hetero graph and yaml file to build a NR model and save
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'nr_basic.yaml'),
                          local_rank=0)
         config = GSConfig(args)
@@ -977,7 +981,7 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
         with open(os.path.join(tmpdirname, "ec_basic.yaml"), "w") as f:
             yaml.dump(yaml_object, f)
 
-        # use dummy dist hetero graph and yaml file to build a NC model and save
+        # use dummy dist hetero graph and yaml file to build a EC model and save
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'ec_basic.yaml'),
                          local_rank=0)
         config = GSConfig(args)
@@ -1002,7 +1006,7 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
         with open(os.path.join(tmpdirname, "er_basic.yaml"), "w") as f:
             yaml.dump(yaml_object, f)
 
-        # use dummy dist hetero graph and yaml file to build a NC model and save
+        # use dummy dist hetero graph and yaml file to build a ER model and save
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'er_basic.yaml'),
                          local_rank=0)
         config = GSConfig(args)
@@ -1027,7 +1031,7 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
         with open(os.path.join(tmpdirname, "lp_basic.yaml"), "w") as f:
             yaml.dump(yaml_object, f)
 
-        # use dummy dist hetero graph and yaml file to build a NC model and save
+        # use dummy dist hetero graph and yaml file to build a LP model and save
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_basic.yaml'),
                          local_rank=0)
         config = GSConfig(args)
@@ -1039,3 +1043,135 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
 
         # only check decoder output features as other model configurations are the same as nc model,
         assert lp_model.decoder._w_relation.embedding_dim == yaml_object['gsf']['gnn']['hidden_size']
+
+def test_save_load_builtin_models():
+    """ Test save and load built-in GS models
+
+    Built-in models contain: embed_layers, gnn_layers, and decoders. The saved models should
+    include these three modules. And restored models too.
+
+    This function only test the normal cases by following the built-in pipelines of GraphStorm.
+    Because the differences among different tasks are the decoders only. This script just use a
+    NC task.
+    """
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # create a dummy gdsg dist graph
+        g, _, graph_config = generate_dummy_dist_graph(tmpdirname,
+                                                       graph_name='test',
+                                                       return_graph_config=True)
+
+        # create dummy YAML config 
+        yaml_object = create_dummy_config_obj()
+        yaml_object["gsf"]["basic"] = {
+            "backend": "gloo",
+            "ip_config": os.path.join(tmpdirname, "ip.txt"),
+            "part_config": os.path.join(tmpdirname, "part.json"),
+            "model_encoder_type": "rgcn",
+            "eval_frequency": 100,
+            "no_validation": True,
+        }
+        yaml_object["gsf"]["gnn"]["hidden_size"] = 128
+        yaml_object["gsf"]["input"] = {
+            "node_feat_name": ["n0:feat,feat1", "n1:feat,feat1"],
+            "edge_feat_name": ["n0,r0,n1:feat", "n0,r1,n1:feat"]
+        }
+        # create dummpy ip.txt
+        with open(os.path.join(tmpdirname, "ip.txt"), "w") as f:
+            f.write("127.0.0.1\n")
+        # create dummpy part.json
+        with open(os.path.join(tmpdirname, "part.json"), "w") as f:
+            json.dump({
+                "graph_name": "test"
+            }, f)
+
+        # 1. node model
+        yaml_object["gsf"]["node_classification"] ={
+            "target_ntype": "n1",
+            "label_field": "label",
+            "multilabel": False,
+            "num_classes": 10
+        }
+        with open(os.path.join(tmpdirname, "nc_basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+
+        # use dummy dist hetero graph and yaml file to build a NC model and save
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'nc_basic.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        node_model = create_builtin_node_model(g, config, True)
+
+        # save the model
+        model_path = os.path.join(tmpdirname, 'models')
+        node_model.save_model(model_path)
+        
+        assert os.path.exists(os.path.join(model_path, 'model.bin'))
+        
+        # load model dict and check contents
+        checkpoint = th.load(os.path.join(model_path, 'model.bin'),
+                             map_location='cpu',
+                             weights_only=True)
+
+        assert "embed" in checkpoint
+        assert "node_embed" in checkpoint["embed"]
+        assert "edge_embed" in checkpoint["embed"]
+        assert "gnn" in checkpoint
+        assert "decoder" in checkpoint
+
+        # load model back
+        node_model_copy = copy.deepcopy(node_model)
+        if isinstance(node_model_copy.node_input_encoder, DDP):
+            ori_node_input_encoder = node_model_copy.node_input_encoder.module
+        else:
+            ori_node_input_encoder = node_model_copy.node_input_encoder
+        if isinstance(node_model_copy.edge_input_encoder, DDP):
+            ori_edge_input_encoder = node_model_copy.edge_input_encoder.module
+        else:
+            ori_edge_input_encoder = node_model_copy.edge_input_encoder
+        if isinstance(node_model_copy.gnn_encoder, DDP):
+            ori_gnn_encoder = node_model_copy.gnn_encoder.module
+        else:
+            ori_gnn_encoder = node_model_copy.gnn_encoder
+        if isinstance(node_model_copy.decoder, DDP):
+            ori_decoder = node_model_copy.decoder.module
+        else:
+            ori_decoder = node_model_copy.decoder
+
+        # recreate a new node model
+        node_model = create_builtin_node_model(g, config, True)
+        node_model.restore_model(model_path)
+
+        if isinstance(node_model.node_input_encoder, DDP):
+            res_node_input_encoder = node_model.node_input_encoder.module
+        else:
+            res_node_input_encoder = node_model.node_input_encoder
+        if isinstance(node_model.edge_input_encoder, DDP):
+            res_edge_input_encoder = node_model.edge_input_encoder.module
+        else:
+            res_edge_input_encoder = node_model.edge_input_encoder
+        if isinstance(node_model.gnn_encoder, DDP):
+            res_gnn_encoder = node_model.gnn_encoder.module
+        else:
+            res_gnn_encoder = node_model.gnn_encoder
+        if isinstance(node_model.decoder, DDP):
+            res_decoder = node_model.decoder.module
+        else:
+            res_decoder = node_model.decoder
+
+        # compare the copied model against the restored model
+        assert len(dict(ori_node_input_encoder.named_parameters())) == \
+            len(dict(res_node_input_encoder.named_parameters()))
+        assert len(dict(ori_edge_input_encoder.named_parameters())) == \
+            len(dict(res_edge_input_encoder.named_parameters()))
+
+        for p_name, param in res_node_input_encoder.named_parameters():
+            assert np.all(ori_node_input_encoder.get_parameter(p_name).data.numpy() == param.data.numpy())
+        for p_name, param in res_edge_input_encoder.named_parameters():
+            assert np.all(ori_edge_input_encoder.get_parameter(p_name).data.numpy() == param.data.numpy())
+        for p_name, param in res_gnn_encoder.named_parameters():
+            assert np.all(ori_gnn_encoder.get_parameter(p_name).data.numpy() == param.data.numpy())
+        for p_name, param in res_decoder.named_parameters():
+            assert np.all(ori_decoder.get_parameter(p_name).data.numpy() == param.data.numpy())
+
+
+if __name__ == '__main__':
+    test_save_load_builtin_models()

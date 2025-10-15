@@ -1059,8 +1059,10 @@ def create_mlp_node_model(g, lm_config):
 
     feat_size = get_node_feat_size(g, 'feat')
 
-    encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
-    model.set_node_input_encoder(encoder)
+    node_encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
+    model.set_node_input_encoder(node_encoder)
+    edge_encoder = GSEdgeEncoderInputLayer(g, {can_etype: 0 for can_etype in g.canonical_etypes}, embed_size=feat_size)
+    model.set_edge_input_encoder(edge_encoder)
 
     model.set_decoder(EntityClassifier(model.node_input_encoder.out_dims, 3, False))
     return model
@@ -1121,7 +1123,10 @@ def test_gnn_model_load_save():
         np_data = GSgnnData(part_config=part_config,
                             node_feat_field='feat')
     model = create_mlp_node_model(g, lm_config)
-    dense_params = {name: param.data[:] for name, param in model.node_input_encoder.named_parameters()}
+    # add edge encoder to save and load
+    dense_params = {}
+    dense_params['node_params'] = {name: param.data[:] for name, param in model.node_input_encoder.named_parameters()}
+    dense_params['edge_params'] = {name: param.data[:] for name, param in model.edge_input_encoder.named_parameters()}
     sparse_params = [param[0:len(param)] for param in model.node_input_encoder.get_sparse_params()]
     with tempfile.TemporaryDirectory() as tmpdirname:
         model.save_model(tmpdirname)
@@ -1131,13 +1136,16 @@ def test_gnn_model_load_save():
         for param in model1.node_input_encoder.get_sparse_params():
             param[0:len(param)] = param[0:len(param)] + 1
         for name, param in model1.node_input_encoder.named_parameters():
-            assert np.all(dense_params[name].numpy() != param.data.numpy())
+            assert np.all(dense_params['node_params'][name].numpy() != param.data.numpy())
         for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
             assert np.all(sparse_params[i].numpy() != param.numpy())
 
         model1.restore_model(tmpdirname, "dense_embed")
         for name, param in model1.node_input_encoder.named_parameters():
-            assert np.all(dense_params[name].numpy() == param.data.numpy())
+            assert np.all(dense_params['node_params'][name].numpy() == param.data.numpy())
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() == param.data.numpy())
+
         model1.restore_model(tmpdirname, "sparse_embed")
         for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
             assert np.all(sparse_params[i].numpy() == param.numpy())
@@ -3061,51 +3069,51 @@ def test_rgcn_lp_model_forward():
 
 
 if __name__ == '__main__':
-    test_edge_feat_reconstruct()
-    test_node_feat_reconstruct()
+    # test_edge_feat_reconstruct()
+    # test_node_feat_reconstruct()
 
-    test_multi_task_norm_node_embs()
-    test_multi_task_norm_node_embs_dist()
-    test_multi_task_forward()
-    test_multi_task_predict()
-    test_multi_task_mini_batch_predict()
-    test_gen_emb_for_nfeat_recon()
+    # test_multi_task_norm_node_embs()
+    # test_multi_task_norm_node_embs_dist()
+    # test_multi_task_forward()
+    # test_multi_task_predict()
+    # test_multi_task_mini_batch_predict()
+    # test_gen_emb_for_nfeat_recon()
 
-    test_lm_rgcn_node_prediction_with_reconstruct()
-    test_rgcn_node_prediction_with_reconstruct(True)
-    test_rgcn_node_prediction_with_reconstruct(False)
-    test_mini_batch_full_graph_inference(0)
+    # test_lm_rgcn_node_prediction_with_reconstruct()
+    # test_rgcn_node_prediction_with_reconstruct(True)
+    # test_rgcn_node_prediction_with_reconstruct(False)
+    # test_mini_batch_full_graph_inference(0)
 
     test_gnn_model_load_save()
-    test_lm_model_load_save()
-    test_node_mini_batch_gnn_predict()
-    test_edge_mini_batch_gnn_predict()
-    test_hgt_edge_prediction(0)
-    test_hgt_edge_prediction(2)
-    test_hgt_node_prediction()
-    test_rgcn_edge_prediction(2)
-    test_rgcn_node_prediction(None)
-    test_rgat_node_prediction(None)
-    test_sage_node_prediction(None)
-    test_gat_node_prediction('cpu')
-    test_gat_node_prediction('cuda:0')
+    # test_lm_model_load_save()
+    # test_node_mini_batch_gnn_predict()
+    # test_edge_mini_batch_gnn_predict()
+    # test_hgt_edge_prediction(0)
+    # test_hgt_edge_prediction(2)
+    # test_hgt_node_prediction()
+    # test_rgcn_edge_prediction(2)
+    # test_rgcn_node_prediction(None)
+    # test_rgat_node_prediction(None)
+    # test_sage_node_prediction(None)
+    # test_gat_node_prediction('cpu')
+    # test_gat_node_prediction('cuda:0')
 
-    test_edge_classification()
-    test_edge_classification_feat()
-    test_edge_regression()
-    test_node_classification()
-    test_node_regression()
-    test_link_prediction(10000)
-    test_link_prediction_weight()
+    # test_edge_classification()
+    # test_edge_classification_feat()
+    # test_edge_regression()
+    # test_node_classification()
+    # test_node_regression()
+    # test_link_prediction(10000)
+    # test_link_prediction_weight()
 
-    test_mlp_edge_prediction(2)
-    test_mlp_node_prediction()
-    test_mlp_link_prediction()
+    # test_mlp_edge_prediction(2)
+    # test_mlp_node_prediction()
+    # test_mlp_link_prediction()
 
-    test_rgcn_node_prediction_multi_target_ntypes()
-    test_rgat_node_prediction_multi_target_ntypes()
+    # test_rgcn_node_prediction_multi_target_ntypes()
+    # test_rgat_node_prediction_multi_target_ntypes()
 
-    test_edge_model_inference_with_edge_feats()
-    test_rgcn_node_model_forward()
-    test_rgcn_edge_model_forward()
-    test_rgcn_lp_model_forward()
+    # test_edge_model_inference_with_edge_feats()
+    # test_rgcn_node_model_forward()
+    # test_rgcn_edge_model_forward()
+    # test_rgcn_lp_model_forward()

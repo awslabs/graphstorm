@@ -923,7 +923,9 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         return gnn_embs
 
     def save_dense_model(self, model_path):
-        save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder, self.decoder)
+        embed_layers = {'node_embed': self.node_input_encoder,
+                        'edge_embed': self.edge_input_encoder}
+        save_gsgnn_model(model_path, self.gnn_encoder, embed_layers, self.decoder)
 
     def save_sparse_model(self, model_path):
         # Saving sparse embedding is done in a distributed way.
