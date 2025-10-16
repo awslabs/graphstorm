@@ -29,8 +29,8 @@ BUILTIN_EDGE_FEAT_MP_OPS = ["concat", "add", "sub", "mul", "div"]
 GRAPHSTORM_MODEL_EMBED_LAYER = "embed"
 GRAPHSTORM_MODEL_NODE_EMBED_LAYER = "node_embed"
 GRAPHSTORM_MODEL_EDGE_EMBED_LAYER = "edge_embed"
-# v0.5.1: Disable GRAPHSTORM_MODEL_DENSE_EMBED_LAYER because it causes confusion and code complexity but
-# only increase readability for LM input layer save and restore. 
+# v0.5.1: Disable GRAPHSTORM_MODEL_DENSE_EMBED_LAYER because it causes confusion and
+# code complexity but only increase readability for LM input layer save and restore.
 # GRAPHSTORM_MODEL_DENSE_EMBED_LAYER = "dense_embed"
 GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER = "sparse_embed"
 GRAPHSTORM_MODEL_GNN_LAYER = "gnn"
