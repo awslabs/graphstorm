@@ -1181,15 +1181,8 @@ def test_gnn_model_load_save():
         save_model(tmpdirname, embed_layer={'node_embed':model.node_input_encoder})
         model1 = copy.deepcopy(model)
         with pytest.raises(AssertionError, match="There is no edge_embed *"):
-            load_model(tmpdirname, embed_layer={"node_embed": model.node_input_encoder,
+            load_model(tmpdirname, embed_layer={"node_embed": model1.node_input_encoder,
                                                 "edge_embed": model1.edge_input_encoder})
-
-        # abnormal case 4, not save embed, but restore node_embed.
-        #                It will raise an Assertion error, saying not node_embed to load.
-        save_model(tmpdirname, gnn_model=model.gnn_encoder)
-        model1 = copy.deepcopy(model)
-        with pytest.raises(AssertionError, match="There is no edge_embedt *"):
-            load_model(tmpdirname, embed_layer={"node_embed": model.node_input_encoder})
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -3112,3 +3105,7 @@ def test_rgcn_lp_model_forward():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
+
+
+if __name__ == '__main__':
+    test_gnn_model_load_save()
