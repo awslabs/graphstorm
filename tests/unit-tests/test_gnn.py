@@ -1087,6 +1087,8 @@ def create_lm_model(g, lm_config):
 
     encoder = GSPureLMNodeInputLayer(g, lm_config, num_train=0)
     model.set_node_input_encoder(encoder)
+    # not set edge input encoder
+
     return model
 
 def test_mlp_node_prediction():
@@ -1140,7 +1142,7 @@ def test_gnn_model_load_save():
         for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
             assert np.all(sparse_params[i].numpy() != param.numpy())
 
-        model1.restore_model(tmpdirname, "dense_embed")
+        model1.restore_model(tmpdirname)
         for name, param in model1.node_input_encoder.named_parameters():
             assert np.all(dense_params['node_params'][name].numpy() == param.data.numpy())
         for name, param in model1.edge_input_encoder.named_parameters():
@@ -1149,6 +1151,46 @@ def test_gnn_model_load_save():
         model1.restore_model(tmpdirname, "sparse_embed")
         for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
             assert np.all(sparse_params[i].numpy() == param.numpy())
+
+    # test the utils saving and loading assertions
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # normal case, only save and restore node_embed layer
+        save_model(tmpdirname, embed_layer={'node_embed':model.node_input_encoder})
+        model1 = copy.deepcopy(model)
+        # change model1's parameters
+        for param in model1.parameters():
+            param.data[:] += 1
+        load_model(tmpdirname, embed_layer={"node_embed": model1.node_input_encoder})
+
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params['node_params'][name].numpy() == param.data.numpy())
+
+        # abnormal case 1, save edge_embed only.
+        #                It will raise an Assertion error, asking for node_embed to save
+        with pytest.raises(AssertionError, match="The embedding layer must *"):
+            save_model(tmpdirname, embed_layer={'edge_embed':model.edge_input_encoder})
+
+        # abnormal case 2, save node_embed but restore edge_embed layer.
+        #                It will raise an Assertion error, asking for node_embed to restore
+        model1 = copy.deepcopy(model)
+        with pytest.raises(AssertionError, match="The embedding layer must *"):
+            load_model(tmpdirname, embed_layer={"edge_embed": model1.edge_input_encoder})
+
+        # abnormal case 3, save node_embed only, but restore both node_embed and edge_embed layer.
+        #                It will raise an Assertion error, saying no edge_embed to load.
+        save_model(tmpdirname, embed_layer={'node_embed':model.node_input_encoder})
+        model1 = copy.deepcopy(model)
+        with pytest.raises(AssertionError, match="There is no edge_embed *"):
+            load_model(tmpdirname, embed_layer={"node_embed": model.node_input_encoder,
+                                                "edge_embed": model1.edge_input_encoder})
+
+        # abnormal case 4, not save embed, but restore node_embed.
+        #                It will raise an Assertion error, saying not node_embed to load.
+        save_model(tmpdirname, gnn_model=model.gnn_encoder)
+        model1 = copy.deepcopy(model)
+        with pytest.raises(AssertionError, match="There is no edge_embedt *"):
+            load_model(tmpdirname, embed_layer={"node_embed": model.node_input_encoder})
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1170,8 +1212,10 @@ def test_lm_model_load_save():
     for param in model2.parameters():
         param.data[:] += 1
     with tempfile.TemporaryDirectory() as tmpdirname:
-        save_model(tmpdirname, embed_layer=model.node_input_encoder)
-        load_model(tmpdirname, embed_layer=model2.node_input_encoder)
+        embed_layer = {'node_embed': model.node_input_encoder}
+        save_model(tmpdirname, embed_layer=embed_layer)
+        embed_layer2 = {'node_embed': model2.node_input_encoder}
+        load_model(tmpdirname, embed_layer=embed_layer2)
     params1 = {name: param for name, param in model.node_input_encoder.named_parameters()}
     params2 = {name: param for name, param in model2.node_input_encoder.named_parameters()}
     for key in params1:
@@ -1196,8 +1240,10 @@ def test_lm_model_load_save():
         for param in model2.node_input_encoder._lm_models.get_lm_model(ntype).parameters():
             param.data[:] += i + 2
     with tempfile.TemporaryDirectory() as tmpdirname:
-        save_model(tmpdirname, embed_layer=model.node_input_encoder)
-        load_model(tmpdirname, embed_layer=model2.node_input_encoder)
+        embed_layer = {'node_embed': model.node_input_encoder}
+        save_model(tmpdirname, embed_layer=embed_layer)
+        embed_layer2 = {'node_embed': model2.node_input_encoder}
+        load_model(tmpdirname, embed_layer=embed_layer2)
     for ntype in model.node_input_encoder._lm_models.ntypes:
         params1 = model.node_input_encoder._lm_models.get_lm_model(ntype)
         params1 = {name: param for name, param in params1.named_parameters()}
@@ -3066,54 +3112,3 @@ def test_rgcn_lp_model_forward():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
-
-if __name__ == '__main__':
-    # test_edge_feat_reconstruct()
-    # test_node_feat_reconstruct()
-
-    # test_multi_task_norm_node_embs()
-    # test_multi_task_norm_node_embs_dist()
-    # test_multi_task_forward()
-    # test_multi_task_predict()
-    # test_multi_task_mini_batch_predict()
-    # test_gen_emb_for_nfeat_recon()
-
-    # test_lm_rgcn_node_prediction_with_reconstruct()
-    # test_rgcn_node_prediction_with_reconstruct(True)
-    # test_rgcn_node_prediction_with_reconstruct(False)
-    # test_mini_batch_full_graph_inference(0)
-
-    test_gnn_model_load_save()
-    # test_lm_model_load_save()
-    # test_node_mini_batch_gnn_predict()
-    # test_edge_mini_batch_gnn_predict()
-    # test_hgt_edge_prediction(0)
-    # test_hgt_edge_prediction(2)
-    # test_hgt_node_prediction()
-    # test_rgcn_edge_prediction(2)
-    # test_rgcn_node_prediction(None)
-    # test_rgat_node_prediction(None)
-    # test_sage_node_prediction(None)
-    # test_gat_node_prediction('cpu')
-    # test_gat_node_prediction('cuda:0')
-
-    # test_edge_classification()
-    # test_edge_classification_feat()
-    # test_edge_regression()
-    # test_node_classification()
-    # test_node_regression()
-    # test_link_prediction(10000)
-    # test_link_prediction_weight()
-
-    # test_mlp_edge_prediction(2)
-    # test_mlp_node_prediction()
-    # test_mlp_link_prediction()
-
-    # test_rgcn_node_prediction_multi_target_ntypes()
-    # test_rgat_node_prediction_multi_target_ntypes()
-
-    # test_edge_model_inference_with_edge_feats()
-    # test_rgcn_node_model_forward()
-    # test_rgcn_edge_model_forward()
-    # test_rgcn_lp_model_forward()

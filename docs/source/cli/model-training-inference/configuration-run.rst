@@ -179,10 +179,10 @@ GraphStorm provides a set of parameters to control how and where to save and res
     - Yaml: ``restore_model_path: /model/checkpoint/``
     - Argument: ``--restore-model-path /model/checkpoint/``
     - Default value: This parameter must be provided if users want to restore a saved model.
-- **restore_model_layers**: Specify which GraphStorm neural network layers to load. This argument is useful when a user wants to pre-train a GraphStorm model using link prediction and fine-tune the same model on a node or edge classification/regression task. Currently, three neural network layers are supported, i.e., ``embed`` (input layer), ``gnn`` and ``decoder``. A user can select one or more layers to load.
+- **restore_model_layers**: Specify which GraphStorm neural network layers to load. This argument is useful when a user wants to pre-train a GraphStorm model using link prediction and fine-tune the same model on a node or edge classification/regression task. Currently, four neural network layers are supported, i.e., ``node_embed``, ``edge_embed``, ``gnn`` and ``decoder``. A user can select one or more layers to load.
 
-    - Yaml: ``restore_model_layers: embed``
-    - Argument: ``--restore-model-layers embed,gnn``
+    - Yaml: ``restore_model_layers: node_embed,gnn``
+    - Argument: ``--restore-model-layers node_embed,gnn``
     - Default value: Load all neural network layers
 - **restore_optimizer_path**: A path storing optimizer status corresponding to GraphML model parameters. This is used when a user wants to fine-tune a model from a pre-trained one.
 

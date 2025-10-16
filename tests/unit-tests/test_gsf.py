@@ -1138,6 +1138,8 @@ def test_save_load_builtin_models():
 
         # recreate a new node model
         node_model = create_builtin_node_model(g, config, True)
+        for param in node_model.parameters():
+            param.data[:] += 1
         node_model.restore_model(model_path)
 
         if isinstance(node_model.node_input_encoder, DDP):
@@ -1171,7 +1173,3 @@ def test_save_load_builtin_models():
             assert np.all(ori_gnn_encoder.get_parameter(p_name).data.numpy() == param.data.numpy())
         for p_name, param in res_decoder.named_parameters():
             assert np.all(ori_decoder.get_parameter(p_name).data.numpy() == param.data.numpy())
-
-
-if __name__ == '__main__':
-    test_save_load_builtin_models()
