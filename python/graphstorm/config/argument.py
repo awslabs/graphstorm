@@ -1824,12 +1824,16 @@ class GSConfig:
             if model_layers == GRAPHSTORM_MODEL_ALL_LAYERS:
                 logging.warning("Restoring GLEM's LM from checkpoint only support %s and %s.'\
                                 'Setting to: '%s'",
-                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER, GRAPHSTORM_MODEL_EDGE_EMBED_LAYER],
-                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER, GRAPHSTORM_MODEL_EDGE_EMBED_LAYER,
+                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                 GRAPHSTORM_MODEL_EDGE_EMBED_LAYER],
+                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                 GRAPHSTORM_MODEL_EDGE_EMBED_LAYER,
                                  GRAPHSTORM_MODEL_DECODER_LAYER],
-                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER, GRAPHSTORM_MODEL_EDGE_EMBED_LAYER]
+                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                 GRAPHSTORM_MODEL_EDGE_EMBED_LAYER]
                                 )
-                model_layers = [GRAPHSTORM_MODEL_NODE_EMBED_LAYER, GRAPHSTORM_MODEL_EDGE_EMBED_LAYER]
+                model_layers = [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                GRAPHSTORM_MODEL_EDGE_EMBED_LAYER]
         return model_layers
 
     @property
