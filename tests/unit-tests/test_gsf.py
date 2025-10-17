@@ -1047,8 +1047,8 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
 def test_save_load_builtin_models():
     """ Test save and load built-in GS models
 
-    Built-in models contain: embed_layers, gnn_layers, and decoders. The saved models should
-    include these three modules. And restored models too.
+    Built-in models contain: embed_layer (node encoder), edge_embed_layer, gnn_layers, and decoders.
+    The saved models could include all or some of the four modules. And restored models too.
 
     This function only test the normal cases by following the built-in pipelines of GraphStorm.
     Because the differences among different tasks are the decoders only. This script just use a
@@ -1111,9 +1111,8 @@ def test_save_load_builtin_models():
                              map_location='cpu',
                              weights_only=True)
 
-        assert "embed" in checkpoint
-        assert "node_embed" in checkpoint["embed"]
-        assert "edge_embed" in checkpoint["embed"]
+        assert "node_embed" in checkpoint
+        assert "edge_embed" in checkpoint
         assert "gnn" in checkpoint
         assert "decoder" in checkpoint
 
@@ -1136,7 +1135,7 @@ def test_save_load_builtin_models():
         else:
             ori_decoder = node_model_copy.decoder
 
-        # recreate a new node model
+        # recreate a new node model and change its parameters' values
         node_model = create_builtin_node_model(g, config, True)
         for param in node_model.parameters():
             param.data[:] += 1

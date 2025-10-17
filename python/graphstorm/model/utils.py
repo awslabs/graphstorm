@@ -30,7 +30,6 @@ import dgl
 
 
 from ..config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
-                      GRAPHSTORM_MODEL_EMBED_LAYER,
                       GRAPHSTORM_MODEL_GNN_LAYER,
                       GRAPHSTORM_MODEL_DECODER_LAYER,
                       GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
@@ -85,46 +84,42 @@ def sparse_emb_initializer(emb):
     th.nn.init.xavier_uniform_(emb)
     return emb
 
-def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
+def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None, edge_embed_layer=None):
     """ A model should have three parts:
         * GNN model
         * embedding layer, including a node encoder and an edge encoder. 
         The model is only used for inference.
 
     .. versionchanged:: 0.5.1
-        Change the``embed_layer`` in v0.5.1 from a module into a dict with two elements to support
-        saving the edge encoder in a model.
+        Add an ``edge_embed_layer` argument to support saving the edge encoder in a model. And
+        The saved model state dictionary can contain:
+        - 'node_embed': node input encoder
+        - 'edge_embed': edge input encoder
+        - 'gnn'       : gnn encoder
+        - 'decoder'   : decoder
 
     Parameters
     ----------
     model_path: str
-        The path of the model is saved.
+        The path of the model to be saved.
     gnn_model: model
-        A (distributed) model of GNN
-    embed_layer: dict of model
-        A dict of (distributed) model of embedding layers in the format of
-        {'node_embed': GSNodeInputLayer, 'edge_embed': GSEdgeInputLayer}. If embed_layer is not
-        None, it must contain the 'node_embed' field. 'edge_embed' is optional.
+        A (distributed) model of GNN. Default is None.
+    embed_layer: model
+        A (distributed) model of node embedding layer. Default is None.
     decoder: model
-        A (distributed) model of decoder
+        A (distributed) model of decoder. Default is None.
+    edge_embed_layer: model
+        A (distributed) model of edge embedding layer. Default is None.
     """
     model_states = {}
     if gnn_model is not None and isinstance(gnn_model, nn.Module):
         model_states[GRAPHSTORM_MODEL_GNN_LAYER] = gnn_model.state_dict()
     if embed_layer is not None:
-        assert GRAPHSTORM_MODEL_NODE_EMBED_LAYER in embed_layer, ("The embedding layer must "
-                f"contains a key {GRAPHSTORM_MODEL_NODE_EMBED_LAYER} and the values is the "
-                "model's node_input_encodeer.")
-        if isinstance(embed_layer[GRAPHSTORM_MODEL_NODE_EMBED_LAYER], nn.Module):
-            model_states[GRAPHSTORM_MODEL_EMBED_LAYER] = {
-                GRAPHSTORM_MODEL_NODE_EMBED_LAYER: \
-                    embed_layer[GRAPHSTORM_MODEL_NODE_EMBED_LAYER].state_dict()}
-        if GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in embed_layer and \
-            isinstance(embed_layer[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER], nn.Module):
-            model_states[GRAPHSTORM_MODEL_EMBED_LAYER][GRAPHSTORM_MODEL_EDGE_EMBED_LAYER] = \
-                embed_layer[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER].state_dict()
+        model_states[GRAPHSTORM_MODEL_NODE_EMBED_LAYER] = embed_layer.state_dict()
     if decoder is not None and isinstance(decoder, nn.Module):
         model_states[GRAPHSTORM_MODEL_DECODER_LAYER] = decoder.state_dict()
+    if edge_embed_layer is not None:
+        model_states[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER] = edge_embed_layer.state_dict()
 
     os.makedirs(model_path, exist_ok=True)
     # [04/16]: Assume this method is called by rank 0 who can perform chmod
@@ -1518,47 +1513,42 @@ def save_edge_prediction_results(predictions, prediction_path):
         with open(meta_fname, 'w', encoding='utf-8') as f:
             json.dump(meta_info, f, indent=4)
 
-def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
+def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None, edge_embed_layer=None):
     """ Load a complete gnn model.
         A user needs to provide the correct model architectures first.
 
     .. versionchanged:: 0.5.1
-        Change the``embed_layer`` in v0.5.1 from a module into a dict with two elements to support
-        saving the edge encoder in a model.
+        Add an ``edge_embed_layer` argument to support loading the edge encoder in a model. And
+        The saved model state dictionary can contain:
+        - 'node_embed': node input encoder
+        - 'edge_embed': edge input encoder
+        - 'gnn'       : gnn encoder
+        - 'decoder'   : decoder
 
     Parameters
     ----------
     model_path : str
         The path of the folder where the model is saved.
     gnn_model: model
-        GNN model to load
-    embed_layer: dict of model
-        A dict of (distributed) model of embedding layers in the format of
-        {'node_embed': GSNodeInputLayer, 'edge_embed': GSEdgeInputLayer}. If embed_layer is not
-        None, it must contain the 'node_embed' field. If no 'edge_embed' field, will not load.
+        A (distributed) model of GNN. Default is None.
+    embed_layer: model
+        A (distributed) model of node embedding layer. Default is None.
     decoder: model
-        Decoder to load
+        A (distributed) model of decoder. Default is None.
+    edge_embed_layer: model
+        A (distributed) model of edge embedding layer. Default is None.
     """
     if gnn_model is not None:
         gnn_model = gnn_model.module \
             if isinstance(gnn_model, DistributedDataParallel) else gnn_model
-    # check node input layer and edge input layer
     if embed_layer is not None:
-        assert GRAPHSTORM_MODEL_NODE_EMBED_LAYER in embed_layer, ("The embedding layer must "
-                                             f"contains a key {GRAPHSTORM_MODEL_NODE_EMBED_LAYER} "
-                                             "and the values is the model's node_input_encodeer.")
-        embed_layer[GRAPHSTORM_MODEL_NODE_EMBED_LAYER] = \
-            embed_layer[GRAPHSTORM_MODEL_NODE_EMBED_LAYER].module \
-            if isinstance(embed_layer[GRAPHSTORM_MODEL_NODE_EMBED_LAYER], DistributedDataParallel) \
-                else embed_layer[GRAPHSTORM_MODEL_NODE_EMBED_LAYER]
-        if GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in embed_layer:
-            embed_layer[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER] = \
-                embed_layer[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER].module \
-                if isinstance(embed_layer[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER], \
-                    DistributedDataParallel) else embed_layer[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER]
-
-    decoder = decoder.module \
-        if isinstance(decoder, DistributedDataParallel) else decoder
+        embed_layer = embed_layer.module if isinstance(embed_layer, DistributedDataParallel) \
+                else embed_layer
+    if decoder is not None:
+        decoder = decoder.module if isinstance(decoder, DistributedDataParallel) else decoder
+    if edge_embed_layer is not None:
+        edge_embed_layer = edge_embed_layer.module if isinstance(edge_embed_layer, \
+                DistributedDataParallel) else edge_embed_layer
 
     if th.__version__ < "1.13.0":
         logging.warning("torch.load() uses pickle module implicitly, " \
@@ -1571,22 +1561,24 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
         checkpoint = th.load(os.path.join(model_path, 'model.bin'),
                              map_location='cpu',
                              weights_only=True)
-    if GRAPHSTORM_MODEL_GNN_LAYER in checkpoint and gnn_model is not None:
+    if gnn_model is not None:
+        assert GRAPHSTORM_MODEL_GNN_LAYER in checkpoint, "There is no GNN module to be loaded."
         gnn_model.load_state_dict(checkpoint[GRAPHSTORM_MODEL_GNN_LAYER])
-    if GRAPHSTORM_MODEL_EMBED_LAYER in checkpoint and embed_layer is not None:
-        assert GRAPHSTORM_MODEL_NODE_EMBED_LAYER in checkpoint[GRAPHSTORM_MODEL_EMBED_LAYER], \
-            (f"There is no {GRAPHSTORM_MODEL_NODE_EMBED_LAYER} in the saved model to load.")
-        embed_layer[GRAPHSTORM_MODEL_NODE_EMBED_LAYER].load_state_dict(
-            checkpoint[GRAPHSTORM_MODEL_EMBED_LAYER][GRAPHSTORM_MODEL_NODE_EMBED_LAYER],
-            strict=False)
-        if GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in embed_layer:
-            assert GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in checkpoint[GRAPHSTORM_MODEL_EMBED_LAYER], \
-                (f"There is no {GRAPHSTORM_MODEL_EDGE_EMBED_LAYER} in the saved model to load.")
-            embed_layer[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER].load_state_dict(
-                checkpoint[GRAPHSTORM_MODEL_EMBED_LAYER][GRAPHSTORM_MODEL_EDGE_EMBED_LAYER],
-                strict=False)
-    if GRAPHSTORM_MODEL_DECODER_LAYER in checkpoint and decoder is not None:
+    if  embed_layer is not None:
+        assert GRAPHSTORM_MODEL_NODE_EMBED_LAYER in checkpoint, ("There is no node encoder module "
+                                                                 "to be loaded.")
+        embed_layer.load_state_dict(checkpoint[GRAPHSTORM_MODEL_NODE_EMBED_LAYER], strict=False)
+    if decoder is not None:
+        assert GRAPHSTORM_MODEL_DECODER_LAYER in checkpoint, ("There is no decoder module to be "
+                                                              "loaded.")
         decoder.load_state_dict(checkpoint[GRAPHSTORM_MODEL_DECODER_LAYER])
+    if edge_embed_layer is not None:
+        assert GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in checkpoint, ("There is no edge encoder module "
+                                                                 "to be loaded.")
+        # not use strict=False because not use learnable embeddings in edge encoder so far
+        # if later add learnable embeddings, need to add strict=False in this load function.
+        edge_embed_layer.load_state_dict(checkpoint[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER])
+
 
 def load_sparse_emb(target_sparse_emb, ntype_emb_path):
     """load sparse embeddings from ntype_emb_path

@@ -1061,7 +1061,8 @@ def create_mlp_node_model(g, lm_config):
 
     node_encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
     model.set_node_input_encoder(node_encoder)
-    edge_encoder = GSEdgeEncoderInputLayer(g, {can_etype: 0 for can_etype in g.canonical_etypes}, embed_size=feat_size)
+    edge_encoder = GSEdgeEncoderInputLayer(g, {can_etype: 0 for can_etype in g.canonical_etypes},
+                                           embed_size=feat_size)
     model.set_edge_input_encoder(edge_encoder)
 
     model.set_decoder(EntityClassifier(model.node_input_encoder.out_dims, 3, False))
@@ -1129,6 +1130,7 @@ def test_gnn_model_load_save():
     dense_params = {}
     dense_params['node_params'] = {name: param.data[:] for name, param in model.node_input_encoder.named_parameters()}
     dense_params['edge_params'] = {name: param.data[:] for name, param in model.edge_input_encoder.named_parameters()}
+    dense_params['decoder_params'] = {name: param.data[:] for name, param in model.decoder.named_parameters()}
     sparse_params = [param[0:len(param)] for param in model.node_input_encoder.get_sparse_params()]
     with tempfile.TemporaryDirectory() as tmpdirname:
         model.save_model(tmpdirname)
@@ -1152,37 +1154,73 @@ def test_gnn_model_load_save():
         for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
             assert np.all(sparse_params[i].numpy() == param.numpy())
 
-    # test the utils saving and loading assertions
+    # Test the utils saving and loading. The current implementation checks if some modules
+    # exist for loading. If not, raise AssertionError
     with tempfile.TemporaryDirectory() as tmpdirname:
-        # normal case, only save and restore node_embed layer
-        save_model(tmpdirname, embed_layer={'node_embed':model.node_input_encoder})
+        # normal case, only save and restore one module
+        # only save node encoder
+        save_model(tmpdirname, embed_layer=model.node_input_encoder)
         model1 = copy.deepcopy(model)
         # change model1's parameters
         for param in model1.parameters():
             param.data[:] += 1
-        load_model(tmpdirname, embed_layer={"node_embed": model1.node_input_encoder})
-
+        load_model(tmpdirname, embed_layer=model1.node_input_encoder)
+        # node encoder parameters should be the same
         for name, param in model1.node_input_encoder.named_parameters():
             assert np.all(dense_params['node_params'][name].numpy() == param.data.numpy())
+        # the others should be different
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() != param.data.numpy())
+        for name, param in model1.decoder.named_parameters():
+            assert np.all(dense_params['decoder_params'][name].numpy() != param.data.numpy())
 
-        # abnormal case 1, save edge_embed only.
-        #                It will raise an Assertion error, asking for node_embed to save
-        with pytest.raises(AssertionError, match="The embedding layer must *"):
-            save_model(tmpdirname, embed_layer={'edge_embed':model.edge_input_encoder})
-
-        # abnormal case 2, save node_embed but restore edge_embed layer.
-        #                It will raise an Assertion error, asking for node_embed to restore
+        # only save edge encoder
+        save_model(tmpdirname, embed_layer=model.edge_input_encoder)
         model1 = copy.deepcopy(model)
-        with pytest.raises(AssertionError, match="The embedding layer must *"):
-            load_model(tmpdirname, embed_layer={"edge_embed": model1.edge_input_encoder})
+        # change model1's parameters
+        for param in model1.parameters():
+            param.data[:] += 1
+        load_model(tmpdirname, embed_layer=model1.edge_input_encoder)
+        # edge encoder parameters should be the same
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() == param.data.numpy())
+        # the others should be different
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params['node_params'][name].numpy() != param.data.numpy())
+        for name, param in model1.decoder.named_parameters():
+            assert np.all(dense_params['decoder_params'][name].numpy() != param.data.numpy())
 
-        # abnormal case 3, save node_embed only, but restore both node_embed and edge_embed layer.
-        #                It will raise an Assertion error, saying no edge_embed to load.
-        save_model(tmpdirname, embed_layer={'node_embed':model.node_input_encoder})
+        # this mlp model does not have gnn model, test no gnn model to be loaded
+        with pytest.raises(AssertionError, match="There is no GNN module *"):
+            load_model(tmpdirname, gnn_model=model1)
+
+        # only save decoder
+        save_model(tmpdirname, embed_layer=model.decoder)
         model1 = copy.deepcopy(model)
-        with pytest.raises(AssertionError, match="There is no edge_embed *"):
-            load_model(tmpdirname, embed_layer={"node_embed": model1.node_input_encoder,
-                                                "edge_embed": model1.edge_input_encoder})
+        # change model1's parameters
+        for param in model1.parameters():
+            param.data[:] += 1
+        load_model(tmpdirname, embed_layer=model1.decoder)
+        # decoder parameters should be the same
+        for name, param in model1.decoder.named_parameters():
+            assert np.all(dense_params['decoder_params'][name].numpy() == param.data.numpy())
+        # the others should be different
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params['node_params'][name].numpy() != param.data.numpy())
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() != param.data.numpy())
+
+        # abnormal cases, loading unsaved modules
+        #                It will raise an Assertion error, saying no * module to be loaded.
+        save_model(tmpdirname, gnn_model=model)
+        with pytest.raises(AssertionError, match="There is no node encoder module  *"):
+            load_model(tmpdirname, embed_layer=model1.node_input_encoder)
+
+        with pytest.raises(AssertionError, match="There is no edge encoder module  *"):
+            load_model(tmpdirname, edge_embed_layer=model1.edge_input_encoder)
+
+        with pytest.raises(AssertionError, match="There is no decoder module  *"):
+            load_model(tmpdirname, decoder=model1.decoder)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1205,10 +1243,8 @@ def test_lm_model_load_save():
     for param in model2.parameters():
         param.data[:] += 1
     with tempfile.TemporaryDirectory() as tmpdirname:
-        embed_layer = {'node_embed': model.node_input_encoder}
-        save_model(tmpdirname, embed_layer=embed_layer)
-        embed_layer2 = {'node_embed': model2.node_input_encoder}
-        load_model(tmpdirname, embed_layer=embed_layer2)
+        save_model(tmpdirname, embed_layer=model.node_input_encoder)
+        load_model(tmpdirname, embed_layer=model2.node_input_encoder)
     params1 = {name: param for name, param in model.node_input_encoder.named_parameters()}
     params2 = {name: param for name, param in model2.node_input_encoder.named_parameters()}
     for key in params1:
@@ -1233,10 +1269,8 @@ def test_lm_model_load_save():
         for param in model2.node_input_encoder._lm_models.get_lm_model(ntype).parameters():
             param.data[:] += i + 2
     with tempfile.TemporaryDirectory() as tmpdirname:
-        embed_layer = {'node_embed': model.node_input_encoder}
-        save_model(tmpdirname, embed_layer=embed_layer)
-        embed_layer2 = {'node_embed': model2.node_input_encoder}
-        load_model(tmpdirname, embed_layer=embed_layer2)
+        save_model(tmpdirname, embed_layer=model.node_input_encoder)
+        load_model(tmpdirname, embed_layer=model2.node_input_encoder)
     for ntype in model.node_input_encoder._lm_models.ntypes:
         params1 = model.node_input_encoder._lm_models.get_lm_model(ntype)
         params1 = {name: param for name, param in params1.named_parameters()}
@@ -3106,6 +3140,3 @@ def test_rgcn_lp_model_forward():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-
-if __name__ == '__main__':
-    test_gnn_model_load_save()

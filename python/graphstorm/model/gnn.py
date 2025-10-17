@@ -751,23 +751,19 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         of this public facing API.
 
         """
-        # add support to load edge_input_encoder and revise the condition judgement
         model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
-        # load dense models for gnn_encoder, node/edge_input_encoder and decoder
-        embed_layers = {}
-        if GRAPHSTORM_MODEL_NODE_EMBED_LAYER in model_layer_to_load:
-            embed_layers[GRAPHSTORM_MODEL_NODE_EMBED_LAYER] = self.node_input_encoder
-        if GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in model_layer_to_load:
-            embed_layers[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER] = self.edge_input_encoder
 
         # call the load function
         load_gsgnn_model(restore_model_path,
                          self.gnn_encoder \
                             if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
-                         embed_layers if embed_layers else None,
+                         self.node_input_encoder \
+                             if GRAPHSTORM_MODEL_NODE_EMBED_LAYER in model_layer_to_load else None,
                          self.decoder \
-                            if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
+                            if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None,
+                         self.edge_input_encoder \
+                             if GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in model_layer_to_load else None)
 
     def restore_sparse_model(self, restore_model_path):
         # restore sparse embeddings for node_input_encoder.
@@ -936,12 +932,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
     def save_dense_model(self, model_path):
         """ Save dense model layers.
         
-        From v0.5.1 change the behavior of embed layer to include node encoder and/or edge encoder.
+        In v0.5.1, added edge_embed_layer to edge encoder for model saving.
         """
-        embed_layers = {GRAPHSTORM_MODEL_NODE_EMBED_LAYER: self.node_input_encoder}
-        if self.edge_input_encoder is not None:
-            embed_layers[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER] = self.edge_input_encoder
-        save_gsgnn_model(model_path, self.gnn_encoder, embed_layers, self.decoder)
+        save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder,
+                         self.decoder, self.edge_input_encoder)
 
     def save_sparse_model(self, model_path):
         # Saving sparse embedding is done in a distributed way.
