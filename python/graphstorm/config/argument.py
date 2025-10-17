@@ -1539,15 +1539,22 @@ class GSConfig:
               - A dict of list of FeatureGroup
         """
         # pylint: disable=no-member
+        # per node type feature
+        fname_dict = {}
+
+        # List of dict
+        if self.node_lm_configs:
+            for lm_config in self.node_lm_configs:
+                for node_type in lm_config['node_types']:
+                    fname_dict[node_type] = [FeatureGroup(
+                            feature_group=['lm'])]
+
         if hasattr(self, "_node_feat_name"):
             feat_names = self._node_feat_name
             if len(feat_names) == 1 and \
                 ":" not in feat_names[0]:
                 # global feat_name
                 return feat_names[0]
-
-            # per node type feature
-            fname_dict = {}
 
             for feat_name in feat_names:
                 feat_info = feat_name.split(":")
@@ -1583,9 +1590,8 @@ class GSConfig:
                     logging.debug("%s nodes has %s features",
                                 ntype, fname_dict[ntype])
             return fname_dict
-
         # By default, return None which means there is no node feature
-        return None
+        return fname_dict if fname_dict else None
 
     def _check_fanout(self, fanout, fot_name):
         try:

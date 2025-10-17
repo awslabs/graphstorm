@@ -745,7 +745,6 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                  force_no_embeddings=None):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
-
         lm_models = LMModels(g, node_lm_configs, num_train, lm_infer_batch_size)
         adjust_feat_size = dict(feat_size)
         for lm_config in node_lm_configs:
@@ -874,7 +873,6 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
         input_lm_feats = input_feats['lm']
         lm_feats = self._lm_models(input_nodes, input_lm_feats, lm_emb_cache=cache)
-
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
