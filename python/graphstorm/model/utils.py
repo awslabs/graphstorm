@@ -1562,7 +1562,7 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None, edge_
                              map_location='cpu',
                              weights_only=True)
 
-    # some modules are non-parameterized, e.g., the Dot-Product decoder, hence 
+    # some modules are non-parameterized, e.g., the Dot-Product decoder, hence
     # they were not saved, and no need to do assert check.
     if gnn_model is not None:
         if isinstance(gnn_model, nn.Module):
@@ -1570,18 +1570,18 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None, edge_
         gnn_model.load_state_dict(checkpoint[GRAPHSTORM_MODEL_GNN_LAYER])
     if  embed_layer is not None:
         if isinstance(embed_layer, nn.Module):
-            assert GRAPHSTORM_MODEL_NODE_EMBED_LAYER in checkpoint, ("There is no node encoder module "
-                                                                    "to be loaded.")
+            assert GRAPHSTORM_MODEL_NODE_EMBED_LAYER in checkpoint, ("There is no node encoder "
+                                                                     "module to be loaded.")
         embed_layer.load_state_dict(checkpoint[GRAPHSTORM_MODEL_NODE_EMBED_LAYER], strict=False)
     if decoder is not None:
         if isinstance(decoder, nn.Module):
-            assert GRAPHSTORM_MODEL_DECODER_LAYER in checkpoint, ("There is no decoder module to be "
-                                                                  "loaded.")
+            assert GRAPHSTORM_MODEL_DECODER_LAYER in checkpoint, ("There is no decoder module to "
+                                                                  "be loaded.")
         decoder.load_state_dict(checkpoint[GRAPHSTORM_MODEL_DECODER_LAYER])
     if edge_embed_layer is not None:
         if isinstance(edge_embed_layer, nn.Module):
-            assert GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in checkpoint, ("There is no edge encoder module "
-                                                                    "to be loaded.")
+            assert GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in checkpoint, ("There is no edge encoder "
+                                                                     "module to be loaded.")
         # not use strict=False because not use learnable embeddings in edge encoder so far
         # if later add learnable embeddings, need to add strict=False in this load function.
         edge_embed_layer.load_state_dict(checkpoint[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER])
