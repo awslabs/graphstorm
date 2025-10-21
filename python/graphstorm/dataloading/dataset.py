@@ -50,8 +50,7 @@ def split_full_edge_list(g, etype, rank):
     return th.arange(start, end)
 
 def prepare_batch_input(g, input_nodes,
-                        dev='cpu', feat_field='feat',
-                        lm_feat_ntypes=None):
+                        dev='cpu', feat_field='feat'):
     """ Prepare minibatch input features
 
     Note: The output is stored in dev.
@@ -71,8 +70,6 @@ def prepare_batch_input(g, input_nodes,
         Device to put output in.
     feat_field: str or dict of list of str or dict of list of FeatureGroup
         Fields to extract features.
-    lm_feat_ntypes: list[str]
-        List if node types with language model features.
 
     Return:
     -------
