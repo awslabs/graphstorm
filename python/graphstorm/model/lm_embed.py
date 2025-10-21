@@ -81,11 +81,6 @@ class LMModels(nn.Module):
             lm_ntypes = lm_config["node_types"]
             for ntype in lm_ntypes:
                 self._lm_model_names[ntype] = lm_config["model_name"]
-            # lm_node_feats = get_lm_node_feats(g, lm_model, lm_ntypes)
-            # for ntype, feats in lm_node_feats.items():
-            #     assert ntype not in self._lm_node_feats, \
-            #             f"More than one BERT model runs on Node {ntype}."
-            #     self._lm_node_feats[ntype] = feats
             # We should sort the node type list before converting it to the key.
             lm_ntypes.sort()
             key = ','.join(lm_ntypes)
@@ -121,8 +116,9 @@ class LMModels(nn.Module):
             # TODO: Release the bert cache properly
             #       This may need support from DistDGL
             # Need bert training
+            print(input_lm_feats)
             for ntype in self.ntypes:
-                lm_node_feat = self.get_lm_node_feat(ntype)
+                lm_node_feat = input_lm_feats[ntype]
                 lm_model = self.get_lm_model(ntype)
                 if ntype in input_nodes:
                     input_lm_feat = {
@@ -194,7 +190,8 @@ class LMModels(nn.Module):
             if ntype in key.split(','):
                 model_key = key
         if ntype not in self._lm_node_feats:
-            self._lm_node_feats[ntype] = get_lm_node_feats(self._g, self._lm_models[model_key], [ntype])[ntype]
+            self._lm_node_feats[ntype] = \
+                get_lm_node_feats(self._g, self._lm_models[model_key], [ntype])[ntype]
         return self._lm_node_feats[ntype]
 
     def get_feat_size(self, ntype):
@@ -665,7 +662,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     """ The node encoder input layer with language model (LM) supported for all nodes
     in a heterogeneous graph.
 
-    This input layer treates node features in the same way as the ``GSNodeEncoderInputLayer``.
+    This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
     In addition, the input layer adds LM layer on nodes with textual features and
     generate LM embeddings using the LM model. The LM embeddings are then added as another type
     of node feature.
