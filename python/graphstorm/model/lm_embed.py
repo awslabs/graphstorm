@@ -186,7 +186,7 @@ class LMModels(nn.Module):
         dict : the node features of the node type.
         """
         model_key = None
-        for key, value in self._lm_models.items():
+        for key, _ in self._lm_models.items():
             if ntype in key.split(','):
                 model_key = key
         if ntype not in self._lm_node_feats:
