@@ -88,7 +88,7 @@ class LMModels(nn.Module):
             for ntype in lm_ntypes:
                 self._lm_map[ntype] = key
 
-    def forward(self, input_nodes, input_lm_feats, lm_emb_cache=None):
+    def forward(self, input_nodes, input_lm_feats=None, lm_emb_cache=None):
         """ Do language model forward pass on input_nodes
 
         Parameters
@@ -96,12 +96,11 @@ class LMModels(nn.Module):
         input_nodes: dict
             Input nodes for different node types
         input_lm_feats: dict
-            Input Language Model Features
+            Input Language Model Tokens
         lm_emb_cache: dict
             Language model embedding cache for different node types
         """
         lm_feats = {}
-
         # Get the device from lm_models
         # The cached BERT embedding should be moved to the same device
         # as lm_models.
@@ -116,16 +115,18 @@ class LMModels(nn.Module):
             # TODO: Release the bert cache properly
             #       This may need support from DistDGL
             # Need bert training
-            print(input_lm_feats)
-            for ntype in self.ntypes:
-                lm_node_feat = input_lm_feats[ntype]
-                lm_model = self.get_lm_model(ntype)
-                if ntype in input_nodes:
-                    input_lm_feat = {
-                            fname: feat[input_nodes[ntype]].to(dev) \
-                                    for fname, feat in lm_node_feat.items()
-                        }
-                    lm_feats.update(lm_model([ntype], {ntype: input_lm_feat}))
+            if input_lm_feats:
+                for ntype in self.ntypes:
+                    if ntype not in input_lm_feats:
+                        continue
+                    lm_node_feat = input_lm_feats[ntype]
+                    lm_model = self.get_lm_model(ntype)
+                    if ntype in input_nodes:
+                        input_lm_feat = {
+                                fname: feat[input_nodes[ntype]].to(dev) \
+                                        for fname, feat in lm_node_feat.items()
+                            }
+                        lm_feats.update(lm_model([ntype], {ntype: input_lm_feat}))
         return lm_feats
 
     def get_lm_model(self, ntype):
@@ -632,7 +633,10 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        input_lm_feats = input_feats['lm']
+        if "lm" in input_feats:
+            input_lm_feats = input_feats['lm']
+        else:
+            input_lm_feats = None
         embs = self._lm_models(input_nodes, input_lm_feats, lm_emb_cache=cache)
 
         # This module is only used for computing the BERT embeddings on the node types
@@ -868,7 +872,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         # Compute language model features first
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        input_lm_feats = input_feats['lm']
+        # input_feats can be None
+        input_lm_feats = input_feats.get('lm')
         lm_feats = self._lm_models(input_nodes, input_lm_feats, lm_emb_cache=cache)
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
@@ -884,5 +889,4 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                     input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
                 input_feats[ntype] = lm_feat
-
         return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)

@@ -82,11 +82,6 @@ def prepare_batch_input(g, input_nodes,
             [feat_field] if isinstance(feat_field, str) \
             else feat_field[ntype] if ntype in feat_field else None
 
-        if feat_name and 'lm' in feat_name:
-            feat_name.remove('lm')
-            if len(feat_name) == 0:
-                feat_name = None
-
         if feat_name is not None:
             if isinstance(feat_name[0], FeatureGroup):
                 feats = []
@@ -97,6 +92,8 @@ def prepare_batch_input(g, input_nodes,
                 for feat_group in feat_name:
                     if feat_group == FeatureGroup(feature_group=['lm']):
                         continue
+                    print("Feat Group:")
+                    print(feat_group)
                     gfeat = prepare_batch_input(g=g,
                         input_nodes={ntype:nid},
                         dev=dev,
@@ -107,6 +104,8 @@ def prepare_batch_input(g, input_nodes,
                 # concatenate multiple features together
                 feats = []
                 for fname in feat_name:
+                    if fname == 'lm':
+                        continue
                     assert fname in g.nodes[ntype].data, \
                         f"{fname} does not exist as a node feature of {ntype}"
                     data = g.nodes[ntype].data[fname]
@@ -116,22 +115,23 @@ def prepare_batch_input(g, input_nodes,
                         data = data[nid].to(dev)
                     feats.append(data)
 
-                assert len(feats) > 0, \
-                    "No feature exists in the graph. " \
-                    f"Expecting the graph have following node features {feat_name}."
+                if feat_name != ['lm']:
+                    assert len(feats) > 0, \
+                        "No feature exists in the graph. " \
+                        f"Expecting the graph have following node features {feat_name}."
 
-                if len(feats[0].shape) == 1:
-                    # The feature is 1D. It will be features for label
-                    assert len(feats) == 1, \
-                        "For 1D features, we assume they are label features." \
-                        f"Please access them 1 by 1, but get {feat_name}"
-                    feat[ntype] = feats[0]
-                else:
-                    # The feature is 2D
-                    feat[ntype] = th.cat(feats, dim=1)
+                    if len(feats[0].shape) == 1:
+                        # The feature is 1D. It will be features for label
+                        assert len(feats) == 1, \
+                            "For 1D features, we assume they are label features." \
+                            f"Please access them 1 by 1, but get {feat_name}"
+                        feat[ntype] = feats[0]
+                    else:
+                        # The feature is 2D
+                        feat[ntype] = th.cat(feats, dim=1)
 
         lm_feat = None
-        if feat_name and FeatureGroup(feature_group=['lm']) in feat_name:
+        if feat_name and (FeatureGroup(feature_group=['lm']) in feat_name or 'lm' in feat_name):
             lm_feat = {}
             for lm_feat_type in [TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX]:
                 if lm_feat_type in g.nodes[ntype].data:
