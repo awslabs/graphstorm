@@ -131,7 +131,7 @@ def prepare_batch_input(g, input_nodes,
                     feat[ntype] = th.cat(feats, dim=1)
 
         lm_feat = None
-        if FeatureGroup(feature_group=['lm']) in feat_name:
+        if feat_name and FeatureGroup(feature_group=['lm']) in feat_name:
             lm_feat = {}
             for lm_feat_type in [TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX]:
                 if lm_feat_type in g.nodes[ntype].data:
