@@ -92,8 +92,6 @@ def prepare_batch_input(g, input_nodes,
                 for feat_group in feat_name:
                     if feat_group == FeatureGroup(feature_group=['lm']):
                         continue
-                    print("Feat Group:")
-                    print(feat_group)
                     gfeat = prepare_batch_input(g=g,
                         input_nodes={ntype:nid},
                         dev=dev,
