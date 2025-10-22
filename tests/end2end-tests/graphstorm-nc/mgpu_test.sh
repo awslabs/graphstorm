@@ -293,7 +293,7 @@ mkdir -p /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM
 ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/LM
 ln -s /data/gsgnn_nc_ml_text/epoch-$best_epoch /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM/GNN
 
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM --restore-model-layers embed --inference --save-prediction-path /data/gsgnn_nc_ml_text/prediction/
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM --restore-model-layers node_embed --inference --save-prediction-path /data/gsgnn_nc_ml_text/prediction/
 
 error_and_exit $?
 
@@ -441,11 +441,11 @@ fi
 
 best_epoch=$(ls /data/gsgnn_nc_ml_text/ | grep epoch)
 echo "**************dataset: MovieLens node classification, GLEM loads GLEM trained checkpoints, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml  --restore-model-path /data/gsgnn_nc_ml_text/$best_epoch --restore-model-layers embed,decoder --inference --use-mini-batch-infer false --logging-file /tmp/full_graph_inf.txt
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml  --restore-model-path /data/gsgnn_nc_ml_text/$best_epoch --restore-model-layers node_embed,decoder --inference --use-mini-batch-infer false --logging-file /tmp/full_graph_inf.txt
 
 error_and_exit $?
 
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml  --restore-model-path /data/gsgnn_nc_ml_text/$best_epoch --restore-model-layers embed,decoder --inference --use-mini-batch-infer true --logging-file /tmp/mini_batch_inf.txt
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml  --restore-model-path /data/gsgnn_nc_ml_text/$best_epoch --restore-model-layers node_embed,decoder --inference --use-mini-batch-infer true --logging-file /tmp/mini_batch_inf.txt
 
 error_and_exit $?
 
