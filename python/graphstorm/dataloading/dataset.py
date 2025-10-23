@@ -393,6 +393,8 @@ class GSgnnData():
                             f"Data available for \"{ntype}\": {g.nodes[ntype].data.keys()}"
                         )
                 else:
+                    if feat_name == 'lm':
+                        continue
                     assert feat_name in g.nodes[ntype].data, (
                         f"The feature \"{feat_name}\" "
                         f"does not exist for the node type \"{ntype}\"."

@@ -390,7 +390,8 @@ def check_node_prediction_with_reconstruct(model, data, construct_feat_ntype, tr
         Train data
     """
     target_ntype = train_ntypes[0]
-    device = "cuda:0"
+    # device = "cuda:0"
+    device = 'cpu'
     g = data.g
     if data.node_feat_field is None:
         feat_ntype = []
@@ -611,11 +612,13 @@ def test_lm_rgcn_node_prediction_with_reconstruct():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         lm_configs, _, _, _, g, part_config = create_lm_graph(tmpdirname, text_ntype='n1')
+        # data_field = {"n1": ['input_ids', 'valid_len']}
+        node_feat_field = {'n1': ['lm']}
         np_data = GSgnnData(part_config=part_config,
-                            lm_feat_ntypes=['n1'])
+                            lm_feat_ntypes=['n1'], node_feat_field=node_feat_field)
         np_data._g = g
     model = create_rgcn_node_model_with_reconstruct(np_data, ['n0'], lm_configs=lm_configs)
-    check_node_prediction_with_reconstruct(model, np_data, ['n0'], ['n1'])
+    check_node_prediction_with_reconstruct(model, np_data, ['n0'], ['n1'], node_feat_field)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
