@@ -1010,7 +1010,8 @@ def create_mlp_edge_model(g, lm_config, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
     feat_size = get_node_feat_size(g, 'feat')
-
+    print(feat_size)
+    exit(-1)
     encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
     model.set_node_input_encoder(encoder)
 
@@ -1036,7 +1037,7 @@ def test_mlp_edge_prediction(num_ffn_layers):
     with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
         ep_data = GSgnnData(part_config=part_config,
-                            node_feat_field='feat')
+                            node_feat_field={'n0': ['feat']})
         g.edges['r1'].data['label']= ep_data.g.edges['r1'].data['label']
     model = create_mlp_edge_model(g, lm_config, num_ffn_layers=num_ffn_layers)
     assert model.gnn_encoder is None
