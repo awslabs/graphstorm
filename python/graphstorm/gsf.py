@@ -293,8 +293,11 @@ def get_node_feat_size(g, node_feat_names):
 
                     fsize = 0
                     for f_name in feat_group:
+                        if f_name == 'lm':
+                            continue
                         fsize += get_fsize(f_name, ntype)
-                    feat_group_sizes.append(fsize)
+                    if fsize != 0:
+                        feat_group_sizes.append(fsize)
                 node_feat_size[ntype] = FeatureGroupSize(
                     feature_group_sizes=feat_group_sizes)
             else:
@@ -304,9 +307,10 @@ def get_node_feat_size(g, node_feat_names):
                     # we do not change the data format
                     # of node_feat_size when ntype has
                     # only one feature group.
+                    if fname == 'lm':
+                        continue
                     fsize += get_fsize(fname, ntype)
                 node_feat_size[ntype] = fsize
-
     return node_feat_size
 
 def get_edge_feat_size(g, edge_feat_names):

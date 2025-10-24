@@ -644,7 +644,7 @@ def test_lm_infer():
     # Bert + feat for n0
     nn.init.eye_(layer.input_projs['n0'])
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
-                                                   feat_field={'n0' : ['feat']})
+                                                   feat_field={'n0' : ['feat', 'lm']})
     ntype = layer._lm_models.ntypes[0]
     lm_model = layer._lm_models.get_lm_model(ntype).lm_model
     lm_model.eval()
@@ -685,7 +685,7 @@ def test_lm_embed(num_train):
     nn.init.eye_(layer.input_projs['n0'])
     nn.init.eye_(layer.proj_matrix["n1"])
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
-                                                   feat_field={'n0' : ['feat']})
+                                                   feat_field={'n0' : ['feat', 'lm']})
     ntype = layer._lm_models.ntypes[0]
     lm_model = layer._lm_models.get_lm_model(ntype).lm_model
     lm_model.eval()
@@ -731,7 +731,7 @@ def test_lm_embed2(num_train):
         assert len(layer.lm_emb_cache) == 0
 
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
-                                                   feat_field={'n0' : ['feat']})
+                                                   feat_field={'n0' : ['feat', 'lm']})
 
     ntype = layer._lm_models.ntypes[0]
     lm_model = layer._lm_models.get_lm_model(ntype).lm_model
@@ -766,7 +766,7 @@ def test_pure_lm_embed(num_train):
 
     # GSPureLMNodeInputLayer will ignore input feat
     embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
-                                                   feat_field={'n0' : ['feat']})
+                                                   feat_field={'n0' : ['feat', 'lm'], 'n1': ['lm']})
 
     ntype = layer._lm_models.ntypes[0]
     lm_model = layer._lm_models.get_lm_model(ntype).lm_model.eval()
@@ -797,7 +797,7 @@ def test_lm_embed_warmup(dev):
                                       world_size=1)
     bert_model_name = "bert-base-uncased"
     max_seq_length = 8
-    num_train = 10
+    num_train = 100
     lm_config = [{"lm_type": "bert",
                   "model_name": bert_model_name,
                   "gradient_checkpoint": True,
@@ -806,7 +806,7 @@ def test_lm_embed_warmup(dev):
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat', 'lm']})
     input_text = ["Hello world!"]
     tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
     input_ids, valid_len, attention_mask, _ = \
@@ -817,13 +817,12 @@ def test_lm_embed_warmup(dev):
 
     g.nodes['n0'].data[TOKEN_IDX] = input_ids
     g.nodes['n0'].data[ATT_MASK_IDX] = valid_len
-
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size,
                                       2, num_train=num_train)
     layer = layer.to(dev)
     layer.freeze(g)
     assert len(layer.lm_emb_cache) > 0
-    feat_field={'n0' : ['feat']}
+    feat_field={'n0' : ['feat', 'lm']}
     input_nodes = {"n0": th.arange(0, 10, dtype=th.int64)}
     layer.eval()
     feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
@@ -870,7 +869,7 @@ def test_lm_infer_with_feature_group(dev):
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_field={'n0' : [FeatureGroup(["feat"]),
+    feat_field={'n0' : [FeatureGroup(["feat"]), FeatureGroup(["lm"]),
                         FeatureGroup(["feat", "feat1"])]}
     feat_size = get_node_feat_size(g, feat_field)
     input_text = ["Hello world!"]
@@ -896,10 +895,11 @@ def test_lm_infer_with_feature_group(dev):
     input_nodes = {"n0": th.arange(0, 10, dtype=th.int64)}
     layer.eval()
     feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
+    input_lm_feats = feat['lm']
     relu = nn.ReLU()
 
     with th.no_grad():
-        lm_feats = layer._lm_models(input_nodes)["n0"]
+        lm_feats = layer._lm_models(input_nodes, input_lm_feats)["n0"]
         embed_n0_0 = feat["n0"][0] @ layer.feat_group_projs['n0'][0][0].weight.T
         embed_n0_0 = relu(embed_n0_0)
         embed_n0_1 = feat["n0"][1] @ layer.feat_group_projs['n0'][1][0].weight.T
@@ -909,7 +909,6 @@ def test_lm_infer_with_feature_group(dev):
         embed_n0 = th.cat([embed_n0_0.to(dev),
                            embed_n0_1.to(dev),
                            lm_feats.to(dev)], dim=1)
-
         embed_n0 = embed_n0 @ layer.proj_matrix["n0"]
         emb_out = layer(feat, input_nodes)
 
