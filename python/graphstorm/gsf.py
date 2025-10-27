@@ -1481,6 +1481,52 @@ def create_lp_evaluator(config):
 
 
 ####################### Functions for real-time inference #############################
+def restore_hf_model(model_dir):
+    """Extract huggingface model from GSGnnModel
+
+    This method would extract the huggingface model from GSgnnModel.
+    """
+        # Load the model
+    logging.info(f"Loading: {model_path}")
+    state_dict = torch.load(model_path, map_location='cpu')['embed']
+    
+    # Find all node types with BERT models
+    node_types = set()
+    for key in state_dict.keys():
+        if 'lm_model.' in key:
+            # Extract node types from key like: '_lm_models._lm_models.author,paper,subject.lm_model...'
+            parts = key.split('.')
+            for part in parts:
+                if ',' in part:  # Found the node types part
+                    types = part.split(',')
+                    node_types.update(types)
+                    break
+    
+    # Extract BERT weights for each node type
+    node_type_models = {}
+    
+    for node_type in node_types:
+        bert_weights = {}
+        
+        for key, tensor in state_dict.items():
+            if 'lm_model.' in key and node_type in key:
+                # Remove GraphStorm prefix, keep only BERT part
+                bert_key = key.split('lm_model.')[1]
+                bert_weights[bert_key] = tensor
+        
+        if bert_weights:
+            # Save individual model
+            filename = f'bert_model_{node_type}.bin'
+            torch.save(bert_weights, filename)
+            node_type_models[node_type] = bert_weights
+            
+            # Show stats
+            layers = len([k for k in bert_weights.keys() if 'encoder.layer.' in k])
+            vocab_size = bert_weights['embeddings.word_embeddings.weight'].shape[0]
+            hidden_size = bert_weights['embeddings.word_embeddings.weight'].shape[1]
+    
+    return node_type_models
+
 
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     """ Restores a trained GraphStorm model from model artifacts
@@ -1549,5 +1595,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
 
     model.restore_model(model_dir)
 
-    # return all three artifacts back to model_fn()
-    return model, graph_metadata_json, gs_config
+    bert_model = restore_hf_model(model_dir)
+    # return all four artifacts back to model_fn()
+    return model, graph_metadata_json, gs_config, bert_model
+
