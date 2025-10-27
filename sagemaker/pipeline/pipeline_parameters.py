@@ -250,15 +250,12 @@ class InferenceConfig:
         Whether to save embeddings to S3 during inference.
     save_predictions : bool
         Whether to save predictions to S3 during inference.
-    inference_model_snapshot : str
-        Which model snapshot to choose to run inference with.
     inference_yaml_file : str
         S3 path to inference YAML configuration file.
     """
 
     save_embeddings: bool
     save_predictions: bool
-    inference_model_snapshot: str
     inference_yaml_file: str
 
 
@@ -870,7 +867,6 @@ def parse_pipeline_args() -> PipelineArgs:
         inference_config=InferenceConfig(
             save_predictions=args.save_predictions,
             save_embeddings=args.save_embeddings,
-            inference_model_snapshot=args.inference_model_snapshot,
             inference_yaml_file=args.inference_yaml_s3,
         ),
         script_paths=ScriptPaths(

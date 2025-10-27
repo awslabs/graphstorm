@@ -28,7 +28,13 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
-from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
+
+from ..config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
+                      GRAPHSTORM_MODEL_GNN_LAYER,
+                      GRAPHSTORM_MODEL_DECODER_LAYER,
+                      GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                      GRAPHSTORM_MODEL_EDGE_EMBED_LAYER)
+
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import (
     get_rank,
@@ -78,30 +84,42 @@ def sparse_emb_initializer(emb):
     th.nn.init.xavier_uniform_(emb)
     return emb
 
-def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
+def save_model(model_path, gnn_model=None, embed_layer=None, decoder=None, edge_embed_layer=None):
     """ A model should have three parts:
         * GNN model
-        * embedding layer
+        * embedding layer, including a node encoder and an edge encoder. 
         The model is only used for inference.
 
-        Parameters
-        ----------
-        model_path: str
-            The path of the model is saved.
-        gnn_model: model
-            A (distributed) model of GNN
-        embed_layer: model
-            A (distributed) model of embedding layers.
-        decoder: model
-            A (distributed) model of decoder
+    .. versionchanged:: 0.5.1
+        Add an ``edge_embed_layer` argument to support saving the edge encoder in a model. And
+        The saved model state dictionary can contain:
+        - 'node_embed': node input encoder
+        - 'edge_embed': edge input encoder
+        - 'gnn'       : gnn encoder
+        - 'decoder'   : decoder
+
+    Parameters
+    ----------
+    model_path: str
+        The path of the model to be saved.
+    gnn_model: model
+        A (distributed) model of GNN. Default is None.
+    embed_layer: model
+        A (distributed) model of node embedding layer. Default is None.
+    decoder: model
+        A (distributed) model of decoder. Default is None.
+    edge_embed_layer: model
+        A (distributed) model of edge embedding layer. Default is None.
     """
     model_states = {}
     if gnn_model is not None and isinstance(gnn_model, nn.Module):
-        model_states['gnn'] = gnn_model.state_dict()
+        model_states[GRAPHSTORM_MODEL_GNN_LAYER] = gnn_model.state_dict()
     if embed_layer is not None and isinstance(embed_layer, nn.Module):
-        model_states['embed'] = embed_layer.state_dict()
+        model_states[GRAPHSTORM_MODEL_NODE_EMBED_LAYER] = embed_layer.state_dict()
     if decoder is not None and isinstance(decoder, nn.Module):
-        model_states['decoder'] = decoder.state_dict()
+        model_states[GRAPHSTORM_MODEL_DECODER_LAYER] = decoder.state_dict()
+    if edge_embed_layer is not None and isinstance(edge_embed_layer, nn.Module):
+        model_states[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER] = edge_embed_layer.state_dict()
 
     os.makedirs(model_path, exist_ok=True)
     # [04/16]: Assume this method is called by rank 0 who can perform chmod
@@ -1495,27 +1513,42 @@ def save_edge_prediction_results(predictions, prediction_path):
         with open(meta_fname, 'w', encoding='utf-8') as f:
             json.dump(meta_info, f, indent=4)
 
-def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
+def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None, edge_embed_layer=None):
     """ Load a complete gnn model.
         A user needs to provide the correct model architectures first.
 
-        Parameters
-        ----------
-        model_path : str
-            The path of the folder where the model is saved.
-        gnn_model: model
-            GNN model to load
-        embed_layer: model
-            Embed layer model to load
-        decoder: model
-            Decoder to load
+    .. versionchanged:: 0.5.1
+        Add an ``edge_embed_layer` argument to support loading the edge encoder in a model. And
+        The saved model state dictionary can contain:
+        - 'node_embed': node input encoder
+        - 'edge_embed': edge input encoder
+        - 'gnn'       : gnn encoder
+        - 'decoder'   : decoder
+
+    Parameters
+    ----------
+    model_path : str
+        The path of the folder where the model is saved.
+    gnn_model: model
+        A (distributed) model of GNN. Default is None.
+    embed_layer: model
+        A (distributed) model of node embedding layer. Default is None.
+    decoder: model
+        A (distributed) model of decoder. Default is None.
+    edge_embed_layer: model
+        A (distributed) model of edge embedding layer. Default is None.
     """
-    gnn_model = gnn_model.module \
-        if isinstance(gnn_model, DistributedDataParallel) else gnn_model
-    embed_layer = embed_layer.module \
-        if isinstance(embed_layer, DistributedDataParallel) else embed_layer
-    decoder = decoder.module \
-        if isinstance(decoder, DistributedDataParallel) else decoder
+    if gnn_model is not None:
+        gnn_model = gnn_model.module \
+            if isinstance(gnn_model, DistributedDataParallel) else gnn_model
+    if embed_layer is not None:
+        embed_layer = embed_layer.module if isinstance(embed_layer, DistributedDataParallel) \
+                else embed_layer
+    if decoder is not None:
+        decoder = decoder.module if isinstance(decoder, DistributedDataParallel) else decoder
+    if edge_embed_layer is not None:
+        edge_embed_layer = edge_embed_layer.module if isinstance(edge_embed_layer, \
+                DistributedDataParallel) else edge_embed_layer
 
     if th.__version__ < "1.13.0":
         logging.warning("torch.load() uses pickle module implicitly, " \
@@ -1528,12 +1561,27 @@ def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
         checkpoint = th.load(os.path.join(model_path, 'model.bin'),
                              map_location='cpu',
                              weights_only=True)
-    if 'gnn' in checkpoint and gnn_model is not None:
-        gnn_model.load_state_dict(checkpoint['gnn'])
-    if 'embed' in checkpoint and embed_layer is not None:
-        embed_layer.load_state_dict(checkpoint['embed'], strict=False)
-    if 'decoder' in checkpoint and decoder is not None:
-        decoder.load_state_dict(checkpoint['decoder'])
+
+    # some modules are non-parameterized, e.g., the Dot-Product decoder, hence
+    # they were not saved, and no need to do assert check.
+    if gnn_model is not None and isinstance(gnn_model, nn.Module):
+        assert GRAPHSTORM_MODEL_GNN_LAYER in checkpoint, "There is no GNN module to be loaded."
+        gnn_model.load_state_dict(checkpoint[GRAPHSTORM_MODEL_GNN_LAYER])
+    if  embed_layer is not None and isinstance(embed_layer, nn.Module):
+        assert GRAPHSTORM_MODEL_NODE_EMBED_LAYER in checkpoint, ("There is no node encoder "
+                                                                 "module to be loaded.")
+        embed_layer.load_state_dict(checkpoint[GRAPHSTORM_MODEL_NODE_EMBED_LAYER], strict=False)
+    if decoder is not None and isinstance(decoder, nn.Module):
+        assert GRAPHSTORM_MODEL_DECODER_LAYER in checkpoint, ("There is no decoder module to "
+                                                              "be loaded.")
+        decoder.load_state_dict(checkpoint[GRAPHSTORM_MODEL_DECODER_LAYER])
+    if edge_embed_layer is not None and isinstance(edge_embed_layer, nn.Module):
+        assert GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in checkpoint, ("There is no edge encoder "
+                                                                 "module to be loaded.")
+        # not use strict=False because not use learnable embeddings in edge encoder so far
+        # if later add learnable embeddings, need to add strict=False in this load function.
+        edge_embed_layer.load_state_dict(checkpoint[GRAPHSTORM_MODEL_EDGE_EMBED_LAYER])
+
 
 def load_sparse_emb(target_sparse_emb, ntype_emb_path):
     """load sparse embeddings from ntype_emb_path

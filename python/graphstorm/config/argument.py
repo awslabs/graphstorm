@@ -62,7 +62,8 @@ from .config import (
     GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS, SUPPORTED_LP_DECODER,
     # Model layers
     GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_DECODER_LAYER,
-    GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS,
+    GRAPHSTORM_MODEL_NODE_EMBED_LAYER, GRAPHSTORM_MODEL_EDGE_EMBED_LAYER,
+    GRAPHSTORM_MODEL_LAYER_OPTIONS,
     # Utility functions and classes
     TaskInfo, get_mttask_id, FeatureGroup
 )
@@ -1802,8 +1803,8 @@ class GSConfig:
     @property
     def restore_model_layers(self):
         """ GraphStorm model layers to load. Currently, three neural network layers are supported,
-            i.e., ``embed`` (input layer), ``gnn`` and ``decoder``. Default is to restore all three
-            of these layers.
+            i.e., ``node_embed``, ``edge_embed``, ``gnn`` and ``decoder``. Default is to restore
+            all four of these layers.
         """
         # pylint: disable=no-member
         model_layers = GRAPHSTORM_MODEL_ALL_LAYERS
@@ -1823,11 +1824,16 @@ class GSConfig:
             if model_layers == GRAPHSTORM_MODEL_ALL_LAYERS:
                 logging.warning("Restoring GLEM's LM from checkpoint only support %s and %s.'\
                                 'Setting to: '%s'",
-                                [GRAPHSTORM_MODEL_EMBED_LAYER],
-                                [GRAPHSTORM_MODEL_EMBED_LAYER, GRAPHSTORM_MODEL_DECODER_LAYER],
-                                GRAPHSTORM_MODEL_EMBED_LAYER
+                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                 GRAPHSTORM_MODEL_EDGE_EMBED_LAYER],
+                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                 GRAPHSTORM_MODEL_EDGE_EMBED_LAYER,
+                                 GRAPHSTORM_MODEL_DECODER_LAYER],
+                                [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                 GRAPHSTORM_MODEL_EDGE_EMBED_LAYER]
                                 )
-                model_layers = [GRAPHSTORM_MODEL_EMBED_LAYER]
+                model_layers = [GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                                GRAPHSTORM_MODEL_EDGE_EMBED_LAYER]
         return model_layers
 
     @property

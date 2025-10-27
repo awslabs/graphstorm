@@ -1059,8 +1059,11 @@ def create_mlp_node_model(g, lm_config):
 
     feat_size = get_node_feat_size(g, 'feat')
 
-    encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
-    model.set_node_input_encoder(encoder)
+    node_encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
+    model.set_node_input_encoder(node_encoder)
+    edge_encoder = GSEdgeEncoderInputLayer(g, {can_etype: 0 for can_etype in g.canonical_etypes},
+                                           embed_size=feat_size)
+    model.set_edge_input_encoder(edge_encoder)
 
     model.set_decoder(EntityClassifier(model.node_input_encoder.out_dims, 3, False))
     return model
@@ -1085,6 +1088,8 @@ def create_lm_model(g, lm_config):
 
     encoder = GSPureLMNodeInputLayer(g, lm_config, num_train=0)
     model.set_node_input_encoder(encoder)
+    # not set edge input encoder
+
     return model
 
 def test_mlp_node_prediction():
@@ -1121,7 +1126,11 @@ def test_gnn_model_load_save():
         np_data = GSgnnData(part_config=part_config,
                             node_feat_field='feat')
     model = create_mlp_node_model(g, lm_config)
-    dense_params = {name: param.data[:] for name, param in model.node_input_encoder.named_parameters()}
+    # add edge encoder to save and load
+    dense_params = {}
+    dense_params['node_params'] = {name: param.data[:] for name, param in model.node_input_encoder.named_parameters()}
+    dense_params['edge_params'] = {name: param.data[:] for name, param in model.edge_input_encoder.named_parameters()}
+    dense_params['decoder_params'] = {name: param.data[:] for name, param in model.decoder.named_parameters()}
     sparse_params = [param[0:len(param)] for param in model.node_input_encoder.get_sparse_params()]
     with tempfile.TemporaryDirectory() as tmpdirname:
         model.save_model(tmpdirname)
@@ -1131,16 +1140,88 @@ def test_gnn_model_load_save():
         for param in model1.node_input_encoder.get_sparse_params():
             param[0:len(param)] = param[0:len(param)] + 1
         for name, param in model1.node_input_encoder.named_parameters():
-            assert np.all(dense_params[name].numpy() != param.data.numpy())
+            assert np.all(dense_params['node_params'][name].numpy() != param.data.numpy())
         for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
             assert np.all(sparse_params[i].numpy() != param.numpy())
 
-        model1.restore_model(tmpdirname, "dense_embed")
+        model1.restore_model(tmpdirname)
         for name, param in model1.node_input_encoder.named_parameters():
-            assert np.all(dense_params[name].numpy() == param.data.numpy())
+            assert np.all(dense_params['node_params'][name].numpy() == param.data.numpy())
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() == param.data.numpy())
+
         model1.restore_model(tmpdirname, "sparse_embed")
         for i, param in enumerate(model1.node_input_encoder.get_sparse_params()):
             assert np.all(sparse_params[i].numpy() == param.numpy())
+
+    # Test the utils saving and loading. The current implementation checks if some modules
+    # exist for loading. If not, raise AssertionError
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # normal case, only save and restore one module
+        # only save node encoder
+        save_model(tmpdirname, embed_layer=model.node_input_encoder)
+        model1 = copy.deepcopy(model)
+        # change model1's parameters
+        for param in model1.parameters():
+            param.data[:] += 1
+        load_model(tmpdirname, embed_layer=model1.node_input_encoder)
+        # node encoder parameters should be the same
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params['node_params'][name].numpy() == param.data.numpy())
+        # the others should be different
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() != param.data.numpy())
+        for name, param in model1.decoder.named_parameters():
+            assert np.all(dense_params['decoder_params'][name].numpy() != param.data.numpy())
+
+        # only save edge encoder
+        save_model(tmpdirname, embed_layer=model.edge_input_encoder)
+        model1 = copy.deepcopy(model)
+        # change model1's parameters
+        for param in model1.parameters():
+            param.data[:] += 1
+        load_model(tmpdirname, embed_layer=model1.edge_input_encoder)
+        # edge encoder parameters should be the same
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() == param.data.numpy())
+        # the others should be different
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params['node_params'][name].numpy() != param.data.numpy())
+        for name, param in model1.decoder.named_parameters():
+            assert np.all(dense_params['decoder_params'][name].numpy() != param.data.numpy())
+
+        # this mlp model does not have gnn model, test no gnn model to be loaded
+        with pytest.raises(AssertionError, match="There is no GNN module *"):
+            load_model(tmpdirname, gnn_model=model1)
+
+        # only save decoder
+        save_model(tmpdirname, embed_layer=model.decoder)
+        model1 = copy.deepcopy(model)
+        # change model1's parameters
+        for param in model1.parameters():
+            param.data[:] += 1
+        load_model(tmpdirname, embed_layer=model1.decoder)
+        # decoder parameters should be the same
+        for name, param in model1.decoder.named_parameters():
+            assert np.all(dense_params['decoder_params'][name].numpy() == param.data.numpy())
+        # the others should be different
+        for name, param in model1.node_input_encoder.named_parameters():
+            assert np.all(dense_params['node_params'][name].numpy() != param.data.numpy())
+        for name, param in model1.edge_input_encoder.named_parameters():
+            assert np.all(dense_params['edge_params'][name].numpy() != param.data.numpy())
+
+        # abnormal cases, loading unsaved modules
+        #                It will raise an Assertion error, saying no * module to be loaded.
+        save_model(tmpdirname, gnn_model=model)
+        with pytest.raises(AssertionError, match="There is no node encoder module  *"):
+            load_model(tmpdirname, embed_layer=model1.node_input_encoder)
+
+        with pytest.raises(AssertionError, match="There is no edge encoder module  *"):
+            load_model(tmpdirname, edge_embed_layer=model1.edge_input_encoder)
+
+        with pytest.raises(AssertionError, match="There is no decoder module  *"):
+            load_model(tmpdirname, decoder=model1.decoder)
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -3059,53 +3140,3 @@ def test_rgcn_lp_model_forward():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-
-if __name__ == '__main__':
-    test_edge_feat_reconstruct()
-    test_node_feat_reconstruct()
-
-    test_multi_task_norm_node_embs()
-    test_multi_task_norm_node_embs_dist()
-    test_multi_task_forward()
-    test_multi_task_predict()
-    test_multi_task_mini_batch_predict()
-    test_gen_emb_for_nfeat_recon()
-
-    test_lm_rgcn_node_prediction_with_reconstruct()
-    test_rgcn_node_prediction_with_reconstruct(True)
-    test_rgcn_node_prediction_with_reconstruct(False)
-    test_mini_batch_full_graph_inference(0)
-
-    test_gnn_model_load_save()
-    test_lm_model_load_save()
-    test_node_mini_batch_gnn_predict()
-    test_edge_mini_batch_gnn_predict()
-    test_hgt_edge_prediction(0)
-    test_hgt_edge_prediction(2)
-    test_hgt_node_prediction()
-    test_rgcn_edge_prediction(2)
-    test_rgcn_node_prediction(None)
-    test_rgat_node_prediction(None)
-    test_sage_node_prediction(None)
-    test_gat_node_prediction('cpu')
-    test_gat_node_prediction('cuda:0')
-
-    test_edge_classification()
-    test_edge_classification_feat()
-    test_edge_regression()
-    test_node_classification()
-    test_node_regression()
-    test_link_prediction(10000)
-    test_link_prediction_weight()
-
-    test_mlp_edge_prediction(2)
-    test_mlp_node_prediction()
-    test_mlp_link_prediction()
-
-    test_rgcn_node_prediction_multi_target_ntypes()
-    test_rgat_node_prediction_multi_target_ntypes()
-
-    test_edge_model_inference_with_edge_feats()
-    test_rgcn_node_model_forward()
-    test_rgcn_edge_model_forward()
-    test_rgcn_lp_model_forward()
