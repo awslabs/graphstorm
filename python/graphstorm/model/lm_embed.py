@@ -25,6 +25,7 @@ import hashlib
 import numpy as np
 import torch as th
 from torch import nn
+from transformers import AutoTokenizer, AutoConfig, AutoModel
 import dgl
 
 from .embed import GSNodeInputLayer
@@ -863,6 +864,129 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         # Compute language model features first
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
         lm_feats = self._lm_models(input_nodes, lm_emb_cache=cache)
+
+        for ntype, lm_feat in lm_feats.items():
+            # move lm_feat to the right device
+            # we assume input_feats has already been moved to that device.
+            lm_feat = lm_feat.to(self.device)
+
+            if ntype in input_feats:
+                if ntype in self.feat_group_projs:
+                    # There are multiple feature groups.
+                    # Treat lm_feat as another feature group.
+                    input_feats[ntype].append(lm_feat)
+                else:
+                    input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+            else:
+                input_feats[ntype] = lm_feat
+
+        return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)
+
+class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
+    """ The node encoder input layer with language model (LM) supported for all nodes
+    in a heterogeneous graph.
+
+    This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
+    In addition, the input layer reloads LM layer and projection layer on nodes with textual features and
+    generate LM embeddings using the LM model.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The input DGL distributed graph
+    node_lm_configs: LM config
+        A list of language model configurations.
+    feat_size : dict of int or dict of list of ints
+        The original feat sizes of each node type in the format of {ntype: size}.
+        If a node have multiple feature groups, it is in the format of {ntype: [size, size, ...]}.
+    embed_size : int
+        The output embedding size.
+    cached_hf_weights: dict
+        The cached huggingface model weights.
+    node_type_to_model_type: dict
+        The dict for {node_type: huggingface_model_type}, each node type will only one huggingface model.
+    cached_input_proj: dict
+        The cached input projection weights.
+    activation : callable
+        The activation function. Default: None.
+    dropout : float
+        The dropout parameter. Default: 0.0.
+    use_node_embeddings : bool
+        Whether to use the node embeddings for individual nodes even when node features are
+        available. Default: False.
+    """
+    def __init__(self,
+                 g,
+                 node_lm_configs,
+                 feat_size,
+                 embed_size,
+                 cached_hf_weights,
+                 node_type_to_model_type,
+                 cached_input_proj,
+                 activation=None,
+                 dropout=0.0,
+                 use_node_embeddings=False,
+                 use_fp16=True,
+                 force_no_embeddings=None):
+        assert node_lm_configs is not None and len(node_lm_configs) > 0, \
+            "language model configurations must be provided"
+
+        self.lm_models = cached_hf_weights
+        self.input_proj = cached_input_proj
+        adjust_feat_size = dict(feat_size)
+
+        self.tokenizer_dict, self.hf_model_dict = {}, {}
+        # Reload Model
+        for node_type, hf_weights in hf_weights_dict.items():
+            model_type = node_type_to_model_type[node_type]
+            config = AutoConfig.for_model(
+                model_type = model_type
+            )
+            self.tokenizer_dict[node_type] = AutoTokenizer.from_pretrained(model_type)
+            hf_model = AutoModel.from_config(config)
+            hf_model.load_state_dict(cached_hf_weights[node_type])
+            self.hf_model_dict[node_type] = hf_model
+
+        super(GSLMNodeEncoderInputLayer, self).__init__(
+            g, adjust_feat_size, embed_size,
+            activation, dropout, use_node_embeddings,
+            force_no_embeddings=force_no_embeddings)
+
+    def infer_hf_emb(self, input_lm_feats):
+        lm_feat = {}
+        for node_type, text_tensor in input_lm_feats:
+            tokenizer = self.tokenizer_dict[node_type]
+            hf_model = self.hf_model_dict[node_type]
+            for _id, text in text_tensor:
+                tokenize_res = tokenizer(text, return_tensors='pt')
+                emb = model(**tokenize_res).last_hidden_state
+                lm_feat[node_type][_id] = emb
+        return lm_feat
+            
+
+    #pylint: disable=keyword-arg-before-vararg
+    def forward(self, input_feats, input_nodes):
+        """ Input layer forward computation.
+
+        The forward function computes the LM embeddings and combine them with
+        the input node features for further projection.
+
+        Parameters
+        ----------
+        input_feats: dict of Tensor
+            The input features in the format of {ntype: feats}.
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}.
+
+        Returns
+        -------
+        a dict of Tensor: The projected node embeddings in the format of {ntype: emb}.
+        """
+        assert isinstance(input_feats, dict), 'The input features should be in a dict.'
+        assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
+
+        # Compute language model features first
+        lm_feats = self.infer_hf_emb(input_lm_feats)
 
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device

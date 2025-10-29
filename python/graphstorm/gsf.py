@@ -1520,7 +1520,7 @@ def restore_hf_model(model_dir, gs_config):
     node_types = node_type_to_model_type.keys()
 
     # Extract BERT weights for each node type
-    hf_weights_dict = {}
+    hf_weights_dict, proj_weights_dict = {}, {}
 
     for node_type in node_types:
         hf_weights = {}
@@ -1530,11 +1530,13 @@ def restore_hf_model(model_dir, gs_config):
                 # Remove GraphStorm prefix, keep only Huggingface part
                 hf_key = key.split('lm_model.')[1]
                 hf_weights[hf_key] = tensor
+            elif 'lm_model.' not in key and node_type in key:
+                proj_weights_dict[key] = tensor
 
         if hf_weights:
             hf_weights_dict[node_type] = hf_weights
 
-    return hf_weights_dict
+    return hf_weights_dict, node_type_to_model_type, proj_weights_dict
 
 
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
@@ -1603,7 +1605,16 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
                                   f'{BUILTIN_TASK_LINK_PREDICTION}, but got {gs_config.task_type}')
 
     model.restore_model(model_dir)
+    if config.node_lm_configs is not None:
+        node_feat_size = get_node_feat_size(g, config.node_feat_name)
+        hf_weights_dict, node_type_to_model_type, proj_weights_dict = restore_hf_model(model_dir, gs_config)
+        node_encoder = GSLMNodeEncoderInputLayer4GraphFromMetaData(
+            metadata_g, gs_config.node_lm_configs,
+            node_feat_size, gs_config.hidden_size, 
+            hf_weights_dict, node_type_to_model_type, proj_weights_dict,
+            dropout=config.dropout,
+            use_node_embeddings=config.use_node_embeddings)
+        model.set_node_input_encoder(node_encoder)
 
-    hf_model = restore_hf_model(model_dir, gs_config)
     # return all four artifacts back to model_fn()
     return model, graph_metadata_json, gs_config, hf_model
