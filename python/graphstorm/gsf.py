@@ -1497,20 +1497,19 @@ def restore_hf_model(model_dir, gs_config):
     # Load the model_type
     node_type_to_model_type = {}
     lm_model = gs_config['lm_model']
-    
+
     # Handle node_lm_models
     if "node_lm_models" in lm_model:
         for model_config in lm_model['node_lm_models']:
             model_type = model_config.get('lm_type')
-            
+
             for node_type in model_config['node_types']:
                 node_type_to_model_type[node_type] = model_type
-    
-    # Handle distill_lm_models  
+
     elif "distill_lm_models" in lm_model:
         for model_config in lm_model['distill_lm_models']:
             model_type = model_config.get('lm_type')
-            
+
             for node_type in model_config['node_types']:
                 node_type_to_model_type[node_type] = model_type
 
@@ -1521,7 +1520,7 @@ def restore_hf_model(model_dir, gs_config):
     node_types = node_type_to_model_type.keys()
 
     # Extract BERT weights for each node type
-    node_type_models = {}
+    hf_weights_dict = {}
 
     for node_type in node_types:
         hf_weights = {}
@@ -1608,4 +1607,3 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     hf_model = restore_hf_model(model_dir, gs_config)
     # return all four artifacts back to model_fn()
     return model, graph_metadata_json, gs_config, hf_model
-
