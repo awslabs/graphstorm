@@ -964,7 +964,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                 emb = hf_model(**tokenize_res).last_hidden_state
                 lm_feat[node_type][_id] = emb
         return lm_feat
-            
 
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):
@@ -1005,4 +1004,5 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             else:
                 input_feats[ntype] = lm_feat
 
-        return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).forward(input_feats, input_nodes)
+        return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).\
+                forward(input_feats, input_nodes)

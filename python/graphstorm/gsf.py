@@ -1618,4 +1618,4 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
         model.set_node_input_encoder(node_encoder)
 
     # return all four artifacts back to model_fn()
-    return model, graph_metadata_json, gs_config, hf_model
+    return model, graph_metadata_json, gs_config
