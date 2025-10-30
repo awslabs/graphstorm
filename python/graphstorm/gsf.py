@@ -1607,10 +1607,11 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     model.restore_model(model_dir)
     if config.node_lm_configs is not None:
         node_feat_size = get_node_feat_size(g, config.node_feat_name)
-        hf_weights_dict, node_type_to_model_type, proj_weights_dict = restore_hf_model(model_dir, gs_config)
+        hf_weights_dict, node_type_to_model_type, proj_weights_dict \
+            = restore_hf_model(model_dir, gs_config)
         node_encoder = GSLMNodeEncoderInputLayer4GraphFromMetaData(
             metadata_g, gs_config.node_lm_configs,
-            node_feat_size, gs_config.hidden_size, 
+            node_feat_size, gs_config.hidden_size,
             hf_weights_dict, node_type_to_model_type, proj_weights_dict,
             dropout=config.dropout,
             use_node_embeddings=config.use_node_embeddings)
