@@ -887,8 +887,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
     in a heterogeneous graph.
 
     This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
-    In addition, the input layer reloads LM layer and projection layer on nodes with textual features and
-    generate LM embeddings using the LM model.
+    In addition, the input layer reloads LM layer and projection layer on nodes with textual 
+    features and generate embeddings.
 
     Parameters
     ----------
@@ -904,7 +904,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
     cached_hf_weights: dict
         The cached huggingface model weights.
     node_type_to_model_type: dict
-        The dict for {node_type: huggingface_model_type}, each node type will only one huggingface model.
+        The dict for {node_type: huggingface_model_type}, each node type will only have 
+        one huggingface model.
     cached_input_proj: dict
         The cached input projection weights.
     activation : callable
@@ -926,7 +927,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
-                 use_fp16=True,
                  force_no_embeddings=None):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
@@ -944,22 +944,24 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             )
             self.tokenizer_dict[node_type] = AutoTokenizer.from_pretrained(model_type)
             hf_model = AutoModel.from_config(config)
-            hf_model.load_state_dict(cached_hf_weights[node_type])
+            hf_model.load_state_dict(hf_weights)
             self.hf_model_dict[node_type] = hf_model
 
-        super(GSLMNodeEncoderInputLayer, self).__init__(
+        super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).__init__(
             g, adjust_feat_size, embed_size,
             activation, dropout, use_node_embeddings,
             force_no_embeddings=force_no_embeddings)
 
     def infer_hf_emb(self, input_lm_feats):
+        """ Infer huggingface model embedding with model dictionary
+        """
         lm_feat = {}
         for node_type, text_tensor in input_lm_feats:
             tokenizer = self.tokenizer_dict[node_type]
             hf_model = self.hf_model_dict[node_type]
             for _id, text in text_tensor:
                 tokenize_res = tokenizer(text, return_tensors='pt')
-                emb = model(**tokenize_res).last_hidden_state
+                emb = hf_model(**tokenize_res).last_hidden_state
                 lm_feat[node_type][_id] = emb
         return lm_feat
             
@@ -1003,4 +1005,4 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             else:
                 input_feats[ntype] = lm_feat
 
-        return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)
+        return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).forward(input_feats, input_nodes)
