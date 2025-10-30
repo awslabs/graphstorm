@@ -1611,5 +1611,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
                                   f'{BUILTIN_TASK_EDGE_REGRESSION}, or '
                                   f'{BUILTIN_TASK_LINK_PREDICTION}, but got {gs_config.task_type}')
 
-    # return all four artifacts back to model_fn()
+    model.restore_model(model_dir)
+    
+    # return all three artifacts back to model_fn()
     return model, graph_metadata_json, gs_config
