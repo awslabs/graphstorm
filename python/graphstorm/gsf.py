@@ -1094,6 +1094,13 @@ def set_encoder(model, g, config, train_task):
     if config.node_lm_configs is not None:
         emb_path = os.path.join(os.path.dirname(config.part_config),
                 "cached_embs") if config.cache_lm_embed else None
+        if isinstance(g, GSGraphFromMetadata):
+            # for real-time inference case only
+            node_encoder = GSLMNodeEncoderInputLayer4GraphFromMetaData(
+                metadata_g, gs_config.node_lm_configs,
+                node_feat_size, gs_config.hidden_size,
+                dropout=config.dropout)
+            model.set_node_input_encoder(node_encoder)
         if model_encoder_type == "lm":
             # only use language model(s) as input layer encoder(s)
             node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
@@ -1603,19 +1610,6 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
                                   f'{BUILTIN_TASK_EDGE_CLASSIFICATION}, '
                                   f'{BUILTIN_TASK_EDGE_REGRESSION}, or '
                                   f'{BUILTIN_TASK_LINK_PREDICTION}, but got {gs_config.task_type}')
-
-    model.restore_model(model_dir)
-    if config.node_lm_configs is not None:
-        node_feat_size = get_node_feat_size(g, config.node_feat_name)
-        hf_weights_dict, node_type_to_model_type, proj_weights_dict = \
-            restore_hf_model(model_dir, gs_config)
-        node_encoder = GSLMNodeEncoderInputLayer4GraphFromMetaData(
-            metadata_g, gs_config.node_lm_configs,
-            node_feat_size, gs_config.hidden_size,
-            hf_weights_dict, node_type_to_model_type, proj_weights_dict,
-            dropout=config.dropout,
-            use_node_embeddings=config.use_node_embeddings)
-        model.set_node_input_encoder(node_encoder)
 
     # return all four artifacts back to model_fn()
     return model, graph_metadata_json, gs_config
