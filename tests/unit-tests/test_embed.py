@@ -1070,3 +1070,10 @@ def test_mp_wg_lm_cache(world_size):
         for p in ptrainer_list:
             p.join()
             assert p.exitcode == 0
+
+def test_LM_learnable_rt_layer():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)

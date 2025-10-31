@@ -25,6 +25,7 @@ import hashlib
 import numpy as np
 import torch as th
 from torch import nn
+from transformers import AutoTokenizer, AutoConfig, AutoModel
 import dgl
 
 from .embed import GSNodeInputLayer
@@ -880,3 +881,179 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                 input_feats[ntype] = lm_feat
 
         return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)
+
+class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
+    """ The node encoder input layer with language model (LM) supported for all nodes
+    in a heterogeneous graph.
+
+    This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
+    In addition, the input layer reloads LM layer and projection layer on nodes with textual 
+    features and generate embeddings.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The input DGL distributed graph
+    node_lm_configs: LM config
+        A list of language model configurations.
+    feat_size : dict of int or dict of list of ints
+        The original feat sizes of each node type in the format of {ntype: size}.
+        If a node have multiple feature groups, it is in the format of {ntype: [size, size, ...]}.
+    embed_size : int
+        The output embedding size.
+    cached_hf_weights: dict
+        The cached huggingface model weights.
+    node_type_to_model_type: dict
+        The dict for {node_type: huggingface_model_type}, each node type will only have 
+        one huggingface model.
+    cached_input_proj: dict
+        The cached input projection weights.
+    activation : callable
+        The activation function. Default: None.
+    dropout : float
+        The dropout parameter. Default: 0.0.
+    use_node_embeddings : bool
+        Whether to use the node embeddings for individual nodes even when node features are
+        available. Default: False.
+    """
+    def __init__(self,
+                 g,
+                 node_lm_configs,
+                 feat_size,
+                 embed_size,
+                 activation=None,
+                 dropout=0.0,
+                 use_node_embeddings=False,
+                 force_no_embeddings=None):
+        assert node_lm_configs is not None and len(node_lm_configs) > 0, \
+            "language model configurations must be provided"
+
+        self.node_lm_configs = node_lm_configs
+        self.adjust_feat_size = dict(feat_size)
+        self.node_type_to_model_type = {}
+        for lm_config in node_lm_configs:
+            # A list of node types sharing the same lm model
+            lm_ntypes = lm_config["node_types"]
+            lm_model_name = lm_config["model_name"]
+            config = AutoConfig.from_pretrained(lm_model_name)
+            lm_feat_size = config.hidden_size
+            # Update feature size
+            for ntype in lm_ntypes:
+                self.node_type_to_model_type[ntype] = lm_model_name
+                if isinstance(self.adjust_feat_size[ntype], int):
+                    self.adjust_feat_size[ntype] += lm_feat_size
+                    if get_rank() == 0:
+                        logging.debug('Node %s adds lm %s features %d->%d',
+                                    ntype, lm_config["lm_type"], feat_size[ntype],
+                                    self.adjust_feat_size[ntype])
+                else:
+                    # ntype has multiple feature groups
+                    # make lm model another group
+                    self.adjust_feat_size[ntype].feature_group_sizes.append(
+                        lm_feat_size)
+                    if get_rank() == 0:
+                        logging.debug('Node %s adds lm %s features with size %d',
+                                    ntype, lm_config["lm_type"],
+                                    adjust_feat_size[ntype])
+
+        super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).__init__(
+            g, self.adjust_feat_size, embed_size,
+            activation, dropout, use_node_embeddings,
+            force_no_embeddings=force_no_embeddings)
+        self.lm_models = nn.ParameterDict()
+
+    def rebuild_hf_model(gs_config):
+        """Extract huggingface model from GSGnnModel
+
+        This method would rebuild the huggingface model from model cache state dict.
+
+        Parameters:
+        -----------
+        model: GSGnnModel
+            The restored GraphStorm model.
+        gs_config: GSConfig
+            A model configuration, GSConfig, object created based on the yaml_file under the
+            model_dir path.
+        """
+        # Find all node types with BERT models
+        node_types = node_type_to_model_type.keys()
+
+        # Extract BERT weights for each node type
+        hf_weights_dict, proj_weights_dict = {}, {}
+
+        for node_type in node_types:
+            hf_weights = {}
+
+            for key, tensor in self.lm_models.items():
+                if 'lm_model.' in key and node_type in key:
+                    # Remove GraphStorm prefix, keep only Huggingface part
+                    hf_key = key.split('lm_model.')[1]
+                    hf_weights[hf_key] = tensor
+                elif 'lm_model.' not in key and node_type in key:
+                    proj_weights_dict[key] = tensor
+
+            if hf_weights:
+                hf_weights_dict[node_type] = hf_weights
+
+        return hf_weights_dict, node_type_to_model_type, proj_weights_dict
+
+    def infer_hf_emb(self, input_lm_feats):
+        """ Infer huggingface model embedding with model dictionary
+        """
+        lm_feat = {}
+        for node_type, text_tensor in input_lm_feats:
+            tokenizer = self.tokenizer_dict[node_type]
+            hf_model = self.hf_model_dict[node_type]
+            for _id, text in text_tensor:
+                tokenize_res = tokenizer(text, return_tensors='pt')
+                emb = hf_model(**tokenize_res).last_hidden_state
+                lm_feat[node_type][_id] = emb
+        return lm_feat
+
+    @property
+    def node_feat_size(self):
+        """node feature size
+        """
+        return self.adjust_feat_size
+
+    #pylint: disable=keyword-arg-before-vararg
+    def forward(self, input_feats, input_nodes):
+        """ Input layer forward computation.
+
+        The forward function computes the LM embeddings and combine them with
+        the input node features for further projection.
+
+        Parameters
+        ----------
+        input_feats: dict of Tensor
+            The input features in the format of {ntype: feats}.
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}.
+
+        Returns
+        -------
+        a dict of Tensor: The projected node embeddings in the format of {ntype: emb}.
+        """
+        assert isinstance(input_feats, dict), 'The input features should be in a dict.'
+        assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
+
+        # Compute language model features first
+        lm_feats = self.infer_hf_emb(input_lm_feats)
+
+        for ntype, lm_feat in lm_feats.items():
+            # move lm_feat to the right device
+            # we assume input_feats has already been moved to that device.
+            lm_feat = lm_feat.to(self.device)
+
+            if ntype in input_feats:
+                if ntype in self.feat_group_projs:
+                    # There are multiple feature groups.
+                    # Treat lm_feat as another feature group.
+                    input_feats[ntype].append(lm_feat)
+                else:
+                    input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+            else:
+                input_feats[ntype] = lm_feat
+
+        return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).\
+                forward(input_feats, input_nodes)
