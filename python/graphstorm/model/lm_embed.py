@@ -921,9 +921,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                  node_lm_configs,
                  feat_size,
                  embed_size,
-                 cached_hf_weights,
-                 node_type_to_model_type,
-                 cached_input_proj,
                  activation=None,
                  dropout=0.0,
                  use_node_embeddings=False,
@@ -931,26 +928,74 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
 
-        self.lm_models = cached_hf_weights
-        self.input_proj = cached_input_proj
-        adjust_feat_size = dict(feat_size)
-
-        self.tokenizer_dict, self.hf_model_dict = {}, {}
-        # Reload Model
-        for node_type, hf_weights in hf_weights_dict.items():
-            model_type = node_type_to_model_type[node_type]
-            config = AutoConfig.for_model(
-                model_type = model_type
-            )
-            self.tokenizer_dict[node_type] = AutoTokenizer.from_pretrained(model_type)
-            hf_model = AutoModel.from_config(config)
-            hf_model.load_state_dict(hf_weights)
-            self.hf_model_dict[node_type] = hf_model
+        self.node_lm_configs = node_lm_configs
+        self.adjust_feat_size = dict(feat_size)
+        self.node_type_to_model_type = {}
+        for lm_config in node_lm_configs:
+            # A list of node types sharing the same lm model
+            lm_ntypes = lm_config["node_types"]
+            lm_model_name = lm_config["model_name"]
+            config = AutoConfig.from_pretrained(lm_model_name)
+            lm_feat_size = config.hidden_size
+            # Update feature size
+            for ntype in lm_ntypes:
+                self.node_type_to_model_type[ntype] = lm_model_name
+                if isinstance(self.adjust_feat_size[ntype], int):
+                    self.adjust_feat_size[ntype] += lm_feat_size
+                    if get_rank() == 0:
+                        logging.debug('Node %s adds lm %s features %d->%d',
+                                    ntype, lm_config["lm_type"], feat_size[ntype],
+                                    self.adjust_feat_size[ntype])
+                else:
+                    # ntype has multiple feature groups
+                    # make lm model another group
+                    self.adjust_feat_size[ntype].feature_group_sizes.append(
+                        lm_feat_size)
+                    if get_rank() == 0:
+                        logging.debug('Node %s adds lm %s features with size %d',
+                                    ntype, lm_config["lm_type"],
+                                    adjust_feat_size[ntype])
 
         super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).__init__(
-            g, adjust_feat_size, embed_size,
+            g, self.adjust_feat_size, embed_size,
             activation, dropout, use_node_embeddings,
             force_no_embeddings=force_no_embeddings)
+        self.lm_models = nn.ParameterDict()
+
+    def rebuild_hf_model(gs_config):
+        """Extract huggingface model from GSGnnModel
+
+        This method would rebuild the huggingface model from model cache state dict.
+
+        Parameters:
+        -----------
+        model: GSGnnModel
+            The restored GraphStorm model.
+        gs_config: GSConfig
+            A model configuration, GSConfig, object created based on the yaml_file under the
+            model_dir path.
+        """
+        # Find all node types with BERT models
+        node_types = node_type_to_model_type.keys()
+
+        # Extract BERT weights for each node type
+        hf_weights_dict, proj_weights_dict = {}, {}
+
+        for node_type in node_types:
+            hf_weights = {}
+
+            for key, tensor in self.lm_models.items():
+                if 'lm_model.' in key and node_type in key:
+                    # Remove GraphStorm prefix, keep only Huggingface part
+                    hf_key = key.split('lm_model.')[1]
+                    hf_weights[hf_key] = tensor
+                elif 'lm_model.' not in key and node_type in key:
+                    proj_weights_dict[key] = tensor
+
+            if hf_weights:
+                hf_weights_dict[node_type] = hf_weights
+
+        return hf_weights_dict, node_type_to_model_type, proj_weights_dict
 
     def infer_hf_emb(self, input_lm_feats):
         """ Infer huggingface model embedding with model dictionary
@@ -964,6 +1009,12 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                 emb = hf_model(**tokenize_res).last_hidden_state
                 lm_feat[node_type][_id] = emb
         return lm_feat
+
+    @property
+    def node_feat_size(self):
+        """node feature size
+        """
+        return self.adjust_feat_size
 
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):

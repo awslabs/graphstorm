@@ -62,7 +62,9 @@ from .config import (FeatureGroup,
 from .model.embed import (GSPureLearnableInputLayer,
                           GSNodeEncoderInputLayer,
                           GSEdgeEncoderInputLayer)
-from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
+from .model.lm_embed import (GSLMNodeEncoderInputLayer, 
+                            GSPureLMNodeInputLayer,
+                            GSLMNodeEncoderInputLayer4GraphFromMetaData)
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
 from .model.hgt_encoder import HGTEncoder
@@ -1094,31 +1096,32 @@ def set_encoder(model, g, config, train_task):
     if config.node_lm_configs is not None:
         emb_path = os.path.join(os.path.dirname(config.part_config),
                 "cached_embs") if config.cache_lm_embed else None
-        if isinstance(g, GSGraphFromMetadata):
+        if isinstance(g, GSDglDistGraphFromMetadata):
             # for real-time inference case only
             node_encoder = GSLMNodeEncoderInputLayer4GraphFromMetaData(
-                metadata_g, gs_config.node_lm_configs,
-                node_feat_size, gs_config.hidden_size,
+                g, config.node_lm_configs,
+                node_feat_size, config.hidden_size,
                 dropout=config.dropout)
             model.set_node_input_encoder(node_encoder)
-        if model_encoder_type == "lm":
-            # only use language model(s) as input layer encoder(s)
-            node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
-                                                  num_train=config.lm_train_nodes,
-                                                  lm_infer_batch_size=config.lm_infer_batch_size,
-                                                  cached_embed_path=emb_path,
-                                                  wg_cached_embed=config.use_wholegraph_embed)
         else:
-            node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
-                                                    node_feat_size, config.hidden_size,
+            if model_encoder_type == "lm":
+                # only use language model(s) as input layer encoder(s)
+                node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
                                                     num_train=config.lm_train_nodes,
                                                     lm_infer_batch_size=config.lm_infer_batch_size,
-                                                    dropout=config.dropout,
-                                                    use_node_embeddings=config.use_node_embeddings,
                                                     cached_embed_path=emb_path,
-                                                    wg_cached_embed=config.use_wholegraph_embed,
-                                                    force_no_embeddings=config.construct_feat_ntype
-                                                    )
+                                                    wg_cached_embed=config.use_wholegraph_embed)
+            else:
+                node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
+                                                        node_feat_size, config.hidden_size,
+                                                        num_train=config.lm_train_nodes,
+                                                        lm_infer_batch_size=config.lm_infer_batch_size,
+                                                        dropout=config.dropout,
+                                                        use_node_embeddings=config.use_node_embeddings,
+                                                        cached_embed_path=emb_path,
+                                                        wg_cached_embed=config.use_wholegraph_embed,
+                                                        force_no_embeddings=config.construct_feat_ntype
+                                                        )
     else:
         if model_encoder_type == "learnable_embed":
             # only use learnable embeddings as features of every node
@@ -1488,64 +1491,6 @@ def create_lp_evaluator(config):
 
 
 ####################### Functions for real-time inference #############################
-def restore_hf_model(model_dir, gs_config):
-    """Extract huggingface model from GSGnnModel
-
-    This method would extract the huggingface model from GSgnnModel.
-
-    Parameters:
-    -----------
-    model: GSGnnModel
-        The restored GraphStorm model.
-    gs_config: GSConfig
-        A model configuration, GSConfig, object created based on the yaml_file under the
-        model_dir path.
-    """
-    # Load the model_type
-    node_type_to_model_type = {}
-    lm_model = gs_config['lm_model']
-
-    # Handle node_lm_models
-    if "node_lm_models" in lm_model:
-        for model_config in lm_model['node_lm_models']:
-            model_type = model_config.get('lm_type')
-
-            for node_type in model_config['node_types']:
-                node_type_to_model_type[node_type] = model_type
-
-    elif "distill_lm_models" in lm_model:
-        for model_config in lm_model['distill_lm_models']:
-            model_type = model_config.get('lm_type')
-
-            for node_type in model_config['node_types']:
-                node_type_to_model_type[node_type] = model_type
-
-    # Load the model
-    state_dict = torch.load(model_path)['node_embed']
-
-    # Find all node types with BERT models
-    node_types = node_type_to_model_type.keys()
-
-    # Extract BERT weights for each node type
-    hf_weights_dict, proj_weights_dict = {}, {}
-
-    for node_type in node_types:
-        hf_weights = {}
-
-        for key, tensor in state_dict.items():
-            if 'lm_model.' in key and node_type in key:
-                # Remove GraphStorm prefix, keep only Huggingface part
-                hf_key = key.split('lm_model.')[1]
-                hf_weights[hf_key] = tensor
-            elif 'lm_model.' not in key and node_type in key:
-                proj_weights_dict[key] = tensor
-
-        if hf_weights:
-            hf_weights_dict[node_type] = hf_weights
-
-    return hf_weights_dict, node_type_to_model_type, proj_weights_dict
-
-
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     """ Restores a trained GraphStorm model from model artifacts
 
@@ -1590,7 +1535,6 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
 
     metadata = load_metadata_from_json(graph_metadata_json)
     metadata_g = GSDglDistGraphFromMetadata(metadata)
-
     # load model configuration from a YAML file
     args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)
     gs_config = GSConfig(args)
