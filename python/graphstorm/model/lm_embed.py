@@ -949,8 +949,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                         lm_feat_size)
 
         # Cache Tokenizer/Model Dict
-        self.tokenizer_dict = dict()
-        self.hf_model_dict = dict()
+        self.tokenizer_dict = {}
+        self.hf_model_dict = {}
         for ntype, model_type in self.node_type_to_model_type.items():
             self.tokenizer_dict[ntype] = AutoTokenizer.from_pretrained(model_type)
             self.hf_model_dict[ntype] = AutoModel.from_pretrained(model_type)
@@ -962,7 +962,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             force_no_embeddings=force_no_embeddings)
         self._lm_models = nn.ParameterDict()
 
-    def rebuild_hf_model(gs_config):
+    def rebuild_hf_model(self, gs_config):
         """Extract huggingface model from GSGnnModel
 
         This method would rebuild the huggingface model from model cache state dict.
