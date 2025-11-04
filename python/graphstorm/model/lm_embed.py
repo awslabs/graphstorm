@@ -942,25 +942,25 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                 self.node_type_to_model_type[ntype] = lm_model_name
                 if isinstance(self.adjust_feat_size[ntype], int):
                     self.adjust_feat_size[ntype] += lm_feat_size
-                    if get_rank() == 0:
-                        logging.debug('Node %s adds lm %s features %d->%d',
-                                    ntype, lm_config["lm_type"], feat_size[ntype],
-                                    self.adjust_feat_size[ntype])
                 else:
                     # ntype has multiple feature groups
                     # make lm model another group
                     self.adjust_feat_size[ntype].feature_group_sizes.append(
                         lm_feat_size)
-                    if get_rank() == 0:
-                        logging.debug('Node %s adds lm %s features with size %d',
-                                    ntype, lm_config["lm_type"],
-                                    adjust_feat_size[ntype])
+
+        # Cache Tokenizer/Model Dict
+        self.tokenizer_dict = dict()
+        self.hf_model_dict = dict()
+        for ntype, model_type in self.node_type_to_model_type.items():
+            self.tokenizer_dict[ntype] = AutoTokenizer.from_pretrained(model_type)
+            self.hf_model_dict[ntype] = AutoModel.from_pretrained(model_type)
+            self.hf_model_dict[ntype].eval()
 
         super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).__init__(
             g, self.adjust_feat_size, embed_size,
             activation, dropout, use_node_embeddings,
             force_no_embeddings=force_no_embeddings)
-        self.lm_models = nn.ParameterDict()
+        self._lm_models = nn.ParameterDict()
 
     def rebuild_hf_model(gs_config):
         """Extract huggingface model from GSGnnModel
@@ -1001,13 +1001,12 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         """ Infer huggingface model embedding with model dictionary
         """
         lm_feat = {}
-        for node_type, text_tensor in input_lm_feats:
-            tokenizer = self.tokenizer_dict[node_type]
+        for node_type, text_tensor in input_lm_feats.items():
             hf_model = self.hf_model_dict[node_type]
-            for _id, text in text_tensor:
-                tokenize_res = tokenizer(text, return_tensors='pt')
-                emb = hf_model(**tokenize_res).last_hidden_state
-                lm_feat[node_type][_id] = emb
+            with th.no_grad():
+                outputs = hf_model(**text_tensor)
+                embs = outputs.last_hidden_state[:, 0, :]
+            lm_feat[node_type] = embs
         return lm_feat
 
     @property
@@ -1037,6 +1036,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         assert isinstance(input_feats, dict), 'The input features should be in a dict.'
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
+        input_lm_feats = input_feats['lm']
         # Compute language model features first
         lm_feats = self.infer_hf_emb(input_lm_feats)
 
@@ -1055,5 +1055,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             else:
                 input_feats[ntype] = lm_feat
 
+        non_tokenize_feats = {k: v for k, v in input_feats.items() if k != 'lm'}
         return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).\
-                forward(input_feats, input_nodes)
+                forward(non_tokenize_feats, input_nodes)

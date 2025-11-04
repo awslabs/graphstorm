@@ -33,6 +33,11 @@ from ..config.config import FeatureGroup
 
 from ..wholegraph import is_wholegraph_embedding
 
+TOKEN_IDX = 'input_ids'
+VALID_LEN = 'valid_len'
+ATT_MASK_IDX = 'attention_mask'
+TOKEN_TID_IDX = 'token_type_ids'
+
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
     '''
@@ -45,7 +50,8 @@ def split_full_edge_list(g, etype, rank):
     return th.arange(start, end)
 
 def prepare_batch_input(g, input_nodes,
-                        dev='cpu', feat_field='feat'):
+                        dev='cpu', feat_field='feat',
+                        lm_ntypes=None):
     """ Prepare minibatch input features
 
     Note: The output is stored in dev.
@@ -65,6 +71,8 @@ def prepare_batch_input(g, input_nodes,
         Device to put output in.
     feat_field: str or dict of list of str or dict of list of FeatureGroup
         Fields to extract features.
+    lm_ntypes: list[str], default: None
+        Node Types with language model features. 
 
     Return:
     -------
@@ -117,6 +125,22 @@ def prepare_batch_input(g, input_nodes,
                 else:
                     # The feature is 2D
                     feat[ntype] = th.cat(feats, dim=1)
+    
+        lm_feat = None
+        if lm_ntypes and ntype in lm_ntypes:
+            lm_feat = {}
+            for lm_feat_type in [TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX]:
+                if lm_feat_type in g.nodes[ntype].data:
+                    # store lm feature as a new dict
+                    if ntype not in lm_feat:
+                        lm_feat[ntype] = {}
+                    lm_feat[ntype][lm_feat_type] = g.nodes[ntype].data[lm_feat_type][nid]
+        if lm_feat:
+            # put lm_feat in feat as a new k,v pair
+            # could define a new constant for the `lm` key name.
+            if 'lm' not in feat:
+                feat['lm'] = {}
+            feat['lm'].update(lm_feat)
     return feat
 
 def prepare_batch_edge_input(g, input_edges,

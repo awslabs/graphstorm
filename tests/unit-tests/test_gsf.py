@@ -879,7 +879,7 @@ def test_get_edge_feat_size():
 def test_restore_builtin_model_from_artifacts(add_reverse_edges):
     """ Test restore a builtin mode from artifacts
     
-    The test needs three inputs: 1/ model dir path, 2/ josn file name, 3/ yaml file name.
+    The test needs three inputs: 1/ model dir path, 2/ json file name, 3/ yaml file name.
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create a dummy gdsg dist graph
@@ -1044,7 +1044,7 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
         # only check decoder output features as other model configurations are the same as nc model,
         assert lp_model.decoder._w_relation.embedding_dim == yaml_object['gsf']['gnn']['hidden_size']
     
-        # Case 6: test lm model layer model restoration
+    # Case 6: test lm model layer model restoration
         yaml_object["gsf"].pop('link_prediction')
         yaml_object["gsf"]["node_classification"] ={
             "target_ntype": "n1",
@@ -1068,7 +1068,7 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
         nc_lm_model.save_model(tmpdirname)
 
         nc_lm_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'nc_lm_basic.yaml')
-        assert nc_lm_model.node_input_encoder.node_feat_size = {'n0': 6, 'n1': 774}
+        assert nc_lm_model.node_input_encoder.node_feat_size == {'n0': 6, 'n1': 774}
         
 
 def test_save_load_builtin_models():
