@@ -62,7 +62,7 @@ from .config import (FeatureGroup,
 from .model.embed import (GSPureLearnableInputLayer,
                           GSNodeEncoderInputLayer,
                           GSEdgeEncoderInputLayer)
-from .model.lm_embed import (GSLMNodeEncoderInputLayer, 
+from .model.lm_embed import (GSLMNodeEncoderInputLayer,
                             GSPureLMNodeInputLayer,
                             GSLMNodeEncoderInputLayer4GraphFromMetaData)
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
@@ -1113,15 +1113,15 @@ def set_encoder(model, g, config, train_task):
                                                     wg_cached_embed=config.use_wholegraph_embed)
             else:
                 node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
-                                                        node_feat_size, config.hidden_size,
-                                                        num_train=config.lm_train_nodes,
-                                                        lm_infer_batch_size=config.lm_infer_batch_size,
-                                                        dropout=config.dropout,
-                                                        use_node_embeddings=config.use_node_embeddings,
-                                                        cached_embed_path=emb_path,
-                                                        wg_cached_embed=config.use_wholegraph_embed,
-                                                        force_no_embeddings=config.construct_feat_ntype
-                                                        )
+                                                    node_feat_size, config.hidden_size,
+                                                    num_train=config.lm_train_nodes,
+                                                    lm_infer_batch_size=config.lm_infer_batch_size,
+                                                    dropout=config.dropout,
+                                                    use_node_embeddings=config.use_node_embeddings,
+                                                    cached_embed_path=emb_path,
+                                                    wg_cached_embed=config.use_wholegraph_embed,
+                                                    force_no_embeddings=config.construct_feat_ntype
+                                                    )
     else:
         if model_encoder_type == "learnable_embed":
             # only use learnable embeddings as features of every node
