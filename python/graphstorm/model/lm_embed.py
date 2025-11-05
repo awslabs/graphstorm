@@ -949,10 +949,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                         lm_feat_size)
 
         # Cache Tokenizer/Model Dict
-        self.tokenizer_dict = {}
         self.hf_model_dict = {}
         for ntype, model_type in self.node_type_to_model_type.items():
-            self.tokenizer_dict[ntype] = AutoTokenizer.from_pretrained(model_type)
             self.hf_model_dict[ntype] = AutoModel.from_pretrained(model_type)
             self.hf_model_dict[ntype].eval()
 
@@ -960,23 +958,35 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             g, self.adjust_feat_size, embed_size,
             activation, dropout, use_node_embeddings,
             force_no_embeddings=force_no_embeddings)
-        self._lm_models = nn.ParameterDict()
 
-    def rebuild_hf_model(self, gs_config):
+        self._lm_models = nn.ModuleDict()
+        for lm_config in node_lm_configs:
+            lm_model_type = lm_config['lm_type']
+            model_type = lm_config["model_name"]
+            hf_model = AutoModel.from_pretrained(model_type)
+            # A list of node types sharing the same lm model
+            lm_ntypes = lm_config["node_types"]
+            # We should sort the node type list before converting it to the key.
+            lm_ntypes.sort()
+            key = ','.join(lm_ntypes)
+            self._lm_models[key] = hf_model
+        # for name, module in self._lm_models.named_modules():
+        #     if name:
+        #         print(f"{name}: {type(module).__name__}")
+
+    def rebuild_hf_model(self):
         """Extract huggingface model from GSGnnModel
 
         This method would rebuild the huggingface model from model cache state dict.
 
         Parameters:
         -----------
-        model: GSGnnModel
-            The restored GraphStorm model.
         gs_config: GSConfig
             A model configuration, GSConfig, object created based on the yaml_file under the
             model_dir path.
         """
         # Find all node types with BERT models
-        node_types = node_type_to_model_type.keys()
+        node_types = self.node_type_to_model_type.keys()
 
         # Extract BERT weights for each node type
         hf_weights_dict, proj_weights_dict = {}, {}
@@ -984,21 +994,24 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         for node_type in node_types:
             hf_weights = {}
 
-            for key, tensor in self.lm_models.items():
+            for key, tensor in self._lm_models.items():
                 if 'lm_model.' in key and node_type in key:
                     # Remove GraphStorm prefix, keep only Huggingface part
                     hf_key = key.split('lm_model.')[1]
                     hf_weights[hf_key] = tensor
-                elif 'lm_model.' not in key and node_type in key:
-                    proj_weights_dict[key] = tensor
 
             if hf_weights:
                 hf_weights_dict[node_type] = hf_weights
 
-        return hf_weights_dict, node_type_to_model_type, proj_weights_dict
+        return hf_weights_dict
 
     def infer_hf_emb(self, input_lm_feats):
         """ Infer huggingface model embedding with model dictionary
+
+        Parameters
+        ----------
+        input_lm_feats: dict of tensors
+            The input tokenize features
         """
         lm_feat = {}
         for node_type, text_tensor in input_lm_feats.items():
@@ -1014,6 +1027,10 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         """node feature size
         """
         return self.adjust_feat_size
+
+    @property
+    def get_lm_model_state(self):
+        return self.lm_models
 
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):
@@ -1038,8 +1055,9 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
 
         input_lm_feats = input_feats['lm']
         # Compute language model features first
+        hf_weights_dict = self.rebuild_hf_model()
         lm_feats = self.infer_hf_emb(input_lm_feats)
-
+        
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
