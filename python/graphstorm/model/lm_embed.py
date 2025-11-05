@@ -970,9 +970,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             lm_ntypes.sort()
             key = ','.join(lm_ntypes)
             self._lm_models[key] = hf_model
-        # for name, module in self._lm_models.named_modules():
-        #     if name:
-        #         print(f"{name}: {type(module).__name__}")
 
     def rebuild_hf_model(self):
         """Extract huggingface model from GSGnnModel

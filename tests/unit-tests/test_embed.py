@@ -26,7 +26,7 @@ import tempfile
 
 
 import dgl
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
 from graphstorm.config import FeatureGroup
@@ -1129,23 +1129,25 @@ def test_LM_learnable_rt_layer(dev):
     relu = nn.ReLU()
 
     with th.no_grad():
-        # lm_feats = layer._lm_models(input_nodes)["n0"]
-        # embed_n0_0 = feat["n0"][0] @ layer.feat_group_projs['n0'][0][0].weight.T
-        # embed_n0_0 = relu(embed_n0_0)
-        # embed_n0_1 = feat["n0"][1] @ layer.feat_group_projs['n0'][1][0].weight.T
-        # embed_n0_1 = relu(embed_n0_1)
-        # lm_feats = lm_feats @ layer.feat_group_projs['n0'][2][0].weight.T
-        # lm_feats = relu(lm_feats)
-        # embed_n0 = th.cat([embed_n0_0.to(dev),
-        #                    embed_n0_1.to(dev),
-        #                    lm_feats.to(dev)], dim=1)
+        hf_model = AutoModel.from_pretrained(bert_model_name)
+        outputs = hf_model(**feat['lm']['n0'])
+        lm_feats = outputs.last_hidden_state[:,0,:]
+        embed_n0_0 = feat["n0"][0] @ layer.feat_group_projs['n0'][0][0].weight.T
+        embed_n0_0 = relu(embed_n0_0)
+        embed_n0_1 = feat["n0"][1] @ layer.feat_group_projs['n0'][1][0].weight.T
+        embed_n0_1 = relu(embed_n0_1)
+        lm_feats = lm_feats @ layer.feat_group_projs['n0'][2][0].weight.T
+        lm_feats = relu(lm_feats)
+        embed_n0 = th.cat([embed_n0_0.to(dev),
+                           embed_n0_1.to(dev),
+                           lm_feats.to(dev)], dim=1)
 
-        # embed_n0 = embed_n0 @ layer.proj_matrix["n0"]
+        embed_n0 = embed_n0 @ layer.proj_matrix["n0"]
         emb_out = layer(feat, input_nodes)
 
-        # assert emb_out["n0"].shape[1] == 2
-        # assert_almost_equal(emb_out['n0'].detach().cpu().numpy(),
-        #                     embed_n0.detach().cpu().numpy())
+        assert emb_out["n0"].shape[1] == 2
+        assert_almost_equal(emb_out['n0'].detach().cpu().numpy(),
+                            embed_n0.detach().cpu().numpy())
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
