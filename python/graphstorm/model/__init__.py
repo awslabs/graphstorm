@@ -18,7 +18,7 @@
 from .embed import (GSPureLearnableInputLayer,
                     GSNodeEncoderInputLayer,
                     GSEdgeEncoderInputLayer)
-from .lm_embed import (GSLMNodeEncoderInputLayer, 
+from .lm_embed import (GSLMNodeEncoderInputLayer,
                     GSPureLMNodeInputLayer,
                     GSLMNodeEncoderInputLayer4GraphFromMetaData)
 

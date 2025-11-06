@@ -961,15 +961,16 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
 
         self._lm_models = nn.ModuleDict()
         for lm_config in node_lm_configs:
-            lm_model_type = lm_config['lm_type']
             model_type = lm_config["model_name"]
             hf_model = AutoModel.from_pretrained(model_type)
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
-            # We should sort the node type list before converting it to the key.
             lm_ntypes.sort()
             key = ','.join(lm_ntypes)
             self._lm_models[key] = hf_model
+
+    def get_model_weights(self):
+        return self._lm_models
 
     def rebuild_hf_model(self):
         """Extract huggingface model from GSGnnModel
@@ -984,17 +985,16 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         """
         # Find all node types with BERT models
         node_types = self.node_type_to_model_type.keys()
-
         # Extract BERT weights for each node type
-        hf_weights_dict, proj_weights_dict = {}, {}
+        hf_weights_dict = {}
 
         for node_type in node_types:
-            hf_weights = {}
+            hf_weights = nn.ModuleDict()
 
             for key, tensor in self._lm_models.items():
-                if 'lm_model.' in key and node_type in key:
+                key = key.split[","]
+                if node_type in key:
                     # Remove GraphStorm prefix, keep only Huggingface part
-                    hf_key = key.split('lm_model.')[1]
                     hf_weights[hf_key] = tensor
 
             if hf_weights:
@@ -1012,7 +1012,12 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         """
         lm_feat = {}
         for node_type, text_tensor in input_lm_feats.items():
+            weights_dict = next(
+                (state_dict for key, state_dict in self._lm_models.items() if node_type in key),
+                None
+            ).state_dict()
             hf_model = self.hf_model_dict[node_type]
+            hf_model.load_state_dict(weights_dict)
             with th.no_grad():
                 outputs = hf_model(**text_tensor)
                 embs = outputs.last_hidden_state[:, 0, :]
@@ -1024,10 +1029,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         """node feature size
         """
         return self.adjust_feat_size
-
-    @property
-    def get_lm_model_state(self):
-        return self.lm_models
 
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):
@@ -1052,9 +1053,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
 
         input_lm_feats = input_feats['lm']
         # Compute language model features first
-        hf_weights_dict = self.rebuild_hf_model()
         lm_feats = self.infer_hf_emb(input_lm_feats)
-        
+
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.

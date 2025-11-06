@@ -1140,24 +1140,20 @@ def create_distill_data(tmpdirname, num_files):
             }).set_index("ids")
         textual_embed_pddf.to_parquet(os.path.join(tmpdirname, f"part-{part_i}.parquet"))
 
-def create_lm_learnable_model_dict_rt(model_name='bert-base-uncased', 
+def create_lm_learnable_model_dict_rt(hf_model, model_name='bert-base-uncased', 
                                     node_types=['n0'], output_dim=2, 
                                     input_dim=770):
-    hf_model = AutoModel.from_pretrained(model_name)
     hf_state_dict = hf_model.state_dict()
-
     # Convert to GraphStorm format
     embed_state_dict = {}
     
     # Create LM models for each node type (they can share the same weights)
     node_types_str = ','.join(node_types)
-    prefix = f'_lm_models._lm_models.{node_types_str}.lm_model'
     
     for key, tensor in hf_state_dict.items():
         # Convert HF key to GraphStorm key
-        gs_key = f'{prefix}.{key}'
+        gs_key = key
         embed_state_dict[gs_key] = tensor.clone()
-    
     for node_type in node_types:
         embed_state_dict[f'input_projs.{node_type}'] = th.randn(input_dim, output_dim)
     
@@ -1165,28 +1161,11 @@ def create_lm_learnable_model_dict_rt(model_name='bert-base-uncased',
 
 def load_weights_to_layer(layer, embed_state_dict):
     # Extract LM model weights
-    lm_weights = {}
     proj_weights = {}
-    
-    for key, tensor in embed_state_dict.items():
-        if 'lm_model.' in key:
-            # Extract the HF model part
-            hf_key = key.split('lm_model.')[1]
-            lm_weights[hf_key] = tensor
-        elif 'input_projs.' in key:
-            # Extract projection weights
-            proj_weights[key] = tensor
-    
     # Load LM model weights into HuggingFace models
-    if hasattr(layer, 'hf_model_dict'):
-        for node_type, hf_model in layer.hf_model_dict.items():
-            hf_model.load_state_dict(lm_weights, strict=False)
-
-    # Load projection weights
-    if hasattr(layer, 'input_proj'):
-        for key, tensor in proj_weights.items():
-            if key in layer.input_proj:
-                layer.input_proj[key].data = tensor
+    if hasattr(layer, '_lm_models'):
+        for node_type, hf_model in layer._lm_models.items():
+            hf_model.load_state_dict(embed_state_dict['embed'], strict=False)
 
 """ For self tests"""
 if __name__ == '__main__':

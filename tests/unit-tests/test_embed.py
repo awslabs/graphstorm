@@ -1114,7 +1114,10 @@ def test_LM_learnable_rt_layer(dev):
                     lm_config, feat_size, 2)
     layer = layer.to(dev)
 
-    model_dict = create_lm_learnable_model_dict_rt()
+    hf_model = AutoModel.from_pretrained(bert_model_name)
+    hf_model.encoder.layer[11].apply(hf_model._init_weights)
+    hf_model.eval()
+    model_dict = create_lm_learnable_model_dict_rt(hf_model)
     load_weights_to_layer(layer, model_dict)
     assert len(layer.input_projs) == 0
     assert len(layer.feat_group_projs) == 1
@@ -1129,7 +1132,6 @@ def test_LM_learnable_rt_layer(dev):
     relu = nn.ReLU()
 
     with th.no_grad():
-        hf_model = AutoModel.from_pretrained(bert_model_name)
         outputs = hf_model(**feat['lm']['n0'])
         lm_feats = outputs.last_hidden_state[:,0,:]
         embed_n0_0 = feat["n0"][0] @ layer.feat_group_projs['n0'][0][0].weight.T
