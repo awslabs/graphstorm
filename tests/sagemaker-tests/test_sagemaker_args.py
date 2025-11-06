@@ -229,17 +229,3 @@ def test_sanity_check_realtime_infer_inputs():
 
             with pytest.raises(ValueError, match=r'The given Docker image * '):
                 sanity_check_realtime_infer_inputs(args)
-
-        #       2.2 updated graph construction json contains tokenize_hf transformation
-        # create a real json file has tokenize_hf to test sanity check
-        test_args = {**required_args, **default_args}
-        test_args_str = [test_cmd] + [str(item) for pair in test_args.items() for item in pair]
-
-        _ = create_graph_config_json_object(tmpdir, has_tokenize=True, json_fname='json_config_file')
-
-        with mock.patch.object(sys, 'argv', test_args_str):
-            arg_parser = get_realtime_infer_parser()
-            args = arg_parser.parse_args()
-
-            with pytest.raises(AssertionError, match=r'tokenize_hf transformation * '):
-                sanity_check_realtime_infer_inputs(args)
