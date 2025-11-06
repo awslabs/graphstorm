@@ -25,7 +25,7 @@ import hashlib
 import numpy as np
 import torch as th
 from torch import nn
-from transformers import AutoTokenizer, AutoConfig, AutoModel
+from transformers import AutoConfig, AutoModel
 import dgl
 
 from .embed import GSNodeInputLayer
@@ -968,9 +968,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             lm_ntypes.sort()
             key = ','.join(lm_ntypes)
             self._lm_models[key] = hf_model
-
-    def get_model_weights(self):
-        return self._lm_models
 
     def rebuild_hf_model(self):
         """Extract huggingface model from GSGnnModel
