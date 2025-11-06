@@ -125,7 +125,7 @@ def prepare_batch_input(g, input_nodes,
                 else:
                     # The feature is 2D
                     feat[ntype] = th.cat(feats, dim=1)
-
+    
         lm_feat = None
         if lm_ntypes and ntype in lm_ntypes:
             lm_feat = {}

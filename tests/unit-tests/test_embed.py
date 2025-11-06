@@ -1134,6 +1134,8 @@ def test_LM_learnable_rt_layer(dev):
     relu = nn.ReLU()
 
     with th.no_grad():
+        for k, v in feat['lm']['n0'].items(): 
+            feat['lm']['n0'][k] = v.to(dev)
         outputs = hf_model(**feat['lm']['n0'])
         lm_feats = outputs.last_hidden_state[:,0,:]
         embed_n0_0 = feat["n0"][0] @ layer.feat_group_projs['n0'][0][0].weight.T

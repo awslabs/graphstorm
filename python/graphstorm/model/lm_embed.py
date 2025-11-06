@@ -969,36 +969,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             key = ','.join(lm_ntypes)
             self._lm_models[key] = hf_model
 
-    def rebuild_hf_model(self):
-        """Extract huggingface model from GSGnnModel
-
-        This method would rebuild the huggingface model from model cache state dict.
-
-        Parameters:
-        -----------
-        gs_config: GSConfig
-            A model configuration, GSConfig, object created based on the yaml_file under the
-            model_dir path.
-        """
-        # Find all node types with BERT models
-        node_types = self.node_type_to_model_type.keys()
-        # Extract BERT weights for each node type
-        hf_weights_dict = {}
-
-        for node_type in node_types:
-            hf_weights = nn.ModuleDict()
-
-            for key, tensor in self._lm_models.items():
-                key = key.split[","]
-                if node_type in key:
-                    # Remove GraphStorm prefix, keep only Huggingface part
-                    hf_weights[hf_key] = tensor
-
-            if hf_weights:
-                hf_weights_dict[node_type] = hf_weights
-
-        return hf_weights_dict
-
     def infer_hf_emb(self, input_lm_feats):
         """ Infer huggingface model embedding with model dictionary
 

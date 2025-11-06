@@ -24,9 +24,11 @@ import shutil
 from argparse import Namespace
 import numpy as np
 import torch as th
+from transformers import AutoTokenizer
 from unittest.mock import patch
 from dgl.dataloading import DataLoader, MultiLayerFullNeighborSampler
 
+from graphstorm.gsf import restore_builtin_model_from_artifacts
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
 from graphstorm.utils import setup_device, get_device
@@ -43,6 +45,7 @@ from graphstorm.inference import (GSgnnMultiTaskLearningInferrer,
                                   GSgnnLinkPredictionInferrer,
                                   GSGnnNodePredictionRealtimeInferrer)
 from graphstorm.model import LinkPredictDistMultDecoder
+from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from graphstorm import (create_builtin_node_gnn_model,
                         create_builtin_edge_gnn_model,
                         create_builtin_lp_gnn_model)
@@ -56,17 +59,20 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 
 from numpy.testing import assert_raises, assert_equal
-from data_utils import generate_dummy_dist_graph, generate_dummy_hetero_graph
+from data_utils import (generate_dummy_dist_graph, 
+                        generate_dummy_hetero_graph,
+                        create_lm_graph)
 
 from util import (DummyGSgnnData,
                   DummyGSgnnEncoderModel,
                   DummyGSgnnMTModel,
                   DummyGSgnnNodeDataLoader,
                   DummyGSgnnEdgeDataLoader,
-                  DummyGSgnnLinkPredictionDataLoader)
+                  DummyGSgnnLinkPredictionDataLoader,
+                  create_tokens)
 from test_trainer import MTaskCheckerEvaluator
 
-def create_nc_config(tmp_path, file_name):
+def create_nc_config(tmp_path, file_name, lm_config=False):
     conf_object = {
         "version": 1.0,
         "gsf": {
@@ -90,6 +96,17 @@ def create_nc_config(tmp_path, file_name):
             },
         }
     }
+    if lm_config:
+        conf_object["lm_model"] = {
+            "node_lm_models": [
+                {
+                    "lm_type": "bert",
+                    "model_name": "bert-base-uncased",
+                    "gradient_checkpoint": "true",
+                    "node_types": ["n1"]
+                }
+            ]
+        }
     with open(os.path.join(tmp_path, file_name), "w") as f:
         yaml.dump(conf_object, f)
 
@@ -1758,3 +1775,43 @@ def test_realtime_infer_np():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
+
+def test_realtime_infer_lm_graph():
+    infer_ntypes = ['n1']
+    num_targets = 14
+    infer_nids = {ntype: [i for i in range(num_targets)] for ntype in infer_ntypes}
+
+    # initialize a nc model with language model features
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        g, graph_config = generate_dummy_hetero_graph(gen_mask=False, is_random=False, 
+                        return_graph_config=True, dirname=tmpdirname)
+        graph_config_file = os.path.basename(graph_config)
+        create_nc_config(Path(tmpdirname), 'gnn_nc_lm.yaml', lm_config=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc_lm.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+
+        model = create_builtin_node_gnn_model(g, config, True)
+        model.save_model(tmpdirname)
+        model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'gnn_nc_lm.yaml')
+        inferrer = GSGnnNodePredictionRealtimeInferrer(model)
+        input_text = ["Hello world!"]
+        tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+        input_ids, valid_len, attention_mask, _ = \
+            create_tokens(tokenizer=tokenizer,
+                        input_text=input_text,
+                        max_seq_length=8,
+                        num_node=g.number_of_nodes('n1'))
+
+        g.nodes['n1'].data[TOKEN_IDX] = input_ids
+        g.nodes['n1'].data[ATT_MASK_IDX] = attention_mask
+        device = th.device('cuda:0') if th.cuda.is_available() else th.device('cpu')
+        inferrer.setup_device(device)
+
+        # initialize a GSgnnRealtimeInferNodeDataLoader, no need of batch_size now
+        dataloader = GSgnnRealtimeInferNodeDataLoader(g, infer_nids, num_layers=1)
+
+        pred = inferrer.infer(g, dataloader, infer_ntypes, config.node_feat_name, lm_ntypes=["n1"])
+        assert all(infer_ntype in pred for infer_ntype in infer_ntypes)
+        assert all(pred[infer_ntype].shape == (num_targets, config.num_classes) \
+            for infer_ntype in infer_ntypes)

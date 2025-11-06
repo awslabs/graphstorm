@@ -252,7 +252,6 @@ def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
 
     with open(json_file_path, 'w', encoding='utf-8') as f:
         json.dump(data_json, f, indent=4)
-
     return json_file_path
 
 def generate_mask(idx, length):
@@ -328,7 +327,7 @@ def generate_dummy_hetero_graph_for_efeat_gnn(is_random=True):
 
 
 def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, is_random=True,
-                                add_reverse_efeat=False):
+                                add_reverse_efeat=False, return_graph_config=False, dirname=None):
     """
     generate a dummy heterogeneous graph.
     Parameters
@@ -421,6 +420,9 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, i
         hetero_graph.edges[target_etype[1]].data['val_mask'] = edge_val_mask2
         hetero_graph.edges[target_etype[1]].data['test_mask'] = edge_test_mask2
 
+    if return_graph_config:
+        graph_config_new = create_dummy_hetero_graph_config(dirname, hetero_graph)
+        return hetero_graph, graph_config_new
     return hetero_graph
 
 def generate_dummy_hetero_graph_multi_target_ntypes(size='tiny', gen_mask=True):
