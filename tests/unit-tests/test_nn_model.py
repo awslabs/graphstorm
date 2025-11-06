@@ -25,6 +25,7 @@ from numpy.testing import assert_almost_equal, assert_raises
 from graphstorm.model.rgat_encoder import RelationalAttLayer
 from graphstorm.model.rgcn_encoder import RelGraphConvLayer
 from graphstorm.model.hgt_encoder import HGTLayer, HGTLayerwithEdgeFeat
+from graphstorm.model.gat_encoder import GATConv, GATEncoder
 
 from data_utils import (generate_dummy_hetero_graph,
                         generate_dummy_hetero_graph_for_efeat_gnn)
