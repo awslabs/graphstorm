@@ -21,10 +21,11 @@ import torch as th
 import dgl
 from numpy.testing import assert_raises
 
-from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
+from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader, GSgnnNodeDataLoader
 from graphstorm.model.rgcn_encoder import GraphConvwithEdgeFeat, RelationalGCNEncoder
 from graphstorm.model.rgat_encoder import GATConvwithEdgeFeat, RelationalGATEncoder
 from graphstorm.model.hgt_encoder import HGTEncoder, HGTLayer, HGTLayerwithEdgeFeat
+from graphstorm.model.gat_encoder import GATEncoder
 
 from data_utils import (generate_dummy_dist_graph)
 
@@ -891,7 +892,6 @@ def test_hgt_encoder_with_edge_features(input_dim, output_dim, dev):
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
-
 
 
 @pytest.mark.parametrize("input_dim", [32])

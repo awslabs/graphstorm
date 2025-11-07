@@ -225,7 +225,7 @@ class GATConvwithEdgeFeat(nn.Module):
         g: DGLHeteroGraph
             Input DGL heterogenous graph.
         inputs: dict of Tensor
-            Node features for the default node type in the format of
+            Features for the default node type and edge type in the format of
             {``dgl.DEFAULT_NTYPE``: tensor, ``dgl.DEFAULT_ETYPE``: tensor}. 
             The definition of ``dgl.DEFAULT_NTYPE`` and ``dgl.DEFAULT_ETYPE`` can
             be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
@@ -242,7 +242,7 @@ class GATConvwithEdgeFeat(nn.Module):
 
         # add self-loop during computation.
         assert DEFAULT_NTYPE in inputs and DEFAULT_ETYPE in inputs, \
-            "GAT encoder only support homogeneous graph."
+            "Both node and edge features are needed to for GATConvwithEdgeFeat."
         node_inputs = inputs[DEFAULT_NTYPE]
         edge_inputs = inputs[DEFAULT_ETYPE]
 
@@ -359,6 +359,12 @@ class GATEncoder(GraphConvEncoder):
 
         Parameters
         ----------
+         blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graphs (MFGs) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_. 
+
         h: dict of Tensor
             Node features for the default node type in the format of
             {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
@@ -389,7 +395,6 @@ class GATEncoder(GraphConvEncoder):
                 f'the number of blocks, but got {len(edge_feats)} layers of edge features ' + \
                 f'and {len(blocks)} blocks.'
 
-        if edge_feats is not None:
             for layer, block, e_h in zip(self.layers, blocks, edge_feats):
                 # Prepare input features for the layer
                 layer_input = {DEFAULT_NTYPE: h[DEFAULT_NTYPE]}
