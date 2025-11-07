@@ -354,11 +354,11 @@ def transform_fn(model,
                     logging.error(res.to_json())
                     return res.to_json(), response_content_type
     
-    lm_ntypes_list = {
+    lm_ntypes_list = [
         ntype
         for lm_config in node_lm_configs
         for ntype in lm_config["node_types"]
-    } if gs_train_config.node_lm_configs is not None else None
+     ] if gs_train_config.node_lm_configs is not None else None
 
     # mapping the targets, a list of node objects, to new graph node IDs after dgl graph
     # construction for less overall data processing time
@@ -410,7 +410,7 @@ def transform_fn(model,
         predictions = inferrer.infer(dgl_graph, dataloader, list(target_nids.keys()),
                                      gs_train_config.node_feat_name,
                                      gs_train_config.edge_feat_name,
-                                     lm_ntypes_list)
+                                     lm_ntypes=lm_ntypes_list)
         # Build prediction response
         pred_list = []
         for ntype, preds in predictions.items():
