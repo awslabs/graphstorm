@@ -1527,7 +1527,6 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
         A model configuration, GSConfig, object created based on the yaml_file under the
         model_dir path.
     """
-
     # intialize gsf environment first
     initialize()
 
@@ -1537,6 +1536,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
 
     metadata = load_metadata_from_json(graph_metadata_json)
     metadata_g = GSDglDistGraphFromMetadata(metadata)
+
     # load model configuration from a YAML file
     args = Namespace(yaml_config_file=os.path.join(model_dir, yaml_file), local_rank=0)
     gs_config = GSConfig(args)
