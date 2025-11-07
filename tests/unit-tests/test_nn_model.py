@@ -25,6 +25,7 @@ from numpy.testing import assert_almost_equal, assert_raises
 from graphstorm.model.rgat_encoder import RelationalAttLayer
 from graphstorm.model.rgcn_encoder import RelGraphConvLayer
 from graphstorm.model.hgt_encoder import HGTLayer, HGTLayerwithEdgeFeat
+from graphstorm.model.gat_encoder import GATConv, GATEncoder
 
 from data_utils import (generate_dummy_hetero_graph,
                         generate_dummy_hetero_graph_for_efeat_gnn)
@@ -201,6 +202,46 @@ def test_hgt_with_zero_input(input_dim, output_dim):
     assert out["n3"].shape[1] == output_dim
     assert "n4" not in out
 
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_gat_with_zero_input(input_dim, output_dim):
+    # GAT works with homogeneous graphs, so we need to create a simpler test
+    # Create a simple homogeneous block with zero input nodes
+    from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+    import torch as th
+    import dgl
+    
+    # Create a block with some nodes having zero features
+    num_src_nodes = 1024
+    num_dst_nodes = 1024
+    
+    # Create edges (some nodes will have no incoming edges)
+    src_nodes = th.arange(512, 1024)  # Only half the nodes have outgoing edges
+    dst_nodes = th.randint(0, 1024, (512,))
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes)
+    
+    # Add required node IDs for GAT encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes)
+    
+    # Create input features
+    inputs = {DEFAULT_NTYPE: th.zeros((num_src_nodes, input_dim))}
+    
+    # Create GAT encoder - with 0 hidden layers, it should go directly from input_dim to output_dim
+    gat_encoder = GATEncoder(input_dim, output_dim, num_heads=2, num_hidden_layers=0)
+    
+    # Create blocks for GAT encoder (needs list of blocks)
+    blocks = [block]
+    
+    out = gat_encoder(blocks, inputs)
+
+    assert out[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert out[DEFAULT_NTYPE].shape[1] == output_dim
+    # Check output is not NaN or Inf
+    assert not th.isnan(out[DEFAULT_NTYPE]).any(), "Output contains NaN values"
+    assert not th.isinf(out[DEFAULT_NTYPE]).any(), "Output contains Inf values"
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32])
@@ -261,6 +302,41 @@ def test_hgt_with_no_indegree_dstnodes(input_dim, output_dim):
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
+def test_gat_with_no_indegree_dstnodes(input_dim, output_dim):
+    # Create a homogeneous graph where some destination nodes have no in-degree
+    from dgl.distributed.constants import DEFAULT_NTYPE
+    import torch as th
+    import dgl
+    
+    num_src_nodes = 1024
+    num_dst_nodes = 256
+    
+    # Create edges where some dst nodes have no incoming edges
+    src_nodes = th.randint(0, num_src_nodes, (500,))
+    dst_nodes = th.randint(0, 128, (500,))  # Only first 128 dst nodes get edges
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes)
+    
+    # Add required node IDs for GAT encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes)
+    
+    inputs = {DEFAULT_NTYPE: th.randn((num_src_nodes, input_dim))}
+
+    gat_encoder = GATEncoder(input_dim, output_dim, num_heads=2, num_hidden_layers=0)
+    blocks = [block]
+    
+    outputs = gat_encoder(blocks, inputs)
+    
+    assert outputs[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert outputs[DEFAULT_NTYPE].shape[1] == output_dim
+    # Check output is not NaN or Inf
+    assert not th.isnan(outputs[DEFAULT_NTYPE]).any(), "Output contains NaN values"
+    assert not th.isinf(outputs[DEFAULT_NTYPE]).any(), "Output contains Inf values"
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
 def test_rgcn_with_zero_dstnodes(input_dim, output_dim):
     block, inputs, ntypes, etypes = create_dummy_zero_dest_test_graph(input_dim)
 
@@ -311,6 +387,41 @@ def test_hgt_with_zero_dstnodes(input_dim, output_dim):
     assert outputs['n1'].shape[1] == output_dim     # same as output dim
     assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation nodes
     assert outputs['n2'].shape[1] == output_dim     # same as output
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_gat_with_zero_dstnodes(input_dim, output_dim):
+    # Create a homogeneous graph with zero destination nodes for some cases
+    from dgl.distributed.constants import DEFAULT_NTYPE
+    import torch as th
+    import dgl
+    
+    num_src_nodes = 4
+    num_dst_nodes = 2
+    
+    # Create edges
+    src_nodes = th.tensor([0, 1, 2, 3])
+    dst_nodes = th.tensor([0, 0, 1, 1])
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes)
+    
+    # Add required node IDs for GAT encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes)
+    
+    inputs = {DEFAULT_NTYPE: th.randn((num_src_nodes, input_dim))}
+
+    gat_encoder = GATEncoder(input_dim, output_dim, num_heads=2, num_hidden_layers=0)
+    blocks = [block]
+    
+    outputs = gat_encoder(blocks, inputs)
+
+    assert outputs[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert outputs[DEFAULT_NTYPE].shape[1] == output_dim
+    # Check output is not NaN or Inf
+    assert not th.isnan(outputs[DEFAULT_NTYPE]).any(), "Output contains NaN values"
+    assert not th.isinf(outputs[DEFAULT_NTYPE]).any(), "Output contains Inf values"
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
@@ -1969,3 +2080,146 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
                         emb_b['n1'].detach().cpu().numpy())
 
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_gat_with_edge_features(input_dim, output_dim, dev):
+    """ Test the GAT encoder that supports edge features """
+    from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+    import torch as th
+    import dgl
+    
+    # Create a simple homogeneous graph
+    num_src_nodes = 10
+    num_dst_nodes = 5
+    
+    src_nodes = th.tensor([0, 1, 2, 3, 4, 5, 6, 7])
+    dst_nodes = th.tensor([0, 1, 2, 3, 0, 1, 2, 4])
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes).to(dev)
+    
+    # Add required node IDs for GAT encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes).to(dev)
+    
+    node_feats = {DEFAULT_NTYPE: th.rand(num_src_nodes, input_dim).to(dev)}
+    edge_feats = {DEFAULT_ETYPE: th.rand(len(src_nodes), input_dim).to(dev)}
+
+    # Test case 0: normal case, have both node and edge features
+    edge_feat_name = {DEFAULT_ETYPE: ['feat']}
+    gat_encoder = GATEncoder(input_dim, output_dim, num_heads=2, 
+                           num_hidden_layers=0, 
+                           edge_feat_name=edge_feat_name)
+    gat_encoder = gat_encoder.to(dev)
+
+    blocks = [block]
+    edge_feat_blocks = [edge_feats]
+    
+    emb0 = gat_encoder(blocks, node_feats, edge_feats=edge_feat_blocks)
+    # check output numbers, dimensions and device
+    assert emb0[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb0[DEFAULT_NTYPE].shape[1] == output_dim
+    assert emb0[DEFAULT_NTYPE].get_device() == (-1 if dev == 'cpu' else 0)
+
+    # Test case 1: normal case, no edge features as inputs
+    gat_encoder = GATEncoder(input_dim, output_dim, num_heads=2, num_hidden_layers=0)
+    gat_encoder = gat_encoder.to(dev)
+
+    emb1 = gat_encoder(blocks, node_feats)
+    # check output numbers, and dimensions
+    assert emb1[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb1[DEFAULT_NTYPE].shape[1] == output_dim
+
+    # the value of emb0 and emb1 should be different,
+    # as emb0 integrates edge features and emb1 does not
+    assert not th.allclose(emb0[DEFAULT_NTYPE], emb1[DEFAULT_NTYPE], atol=0.001)
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("num_heads", [1, 2, 4])
+def test_gat_different_head_counts(input_dim, output_dim, num_heads):
+    """Test GAT with different numbers of attention heads"""
+    from dgl.distributed.constants import DEFAULT_NTYPE
+    import torch as th
+    import dgl
+    
+    num_src_nodes = 256
+    num_dst_nodes = 64
+    
+    src_nodes = th.randint(0, num_src_nodes, (200,))
+    dst_nodes = th.randint(0, num_dst_nodes, (200,))
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes)
+    
+    # Add required node IDs for GAT encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes)
+    
+    inputs = {DEFAULT_NTYPE: th.randn((num_src_nodes, input_dim))}
+
+    gat_encoder = GATEncoder(input_dim, output_dim, num_heads=num_heads, num_hidden_layers=0)
+    blocks = [block]
+    
+    outputs = gat_encoder(blocks, inputs)
+    
+    assert outputs[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert outputs[DEFAULT_NTYPE].shape[1] == output_dim
+    # Check output is not NaN or Inf
+    assert not th.isnan(outputs[DEFAULT_NTYPE]).any(), "Output contains NaN values"
+    assert not th.isinf(outputs[DEFAULT_NTYPE]).any(), "Output contains Inf values"
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("num_hidden_layers", [0])  # Only test single layer for now
+def test_gat_different_depths(input_dim, output_dim, num_hidden_layers):
+    """Test GAT encoder with different numbers of hidden layers"""
+    from dgl.distributed.constants import DEFAULT_NTYPE
+    import torch as th
+    import dgl
+    
+    num_src_nodes = 256
+    num_dst_nodes = 64
+    
+    src_nodes = th.randint(0, num_src_nodes, (200,))
+    dst_nodes = th.randint(0, num_dst_nodes, (200,))
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes)
+    
+    # Add required node IDs for GAT encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes)
+    
+    inputs = {DEFAULT_NTYPE: th.randn((num_src_nodes, input_dim))}
+
+    gat_encoder = GATEncoder(input_dim, output_dim, num_heads=2, num_hidden_layers=num_hidden_layers)
+    
+    # Create appropriate number of blocks for the layers
+    blocks = [block] * (num_hidden_layers + 1) if num_hidden_layers > 0 else [block]
+    
+    outputs = gat_encoder(blocks, inputs)
+    
+    assert outputs[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert outputs[DEFAULT_NTYPE].shape[1] == output_dim
+    # Check output is not NaN or Inf
+    assert not th.isnan(outputs[DEFAULT_NTYPE]).any(), "Output contains NaN values"
+    assert not th.isinf(outputs[DEFAULT_NTYPE]).any(), "Output contains Inf values"
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+def test_gat_edge_feature_support(input_dim, output_dim):
+    """Test GAT encoder edge feature support detection"""
+    # Test without edge features
+    gat_encoder_no_edge = GATEncoder(input_dim, output_dim, num_heads=2, num_hidden_layers=1)
+    assert not gat_encoder_no_edge.is_support_edge_feat(), "Should not support edge features without edge_feat_name"
+    
+    # Test with edge features
+    from dgl.distributed.constants import DEFAULT_ETYPE
+    edge_feat_name = {DEFAULT_ETYPE: ['feat']}
+    gat_encoder_with_edge = GATEncoder(input_dim, output_dim, num_heads=2, 
+                                     num_hidden_layers=1, edge_feat_name=edge_feat_name)
+    assert gat_encoder_with_edge.is_support_edge_feat(), "Should support edge features with edge_feat_name"
