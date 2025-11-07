@@ -983,11 +983,11 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                 (state_dict for key, state_dict in self._lm_models.items() if node_type in key),
                 None
             ).state_dict()
-            hf_model = self.hf_model_dict[node_type]
+            hf_model = self.hf_model_dict[node_type].to(self.device)
             hf_model.load_state_dict(weights_dict)
             with th.no_grad():
                 outputs = hf_model(**text_tensor)
-                embs = outputs.last_hidden_state[:, 0, :]
+                embs = outputs.pooler_output
             lm_feat[node_type] = embs
         return lm_feat
 

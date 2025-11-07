@@ -134,7 +134,7 @@ def prepare_batch_input(g, input_nodes,
                     # store lm feature as a new dict
                     if ntype not in lm_feat:
                         lm_feat[ntype] = {}
-                    lm_feat[ntype][lm_feat_type] = g.nodes[ntype].data[lm_feat_type][nid]
+                    lm_feat[ntype][lm_feat_type] = g.nodes[ntype].data[lm_feat_type][nid].to(dev)
         if lm_feat:
             # put lm_feat in feat as a new k,v pair
             # could define a new constant for the `lm` key name.
