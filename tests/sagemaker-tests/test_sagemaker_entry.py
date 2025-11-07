@@ -230,6 +230,8 @@ def test_np_transform_fn(create_test_realtime_payload):
             assert result['node_type'] == target['node_type']
             assert result['node_id'] == target['node_id']
             assert len(result['prediction']) == gs_config.num_classes
+        print(results)
+        # exit(-1)
 
     # Test case 2: abnormal cases of input payload
     #       2.1 missing gml_task or mismatch

@@ -259,15 +259,15 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         #      instead of a list of strings
         n_h = prepare_batch_input(g, input_nodes, feat_field=nfeat_fields,
                                   dev=self.device, lm_ntypes=lm_ntypes)
+        
         if efeat_fields:
             e_hs = prepare_blocks_edge_feats(g, blocks, efeat_fields, device=self.device)
         else:
             e_hs = prepare_blocks_edge_feats(g, blocks, None, device=self.device)
-
+    
         # do predict on the blocks
         logits, _ = self._model.predict(blocks, n_h, e_hs, input_nodes,
                                         return_proba=return_proba)
-
         # post processing to extract predictions on inference node types
         predictions = {}
         for ntype in infer_ntypes:
