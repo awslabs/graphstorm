@@ -625,7 +625,6 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
 
     return decoder, loss_func
 
-
 def create_builtin_node_model(g, config, train_task):
     """ Create a built-in model for node prediction.
 
@@ -1218,6 +1217,7 @@ def set_encoder(model, g, config, train_task):
                                  out_dim=out_emb_size,
                                  num_heads=config.num_heads,
                                  num_hidden_layers=config.num_layers -1,
+                                 edge_feat_name=config.edge_feat_name,
                                  dropout=dropout,
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "gatv2":
@@ -1270,7 +1270,6 @@ def check_homo(g):
     if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
         return True
     return False
-
 
 def create_builtin_task_tracker(config):
     """ Create a builtin task tracker
