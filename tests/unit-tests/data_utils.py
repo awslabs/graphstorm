@@ -252,6 +252,7 @@ def create_dummy_hetero_graph_config(tmp_dir, graph, save_data=False):
 
     with open(json_file_path, 'w', encoding='utf-8') as f:
         json.dump(data_json, f, indent=4)
+
     return json_file_path
 
 def generate_mask(idx, length):
@@ -1146,7 +1147,6 @@ def create_lm_learnable_model_dict_rt(hf_model, model_name='bert-base-uncased',
                                     node_types=['n0'], output_dim=2, 
                                     input_dim=770):
     hf_state_dict = hf_model.state_dict()
-    # Convert to GraphStorm format
     embed_state_dict = {}
     
     # Create LM models for each node type (they can share the same weights)
@@ -1162,9 +1162,8 @@ def create_lm_learnable_model_dict_rt(hf_model, model_name='bert-base-uncased',
     return {'embed': embed_state_dict}
 
 def load_weights_to_layer(layer, embed_state_dict):
-    # Extract LM model weights
     proj_weights = {}
-    # Load LM model weights into HuggingFace models
+    # Load LM model weights into wrapped HuggingFace models in GS Model
     if hasattr(layer, '_lm_models'):
         for node_type, hf_model in layer._lm_models.items():
             hf_model.load_state_dict(embed_state_dict['embed'], strict=False)

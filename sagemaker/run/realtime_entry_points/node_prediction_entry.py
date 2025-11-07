@@ -354,6 +354,7 @@ def transform_fn(model,
                     logging.error(res.to_json())
                     return res.to_json(), response_content_type
     
+    # Node Type list with language model features
     lm_ntypes_list = [
         ntype
         for lm_config in node_lm_configs

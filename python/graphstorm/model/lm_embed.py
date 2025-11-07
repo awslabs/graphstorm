@@ -41,6 +41,7 @@ from .utils import (
 from ..utils import get_rank, get_world_size, create_dist_tensor
 from ..wholegraph import WholeGraphDistTensor
 from ..distributed import flush_data
+from ..config.config import GS_LM_FEATURE_KEY
 
 class LMModels(nn.Module):
     """ LM model collection
@@ -893,7 +894,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
     Parameters
     ----------
     g: DistGraph
-        The input DGL distributed graph
+        The input GSDglDistGraphFromMetadata.
     node_lm_configs: LM config
         A list of language model configurations.
     feat_size : dict of int or dict of list of ints
@@ -901,13 +902,6 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         If a node have multiple feature groups, it is in the format of {ntype: [size, size, ...]}.
     embed_size : int
         The output embedding size.
-    cached_hf_weights: dict
-        The cached huggingface model weights.
-    node_type_to_model_type: dict
-        The dict for {node_type: huggingface_model_type}, each node type will only have 
-        one huggingface model.
-    cached_input_proj: dict
-        The cached input projection weights.
     activation : callable
         The activation function. Default: None.
     dropout : float
@@ -915,6 +909,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
     use_node_embeddings : bool
         Whether to use the node embeddings for individual nodes even when node features are
         available. Default: False.
+    force_no_embeddings : list of str
+        The list node types that are forced to not use learnable embeddings. Default: None
     """
     def __init__(self,
                  g,
@@ -948,7 +944,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                     self.adjust_feat_size[ntype].feature_group_sizes.append(
                         lm_feat_size)
 
-        # Cache Tokenizer/Model Dict
+        # Cache Huggingface Model Dict
         self.hf_model_dict = {}
         for ntype, model_type in self.node_type_to_model_type.items():
             self.hf_model_dict[ntype] = AutoModel.from_pretrained(model_type)
@@ -1007,7 +1003,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         Parameters
         ----------
         input_feats: dict of Tensor
-            The input features in the format of {ntype: feats}.
+            The input features in the format of {ntype: feats, 
+                                                'lm': {ntype: tokenized_features}}.
         input_nodes: dict of Tensor
             The input node indexes in the format of {ntype: indexes}.
 
@@ -1018,7 +1015,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         assert isinstance(input_feats, dict), 'The input features should be in a dict.'
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
-        input_lm_feats = input_feats['lm']
+        input_lm_feats = input_feats[GS_LM_FEATURE_KEY]
         # Compute language model features first
         lm_feats = self.infer_hf_emb(input_lm_feats)
 

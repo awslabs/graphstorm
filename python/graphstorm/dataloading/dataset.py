@@ -29,7 +29,7 @@ from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholeg
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 from ..utils import get_graph_name
-from ..config.config import FeatureGroup
+from ..config.config import FeatureGroup, GS_LM_FEATURE_KEY
 
 from ..wholegraph import is_wholegraph_embedding
 
@@ -138,9 +138,9 @@ def prepare_batch_input(g, input_nodes,
         if lm_feat:
             # put lm_feat in feat as a new k,v pair
             # could define a new constant for the `lm` key name.
-            if 'lm' not in feat:
-                feat['lm'] = {}
-            feat['lm'].update(lm_feat)
+            if GS_LM_FEATURE_KEY not in feat:
+                feat[GS_LM_FEATURE_KEY] = {}
+            feat[GS_LM_FEATURE_KEY].update(lm_feat)
     return feat
 
 def prepare_batch_edge_input(g, input_edges,

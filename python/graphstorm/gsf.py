@@ -1491,6 +1491,7 @@ def create_lp_evaluator(config):
 
 
 ####################### Functions for real-time inference #############################
+
 def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     """ Restores a trained GraphStorm model from model artifacts
 
@@ -1526,6 +1527,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
         A model configuration, GSConfig, object created based on the yaml_file under the
         model_dir path.
     """
+
     # intialize gsf environment first
     initialize()
 
