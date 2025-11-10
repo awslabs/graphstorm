@@ -118,7 +118,7 @@ GS_RUNTIME_TRAINING_CONFIG_FILENAME = "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFI
 # Filename for output GConstruct graph data configuration, updated with data-derived transformations
 GS_RUNTIME_GCONSTRUCT_FILENAME = "data_transform_new.json"
 
-# Real-time Inference Key
+# Language model feature key
 GS_LM_FEATURE_KEY = "lm"
 
 ################ Task info data classes ############################

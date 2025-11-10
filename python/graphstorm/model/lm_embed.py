@@ -885,7 +885,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
 class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
     """ The node encoder input layer with language model (LM) supported for all nodes
-    in a heterogeneous graph.
+    initialized from `GSGraphMetadata`.
 
     This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
     In addition, the input layer reloads LM layer and projection layer on nodes with textual 
@@ -922,7 +922,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                  use_node_embeddings=False,
                  force_no_embeddings=None):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
-            "language model configurations must be provided"
+            "language model configurations must be provided."
 
         self.node_lm_configs = node_lm_configs
         self.adjust_feat_size = dict(feat_size)
@@ -989,7 +989,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
 
     @property
     def node_feat_size(self):
-        """node feature size
+        """node feature size after updated with LM hidden sizes.
         """
         return self.adjust_feat_size
 

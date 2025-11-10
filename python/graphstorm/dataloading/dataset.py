@@ -72,7 +72,7 @@ def prepare_batch_input(g, input_nodes,
     feat_field: str or dict of list of str or dict of list of FeatureGroup
         Fields to extract features.
     lm_ntypes: list[str], default: None
-        Node Types with language model features. 
+        Node types with language model features. 
 
     Return:
     -------
@@ -136,8 +136,7 @@ def prepare_batch_input(g, input_nodes,
                         lm_feat[ntype] = {}
                     lm_feat[ntype][lm_feat_type] = g.nodes[ntype].data[lm_feat_type][nid].to(dev)
         if lm_feat:
-            # put lm_feat in feat as a new k,v pair
-            # could define a new constant for the `lm` key name.
+            # put lm_feat in feat as a new dictionary.
             if GS_LM_FEATURE_KEY not in feat:
                 feat[GS_LM_FEATURE_KEY] = {}
             feat[GS_LM_FEATURE_KEY].update(lm_feat)
