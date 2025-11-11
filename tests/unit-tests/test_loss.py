@@ -89,26 +89,57 @@ def test_WeightedLinkPredictAdvBCELossFunc(num_pos, num_neg):
     assert_almost_equal(loss.numpy(),gt_loss.numpy())
 
 def test_FocalLossFunc():
+    # Test case 1: Strong predictions
     alpha = 0.25
-    gamma = 2.
+    gamma = 2.0
 
     loss_func = FocalLossFunc(alpha, gamma)
-    logits = th.tensor([[0.6330],[0.9946],[0.2322],[0.0115],[0.9159],[0.5752],[0.4491], [0.9231],[0.7170],[0.2761]])
-    labels = th.tensor([0, 0, 0, 1, 1, 1, 0, 1, 0, 0])
-    # Manually call the torchvision.ops.sigmoid_focal_loss to generate the loss value
-    gt_loss = th.tensor(0.1968)
-    loss = loss_func(logits, labels)
-    assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
+    # Create logits for both classes
+    logits = th.tensor([
+        [2.0, -2.0],  # Strong prediction for class 0
+        [-3.0, 3.0],  # Strong prediction for class 1
+        [0.1, -0.1],  # Weak prediction for class 0
+        [-0.2, 0.2]   # Weak prediction for class 1
+    ])
+    labels = th.tensor([0, 1, 0, 1])
 
+    # Get our implementation's loss
+    our_loss = loss_func(logits, labels)
+
+    # Get torchvision's loss using the positive class logits
+    # To get the results we used:
+    # from torchvision.ops import sigmoid_focal_loss
+    # tv_loss = sigmoid_focal_loss(
+    #     logits[:, 1],  # Take logits for positive class
+    #     labels.float(),
+    #     alpha=alpha,
+    #     gamma=gamma,
+    #     reduction='mean'
+    # )
+    tv_loss = th.tensor(0.0352)
+
+    assert_almost_equal(our_loss.numpy(), tv_loss.numpy(), decimal=4)
+
+    # Test case 2: Original test case
     alpha = 0.2
     gamma = 1.5
     loss_func = FocalLossFunc(alpha, gamma)
-    logits = th.tensor([2.8205, 0.4035, 0.8215, 1.9420, 0.2400, 2.8565, 1.8330, 0.7786, 2.0962, 1.0399])
+
+    logits_orig = th.tensor([
+        [2.8205, -2.8205], [0.4035, -0.4035], [0.8215, -0.8215],
+        [1.9420, -1.9420], [0.2400, -0.2400], [2.8565, -2.8565],
+        [1.8330, -1.8330], [0.7786, -0.7786], [2.0962, -2.0962],
+        [1.0399, -1.0399]
+    ])
     labels = th.tensor([0, 0, 1, 0, 1, 1, 1, 1, 0, 0])
-    # Manually call the torchvision.ops.sigmoid_focal_loss to generate the loss value
-    gt_loss = th.tensor(0.6040)
-    loss = loss_func(logits, labels)
-    assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
+
+    # Get our implementation's loss
+    our_loss = loss_func(logits_orig, labels)
+
+    # Get torchvision's loss
+    tv_loss = th.tensor(0.1335)
+
+    assert_almost_equal(our_loss.numpy(), tv_loss.numpy(), decimal=4)
 
 @pytest.mark.parametrize("num_pos", [1, 8, 32])
 @pytest.mark.parametrize("num_neg", [1, 8, 32])
@@ -192,13 +223,3 @@ def test_ShrinkageLossFunc():
     gt_loss = th.tensor(0.0692)
     loss = loss_func(logits, labels)
     assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
-
-
-if __name__ == '__main__':
-    test_FocalLossFunc()
-    test_LinkPredictBPRLossFunc()
-    test_WeightedLinkPredictBPRLossFunc()
-    test_ShrinkageLossFunc()
-
-    test_LinkPredictAdvBCELossFunc(16, 128)
-    test_WeightedLinkPredictAdvBCELossFunc(16, 128)

@@ -549,8 +549,6 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                 alpha = config.alpha if config.alpha is not None else 0.25
                 gamma = config.gamma if config.gamma is not None else 2.
                 loss_func = FocalLossFunc(alpha, gamma)
-                # Focal loss expects 1-dimensional output
-                decoder_output_dim = 1
             else:
                 raise RuntimeError(
                     f"Unknown classification loss {config.class_loss_func}")
@@ -590,7 +588,6 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                     alpha = config.alpha if config.alpha is not None else 0.25
                     gamma = config.gamma if config.gamma is not None else 2.
                     loss_func[ntype] =  FocalLossFunc(alpha, gamma)
-                    decoder_output_dim = 1
                 else:
                     raise RuntimeError(
                         f"Unknown classification loss {config.class_loss_func}")
@@ -710,7 +707,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 "Focal loss only works with binary classification. "
                 "num_classes should be set to 2."
             )
-            decoder_output_dim = 1
+            decoder_output_dim = 2
         else:
             decoder_output_dim = num_classes
 
@@ -1489,7 +1486,7 @@ def restore_builtin_model_from_artifacts(model_dir, json_file, yaml_file):
     with the trained model weights, a JSON file that is the GConstruct configuration specification
     with data-derived transformations, and a YAML file that is the Graphstorm train configuration
     updated with runtime arguments.
-    
+
     This method uses the `GSMetaData` and `GSDglDistGraphFromMetadata` to create a lightweight
     graph that only contains graph structure, and then use it to restore a built-in GraphStorm
     model, and return both the model and the graph construction and model configuration objects.
