@@ -29,8 +29,8 @@ import dgl
 from transformers import AutoTokenizer, AutoModel
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
-from graphstorm.config import (FeatureGroup, TOKEN_IDX, 
-                                ATT_MASK_IDX, VALID_LEN)
+from graphstorm.config import FeatureGroup
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from graphstorm.model import (GSPureLearnableInputLayer,
                               GSNodeEncoderInputLayer,
                               GSEdgeEncoderInputLayer,
