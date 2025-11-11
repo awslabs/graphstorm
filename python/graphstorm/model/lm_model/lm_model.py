@@ -19,7 +19,6 @@ from abc import abstractmethod
 
 import numpy as np
 from torch import nn
-from ...config.config import TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX
 
 class GSFLanguageModelWrapper(nn.Module):
     """ Wrapper of language model
