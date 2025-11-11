@@ -33,10 +33,7 @@ from ..config.config import FeatureGroup, GS_LM_FEATURE_KEY
 
 from ..wholegraph import is_wholegraph_embedding
 
-TOKEN_IDX = 'input_ids'
-VALID_LEN = 'valid_len'
-ATT_MASK_IDX = 'attention_mask'
-TOKEN_TID_IDX = 'token_type_ids'
+from ..config.config import TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
