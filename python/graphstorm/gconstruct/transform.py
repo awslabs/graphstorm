@@ -43,6 +43,7 @@ from .utils import (ExtMemArrayWrapper,
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
+MAX_CATEGORIES = 100
 
 CLASSIFICATION_LABEL_STATS_TYPES = [LABEL_STATS_FREQUENCY_COUNT]
 
@@ -532,7 +533,10 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             assert len(info) == 0
             return
 
-        self._val_dict = {str(key): i for i, key in enumerate(np.unique(np.concatenate(info)))}
+        # Set the maximum categories number to avoid OOM on shared memory
+        self._val_dict = {str(key): min(i, MAX_CATEGORIES - 1)
+                          for i, key in enumerate(np.unique(np.concatenate(info)))}
+
         # We need to save the mapping in the config object.
         if self._conf is not None:
             self._conf['mapping'] = self._val_dict
