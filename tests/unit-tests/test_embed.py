@@ -29,7 +29,8 @@ import dgl
 from transformers import AutoTokenizer, AutoModel
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
-from graphstorm.config import FeatureGroup
+from graphstorm.config import (FeatureGroup, TOKEN_IDX, 
+                                ATT_MASK_IDX, VALID_LEN)
 from graphstorm.model import (GSPureLearnableInputLayer,
                               GSNodeEncoderInputLayer,
                               GSEdgeEncoderInputLayer,
@@ -38,7 +39,6 @@ from graphstorm.model import (GSPureLearnableInputLayer,
                               GSLMNodeEncoderInputLayer4GraphFromMetaData)
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
-from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from graphstorm.model.lm_embed import LMModels, LMCache
 from graphstorm.model.utils import (LazyDistTensor,
                                     load_pytorch_embedding,

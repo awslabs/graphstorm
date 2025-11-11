@@ -29,7 +29,7 @@ from dgl.distributed.constants import (DEFAULT_NTYPE,
 
 from transformers import AutoTokenizer, AutoModel
 from graphstorm import get_node_feat_size
-from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from util import create_tokens
 
 SIZE_DICT = {

@@ -20,6 +20,7 @@ from abc import abstractmethod
 import numpy as np
 from torch import nn
 
+
 class GSFLanguageModelWrapper(nn.Module):
     """ Wrapper of language model
 
