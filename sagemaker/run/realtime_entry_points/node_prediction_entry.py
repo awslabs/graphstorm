@@ -355,9 +355,10 @@ def transform_fn(model,
                     return res.to_json(), response_content_type
     
     # Node type list with language model features
+    # Each node type will only exist once
     lm_ntypes_list = [
         ntype
-        for lm_config in node_lm_configs
+        for lm_config in gs_train_config.node_lm_configs
         for ntype in lm_config["node_types"]
      ] if gs_train_config.node_lm_configs is not None else None
 

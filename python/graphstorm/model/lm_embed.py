@@ -888,8 +888,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
     initialized from `GSGraphMetadata`.
 
     This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
-    In addition, the input layer reloads LM layer and projection layer on nodes with textual 
-    features and generate embeddings.
+    In addition, the input layer reloads LM layer and projection layer on nodes with tokenized 
+    features.
 
     Parameters
     ----------
@@ -927,7 +927,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         self.node_lm_configs = node_lm_configs
         self.adjust_feat_size = dict(feat_size)
         self.node_type_to_model_type = {}
-        for lm_config in node_lm_configs:
+        for lm_config in self.node_lm_configs:
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
             lm_model_name = lm_config["model_name"]
@@ -956,7 +956,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             force_no_embeddings=force_no_embeddings)
 
         self._lm_models = nn.ModuleDict()
-        for lm_config in node_lm_configs:
+        for lm_config in self.node_lm_configs:
             model_type = lm_config["model_name"]
             hf_model = AutoModel.from_pretrained(model_type)
             # A list of node types sharing the same lm model
@@ -972,6 +972,16 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         ----------
         input_lm_feats: dict of tensors
             The input tokenize features
+            {
+                # Corresponds to 'input_ids': Token indices from the vocabulary.
+                TOKEN_IDX: tensor(),  
+                # The actual, un-padded length of each sequence.   
+                VALID_LEN: tensor(), 
+                # Corresponds to 'attention_mask': Binary mask (1 for valid tokens, 0 for padding).    
+                ATT_MASK_IDX: tensor(),
+                # Corresponds to 'token_type_ids': Segment IDs (e.g., 0 for sentence A, 1 for sentence B).  
+                TOKEN_TID_IDX: tensor()  
+            }
         """
         lm_feat = {}
         for node_type, text_tensor in input_lm_feats.items():
@@ -1015,6 +1025,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         assert isinstance(input_feats, dict), 'The input features should be in a dict.'
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
+        assert GS_LM_FEATURE_KEY in input_feats, \
+            f"The {GS_LM_FEATURE_KEY} must be in the features"
         input_lm_feats = input_feats[GS_LM_FEATURE_KEY]
         # Compute language model features first
         lm_feats = self.infer_hf_emb(input_lm_feats)
