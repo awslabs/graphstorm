@@ -1043,7 +1043,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                     # Treat lm_feat as another feature group.
                     nfeat_w_lm_emb[ntype].append(lm_feat)
                 else:
-                    nfeat_w_lm_emb[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+                    nfeat_w_lm_emb[ntype] = \
+                        th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
                 nfeat_w_lm_emb[ntype] = lm_feat
 

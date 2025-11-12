@@ -1077,13 +1077,13 @@ def test_mp_wg_lm_cache(world_size):
             assert p.exitcode == 0
 
 @pytest.mark.parametrize("dev", ['cpu','cuda:0'])
-def test_LM_learnable_rt_layer(dev):
+@pytest.mark.parametrize("bert_model_name", ["bert-base-uncased", "roberta-base"])
+def test_LM_learnable_rt_layer(dev, bert_model_name):
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    bert_model_name = "bert-base-uncased"
     max_seq_length = 8
     num_train = 10
     lm_config = [{"lm_type": "bert",
