@@ -1031,6 +1031,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         # Compute language model features first
         lm_feats = self.infer_hf_emb(input_lm_feats)
 
+        nfeat_w_lm_emb = {}
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
@@ -1040,12 +1041,11 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                 if ntype in self.feat_group_projs:
                     # There are multiple feature groups.
                     # Treat lm_feat as another feature group.
-                    input_feats[ntype].append(lm_feat)
+                    nfeat_w_lm_emb[ntype].append(lm_feat)
                 else:
-                    input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+                    nfeat_w_lm_emb[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
-                input_feats[ntype] = lm_feat
+                nfeat_w_lm_emb[ntype] = lm_feat
 
-        non_tokenize_feats = {k: v for k, v in input_feats.items() if k != 'lm'}
         return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).\
-                forward(non_tokenize_feats, input_nodes)
+                forward(nfeat_w_lm_emb, input_nodes)
