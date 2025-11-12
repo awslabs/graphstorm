@@ -1038,6 +1038,8 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             lm_feat = lm_feat.to(self.device)
 
             if ntype in input_feats:
+                if ntype not in nfeat_w_lm_emb:
+                    nfeat_w_lm_emb[ntype] = []
                 if ntype in self.feat_group_projs:
                     # There are multiple feature groups.
                     # Treat lm_feat as another feature group.
