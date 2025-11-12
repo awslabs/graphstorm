@@ -1117,7 +1117,12 @@ def test_LM_learnable_rt_layer(dev, bert_model_name):
     hf_model = AutoModel.from_pretrained(bert_model_name)
     hf_model = hf_model.to(dev)
     # Test if the load model work
-    hf_model.encoder.layer[11].apply(hf_model._init_weights)
+
+    # Modify parameters to differ from the pretrained state
+    target_param = hf_model.encoder.layer[11].attention.self.query.weight
+    new_tensor = th.ones_like(target_param)
+    with th.no_grad():
+        target_param.copy_(new_tensor)
     hf_model.eval()
     model_dict = create_lm_learnable_model_dict_rt(hf_model)
     load_weights_to_layer(layer, model_dict)
