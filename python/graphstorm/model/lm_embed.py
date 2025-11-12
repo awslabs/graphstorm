@@ -979,7 +979,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                 VALID_LEN: tensor(), 
                 # Corresponds to 'attention_mask': Binary mask (1 for valid tokens, 0 for padding).    
                 ATT_MASK_IDX: tensor(),
-                # Corresponds to 'token_type_ids': Segment IDs (e.g., 0 for sentence A, 1 for sentence B).  
+                # Corresponds to 'token_type_ids': Segment IDs.  
                 TOKEN_TID_IDX: tensor()  
             }
         """
@@ -1043,8 +1043,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                     # Treat lm_feat as another feature group.
                     nfeat_w_lm_emb[ntype].append(lm_feat)
                 else:
-                    nfeat_w_lm_emb[ntype] = \
-                        th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+                    nfeat_w_lm_emb[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
                 nfeat_w_lm_emb[ntype] = lm_feat
 
