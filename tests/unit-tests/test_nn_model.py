@@ -2223,3 +2223,117 @@ def test_gat_edge_feature_support(input_dim, output_dim):
     gat_encoder_with_edge = GATEncoder(input_dim, output_dim, num_heads=2, 
                                      num_hidden_layers=1, edge_feat_name=edge_feat_name)
     assert gat_encoder_with_edge.is_support_edge_feat(), "Should support edge features with edge_feat_name"
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_sage_with_edge_features(input_dim, output_dim, dev):
+    """ Test the SAGE encoder that supports edge features """
+    from graphstorm.model.sage_encoder import SAGEEncoder
+    from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+    import torch as th
+    import dgl
+    
+    # Create a simple homogeneous graph
+    num_src_nodes = 10
+    num_dst_nodes = 5
+    
+    src_nodes = th.tensor([0, 1, 2, 3, 4, 5, 6, 7])
+    dst_nodes = th.tensor([0, 1, 2, 3, 0, 1, 2, 4])
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes).to(dev)
+    
+    # Add required node IDs for SAGE encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes).to(dev)
+    
+    node_feats = {DEFAULT_NTYPE: th.rand(num_src_nodes, input_dim).to(dev)}
+    edge_feats = {DEFAULT_ETYPE: th.rand(len(src_nodes), input_dim).to(dev)}
+
+    # Test case 0: normal case, have both node and edge features
+    edge_feat_name = {DEFAULT_ETYPE: ['feat']}
+    sage_encoder = SAGEEncoder(input_dim, output_dim, 
+                           num_hidden_layers=0, 
+                           edge_feat_name=edge_feat_name)
+    sage_encoder = sage_encoder.to(dev)
+
+    blocks = [block]
+    edge_feat_blocks = [edge_feats]
+    
+    emb0 = sage_encoder(blocks, node_feats, edge_feats=edge_feat_blocks)
+    # check output numbers, dimensions and device
+    assert emb0[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb0[DEFAULT_NTYPE].shape[1] == output_dim
+    assert emb0[DEFAULT_NTYPE].get_device() == (-1 if dev == 'cpu' else 0)
+
+    # Test case 1: normal case, no edge features as inputs
+    sage_encoder = SAGEEncoder(input_dim, output_dim, num_hidden_layers=0)
+    sage_encoder = sage_encoder.to(dev)
+
+    emb1 = sage_encoder(blocks, node_feats)
+    # check output numbers, and dimensions
+    assert emb1[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb1[DEFAULT_NTYPE].shape[1] == output_dim
+
+    # the value of emb0 and emb1 should be different,
+    # as emb0 integrates edge features and emb1 does not
+    assert not th.allclose(emb0[DEFAULT_NTYPE], emb1[DEFAULT_NTYPE], atol=0.001)
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_gatv2_with_edge_features(input_dim, output_dim, dev):
+    """ Test the GATv2 encoder that supports edge features """
+    from graphstorm.model.gatv2_encoder import GATv2Encoder
+    from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+    import torch as th
+    import dgl
+    
+    # Create a simple homogeneous graph
+    num_src_nodes = 10
+    num_dst_nodes = 5
+    
+    src_nodes = th.tensor([0, 1, 2, 3, 4, 5, 6, 7])
+    dst_nodes = th.tensor([0, 1, 2, 3, 0, 1, 2, 4])
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes).to(dev)
+    
+    # Add required node IDs for GATv2 encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes).to(dev)
+    
+    node_feats = {DEFAULT_NTYPE: th.rand(num_src_nodes, input_dim).to(dev)}
+    edge_feats = {DEFAULT_ETYPE: th.rand(len(src_nodes), input_dim).to(dev)}
+
+    # Test case 0: normal case, have both node and edge features
+    edge_feat_name = {DEFAULT_ETYPE: ['feat']}
+    gatv2_encoder = GATv2Encoder(input_dim, output_dim, num_heads=2, 
+                           num_hidden_layers=0, 
+                           edge_feat_name=edge_feat_name)
+    gatv2_encoder = gatv2_encoder.to(dev)
+
+    blocks = [block]
+    edge_feat_blocks = [edge_feats]
+    
+    emb0 = gatv2_encoder(blocks, node_feats, edge_feats=edge_feat_blocks)
+    # check output numbers, dimensions and device
+    assert emb0[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb0[DEFAULT_NTYPE].shape[1] == output_dim
+    assert emb0[DEFAULT_NTYPE].get_device() == (-1 if dev == 'cpu' else 0)
+
+    # Test case 1: normal case, no edge features as inputs
+    gatv2_encoder = GATv2Encoder(input_dim, output_dim, num_heads=2, num_hidden_layers=0)
+    gatv2_encoder = gatv2_encoder.to(dev)
+
+    emb1 = gatv2_encoder(blocks, node_feats)
+    # check output numbers, and dimensions
+    assert emb1[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb1[DEFAULT_NTYPE].shape[1] == output_dim
+
+    # the value of emb0 and emb1 should be different,
+    # as emb0 integrates edge features and emb1 does not
+    assert not th.allclose(emb0[DEFAULT_NTYPE], emb1[DEFAULT_NTYPE], atol=0.001)

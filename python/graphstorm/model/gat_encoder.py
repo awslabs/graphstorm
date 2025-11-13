@@ -161,7 +161,7 @@ class GATConvwithEdgeFeat(nn.Module):
 
     Note:
     -----
-    * ``GATConvwithEdgeFeat`` is only effective on homogeneous graphs.
+    * ``GATConvwithEdgeFeat`` is only effective on homogeneous graphs with edge features.
 
     Examples:
     ----------
@@ -228,14 +228,14 @@ class GATConvwithEdgeFeat(nn.Module):
             Features for the default node type and edge type in the format of
             {``dgl.DEFAULT_NTYPE``: tensor, ``dgl.DEFAULT_ETYPE``: tensor}. 
             The definition of ``dgl.DEFAULT_NTYPE`` and ``dgl.DEFAULT_ETYPE`` can
-            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            be found at DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
 
         Returns
         -------
         dict of Tensor: New node embeddings for the default node type in the format of
-        {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
-        be found at `DGL official Github site 
+        {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` and 
+        ``dgl.DEFAULT_ETYPE``can be found at DGL official Github site 
         <https://github.com/dmlc/dgl/blob/cb4604aca2e9a79eb61827a71f1f781b70ceac83/
         python/dgl/distributed/constants.py#L8>`_.
         """
@@ -300,6 +300,8 @@ class GATEncoder(GraphConvEncoder):
         Number of multi-heads attention heads.
     num_hidden_layers: int
         Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
+    edge_feat_name: str
+        Name of the edge features used. 
     dropout: float
         Dropout rate. Default: 0.
     activation: torch.nn.functional
