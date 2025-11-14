@@ -924,10 +924,9 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided."
 
-        self.node_lm_configs = node_lm_configs
         self.adjust_feat_size = dict(feat_size)
         self.node_type_to_model_type = {}
-        for lm_config in self.node_lm_configs:
+        for lm_config in node_lm_configs:
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
             lm_model_name = lm_config["model_name"]
@@ -956,7 +955,7 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
             force_no_embeddings=force_no_embeddings)
 
         self._lm_models = nn.ModuleDict()
-        for lm_config in self.node_lm_configs:
+        for lm_config in node_lm_configs:
             model_type = lm_config["model_name"]
             hf_model = AutoModel.from_pretrained(model_type)
             # A list of node types sharing the same lm model
