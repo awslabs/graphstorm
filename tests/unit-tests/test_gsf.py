@@ -21,6 +21,7 @@ import tempfile
 import copy
 from argparse import Namespace
 from pathlib import Path
+from transformers import AutoModel
 import numpy as np
 import torch as th
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -879,7 +880,7 @@ def test_get_edge_feat_size():
 def test_restore_builtin_model_from_artifacts(add_reverse_edges):
     """ Test restore a builtin mode from artifacts
     
-    The test needs three inputs: 1/ model dir path, 2/ josn file name, 3/ yaml file name.
+    The test needs three inputs: 1/ model dir path, 2/ json file name, 3/ yaml file name.
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
         # create a dummy gdsg dist graph
@@ -1043,6 +1044,47 @@ def test_restore_builtin_model_from_artifacts(add_reverse_edges):
 
         # only check decoder output features as other model configurations are the same as nc model,
         assert lp_model.decoder._w_relation.embedding_dim == yaml_object['gsf']['gnn']['hidden_size']
+    
+    # Case 6: test lm model layer model restoration
+        yaml_object["gsf"].pop('link_prediction')
+        yaml_object["gsf"]["node_classification"] ={
+            "target_ntype": "n1",
+            "label_field": "label",
+            "multilabel": False,
+            "num_classes": 10
+        }
+        yaml_object["lm_model"] = {}
+        yaml_object["lm_model"]["node_lm_models"] = [{
+            "lm_type": "bert",
+            "model_name": "bert-base-uncased",
+            "gradient_checkpoint": "true",
+            "node_types": ["n1"]
+        }]
+        with open(os.path.join(tmpdirname, "nc_lm_basic.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'nc_lm_basic.yaml'),
+                        local_rank=0)
+        config = GSConfig(args)
+        nc_lm_model = create_builtin_node_gnn_model(g, config, train_task=False)
+        nc_lm_model.save_model(tmpdirname)
+
+        nc_lm_model, _, _ = restore_builtin_model_from_artifacts(tmpdirname, graph_config_file, 'nc_lm_basic.yaml')
+        assert nc_lm_model.node_input_encoder.node_feat_size == {'n0': 6, 'n1': 774}
+        # RT Layer
+        layer = nc_lm_model.node_input_encoder
+        prefix = "_lm_models.n1."
+        # Simple HuggingFace keys validation
+        hf_model = AutoModel.from_pretrained("bert-base-uncased")
+        hf_keys = set(hf_model.state_dict().keys())
+        layer_keys = {name for name, param in layer.named_parameters()}
+        # Huggingface position ID
+        skip_buffers = {'embeddings.position_ids', 'embeddings.token_type_ids'}
+        for hf_key in hf_keys:
+            if hf_key in skip_buffers:
+                continue
+            prefix_hf_key = prefix + hf_key
+            assert prefix_hf_key in layer_keys, \
+                "Huggingface Model Keys are not in the restored model"
 
 def test_save_load_builtin_models():
     """ Test save and load built-in GS models

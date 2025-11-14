@@ -118,6 +118,13 @@ GS_RUNTIME_TRAINING_CONFIG_FILENAME = "GRAPHSTORM_RUNTIME_UPDATED_TRAINING_CONFI
 # Filename for output GConstruct graph data configuration, updated with data-derived transformations
 GS_RUNTIME_GCONSTRUCT_FILENAME = "data_transform_new.json"
 
+# Language model feature key
+GS_LM_FEATURE_KEY = "lm"
+TOKEN_IDX = 'input_ids'
+VALID_LEN = 'valid_len'
+ATT_MASK_IDX = 'attention_mask'
+TOKEN_TID_IDX = 'token_type_ids'
+
 ################ Task info data classes ############################
 def get_mttask_id(task_type, ntype=None, etype=None, label=None):
     """ Generate task ID for multi-task learning tasks.

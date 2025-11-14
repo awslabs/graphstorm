@@ -15,7 +15,7 @@
 """
 import torch as th
 
-from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX
 from graphstorm.dataloading import (GSgnnEdgeDataLoaderBase,
                                     GSgnnLinkPredictionDataLoaderBase,
                                     GSgnnNodeDataLoaderBase)

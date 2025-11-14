@@ -23,7 +23,7 @@ from torch import nn
 
 from transformers import AutoModel, AutoConfig, PreTrainedModel
 
-from .lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN, TOKEN_TID_IDX
+from ...config.config import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN, TOKEN_TID_IDX
 from .lm_model import GSFLanguageModelWrapper
 
 def load_hfbert_model(bert_configs: dict):

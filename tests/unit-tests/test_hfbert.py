@@ -20,7 +20,7 @@ import pytest
 from util import create_tokens
 from graphstorm.model.lm_model import init_lm_model
 from graphstorm.model.lm_model import BUILTIN_HF_BERT
-from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX, VALID_LEN
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX, VALID_LEN
 # pylint: disable=redefined-outer-name line-too-long missing-function-docstring
 
 def comput_bert(lm_model, input_ids, attention_masks, token_type_ids=None):

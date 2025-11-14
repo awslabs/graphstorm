@@ -20,10 +20,6 @@ from abc import abstractmethod
 import numpy as np
 from torch import nn
 
-TOKEN_IDX = 'input_ids'
-VALID_LEN = 'valid_len'
-ATT_MASK_IDX = 'attention_mask'
-TOKEN_TID_IDX = 'token_type_ids'
 
 class GSFLanguageModelWrapper(nn.Module):
     """ Wrapper of language model

@@ -62,7 +62,9 @@ from .config import (FeatureGroup,
 from .model.embed import (GSPureLearnableInputLayer,
                           GSNodeEncoderInputLayer,
                           GSEdgeEncoderInputLayer)
-from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
+from .model.lm_embed import (GSLMNodeEncoderInputLayer,
+                            GSPureLMNodeInputLayer,
+                            GSLMNodeEncoderInputLayer4GraphFromMetaData)
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
 from .model.hgt_encoder import HGTEncoder
@@ -1093,15 +1095,23 @@ def set_encoder(model, g, config, train_task):
     if config.node_lm_configs is not None:
         emb_path = os.path.join(os.path.dirname(config.part_config),
                 "cached_embs") if config.cache_lm_embed else None
-        if model_encoder_type == "lm":
-            # only use language model(s) as input layer encoder(s)
-            node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
-                                                  num_train=config.lm_train_nodes,
-                                                  lm_infer_batch_size=config.lm_infer_batch_size,
-                                                  cached_embed_path=emb_path,
-                                                  wg_cached_embed=config.use_wholegraph_embed)
+        if isinstance(g, GSDglDistGraphFromMetadata):
+            # for real-time inference case only
+            node_encoder = GSLMNodeEncoderInputLayer4GraphFromMetaData(
+                g, config.node_lm_configs,
+                node_feat_size, config.hidden_size,
+                dropout=config.dropout)
+            model.set_node_input_encoder(node_encoder)
         else:
-            node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
+            if model_encoder_type == "lm":
+                # only use language model(s) as input layer encoder(s)
+                node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
+                                                    num_train=config.lm_train_nodes,
+                                                    lm_infer_batch_size=config.lm_infer_batch_size,
+                                                    cached_embed_path=emb_path,
+                                                    wg_cached_embed=config.use_wholegraph_embed)
+            else:
+                node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
                                                     node_feat_size, config.hidden_size,
                                                     num_train=config.lm_train_nodes,
                                                     lm_infer_batch_size=config.lm_infer_batch_size,

@@ -29,9 +29,11 @@ from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholeg
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 from ..utils import get_graph_name
-from ..config.config import FeatureGroup
+from ..config.config import FeatureGroup, GS_LM_FEATURE_KEY
 
 from ..wholegraph import is_wholegraph_embedding
+
+from ..config.config import TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -45,7 +47,8 @@ def split_full_edge_list(g, etype, rank):
     return th.arange(start, end)
 
 def prepare_batch_input(g, input_nodes,
-                        dev='cpu', feat_field='feat'):
+                        dev='cpu', feat_field='feat',
+                        lm_ntypes=None):
     """ Prepare minibatch input features
 
     Note: The output is stored in dev.
@@ -65,6 +68,8 @@ def prepare_batch_input(g, input_nodes,
         Device to put output in.
     feat_field: str or dict of list of str or dict of list of FeatureGroup
         Fields to extract features.
+    lm_ntypes: list[str], default: None
+        Node types with language model features. 
 
     Return:
     -------
@@ -117,6 +122,21 @@ def prepare_batch_input(g, input_nodes,
                 else:
                     # The feature is 2D
                     feat[ntype] = th.cat(feats, dim=1)
+
+        lm_feat = None
+        if lm_ntypes and ntype in lm_ntypes:
+            lm_feat = {}
+            for lm_feat_type in [TOKEN_IDX, VALID_LEN, ATT_MASK_IDX, TOKEN_TID_IDX]:
+                if lm_feat_type in g.nodes[ntype].data:
+                    # store lm feature as a new dict
+                    if ntype not in lm_feat:
+                        lm_feat[ntype] = {}
+                    lm_feat[ntype][lm_feat_type] = g.nodes[ntype].data[lm_feat_type][nid].to(dev)
+        if lm_feat:
+            # put lm_feat in feat as a new dictionary.
+            if GS_LM_FEATURE_KEY not in feat:
+                feat[GS_LM_FEATURE_KEY] = {}
+            feat[GS_LM_FEATURE_KEY].update(lm_feat)
     return feat
 
 def prepare_batch_edge_input(g, input_edges,
