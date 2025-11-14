@@ -227,7 +227,7 @@ class GATv2ConvWithEdgeFeat(nn.Module):
             self.fc_dst = nn.Linear(
                 self._in_src_feats, self._out_feats * self._num_heads, bias=bias
             )
-            
+
         self.attn = nn.Parameter(th.FloatTensor(size=(1, self._num_heads, self._out_feats)))
         self.feat_drop = nn.Dropout(feat_drop)
         self.attn_drop = nn.Dropout(attn_drop)
@@ -241,7 +241,7 @@ class GATv2ConvWithEdgeFeat(nn.Module):
         self.activation = activation
         self.bias = bias
         self.fc_edge = nn.Linear(self._edge_feats, self._out_feats * self._num_heads, bias=False)
-        
+
         self.reset_parameters()
         # ngnn
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
@@ -298,7 +298,7 @@ class GATv2ConvWithEdgeFeat(nn.Module):
         # add self-loop during computation.
         assert DEFAULT_NTYPE in inputs and DEFAULT_ETYPE in inputs, \
             "Both node and edge features are needed to for GATConvwithEdgeFeat."
-        
+
         node_inputs = inputs[DEFAULT_NTYPE]
         edge_inputs = inputs[DEFAULT_ETYPE]
 
@@ -338,7 +338,7 @@ class GATv2ConvWithEdgeFeat(nn.Module):
                 if g.is_block:
                     feat_dst = feat_dst[: g.number_of_dst_nodes()]
                     h_dst = h_dst[: g.number_of_dst_nodes()]
-            
+
             # (num_edges, num_heads, out_dim)
             feat_edge = self.fc_edge(edge_inputs).view(
                 -1, self._num_heads, self._out_feats
@@ -346,27 +346,27 @@ class GATv2ConvWithEdgeFeat(nn.Module):
             g.srcdata.update({"ft_src": feat_src})
             g.dstdata.update({"ft_dst": feat_dst})
             g.edata.update({"ft_edge": feat_edge})
-            
+
             # Compute attention scores using message function
-            g.apply_edges(fn.u_add_v("ft_src", "ft_dst", "ft_tmp"))
-            g.edata["ft_tmp"] = g.edata["ft_tmp"] + g.edata["ft_edge"]
-            
+            g.apply_edges(
+                lambda edges: {'ft_tmp': edges.src["ft_src"] + edges.dst["ft_dst"] + edges.data["ft_edge"]}
+            )
+
             # (num_edges, num_heads, out_dim)
             e = self.leaky_relu(g.edata["ft_tmp"])
             # (num_edges, num_heads)
             e = (e * self.attn).sum(dim=-1).unsqueeze(-1)
             # compute softmax
             g.edata["a"] = self.attn_drop(edge_softmax(g, e))
-            
+
             # Create new edges features that combine the
             # features of the source node and the edge features.
             g.srcdata.update({"ft": feat_src})
-            g.apply_edges(fn.u_add_e("ft", "ft_edge", "ft_combined"))
-            # For each edge, element-wise multiply the combined features with
-            # the attention coefficient.
-            g.edata["m_combined"] = (
-                g.edata["ft_combined"] * g.edata["a"]
+            g.apply_edges(
+                lambda edges: {'ft_combined': edges.src["ft"] + edges.data["ft_edge"]}
             )
+            # the attention coefficient.
+            g.edata["m_combined"] = g.edata["ft_combined"] * g.edata["a"]
             g.update_all(fn.copy_e("m_combined", "m"), fn.sum("m", "ft"))
             h_conv = g.dstdata["ft"]
 
@@ -377,7 +377,7 @@ class GATv2ConvWithEdgeFeat(nn.Module):
                         h_dst.shape[0], -1, self._out_feats
                     )
                     h_conv = h_conv + resval
-            
+
             # activation
             if self.activation:
                 h_conv = self.activation(h_conv)
@@ -459,9 +459,10 @@ class GATv2Encoder(GraphConvEncoder):
         if edge_feat_name:
             assert len(edge_feat_name) == 1, 'Single edge type for homogenous graph.'
             etype = list(edge_feat_name.keys())[0]
-            assert len(etype) == 3, 'The edge type should be in canonical type format:' + \
-                                    f'(src_ntype, etype, dst_ntype), but got \"{etype}\".'
-        
+            assert etype == DEFAULT_ETYPE, \
+                f'The edge type should be {DEFAULT_ETYPE} for homogeneous graphs, ' + \
+                f'but got \"{etype}\".'
+
         self.edge_feat_name = edge_feat_name
         self.layers = nn.ModuleList()
         if edge_feat_name is not None:
@@ -523,7 +524,7 @@ class GATv2Encoder(GraphConvEncoder):
         """
         if self.edge_feat_name is not None:
             assert edge_feats is not None,\
-             f"edge features for the edge_feat_name {self.edge_feat_name} should not be None"
+             f"edge features for {DEFAULT_ETYPE} should not be None"
 
         if edge_feats is not None:
             assert len(edge_feats) == len(blocks), \
