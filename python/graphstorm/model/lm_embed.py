@@ -884,7 +884,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)
 
 class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
-    """ The node encoder input layer with language model (LM) supported for all nodes
+    """ The node encoder input layer with language model (LM) supported for graphs
     initialized from `GSGraphMetadata`.
 
     This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
