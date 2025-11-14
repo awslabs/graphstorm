@@ -300,6 +300,8 @@ class GATEncoder(GraphConvEncoder):
         Number of multi-heads attention heads.
     num_hidden_layers: int
         Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
+    edge_feat_name: str
+        Name of the edge features used.  
     dropout: float
         Dropout rate. Default: 0.
     activation: torch.nn.functional
