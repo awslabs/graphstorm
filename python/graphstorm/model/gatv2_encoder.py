@@ -349,7 +349,10 @@ class GATv2ConvWithEdgeFeat(nn.Module):
 
             # Compute attention scores using message function
             g.apply_edges(
-                lambda edges: {'ft_tmp': edges.src["ft_src"] + edges.dst["ft_dst"] + edges.data["ft_edge"]}
+                lambda edges: {
+                    'ft_tmp': edges.src["ft_src"] + \
+                    edges.dst["ft_dst"] + edges.data["ft_edge"]
+                }
             )
 
             # (num_edges, num_heads, out_dim)
@@ -367,6 +370,7 @@ class GATv2ConvWithEdgeFeat(nn.Module):
             )
             # the attention coefficient.
             g.edata["m_combined"] = g.edata["ft_combined"] * g.edata["a"]
+            # pylint: disable=no-member
             g.update_all(fn.copy_e("m_combined", "m"), fn.sum("m", "ft"))
             h_conv = g.dstdata["ft"]
 
@@ -445,7 +449,7 @@ class GATv2Encoder(GraphConvEncoder):
         Number of fnn layers between GNN layers. Default: 0.
     """
     def __init__(self,
-                 h_dim, 
+                 h_dim,
                  out_dim,
                  num_heads,
                  num_hidden_layers=1,
