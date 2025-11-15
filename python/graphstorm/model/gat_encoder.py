@@ -300,6 +300,8 @@ class GATEncoder(GraphConvEncoder):
         Number of multi-heads attention heads.
     num_hidden_layers: int
         Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
+    edge_feat_name: str
+        Name of the edge features used.  
     dropout: float
         Dropout rate. Default: 0.
     activation: torch.nn.functional
@@ -323,8 +325,9 @@ class GATEncoder(GraphConvEncoder):
         if edge_feat_name:
             assert len(edge_feat_name) == 1, 'Single edge type for homogenous graph.'
             etype = list(edge_feat_name.keys())[0]
-            assert len(etype) == 3, 'The edge type should be in canonical type format:' + \
-                                    f'(src_ntype, etype, dst_ntype), but got \"{etype}\".'
+            assert etype == DEFAULT_ETYPE, \
+                f'The edge type should be {DEFAULT_ETYPE} for homogeneous graphs, ' + \
+                f'but got \"{etype}\".'
 
         self.edge_feat_name = edge_feat_name
         self.layers = nn.ModuleList()
@@ -386,7 +389,7 @@ class GATEncoder(GraphConvEncoder):
         """
         if self.edge_feat_name is not None:
             assert edge_feats is not None,\
-             f"edge features for the edge_feat_name {self.edge_feat_name} should not be None"
+             f"edge features for {DEFAULT_ETYPE} should not be None"
 
         # Add assertion check consistent with RGCN
         if edge_feats is not None:
