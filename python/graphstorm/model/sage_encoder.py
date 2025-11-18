@@ -373,7 +373,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 # divide in_degrees
                 degs = g.in_degrees().to(feat_dst)
                 h_neigh = (g.dstdata["neigh"] + th.cat(
-                    [g.dstdata["h"], 
+                    [g.dstdata["h"],
                     th.zeros((g.dstdata["h"].shape[0], edge_inputs.shape[-1])
                         ).to(g.dstdata["neigh"].device)], dim=-1)) \
                     / degs.unsqueeze(-1) + 1
