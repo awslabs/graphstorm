@@ -300,7 +300,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
             nn.init.xavier_uniform_(self.fc_self.weight, gain=gain)
         nn.init.xavier_uniform_(self.fc_neigh.weight, gain=gain)
 
-    def forward(self, g, inputs, edge_weight=None):
+    def forward(self, g, inputs):
         """ GraphSage layer forward computation.
 
         Parameters
@@ -313,8 +313,6 @@ class SAGEConvWithEdgeFeat(nn.Module):
             The definition of ``dgl.DEFAULT_NTYPE`` and ``dgl.DEFAULT_ETYPE`` can
             be found at DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
-        edge_weight : torch.Tensor, optional
-            Optional tensor on the edge. Not implemented. Reserved for future use.
 
         Returns
         -------
