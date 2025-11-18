@@ -1814,7 +1814,7 @@ def create_io_config(tmp_path, file_name):
 
     yaml_object["gsf"]["input"] = {
         "restore_model_path": "./restore",
-        "restore_model_layers": "dense_embed",
+        "restore_model_layers": "node_embed",
         "restore_optimizer_path": "./opt_restore",
     }
 
@@ -1853,7 +1853,7 @@ def test_load_io_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.restore_model_path == "./restore"
-        assert config.restore_model_layers == ["dense_embed"]
+        assert config.restore_model_layers == ["node_embed"]
         assert config.restore_optimizer_path == "./opt_restore"
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_frequency == 100

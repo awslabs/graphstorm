@@ -62,7 +62,9 @@ from .config import (FeatureGroup,
 from .model.embed import (GSPureLearnableInputLayer,
                           GSNodeEncoderInputLayer,
                           GSEdgeEncoderInputLayer)
-from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
+from .model.lm_embed import (GSLMNodeEncoderInputLayer,
+                            GSPureLMNodeInputLayer,
+                            GSLMNodeEncoderInputLayer4GraphFromMetaData)
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
 from .model.hgt_encoder import HGTEncoder
@@ -623,7 +625,6 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
 
     return decoder, loss_func
 
-
 def create_builtin_node_model(g, config, train_task):
     """ Create a built-in model for node prediction.
 
@@ -1094,15 +1095,23 @@ def set_encoder(model, g, config, train_task):
     if config.node_lm_configs is not None:
         emb_path = os.path.join(os.path.dirname(config.part_config),
                 "cached_embs") if config.cache_lm_embed else None
-        if model_encoder_type == "lm":
-            # only use language model(s) as input layer encoder(s)
-            node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
-                                                  num_train=config.lm_train_nodes,
-                                                  lm_infer_batch_size=config.lm_infer_batch_size,
-                                                  cached_embed_path=emb_path,
-                                                  wg_cached_embed=config.use_wholegraph_embed)
+        if isinstance(g, GSDglDistGraphFromMetadata):
+            # for real-time inference case only
+            node_encoder = GSLMNodeEncoderInputLayer4GraphFromMetaData(
+                g, config.node_lm_configs,
+                node_feat_size, config.hidden_size,
+                dropout=config.dropout)
+            model.set_node_input_encoder(node_encoder)
         else:
-            node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
+            if model_encoder_type == "lm":
+                # only use language model(s) as input layer encoder(s)
+                node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
+                                                    num_train=config.lm_train_nodes,
+                                                    lm_infer_batch_size=config.lm_infer_batch_size,
+                                                    cached_embed_path=emb_path,
+                                                    wg_cached_embed=config.use_wholegraph_embed)
+            else:
+                node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
                                                     node_feat_size, config.hidden_size,
                                                     num_train=config.lm_train_nodes,
                                                     lm_infer_batch_size=config.lm_infer_batch_size,
@@ -1208,6 +1217,7 @@ def set_encoder(model, g, config, train_task):
                                  out_dim=out_emb_size,
                                  num_heads=config.num_heads,
                                  num_hidden_layers=config.num_layers -1,
+                                 edge_feat_name=config.edge_feat_name,
                                  dropout=dropout,
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "gatv2":
@@ -1218,6 +1228,7 @@ def set_encoder(model, g, config, train_task):
                                    out_dim=out_emb_size,
                                    num_heads=config.num_heads,
                                    num_hidden_layers=config.num_layers -1,
+                                   edge_feat_name=config.edge_feat_name,
                                    dropout=dropout,
                                    num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
@@ -1260,7 +1271,6 @@ def check_homo(g):
     if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
         return True
     return False
-
 
 def create_builtin_task_tracker(config):
     """ Create a builtin task tracker

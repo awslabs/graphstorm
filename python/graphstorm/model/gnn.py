@@ -44,10 +44,10 @@ from ..wholegraph import is_wholegraph_optimizer, create_wholememory_optimizer, 
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
-                      GRAPHSTORM_MODEL_EMBED_LAYER,
                       GRAPHSTORM_MODEL_GNN_LAYER,
                       GRAPHSTORM_MODEL_DECODER_LAYER,
-                      GRAPHSTORM_MODEL_DENSE_EMBED_LAYER,
+                      GRAPHSTORM_MODEL_NODE_EMBED_LAYER,
+                      GRAPHSTORM_MODEL_EDGE_EMBED_LAYER,
                       GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER)
 
 class GSOptimizer():
@@ -362,8 +362,10 @@ class GSgnnModelBase(nn.Module):
 
             # If a user doesn't specify the layer to load,
             # or they specify to load the embed layer or more specifically sparse embed layer.
+            # From v0.5.1 change embed_layer to node_embed_layer because only node encoder support
+            # sparse embeddings so far.
             if model_layer_to_load is None \
-                    or GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
+                    or GRAPHSTORM_MODEL_NODE_EMBED_LAYER in model_layer_to_load \
                     or GRAPHSTORM_MODEL_SPARSE_EMBED_LAYER in model_layer_to_load:
                 if get_rank() == 0:
                     logging.debug('Load Sparse embedding from %s', restore_model_path)
@@ -741,20 +743,27 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             self._edge_input_encoder.unfreeze()
 
     # pylint: disable=signature-differs
-    def restore_dense_model(self, restore_model_path,
-                            model_layer_to_load=None):
-        # TODO(zhengda) we need to load edge_input_encoder.
+    def restore_dense_model(self, restore_model_path, model_layer_to_load=None):
+        """ restore dense models
+
+        From v0.5.1, the model_layer_to_load change to include options of 'node_embed', and
+        'edge_embed', and remove the options of 'dense_embed' and 'embed' to reduce confusion
+        of this public facing API.
+
+        """
         model_layer_to_load = GRAPHSTORM_MODEL_ALL_LAYERS \
                 if model_layer_to_load is None else model_layer_to_load
-        load_dense_input = GRAPHSTORM_MODEL_EMBED_LAYER in model_layer_to_load \
-                or GRAPHSTORM_MODEL_DENSE_EMBED_LAYER in model_layer_to_load
-        # load dense models for gnn_encoder, node_input_encoder and decoder
+
+        # call the load function
         load_gsgnn_model(restore_model_path,
                          self.gnn_encoder \
                             if GRAPHSTORM_MODEL_GNN_LAYER in model_layer_to_load else None,
-                         self.node_input_encoder if load_dense_input else None,
+                         self.node_input_encoder \
+                             if GRAPHSTORM_MODEL_NODE_EMBED_LAYER in model_layer_to_load else None,
                          self.decoder \
-                            if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None)
+                            if GRAPHSTORM_MODEL_DECODER_LAYER in model_layer_to_load else None,
+                         self.edge_input_encoder \
+                             if GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in model_layer_to_load else None)
 
     def restore_sparse_model(self, restore_model_path):
         # restore sparse embeddings for node_input_encoder.
@@ -921,7 +930,12 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         return gnn_embs
 
     def save_dense_model(self, model_path):
-        save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder, self.decoder)
+        """ Save dense model layers.
+        
+        In v0.5.1, added edge_embed_layer to edge encoder for model saving.
+        """
+        save_gsgnn_model(model_path, self.gnn_encoder, self.node_input_encoder,
+                         self.decoder, self.edge_input_encoder)
 
     def save_sparse_model(self, model_path):
         # Saving sparse embedding is done in a distributed way.
