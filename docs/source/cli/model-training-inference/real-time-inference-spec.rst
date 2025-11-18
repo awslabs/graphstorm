@@ -103,7 +103,7 @@ An ``edge`` object listed in an ``edges`` array must contain the following requi
 Contents of language model features
 ************************************************************
 
-If original model configuration includes huggingface model tokenization, users can input the payload directly with text.
+If the model configuration utilizes a HuggingFace tokenizer, users can submit raw text directly within the payload.
 
 .. code:: json
 
