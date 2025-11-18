@@ -229,6 +229,7 @@ class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
         Default action: Do nothing
         """
 
+
 class GSPureLearnableInputLayer(GSNodeInputLayer):
     """ The node encoder input layer for heterogeneous graphs
         that uses learnable embeddings for every node.
@@ -417,6 +418,7 @@ class GSPureLearnableInputLayer(GSNodeInputLayer):
         which is given in class initialization.
         """
         return self._use_wholegraph_sparse_emb
+
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """ The node encoder input layer for all nodes in a heterogeneous graph.
