@@ -240,13 +240,13 @@ class SAGEConvWithEdgeFeat(nn.Module):
         # aggregator type: mean/pool/lstm/gcn
         if aggregator_type == "pool":
             self.fc_pool = nn.Linear(
-                self._in_src_feats + self._in_edge_feats,
-                self._in_src_feats + self._in_edge_feats
+                self._in_src_feats,
+                self._in_src_feats
             )
         if aggregator_type == "lstm":
             self.lstm = nn.LSTM(
                 self._in_src_feats + self._in_edge_feats,
-                self._in_src_feats + self._in_edge_feats, 
+                self._in_src_feats + self._in_edge_feats,
                 batch_first=True
             )
         self.fc_neigh = nn.Linear(
@@ -358,9 +358,8 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 h_neigh = self.fc_neigh(h_neigh)
 
             elif self._aggre_type == "gcn":
-                check_eq_shape(feat)
                 g.srcdata["h"] = feat_src
-                if isinstance(feat, tuple):
+                if isinstance(node_inputs, tuple):
                     g.dstdata["h"] = feat_dst
                 else:
                     if g.is_block:
@@ -373,13 +372,15 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 g.update_all(fn.copy_e("m", "m"), fn.sum("m", "neigh"))
                 # divide in_degrees
                 degs = g.in_degrees().to(feat_dst)
-                h_neigh = (g.dstdata["neigh"] + g.dstdata["h"]) / (
-                    degs.unsqueeze(-1) + 1
-                )
+                h_neigh = (g.dstdata["neigh"] + th.cat(
+                    [g.dstdata["h"], 
+                    th.zeros((g.dstdata["h"].shape[0], edge_inputs.shape[-1])
+                        ).to(g.dstdata["neigh"].device)], dim=-1)) \
+                    / degs.unsqueeze(-1) + 1
                 h_neigh = self.fc_neigh(h_neigh)
 
             elif self._aggre_type == "pool":
-                g.srcdata["h"] = F.relu(self.fc_pool(h))
+                g.srcdata["h"] = F.relu(self.fc_pool(feat_src))
                 g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
                 # pylint: disable=no-member
@@ -390,7 +391,6 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 g.srcdata["h"] = feat_src
                 g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata['m']  = th.cat([g.edata['m'], edge_inputs], dim=-1)
-                # pylint: disable=no-member
                 g.update_all(fn.copy_e("m", "m"), self._lstm_reducer)
                 h_neigh = self.fc_neigh(g.dstdata["neigh"])
 
@@ -435,8 +435,8 @@ class SAGEConvWithEdgeFeat(nn.Module):
         m = nodes.mailbox["m"]  # (B, L, D)
         batch_size = m.shape[0]
         h = (
-            m.new_zeros((1, batch_size, self._in_src_feats)),
-            m.new_zeros((1, batch_size, self._in_src_feats)),
+            m.new_zeros((1, batch_size, self._in_src_feats + self._in_edge_feats)),
+            m.new_zeros((1, batch_size, self._in_src_feats + self._in_edge_feats)),
         )
         _, (rst, _) = self.lstm(m, h)
         return {"neigh": rst.squeeze(0)}
