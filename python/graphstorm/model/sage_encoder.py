@@ -17,9 +17,10 @@
 """
 import torch as th
 from torch import nn
+import torch.nn.functional as F
+
 import dgl.nn as dglnn
 import dgl.function as fn
-import torch.nn.functional as F
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from dgl.utils import expand_as_pair
 
@@ -239,17 +240,17 @@ class SAGEConvWithEdgeFeat(nn.Module):
         # aggregator type: mean/pool/lstm/gcn
         if aggregator_type == "pool":
             self.fc_pool = nn.Linear(
-                self._in_src_feats + self._in_edge_feats, 
+                self._in_src_feats + self._in_edge_feats,
                 self._in_src_feats + self._in_edge_feats
             )
         if aggregator_type == "lstm":
             self.lstm = nn.LSTM(
-                self._in_src_feats + self._in_edge_feats, 
+                self._in_src_feats + self._in_edge_feats,
                 self._in_src_feats + self._in_edge_feats, 
                 batch_first=True
             )
         self.fc_neigh = nn.Linear(
-            self._in_src_feats + self._in_edge_feats, 
+            self._in_src_feats + self._in_edge_feats,
             self._out_feats, bias=False
             )
 
@@ -313,8 +314,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
             be found at DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         edge_weight : torch.Tensor, optional
-            Optional tensor on the edge. If given, the convolution will weight
-            with regard to the message.
+            Optional tensor on the edge. Not implemented. Reserved for future use.
 
         Returns
         -------
@@ -360,7 +360,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
             elif self._aggre_type == "gcn":
                 check_eq_shape(feat)
                 g.srcdata["h"] = feat_src
-                if isinstance(feat, tuple): 
+                if isinstance(feat, tuple):
                     g.dstdata["h"] = feat_dst
                 else:
                     if g.is_block:
