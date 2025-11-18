@@ -41,6 +41,11 @@ from .utils import (ExtMemArrayWrapper,
                     validate_features,
                     validate_numerical_feats)
 
+from autogluon.tabular import TabularPredictor
+from autogluon.tabular.models.mitra._internal.data.dataset_finetune import DatasetFinetune
+from autogluon.tabular.models.mitra._internal.config.enums import Task, LossName, ModelName
+from autogluon.tabular.models.mitra._internal.core.trainer_finetune import CollatorWithPadding
+
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
 
@@ -1330,6 +1335,90 @@ class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
         # target node type is destination node type.
         self._target_ntype = etype[2]
 
+class TabularFMTransform(FeatTransform):
+    """Transform input tabular numerical columns into tabular foundation model embedding.
+
+    Parameters
+    ----------
+    target_col: str
+        Target label column for mitra embedding.
+    """
+
+    def __init__(self, col_name, feat_name, out_dtype=None, target_col=None):
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(TabularFMTransform, self).__init__(col_name, feat_name, out_dtype)
+        assert self.out_dtype is not None
+        self.tabularFMPredictor = TabularPredictor(label=target_col)
+
+    def inference_embedding(self, feats):
+        """Generate embeddings from a trained Mitra predictor"""
+        if self.tabularFMPredictor.transform_features is not None:
+            feats = self.tabularFMPredictor._learner.transform_features(feats)
+        tabularFMTrainer = self.tabularFMPredictor._learner.load_trainer()
+        ensemble_model = self.tabularFMPredictor.load_model("Mitra")
+        feats = ensemble_model.preprocess(feats)
+        model = ensemble_model.model
+
+        trainer = model.trainers[0]
+        x_support, y_support, x_query = model.X, model.y, batch_data
+        x_support_transformed = trainer.preprocessor.transform_X(x_support)
+        y_support_transformed = trainer.preprocessor.transform_y(y_support)
+        x_query_transformed = trainer.preprocessor.transform_X(x_query)
+
+        dataset = DatasetFinetune(
+            self.cfg,                                                                          
+            x_support=x_support_transformed,
+            y_support=y_support_transformed,                      
+            x_query=x_query_transformed,
+            y_query=None,
+            max_samples_support=self.cfg.hyperparams['max_samples_support'],
+            max_samples_query=self.cfg.hyperparams['max_samples_query'],
+            rng=self.rng,
+        )      
+
+        loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            pin_memory=True,
+            num_workers=8,
+            drop_last=False,
+            collate_fn=CollatorWithPadding(
+                max_features=self.cfg.hyperparams['dim_embedding'],
+                pad_to_max_features=pad_to_max_features
+            ),
+        )
+        self.model.eval()
+
+
+
+    def call(self, feats):
+        """ This transforms the features with Tabular Model Embedding.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+        self.tabularFMPredictor.fit(
+            feats, 
+            hyperparameters={
+                "MITRA": {
+                    "fine_tune": False,
+                    "ag.max_memory_usage_ratio": 1000000,
+                    "ag.max_rows": None,
+                }
+            })
+        embs = self.inference_embedding(feats)
+
+        self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
+        return {self.feat_name: feats}
+
+
 def parse_feat_ops(confs, input_data_format=None):
     """ Parse the configurations for processing the features
 
@@ -1467,6 +1556,13 @@ def parse_feat_ops(confs, input_data_format=None):
                 transform = HardEdgeDstNegativeTransform(feat['feature_col'],
                                                          feat_name,
                                                          separator=separator)
+            elif conf['name'] == "tabular":
+                if 'target_col' in conf:
+                    target_col = conf['target_col']
+                else:
+                    target_col = None
+                print(conf)
+                exit(-1)
             elif conf['name'] == 'no-op':
                 if 'separator' in conf:
                     assert isinstance(conf['separator'], str), \
