@@ -20,7 +20,7 @@ from torch import nn
 import dgl.nn as dglnn
 import dgl.function as fn
 import torch.nn.functional as F
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE 
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from dgl.utils import expand_as_pair
 
 from .ngnn_mlp import NGNNMLP
@@ -238,12 +238,20 @@ class SAGEConvWithEdgeFeat(nn.Module):
         self.fc_edge  = nn.Linear(self._in_edge_feats, self._in_edge_feats)
         # aggregator type: mean/pool/lstm/gcn
         if aggregator_type == "pool":
-            self.fc_pool = nn.Linear(self._in_src_feats + self._in_edge_feats, self._in_src_feats + self._in_edge_feats)
+            self.fc_pool = nn.Linear(
+                self._in_src_feats + self._in_edge_feats, 
+                self._in_src_feats + self._in_edge_feats
+            )
         if aggregator_type == "lstm":
             self.lstm = nn.LSTM(
-                self._in_src_feats + self._in_edge_feats, self._in_src_feats + self._in_edge_feats, batch_first=True
+                self._in_src_feats + self._in_edge_feats, 
+                self._in_src_feats + self._in_edge_feats, 
+                batch_first=True
             )
-        self.fc_neigh = nn.Linear(self._in_src_feats + self._in_edge_feats, self._out_feats, bias=False)
+        self.fc_neigh = nn.Linear(
+            self._in_src_feats + self._in_edge_feats, 
+            self._out_feats, bias=False
+            )
 
         if aggregator_type != "gcn":
             self.fc_self = nn.Linear(self._in_dst_feats, self._out_feats, bias=bias)
@@ -269,7 +277,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
         self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
                                  num_ffn_layers_in_gnn, ffn_activation, dropout)
-    
+
     def reset_parameters(self):
         r"""
 
@@ -330,12 +338,6 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 feat_src = feat_dst = self.feat_drop(node_inputs)
                 if g.is_block:
                     feat_dst = feat_src[:g.number_of_dst_nodes()]
-            
-            msg_fn = fn.copy_u("h", "m")
-            if edge_weight is not None:
-                assert edge_weight.shape[0] == graph.num_edges()
-                g.edata["_edge_weight"] = edge_weight
-                msg_fn = fn.u_mul_e("h", "_edge_weight", "m")
 
             h_self = feat_dst
 
@@ -348,8 +350,9 @@ class SAGEConvWithEdgeFeat(nn.Module):
             # Message Passing
             if self._aggre_type == "mean":
                 g.srcdata["h"] = feat_src
-                g.apply_edges(fn.copy_u("h", "m"))
+                g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
+                # pylint: disable=no-member
                 g.update_all(fn.copy_e("m", "m"), fn.mean("m", "neigh"))
                 h_neigh = g.dstdata["neigh"]
                 h_neigh = self.fc_neigh(h_neigh)
@@ -364,8 +367,9 @@ class SAGEConvWithEdgeFeat(nn.Module):
                         g.dstdata["h"] = g.srcdata["h"][:g.num_dst_nodes()]
                     else:
                         g.dstdata["h"] = g.srcdata["h"]
-                g.apply_edges(fn.copy_u("h", "m"))
+                g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
+                # pylint: disable=no-member
                 g.update_all(fn.copy_e("m", "m"), fn.sum("m", "neigh"))
                 # divide in_degrees
                 degs = g.in_degrees().to(feat_dst)
@@ -373,21 +377,23 @@ class SAGEConvWithEdgeFeat(nn.Module):
                     degs.unsqueeze(-1) + 1
                 )
                 h_neigh = self.fc_neigh(h_neigh)
-            
+
             elif self._aggre_type == "pool":
                 g.srcdata["h"] = F.relu(self.fc_pool(h))
-                g.apply_edges(fn.copy_u("h", "m"))
+                g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
+                # pylint: disable=no-member
                 g.update_all(fn.copy_e("m", "m"), fn.max("m", "neigh"))
                 h_neigh = self.fc_neigh(g.dstdata["neigh"])
-            
+
             elif self._aggre_type == "lstm":
                 g.srcdata["h"] = feat_src
-                g.apply_edges(fn.copy_u("h", "m"))
+                g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata['m']  = th.cat([g.edata['m'], edge_inputs], dim=-1)
+                # pylint: disable=no-member
                 g.update_all(fn.copy_e("m", "m"), self._lstm_reducer)
                 h_neigh = self.fc_neigh(g.dstdata["neigh"])
-            
+
             else:
                 raise KeyError(
                     "Aggregator type {} not recognized.".format(
@@ -407,7 +413,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
             # activation
             if self.activation is not None:
                 h_conv = self.activation(h_conv)
-            
+
             # normalization
             if self.norm is not None:
                 h_conv = self.norm(h_conv)
