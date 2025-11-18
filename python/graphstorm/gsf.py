@@ -1228,6 +1228,7 @@ def set_encoder(model, g, config, train_task):
                                    out_dim=out_emb_size,
                                    num_heads=config.num_heads,
                                    num_hidden_layers=config.num_layers -1,
+                                   edge_feat_name=config.edge_feat_name,
                                    dropout=dropout,
                                    num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
