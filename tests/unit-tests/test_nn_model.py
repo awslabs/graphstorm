@@ -2287,3 +2287,4 @@ def test_gatv2_with_edge_features(input_dim, output_dim, dev):
     # the value of emb0 and emb1 should be different,
     # as emb0 integrates edge features and emb1 does not
     assert not th.allclose(emb0[DEFAULT_NTYPE], emb1[DEFAULT_NTYPE], atol=0.001)
+
