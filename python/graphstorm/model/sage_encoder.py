@@ -377,7 +377,6 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 g.srcdata["h"] = F.relu(self.fc_pool(feat_src))
                 g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
-                
                 g.update_all(fn.copy_e("m", "m"), fn.max("m", "neigh"))
                 h_neigh = self.fc_neigh(g.dstdata["neigh"])
 
@@ -574,7 +573,7 @@ class SAGEEncoder(GraphConvEncoder):
                 f"edge_feat_name should contain {DEFAULT_ETYPE} for homogeneous graphs"
             assert edge_feats is not None, \
                 f"edge features for {DEFAULT_ETYPE} should not be None"
-        
+
         if edge_feats is not None:
             assert len(edge_feats) == len(blocks), \
                 'The layer of edge features should be equal to ' + \
