@@ -18,12 +18,10 @@
 import torch as th
 from torch import nn
 import torch.nn.functional as F
-
 import dgl.nn as dglnn
 import dgl.function as fn
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from dgl.utils import expand_as_pair
-
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
 
@@ -36,7 +34,7 @@ class SAGEConv(nn.Module):
 
     .. math::
         h_{\mathcal{N}(i)}^{(l+1)} &= \mathrm{aggregate}
-        \left(\{h_{j}^{l}, \forall j \in \mathcal{N}(i) \}\right)
+        \left( [\{h_{j}^{l} \| e_{ij}], \forall j \in \mathcal{N}(i) \}\right)
 
         h_{i}^{(l+1)} &= \sigma \left(W \cdot \mathrm{concat}
         (h_{i}^{l}, h_{\mathcal{N}(i)}^{l+1}) \right)
@@ -235,8 +233,8 @@ class SAGEConvWithEdgeFeat(nn.Module):
         self.norm = norm
         self.feat_drop = nn.Dropout(feat_drop)
         self.activation = activation
-
         self.fc_edge  = nn.Linear(self._in_edge_feats, self._in_edge_feats)
+
         # aggregator type: mean/pool/lstm/gcn
         if aggregator_type == "pool":
             self.fc_pool = nn.Linear(
@@ -274,15 +272,13 @@ class SAGEConvWithEdgeFeat(nn.Module):
         else:
             # by default we don't apply any normalization
             self.norm = None
-        # ngnn
+
         self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
         self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
                                  num_ffn_layers_in_gnn, ffn_activation, dropout)
 
     def reset_parameters(self):
-        r"""
-
-        Description
+        r""" Description
         -----------
         Reinitialize learnable parameters.
 
@@ -366,7 +362,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
                         g.dstdata["h"] = g.srcdata["h"]
                 g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
-                # pylint: disable=no-member
+
                 g.update_all(fn.copy_e("m", "m"), fn.sum("m", "neigh"))
                 # divide in_degrees
                 degs = g.in_degrees().to(feat_dst)
@@ -381,7 +377,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 g.srcdata["h"] = F.relu(self.fc_pool(feat_src))
                 g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
-                # pylint: disable=no-member
+                
                 g.update_all(fn.copy_e("m", "m"), fn.max("m", "neigh"))
                 h_neigh = self.fc_neigh(g.dstdata["neigh"])
 
@@ -574,8 +570,11 @@ class SAGEEncoder(GraphConvEncoder):
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         if self.edge_feat_name is not None:
-            assert edge_feats is not None,\
-             f"edge features for {DEFAULT_ETYPE} should not be None"
+            assert DEFAULT_ETYPE in self.edge_feat_name, \
+                f"edge_feat_name should contain {DEFAULT_ETYPE} for homogeneous graphs"
+            assert edge_feats is not None, \
+                f"edge features for {DEFAULT_ETYPE} should not be None"
+        
         if edge_feats is not None:
             assert len(edge_feats) == len(blocks), \
                 'The layer of edge features should be equal to ' + \
