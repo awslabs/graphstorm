@@ -322,7 +322,7 @@ class HGTLayer(nn.Module):
                     if g.dstnodes[k].data.get('t') is not None:
                         trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
-                    # Handel zero number of src nodes, which is another extreme case
+                    # Handel zero number of src nodes, which is another corner case
                         warn_msg = "Warning. Graph convolution returned empty " \
                         f"dictionary for nodes in type: {str(k)}. Please check your data" \
                         f" for no in-degree nodes in type: {str(k)}."
