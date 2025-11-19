@@ -322,12 +322,18 @@ class HGTLayer(nn.Module):
                     if g.dstnodes[k].data.get('t') is not None:
                         trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
-                        continue
+                        warn_msg = "Warning. Graph convolution returned empty " \
+                        f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                        f" for no in-degree nodes in type: {str(k)}."
+                        self.warning_once(warn_msg)
+                        trans_out = th.zeros((g.number_of_dst_nodes(k), self.out_dim),
+                                      device=h[k].device)
 
                 if self.use_norm:
                     new_h[k] = self.norms[k](trans_out)
                 else:
                     new_h[k] = trans_out
+
                 if self.activation:
                     new_h[k] = self.activation(new_h[k])
                 if self.num_ffn_layers_in_gnn > 0:
@@ -836,7 +842,12 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                     if g.dstnodes[k].data.get('t') is not None:
                         trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
-                        continue
+                        warn_msg = "Warning. Graph convolution returned empty " \
+                        f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                        f" for no in-degree nodes in type: {str(k)}."
+                        self.warning_once(warn_msg)
+                        trans_out = th.zeros((g.number_of_dst_nodes(k), self.out_dim),
+                                      device=h[k].device)
 
                 if self.use_norm:
                     new_h[k] = self.norms[k](trans_out)
