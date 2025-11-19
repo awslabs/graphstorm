@@ -103,7 +103,7 @@ An ``edge`` object listed in an ``edges`` array must contain the following requi
 Contents of text features
 ************************************************************
 
-If the model configuration utilizes a HuggingFace tokenizer, users can submit raw text directly within the payload.
+If the deployed model utilizes text features for model training, in the payload users can submit raw text directly as shown below.
 
 .. code:: json
 
