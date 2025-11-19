@@ -194,7 +194,8 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
               infer_ntypes,
               nfeat_fields,
               efeat_fields=None,
-              return_proba=True):
+              return_proba=True,
+              lm_ntypes=None):
         """
         ``GSGnnNodePredictionRealtimeInferrer`` defines the ``infer()`` method that performs
         three tasks:
@@ -221,6 +222,8 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
              tuples, and values are lists of feature names. Default is None.
         return_proba: boolean
             If return probability of model predictions. Default is True.
+        lm_ntypes: list[str]
+            Node types with language model tokenized features.
 
         Returns
         -------
@@ -255,7 +258,7 @@ class GSGnnNodePredictionRealtimeInferrer(GSInferrer):
         # TODO (Jian), handle FeatGroup if the node feature fields are FeatGroups
         #      instead of a list of strings
         n_h = prepare_batch_input(g, input_nodes, feat_field=nfeat_fields,
-                                  dev=self.device)
+                                  dev=self.device, lm_ntypes=lm_ntypes)
         if efeat_fields:
             e_hs = prepare_blocks_edge_feats(g, blocks, efeat_fields, device=self.device)
         else:

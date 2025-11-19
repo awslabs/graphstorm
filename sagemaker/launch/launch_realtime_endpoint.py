@@ -351,15 +351,6 @@ def sanity_check_realtime_infer_inputs(input_args):
     with open(input_args.graph_json_config_file, 'r') as f:
         graph_json = json.load(f)
 
-    # TODO: remove this assertion after support tokenize in language models in later release
-    assert not has_tokenize_transformation(graph_json), (f'tokenize_hf transformation '
-                                                         'and trained language model are not '
-                                                         'supported on real-time inference'
-                                                         'endpoints. Please use bert_hf '
-                                                         'transformation to embed text attributes '
-                                                         'first, and use the embeddings as one '
-                                                         'type of feature in model training and '
-                                                         'inference.')
 
 if __name__ == "__main__":
     arg_parser = get_realtime_infer_parser()

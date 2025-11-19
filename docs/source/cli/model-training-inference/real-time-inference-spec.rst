@@ -100,6 +100,22 @@ An ``edge`` object listed in an ``edges`` array must contain the following requi
   <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
+Contents of text features
+************************************************************
+
+If the deployed model utilizes text features for model training, in the payload users can submit raw text directly as shown below. Features names must match the ``feature_name`` entries defined in :ref:`GConstruct JSON specification
+  <gconstruction-json>`, or the ``name`` values of ``features`` fields defined in
+  :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
+
+.. code:: json
+
+    {
+        "features"  : {
+                    feature name: <feature-text-value>,
+                    ...
+                }
+    }
+
 Contents of a target object listed in a ``targets`` array
 ..........................................................
 

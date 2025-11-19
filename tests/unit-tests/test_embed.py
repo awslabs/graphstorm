@@ -26,26 +26,31 @@ import tempfile
 
 
 import dgl
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
 from graphstorm.config import FeatureGroup
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from graphstorm.model import (GSPureLearnableInputLayer,
                               GSNodeEncoderInputLayer,
                               GSEdgeEncoderInputLayer,
                               GSLMNodeEncoderInputLayer,
-                              GSPureLMNodeInputLayer)
+                              GSPureLMNodeInputLayer,
+                              GSLMNodeEncoderInputLayer4GraphFromMetaData)
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
-from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from graphstorm.model.lm_embed import LMModels, LMCache
 from graphstorm.model.utils import (LazyDistTensor,
                                     load_pytorch_embedding,
                                     save_pytorch_embedding)
 from graphstorm.wholegraph import init_wholegraph
 
-from data_utils import generate_dummy_dist_graph
-from data_utils import create_lm_graph, create_lm_graph2, load_lm_graph
+from data_utils import (generate_dummy_dist_graph, 
+                    create_lm_learnable_model_dict_rt,
+                    load_weights_to_layer,
+                    create_lm_graph,
+                    create_lm_graph2,
+                    load_lm_graph)
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
@@ -1070,3 +1075,89 @@ def test_mp_wg_lm_cache(world_size):
         for p in ptrainer_list:
             p.join()
             assert p.exitcode == 0
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+@pytest.mark.parametrize("bert_model_name", ["bert-base-uncased", "roberta-base"])
+def test_LM_learnable_rt_layer(dev, bert_model_name):
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    max_seq_length = 8
+    num_train = 10
+    lm_config = [{"lm_type": "bert",
+                  "model_name": bert_model_name,
+                  "gradient_checkpoint": True,
+                  "node_types": ["n0"]}]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _, graph_config = generate_dummy_dist_graph(tmpdirname,
+                                                graph_name='test',
+                                                return_graph_config=True)
+
+    feat_field={'n0' : [FeatureGroup(["feat"]),
+                        FeatureGroup(["feat", "feat1"])]}
+    feat_size = get_node_feat_size(g, feat_field)
+    input_text = ["Hello world!"]
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    input_ids, valid_len, attention_mask, _ = \
+        create_tokens(tokenizer=tokenizer,
+                      input_text=input_text,
+                      max_seq_length=max_seq_length,
+                      num_node=g.number_of_nodes('n0'))
+
+    g.nodes['n0'].data[TOKEN_IDX] = input_ids
+    g.nodes['n0'].data[ATT_MASK_IDX] = attention_mask
+
+    layer = GSLMNodeEncoderInputLayer4GraphFromMetaData(g, 
+                    lm_config, feat_size, 2)
+    layer = layer.to(dev)
+
+    hf_model = AutoModel.from_pretrained(bert_model_name)
+    hf_model = hf_model.to(dev)
+    # Test if the load model work
+
+    # Modify parameters to differ from the pretrained state
+    target_param = hf_model.encoder.layer[11].attention.self.query.weight
+    new_tensor = th.ones_like(target_param)
+    with th.no_grad():
+        target_param.copy_(new_tensor)
+    hf_model.eval()
+    model_dict = create_lm_learnable_model_dict_rt(hf_model)
+    load_weights_to_layer(layer, model_dict)
+    assert len(layer.input_projs) == 0
+    assert len(layer.feat_group_projs) == 1
+    assert list(layer.feat_group_projs.keys())[0] == 'n0'
+    assert len(layer.feat_group_projs["n0"]) == 3
+    assert layer.proj_matrix["n0"].data.shape[0] == 6
+
+    input_nodes = {"n0": th.arange(0, 10, dtype=th.int64)}
+    layer.eval()
+    feat = prepare_batch_input(g, input_nodes, dev=dev, 
+                    feat_field=feat_field, lm_ntypes=['n0'])
+    relu = nn.ReLU()
+
+    with th.no_grad():
+        outputs = hf_model(**feat['lm']['n0'])
+        lm_feats = outputs.pooler_output
+        embed_n0_0 = feat["n0"][0] @ layer.feat_group_projs['n0'][0][0].weight.T
+        embed_n0_0 = relu(embed_n0_0)
+        embed_n0_1 = feat["n0"][1] @ layer.feat_group_projs['n0'][1][0].weight.T
+        embed_n0_1 = relu(embed_n0_1)
+        lm_feats = lm_feats @ layer.feat_group_projs['n0'][2][0].weight.T
+        lm_feats = relu(lm_feats)
+        embed_n0 = th.cat([embed_n0_0.to(dev),
+                           embed_n0_1.to(dev),
+                           lm_feats.to(dev)], dim=1)
+
+        embed_n0 = embed_n0 @ layer.proj_matrix["n0"]
+        input_nodes['n0'] = input_nodes['n0'].to(dev)
+        emb_out = layer(feat, input_nodes)
+
+        assert emb_out["n0"].shape[1] == 2
+        assert_almost_equal(emb_out['n0'].detach().cpu().numpy(),
+                            embed_n0.detach().cpu().numpy())
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()

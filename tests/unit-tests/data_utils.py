@@ -27,9 +27,9 @@ import tempfile
 from dgl.distributed.constants import (DEFAULT_NTYPE,
                                        DEFAULT_ETYPE)
 
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 from graphstorm import get_node_feat_size
-from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from util import create_tokens
 
 SIZE_DICT = {
@@ -328,7 +328,7 @@ def generate_dummy_hetero_graph_for_efeat_gnn(is_random=True):
 
 
 def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, is_random=True,
-                                add_reverse_efeat=False):
+                                add_reverse_efeat=False, return_graph_config=False, dirname=None):
     """
     generate a dummy heterogeneous graph.
     Parameters
@@ -421,6 +421,9 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False, i
         hetero_graph.edges[target_etype[1]].data['val_mask'] = edge_val_mask2
         hetero_graph.edges[target_etype[1]].data['test_mask'] = edge_test_mask2
 
+    if return_graph_config:
+        graph_config_new = create_dummy_hetero_graph_config(dirname, hetero_graph)
+        return hetero_graph, graph_config_new
     return hetero_graph
 
 def generate_dummy_hetero_graph_multi_target_ntypes(size='tiny', gen_mask=True):
@@ -1139,6 +1142,31 @@ def create_distill_data(tmpdirname, num_files):
             "embeddings": embeddings_col
             }).set_index("ids")
         textual_embed_pddf.to_parquet(os.path.join(tmpdirname, f"part-{part_i}.parquet"))
+
+def create_lm_learnable_model_dict_rt(hf_model, model_name='bert-base-uncased', 
+                                    node_types=['n0'], output_dim=2, 
+                                    input_dim=770):
+    hf_state_dict = hf_model.state_dict()
+    embed_state_dict = {}
+    
+    # Create LM models for each node type (they can share the same weights)
+    node_types_str = ','.join(node_types)
+    
+    for key, tensor in hf_state_dict.items():
+        # Convert HF key to GraphStorm key
+        gs_key = key
+        embed_state_dict[gs_key] = tensor.clone()
+    for node_type in node_types:
+        embed_state_dict[f'input_projs.{node_type}'] = th.randn(input_dim, output_dim)
+    
+    return {'embed': embed_state_dict}
+
+def load_weights_to_layer(layer, embed_state_dict):
+    proj_weights = {}
+    # Load LM model weights into wrapped HuggingFace models in GS Model
+    if hasattr(layer, '_lm_models'):
+        for node_type, hf_model in layer._lm_models.items():
+            hf_model.load_state_dict(embed_state_dict['embed'], strict=False)
 
 """ For self tests"""
 if __name__ == '__main__':

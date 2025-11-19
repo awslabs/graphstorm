@@ -233,11 +233,6 @@ def main():
         pipeline_deploy_args.inference_config.inference_yaml_file = (
             args.inference_yaml_file
         )
-    if args.inference_model_snapshot:
-        execution_params["InferenceModelSnapshot"] = args.inference_model_snapshot
-        pipeline_deploy_args.inference_config.inference_model_snapshot = (
-            args.inference_model_snapshot
-        )
     # If user specified a subpath use that, otherwise let the execution parameters determine it
     if args.execution_subpath:
         execution_params["ExecutionSubpath"] = args.execution_subpath
