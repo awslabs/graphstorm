@@ -956,7 +956,7 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
         This function overwrites GSPureLearnableInputLayer's same function by only return an
         empty zero tensor as sparse embeddings.
         """
-        return th.zero(0, embed_size)
+        return th.zeros(0, embed_size)
 
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation .
@@ -1087,7 +1087,7 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
         This function overwrites ``GSNodeEncoderInputLayer``'s same function by only return an
         empty zero tensor as sparse embeddings.
         """
-        return th.zero(0, embed_size)
+        return th.zeros(0, embed_size)
 
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation.
