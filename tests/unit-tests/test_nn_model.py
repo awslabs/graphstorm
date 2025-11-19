@@ -200,7 +200,8 @@ def test_hgt_with_zero_input(input_dim, output_dim):
     assert out["n2"].shape[1] == output_dim
     assert out["n3"].shape[0] == 0
     assert out["n3"].shape[1] == output_dim
-    assert "n4" not in out
+    assert "n4" in out    # for a very rare case, we allow source node only type to have 0s 
+                          # in output dict.
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
@@ -382,7 +383,8 @@ def test_hgt_with_zero_dstnodes(input_dim, output_dim):
                      num_heads=4)
     outputs = layer(block, inputs)
 
-    assert not 'n0' in outputs                      # No edge type to n0, so not in outputs
+    assert 'n0' in outputs    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
     assert outputs['n1'].shape[0] == 2              # 2 n1 destination nodes
     assert outputs['n1'].shape[1] == output_dim     # same as output dim
     assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation nodes
@@ -1885,7 +1887,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
         emb = layerwithef(block, node_feats, edge_feats)
 
-        assert 'n0' not in emb
+        assert 'n0' in emb    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
         assert emb['n1'].shape[0] == len(seeds['n1'])
         assert emb['n1'].shape[1] == output_dim
 
@@ -1909,7 +1912,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
         emb = layerwithef(block, node_feats, edge_feats)
 
-        assert 'n0' not in emb
+        assert 'n0' in emb    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
         assert emb['n1'].shape[0] == len(seeds['n1'])
         assert emb['n1'].shape[1] == output_dim
 
@@ -1977,7 +1981,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
         emb = layerwithef(block, node_feats, edge_feats)
 
-        assert 'n0' not in emb
+        assert 'n0' in emb    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
         assert emb['n1'].shape[0] == len(seeds['n1'])
         assert emb['n1'].shape[1] == output_dim
 
@@ -2047,14 +2052,16 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     # method A: not provide input edge feature
     emb_a = layerwithef(block_zero_edge, node_feats)
 
-    assert 'n0' not in emb_a
+    assert 'n0' in emb_a    # for a very rare case, we allow source node only type to have 0s 
+                            # in output dict.
     assert emb_a['n1'].shape[0] == len(seeds['n1'])
     assert emb_a['n1'].shape[1] == output_dim
 
     # method B: provide an empty dict as input edge feature
     emb_b = layerwithef(block_zero_edge, node_feats, {})
 
-    assert 'n0' not in emb_b
+    assert 'n0' in emb_b    # for a very rare case, we allow source node only type to have 0s 
+                            # in output dict.
     assert emb_b['n1'].shape[0] == len(seeds['n1'])
     assert emb_b['n1'].shape[1] == output_dim
 
@@ -2280,3 +2287,4 @@ def test_gatv2_with_edge_features(input_dim, output_dim, dev):
     # the value of emb0 and emb1 should be different,
     # as emb0 integrates edge features and emb1 does not
     assert not th.allclose(emb0[DEFAULT_NTYPE], emb1[DEFAULT_NTYPE], atol=0.001)
+
