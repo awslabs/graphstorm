@@ -831,7 +831,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                         else:
                             trans_out = trans_out * alpha + self.a_linears[k](h[k]) * (1-alpha)
                     else:
-                    # Handel zero number of src nodes, which is another extreme case
+                    # Handle zero number of src nodes, which is another extreme case
                         warn_msg = "Warning. Graph convolution returned empty " \
                         f"dictionary for nodes in type: {str(k)}. Please check your data" \
                         f" for no in-degree nodes in type: {str(k)}."
