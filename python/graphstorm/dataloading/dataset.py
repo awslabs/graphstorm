@@ -29,7 +29,7 @@ from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholeg
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 from ..utils import get_graph_name
-from ..config.config import FeatureGroup, GS_LM_FEATURE_KEY
+from ..config.config import FeatureGroup, GS_LM_FEATURE_KEY, GS_LE_FEATURE_KEY
 
 from ..wholegraph import is_wholegraph_embedding
 
@@ -53,10 +53,16 @@ def prepare_batch_input(g, input_nodes,
 
     Note: The output is stored in dev.
 
+    .. versionchanged:: 0.5.1
+        1. Add a new argument ``lm_ntypes`` to support directly extracting tokenized text features
+           based on the given node types in ``lm_ntypes``. The tokenized text features will be save
+           in a new field `lm` in the feat dict returned. Values of the `lm` field 
+        2. Add a new field ``gs_embeddings``
+
     .. versionchanged:: 0.5.0
         When feat_field is a dict, its value(s) can be a list of str or a list
-        of FeatureGroup. The return value can be a dict of int or
-        FeatureGroupSize, respectively.
+        of ``FeatureGroup``. The return value can be a dict of int or
+        ``FeatureGroupSize``, respectively.
 
     Parameters
     ----------
@@ -78,6 +84,9 @@ def prepare_batch_input(g, input_nodes,
     """
     feat = {}
     for ntype, nid in input_nodes.items():
+        # get feature name from feat_field for the ntype. If feat_field is None, feat_name
+        # is None. If feat_field is a string, feat_name is the string for all node types.
+        # If feat_field is a dict, get the value of corresponding node type.
         feat_name = None if feat_field is None else \
             [feat_field] if isinstance(feat_field, str) \
             else feat_field[ntype] if ntype in feat_field else None
@@ -137,6 +146,23 @@ def prepare_batch_input(g, input_nodes,
             if GS_LM_FEATURE_KEY not in feat:
                 feat[GS_LM_FEATURE_KEY] = {}
             feat[GS_LM_FEATURE_KEY].update(lm_feat)
+
+        # For real-time inference, users will provide learnable embeddings as a special type
+        # of node feature. This could happen when some node are featureless or features are not
+        # used in model training, or users set `use_node_embedding` to be True.
+        le_feat = None
+        for feat_name, feats in g.nodes[ntype].data.items():
+            if feat_name == GS_LE_FEATURE_KEY:
+                if ntype not in le_feat:
+                    le_feat[ntype] = {}
+                le_feat[ntype] = feat[nid]
+
+        if le_feat:
+            # add learnable embeddings as a dict to feat with `gs_embeddings` as the key
+            if GS_LE_FEATURE_KEY not in feat:
+                feat[GS_LE_FEATURE_KEY] = {}
+            feat[GS_LE_FEATURE_KEY].update(le_feat)
+
     return feat
 
 def prepare_batch_edge_input(g, input_edges,

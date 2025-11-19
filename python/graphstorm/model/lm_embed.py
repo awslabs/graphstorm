@@ -883,13 +883,22 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)
 
+
 class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
     """ The node encoder input layer with language model (LM) supported for graphs
-    initialized from `GSGraphMetadata`.
+    initialized from `GSGraphFromMetadata`.
+
+    .. versionadded:: 0.5.1
+        Add the `GSLMNodeEncoderInputLayer4GraphFromMetaData` class to support create a node
+        input layer by using a `GSGraphFromMetadata` as the initial argument.
 
     This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
     In addition, the input layer reloads LM layer and projection layer on nodes with tokenized 
     features.
+    
+    This input layer also handles a special case where a GraphStorm model uses learnable embedding
+    during training, but cannot reload these learnable embeddings from `GSGraphFromMetadata` for
+    use cases, like real-time inference on SageMaker AI inference endpoints.
 
     Parameters
     ----------

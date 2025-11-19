@@ -25,7 +25,7 @@ import torch.nn.functional as F
 import dgl
 from dgl.distributed import DistEmbedding, node_split
 
-from ..config import FeatureGroupSize
+from ..config.config import FeatureGroupSize, GS_LE_FEATURE_KEY
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
 from ..utils import (
@@ -908,6 +908,273 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
         """ Return the number of output dimensions, which is given in class initialization.
         """
         return self.embed_size
+
+
+class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
+    """ The node encoder input layer for learnable embeddings for every node.
+
+    The input layer is dedicated for models that use a graph from metadata for initialization.
+    Because graphs from metadata have no learnable embedding stored, this input layer will
+    initialize the sparse embedding with an empty zero tensor that has 0 number of samples, and
+    the same embedding size as the rest dimensions. In the forward() function, this input layer
+    assume there is an `embed` feature in the inputfeatures. And the forward() function will
+    extract this `embed` feature and use it as the original spares embeddings. The rest operation
+    will be identical to the ``GSPureLearnableInputLayer``.
+    
+    This input layer could be used for real-time inference where trained model will be initialized
+    by ``GSGraphFromMetadata``, e.g., ``GSDglGraphFromMetadata`` or ``GSDglDistGraphFromMetadata.``
+
+    .. versionadded:: 0.5.1
+        Add ``GSPureLearnableInputLayer4GraphFromMetadata`` in v0.5.1 to support input layer that
+        use ``GSGraphFromMetadata`` for intialization.
+
+    Parameters
+    ----------
+    g: GSGraphFromMetadata
+        The input graphs created by using GSGraphMetadata, e.g., GSDglGraphFromMetadata or
+        GSDglDistGraphFromMetadata.
+    embed_size : int
+        The output embedding size.
+    use_wholegraph_sparse_emb : bool
+        Whether or not to use WholeGraph to host embeddings for sparse updates. Default:
+        False.
+    """
+    def __init__(self,
+                 g,
+                 embed_size,
+                 use_wholegraph_sparse_emb=False):
+        super(GSPureLearnableInputLayer4GraphFromMetaData, self).__init__(
+            g=g,
+            embed_size=embed_size,
+            use_wholegraph_sparse_emb=False     # not support on graphs from metadata
+        )
+
+    # pylint: disable=unused-argument
+    def _init_node_embeddings(self, g, ntype, embed_size):
+        """ Initialize an empty zero tensor as node embedding for graphs created from metadata.
+        
+        This function overwrites GSPureLearnableInputLayer's same function by only return an
+        empty zero tensor as sparse embeddings.
+        """
+        return th.zero(0, embed_size)
+
+    def forward(self, input_feats, input_nodes):
+        """ Input layer forward computation .
+
+        This function overwrites ``GSPureLearnableInputLayer``'s same function by only replacing the
+        computation of sparse embeddings with extraction of the `gs_embedding` features from
+        `input_feats` variable for cases like real-time inference.
+
+        Parameters
+        ----------
+        input_feats: dict of Tensor
+            The input features in the format of {[ntype|'lm'|'gs_embedding']: feats}. This layer
+            assume there is a key, 'gs_embedding', and its value is another dictionary in the format
+            of {ntype: tensor}.
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}. NOT used as learnable
+            embeddings are in the `input_feats` now.
+
+        Returns
+        -------
+        embs: dict of Tensor
+            The projected node embeddings in the format of {ntype: emb}.
+        """
+        assert isinstance(input_feats, dict), 'The input features should be in a dict.'        
+        assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
+        embs = {}
+        for ntype in input_nodes:
+            emb = None
+
+            if len(input_nodes[ntype]) == 0:
+                embs[ntype] = self.sparse_embeds[ntype]
+                continue
+
+            assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
+                f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
+            assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
+                f'should include a dictionary that contains a key: {ntype}, but got '
+                f'{input_feats[GS_LE_FEATURE_KEY]}.')
+            emb = input_feats[GS_LE_FEATURE_KEY][ntype]
+
+            if emb is not None:
+                embs[ntype] = emb
+
+        return embs
+
+
+class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
+    """ The node encoder input layer for ``GSGraphFromMetadata``.
+
+    The input layer is dedicated for models that use a graph from metadata for initialization.
+    Because graphs from metadata have no learnable embedding stored, this input layer will
+    initialize the sparse embedding with an empty zero tensor that has 0 number of samples, and
+    the same embedding size as the rest dimensions. In the forward() function, this input layer
+    assume there is an `embed` feature in the inputfeatures. And the forward() function will
+    extract this `embed` feature and use it as the original spares embeddings. The rest operation
+    will be identical to the ``GSNodeEncoderInputLayer``.
+    
+    This input layer could be used for real-time inference where trained model will be initialized
+    by ``GSGraphFromMetadata``, e.g., ``GSDglGraphFromMetadata`` or ``GSDglDistGraphFromMetadata.``
+
+    .. versionadded:: 0.5.1
+        Add ``GSNodeEncoderInputLayer4GraphFromMetadata`` in v0.5.1 to support input layer that
+        use ``GSGraphFromMetadata`` for intialization.
+
+    Parameters
+    ----------
+    g: GSGraphFromMetadata
+        The input graphs created by using GSGraphMetadata, e.g., GSDglGraphFromMetadata or
+        GSDglDistGraphFromMetadata.
+    feat_size : dict of int or dict of FeatureGroupSize
+        The original feat size of each node type in the format of {str: int}.
+        If a node has multiple feature groups, it is in the format of {str: FeatureGroupSize}
+    embed_size : int
+        The output embedding size.
+    activation : callable
+        The activation function applied to the output embeddigns. Default: None.
+    dropout : float
+        The dropout parameter. Default: 0.
+    use_node_embeddings : bool
+        Whether to use learnable embeddings for nodes even when node features are
+        available. Default: False.
+    force_no_embeddings : list of str
+        The list node types that are forced to not use learnable embeddings. Default:
+        None.
+    num_ffn_layers_in_input: int
+        (Optional) Number of layers of feedforward neural network for each node type
+        in the input layer. Default: 0.
+    ffn_activation : callable
+        The activation function for the feedforward neural networks. Default: relu.
+    cache_embed : bool
+        Whether or not to cache the embeddings. Default: False.
+    use_wholegraph_sparse_emb : bool
+        Whether or not to use WholeGraph to host embeddings for sparse updates. Default:
+        False.
+    """
+    def __init__(self,
+                 g,
+                 feat_size,
+                 embed_size,
+                 activation=None,
+                 dropout=0.0,
+                 use_node_embeddings=False,
+                 force_no_embeddings=None,
+                 num_ffn_layers_in_input=0,
+                 ffn_activation=F.relu,
+                 cache_embed=False,
+                 use_wholegraph_sparse_emb=False):
+        super(GSNodeEncoderInputLayer4GraphFromMetadata, self).__init__(
+            g=g,
+            feat_size=feat_size,
+            embed_size=embed_size,
+            activation=activation,
+            dropout=dropout,
+            use_node_embeddings=use_node_embeddings,
+            force_no_embeddings=force_no_embeddings,
+            num_ffn_layers_in_input=num_ffn_layers_in_input,
+            ffn_activation=ffn_activation,
+            cache_embed=False,                  # not support on graphs from metadata
+            use_wholegraph_sparse_emb=False)    # not support on graphs from metadata
+
+    # pylint: disable=unused-argument
+    def _init_node_embeddings(self, g, ntype, embed_size):
+        """ Initialize an empty zero tensor as node embedding for graphs created from metadata.
+        
+        This function overwrites GSNodeEncoderInputLayer's same function by only return an
+        empty zero tensor as sparse embeddings.
+        """
+        return th.zero(0, embed_size)
+
+    def forward(self, input_feats, input_nodes):
+        """ Input layer forward computation.
+
+        This function overwrites ``GSNodeEncoderInputLayer``'s same function by only replacing the
+        computation of sparse embeddings with extraction of the ``gs_embedding`` features from
+        ``input_feats`` variable for cases like real-time inference.
+
+        Parameters
+        ----------
+        input_feats: dict of Tensor
+            The input features in the format of {[ntype|'lm'|'gs_embedding']: feats}. This layer
+            assume there is a key, 'gs_embedding', and its value is another dictionary in the format
+            of {ntype: tensor}.
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}. This argument is NOT used
+            because learnable embeddings are in the `input_feats` already.
+
+        Returns
+        -------
+        embs: dict of Tensor
+            The projected node embeddings in the format of {ntype: emb}.
+        """
+        assert isinstance(input_feats, dict), 'The input features should be in a dict.'
+        assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
+        embs = {}
+        for ntype in input_nodes:
+            emb = None
+            if ntype in input_feats:
+                if ntype in self.input_projs:
+                    # If the input data is not float, we need to convert it t float first.
+                    emb = input_feats[ntype].float() @ self.input_projs[ntype]
+                    if self.use_node_embeddings:
+                        assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
+                            f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
+                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
+                            f'should include a dictionary that contains a key: {ntype}, but got '
+                            f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                        node_emb = input_feats[GS_LE_FEATURE_KEY][ntype]
+                        concat_emb = th.cat((emb, node_emb), dim=1)
+                        emb = concat_emb @ self.proj_matrix[ntype]
+                elif ntype in self.feat_group_projs:
+                    # There are multiple feature groups.
+                    feat_embs = []
+                    for in_feats, group_proj in zip(input_feats[ntype],
+                                                    self.feat_group_projs[ntype]):
+                        emb = group_proj(in_feats.float())
+                        feat_embs.append(emb)
+
+                    if self.use_node_embeddings:
+                        assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
+                            f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
+                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
+                            f'should include a dictionary that contains a key: {ntype}, but got '
+                            f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                        node_emb = input_feats[GS_LE_FEATURE_KEY][ntype]
+                        # append node embeddings to feat_embs
+                        feat_embs.append(node_emb)
+                    concat_emb = th.cat(feat_embs, dim=1)
+                    emb = concat_emb @ self.proj_matrix[ntype]
+                else:
+                    raise RuntimeError(f"We need a projection for node type {ntype}")
+            elif ntype in self.sparse_embeds:  # nodes do not have input features
+                # If the number of the input node of a node type is 0, just use the
+                # empty zero embeddings of sparse embedding of this input layer.
+                if len(input_nodes[ntype]) == 0:
+                    embs[ntype] = self.sparse_embeds[ntype]
+                    continue
+
+                assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
+                    f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
+                assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
+                    f'should include a dictionary that contains a key: {ntype}, but got '
+                    f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                emb = input_feats[GS_LE_FEATURE_KEY][ntype]
+                emb = emb @ self.proj_matrix[ntype]
+
+            if emb is not None:
+                if self.activation is not None:
+                    emb = self.activation(emb)
+                    emb = self.dropout(emb)
+                embs[ntype] = emb
+
+        def _apply(t, h):
+            if self.num_ffn_layers_in_input > 0:
+                h = self.ngnn_mlp[t](h)
+            return h
+
+        embs = {ntype: _apply(ntype, h) for ntype, h in embs.items()}
+        return embs
 
 
 def _gen_emb(g, feat_field, embed_layer, ntype):
