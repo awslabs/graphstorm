@@ -100,7 +100,7 @@ An ``edge`` object listed in an ``edges`` array must contain the following requi
   <gconstruction-json>`, or these ``name`` values of ``features`` fields defined in
   :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
-Contents of language model features
+Contents of text features
 ************************************************************
 
 If the model configuration utilizes a HuggingFace tokenizer, users can submit raw text directly within the payload.
