@@ -318,7 +318,7 @@ class HGTLayer(nn.Module):
                         trans_out = self.drop(dst_h)
                         trans_out = trans_out * alpha + dst_h * (1-alpha)
                 else:
-                    # Handle zero number of dst nodes, which is an extreme case
+                    # Handle zero number of dst nodes, which is a corner case
                     if g.dstnodes[k].data.get('t') is not None:
                         trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
@@ -830,13 +830,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                                 self.a_linears[k](h[k][:g.num_dst_nodes(k)]) * (1-alpha)
                         else:
                             trans_out = trans_out * alpha + self.a_linears[k](h[k]) * (1-alpha)
-                    else:
-                    # Handle zero number of src nodes, which is another extreme case
-                        warn_msg = "Warning. Graph convolution returned empty " \
-                        f"dictionary for nodes in type: {str(k)}. Please check your data" \
-                        f" for no in-degree nodes in type: {str(k)}."
-                        self.warning_once(warn_msg)
-                        # assign all 0s tensor to the src nodes, which will be an empty tensor
+                    else:                       # Nodes not really in destination side.
                         warn_msg = "Warning. Graph convolution returned empty " \
                             f"dictionary for nodes in type: {str(k)}. Please check your data" \
                             f" for no in-degree nodes in type: {str(k)}."
@@ -846,10 +840,11 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                         trans_out = self.drop(dst_h)
                         trans_out = trans_out * alpha + dst_h * (1-alpha)
                 else:
-                    # Handle zero number of dst nodes, which is an extreme case
+                    # Handle zero number of dst nodes, which is a corner case
                     if g.dstnodes[k].data.get('t') is not None:
                         trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
+                        # Handel zero number of src nodes, which is another corner case
                         warn_msg = "Warning. Graph convolution returned empty " \
                         f"dictionary for nodes in type: {str(k)}. Please check your data" \
                         f" for no in-degree nodes in type: {str(k)}."
