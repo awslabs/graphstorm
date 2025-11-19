@@ -961,26 +961,27 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation .
 
-        This function overwrites ``GSPureLearnableInputLayer``'s same function by only replacing the
-        computation of sparse embeddings with extraction of the `gs_embedding` features from
+        This function overwrites ``GSPureLearnableInputLayer``'s same function by only replacing
+        the computation of sparse embeddings with extraction of the `gs_embedding` features from
         `input_feats` variable for cases like real-time inference.
 
         Parameters
         ----------
         input_feats: dict of Tensor
             The input features in the format of {[ntype|'lm'|'gs_embedding']: feats}. This layer
-            assume there is a key, 'gs_embedding', and its value is another dictionary in the format
-            of {ntype: tensor}.
+            assume there is a key, 'gs_embedding', and its value is another dictionary in the
+            format of {ntype: tensor}.
         input_nodes: dict of Tensor
-            The input node indexes in the format of {ntype: indexes}. NOT used as learnable
-            embeddings are in the `input_feats` now.
+            The input node indexes in the format of {ntype: indexes}. 
+            Ignored because learnable embeddings are in the `input_feats` now, and no need to use
+            its node IDs to extract embeddings.
 
         Returns
         -------
         embs: dict of Tensor
             The projected node embeddings in the format of {ntype: emb}.
         """
-        assert isinstance(input_feats, dict), 'The input features should be in a dict.'        
+        assert isinstance(input_feats, dict), 'The input features should be in a dict.'
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
@@ -995,6 +996,8 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
             assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
                 f'should include a dictionary that contains a key: {ntype}, but got '
                 f'{input_feats[GS_LE_FEATURE_KEY]}.')
+
+            # direct extract the learnable embeddings from input features
             emb = input_feats[GS_LE_FEATURE_KEY][ntype]
 
             if emb is not None:
@@ -1004,7 +1007,7 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
 
 
 class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
-    """ The node encoder input layer for ``GSGraphFromMetadata``.
+    """ The node encoder input layer for initialization with ``GSGraphFromMetadata``.
 
     The input layer is dedicated for models that use a graph from metadata for initialization.
     Because graphs from metadata have no learnable embedding stored, this input layer will
@@ -1081,7 +1084,7 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
     def _init_node_embeddings(self, g, ntype, embed_size):
         """ Initialize an empty zero tensor as node embedding for graphs created from metadata.
         
-        This function overwrites GSNodeEncoderInputLayer's same function by only return an
+        This function overwrites ``GSNodeEncoderInputLayer``'s same function by only return an
         empty zero tensor as sparse embeddings.
         """
         return th.zero(0, embed_size)
@@ -1100,8 +1103,9 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
             assume there is a key, 'gs_embedding', and its value is another dictionary in the format
             of {ntype: tensor}.
         input_nodes: dict of Tensor
-            The input node indexes in the format of {ntype: indexes}. This argument is NOT used
-            because learnable embeddings are in the `input_feats` already.
+            The input node indexes in the format of {ntype: indexes}.
+            Ignored because learnable embeddings are in the ``input_feats``. No need to use the
+            node IDs to extract learnable embeddings.
 
         Returns
         -------
@@ -1120,9 +1124,10 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
                     if self.use_node_embeddings:
                         assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
                             f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
-                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
-                            f'should include a dictionary that contains a key: {ntype}, but got '
-                            f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable '
+                            f'embeddings should include a dictionary that contains a key: {ntype},'
+                            f' but got {input_feats[GS_LE_FEATURE_KEY]}.')
+                        # direct extract the learnable embeddings from input features
                         node_emb = input_feats[GS_LE_FEATURE_KEY][ntype]
                         concat_emb = th.cat((emb, node_emb), dim=1)
                         emb = concat_emb @ self.proj_matrix[ntype]
@@ -1137,9 +1142,10 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
                     if self.use_node_embeddings:
                         assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
                             f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
-                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
-                            f'should include a dictionary that contains a key: {ntype}, but got '
-                            f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable '
+                            f'embeddings should include a dictionary that contains a key: {ntype},'
+                            f' but got {input_feats[GS_LE_FEATURE_KEY]}.')
+                        # direct extract the learnable embeddings from input features
                         node_emb = input_feats[GS_LE_FEATURE_KEY][ntype]
                         # append node embeddings to feat_embs
                         feat_embs.append(node_emb)
@@ -1159,6 +1165,7 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
                 assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
                     f'should include a dictionary that contains a key: {ntype}, but got '
                     f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                # direct extract the learnable embeddings from input features
                 emb = input_feats[GS_LE_FEATURE_KEY][ntype]
                 emb = emb @ self.proj_matrix[ntype]
 

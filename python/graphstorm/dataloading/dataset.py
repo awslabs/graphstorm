@@ -152,6 +152,7 @@ def prepare_batch_input(g, input_nodes,
         # used in model training, or users set `use_node_embedding` to be True.
         le_feat = None
         for feat_name, feats in g.nodes[ntype].data.items():
+            le_feat = {}
             if feat_name == GS_LE_FEATURE_KEY:
                 if ntype not in le_feat:
                     le_feat[ntype] = {}
