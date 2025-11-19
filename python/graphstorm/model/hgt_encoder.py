@@ -322,10 +322,12 @@ class HGTLayer(nn.Module):
                     if g.dstnodes[k].data.get('t') is not None:
                         trans_out = g.dstnodes[k].data.get('t').view(-1, self.out_dim)
                     else:
+                    # Handel zero number of src nodes, which is another extreme case
                         warn_msg = "Warning. Graph convolution returned empty " \
                         f"dictionary for nodes in type: {str(k)}. Please check your data" \
                         f" for no in-degree nodes in type: {str(k)}."
                         self.warning_once(warn_msg)
+                        # assign all 0s tensor to the src nodes, which will be an empty tensor
                         trans_out = th.zeros((g.number_of_dst_nodes(k), self.out_dim),
                                       device=h[k].device)
 
@@ -828,7 +830,13 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                                 self.a_linears[k](h[k][:g.num_dst_nodes(k)]) * (1-alpha)
                         else:
                             trans_out = trans_out * alpha + self.a_linears[k](h[k]) * (1-alpha)
-                    else:                       # Nodes not really in destination side.
+                    else:
+                    # Handel zero number of src nodes, which is another extreme case
+                        warn_msg = "Warning. Graph convolution returned empty " \
+                        f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                        f" for no in-degree nodes in type: {str(k)}."
+                        self.warning_once(warn_msg)
+                        # assign all 0s tensor to the src nodes, which will be an empty tensor
                         warn_msg = "Warning. Graph convolution returned empty " \
                             f"dictionary for nodes in type: {str(k)}. Please check your data" \
                             f" for no in-degree nodes in type: {str(k)}."
