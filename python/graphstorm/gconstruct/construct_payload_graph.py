@@ -431,10 +431,14 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
         "version": "gs-realtime-v0.1",
         "gml_task": "node_classification",
         "graph": {
-            "nodes": [{node_payload_definition}]，
+            "nodes": [{node_payload_definition}],
             "edges": [{edge_payload_definition}]
         }
     }
+
+    The payload specification can be found at `Specification of Real-time Inference Request and
+    Response 
+    https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/real-time-inference-spec.html`_.
 
     Parameters:
     ------------
@@ -520,15 +524,19 @@ def verify_payload_conf(request_json_payload, gconstruct_confs):
 def process_json_payload_graph(request_json_payload, graph_construct_config):
     """ Construct DGLGraph from json payload.
 
-    The json payload is expected to have input format like:
+    The json payload version 0.1 is expected to have input format like:
     {
         "version": "gs-realtime-v0.1",
         "gml_task": "node_classification",
         "graph": {
-            "nodes": [{node_payload_definition}]，
+            "nodes": [{node_payload_definition}],
             "edges": [{edge_payload_definition}]
         }
     }
+
+    The payload specification can be found at `Specification of Real-time Inference Request and
+    Response 
+    https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/real-time-inference-spec.html`_.
 
     Parameters:
     ------------
