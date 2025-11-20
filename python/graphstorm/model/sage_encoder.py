@@ -18,11 +18,12 @@
 import torch as th
 from torch import nn
 import torch.nn.functional as F
-import dgl
+
 import dgl.nn as dglnn
 import dgl.function as fn
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from dgl.utils import expand_as_pair
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
 
