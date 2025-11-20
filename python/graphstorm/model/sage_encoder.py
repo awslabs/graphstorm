@@ -365,6 +365,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
 
+                # pylint: disable=no-member
                 g.update_all(fn.copy_e("m", "m"), fn.sum("m", "neigh"))
                 # divide in_degrees
                 degs = g.in_degrees().to(feat_dst)
@@ -379,6 +380,7 @@ class SAGEConvWithEdgeFeat(nn.Module):
                 g.srcdata["h"] = F.relu(self.fc_pool(feat_src))
                 g.apply_edges(lambda edges: {'m': edges.src['h']})
                 g.edata["m"] = th.cat([g.edata['m'], edge_inputs], dim=-1)
+                # pylint: disable=no-member
                 g.update_all(fn.copy_e("m", "m"), fn.max("m", "neigh"))
                 h_neigh = self.fc_neigh(g.dstdata["neigh"])
 
