@@ -41,6 +41,11 @@ from .utils import (ExtMemArrayWrapper,
                     validate_features,
                     validate_numerical_feats)
 
+from autogluon.tabular import TabularPredictor
+from autogluon.tabular.models.mitra._internal.data.dataset_finetune import DatasetFinetune
+from autogluon.tabular.models.mitra._internal.config.enums import Task, LossName, ModelName
+from autogluon.tabular.models.mitra._internal.core.trainer_finetune import CollatorWithPadding
+
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
 
@@ -1330,6 +1335,123 @@ class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
         # target node type is destination node type.
         self._target_ntype = etype[2]
 
+class TabularFMTransform(FeatTransform):
+    """Transform input tabular numerical columns into tabular foundation model embedding.
+
+    Parameters
+    ----------
+    target_col: str
+        Target label column for mitra embedding.
+
+    .. versionadded:: 0.5.1
+    """
+
+    def __init__(self, col_name, feat_name, out_dtype=None, target_col=None):
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super(TabularFMTransform, self).__init__(col_name, feat_name, out_dtype)
+        assert self.out_dtype is not None
+        self.tabularFMPredictor = TabularPredictor(label=target_col)
+
+        if th.cuda.is_available():
+            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
+                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+            self.device = f"cuda:{gpu}"
+        else:
+            self.device = "cpu"
+
+    def save_input_embeddings_hook(self, name, hidden_embeddings_container):
+        """Create a hook function that captures intermediate representations"""
+        def hook_fn(module, inp, out):
+            if torch.is_tensor(inp):
+                hidden_embeddings_container[name] = inp.detach().cpu()
+            elif isinstance(inp, (tuple, list)):
+                hidden_embeddings_container[name] = [x.detach().cpu() if torch.is_tensor(x) else x for x in inp]
+            elif isinstance(inp, dict):
+                hidden_embeddings_container[name] = {k: v.detach().cpu() if torch.is_tensor(v) else v for k, v in inp.items()}
+            else:
+                hidden_embeddings_container[name] = inp
+        return hook_fn
+
+
+    def register_hooks_for_embeddings(self, model, hidden_embeddings_container, layer_names=None):
+        """Register hooks to capture intermediate representations"""
+        hooks = []
+        
+        if layer_names is None:
+            for name, module in model.named_modules():
+                if name:
+                    hook = module.register_forward_hook(save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hooks.append(hook)
+        else:
+            for name, module in model.named_modules():
+                if name in layer_names:
+                    hook = module.register_forward_hook(save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hooks.append(hook)
+        return hooks
+
+    def inference_embedding(self, feats):
+        """Generate embeddings from a trained Mitra predictor"""
+        if self.tabularFMPredictor.transform_features is not None:
+            feats = self.tabularFMPredictor._learner.transform_features(feats)
+        tabularFMTrainer = self.tabularFMPredictor._learner.load_trainer()
+        ensemble_model = self.tabularFMPredictor.load_model("Mitra")
+        feats = ensemble_model.preprocess(feats)
+        model = ensemble_model.model
+
+        trainer = model.trainers[0]
+        x_support, y_support, x_query = model.X, model.y, batch_data
+        x_support_transformed = trainer.preprocessor.transform_X(x_support)
+        y_support_transformed = trainer.preprocessor.transform_y(y_support)
+        x_query_transformed = trainer.preprocessor.transform_X(x_query)
+
+        dataset = DatasetFinetune(
+            self.cfg,                                                                          
+            x_support=x_support_transformed,
+            y_support=y_support_transformed,                      
+            x_query=x_query_transformed,
+            y_query=None,
+            max_samples_support=self.cfg.hyperparams['max_samples_support'],
+            max_samples_query=self.cfg.hyperparams['max_samples_query'],
+            rng=self.rng,
+        )      
+        self.model.eval()
+        embeddings = []
+        avg_embeddings = []
+
+        with th.no_grad():
+            cached_hidden_embeddings = {}
+            hooks = register_hooks_for_embeddings(self.model, cached_hidden_embeddings, ['final_layer_norm'])
+
+            with torch.autocast(device_type=self.device, dtype=getattr(torch, self.cfg.hyperparams['precision'])):
+                    x_s = batch['x_support'].to(self.device, non_blocking=True)
+
+    def call(self, feats):
+        """ This transforms the features with Tabular Model Embedding.
+
+        Parameters
+        ----------
+        feats : Numpy array
+            The feature data
+
+        Returns
+        -------
+        dict : The key is the feature name, the value is the feature.
+        """
+        self.tabularFMPredictor.fit(
+            feats, 
+            hyperparameters={
+                "MITRA": {
+                    "fine_tune": False,
+                    "ag.max_memory_usage_ratio": 1000000,
+                    "ag.max_rows": None,
+                }
+            })
+        embs = self.inference_embedding(feats)
+
+        self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
+        return {self.feat_name: feats}
+
+
 def parse_feat_ops(confs, input_data_format=None):
     """ Parse the configurations for processing the features
 
@@ -1355,6 +1477,9 @@ def parse_feat_ops(confs, input_data_format=None):
     assert isinstance(confs, list), \
             "The feature configurations need to be in a list."
     for feat in confs:
+        print(confs)
+        if feat.get('transform', {}).get('name') == 'tabular':
+            feat['feature_col'] = "*"
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
         assert (isinstance(feat['feature_col'], str) and feat['feature_col'] != "") \
@@ -1467,6 +1592,13 @@ def parse_feat_ops(confs, input_data_format=None):
                 transform = HardEdgeDstNegativeTransform(feat['feature_col'],
                                                          feat_name,
                                                          separator=separator)
+            elif conf['name'] == "tabular":
+                if 'target_col' in conf:
+                    target_col = conf['target_col']
+                else:
+                    target_col = None
+                print(conf)
+                exit(-1)
             elif conf['name'] == 'no-op':
                 if 'separator' in conf:
                     assert isinstance(conf['separator'], str), \
@@ -1582,6 +1714,7 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
         else:
             wrapper = None
         for col in col_name:
+            print(op, op.col_name)
             res = op(data[col])
             # Do not expect multiple keys for multiple columns, the expected output will only
             # have 1 key/val pair. But for single column, some feature transformations like
