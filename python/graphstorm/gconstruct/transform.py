@@ -1342,6 +1342,8 @@ class TabularFMTransform(FeatTransform):
     ----------
     target_col: str
         Target label column for mitra embedding.
+
+    .. versionadded:: 0.5.1
     """
 
     def __init__(self, col_name, feat_name, out_dtype=None, target_col=None):
@@ -1349,6 +1351,43 @@ class TabularFMTransform(FeatTransform):
         super(TabularFMTransform, self).__init__(col_name, feat_name, out_dtype)
         assert self.out_dtype is not None
         self.tabularFMPredictor = TabularPredictor(label=target_col)
+
+        if th.cuda.is_available():
+            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
+                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+            self.device = f"cuda:{gpu}"
+        else:
+            self.device = "cpu"
+
+    def save_input_embeddings_hook(self, name, hidden_embeddings_container):
+        """Create a hook function that captures intermediate representations"""
+        def hook_fn(module, inp, out):
+            if torch.is_tensor(inp):
+                hidden_embeddings_container[name] = inp.detach().cpu()
+            elif isinstance(inp, (tuple, list)):
+                hidden_embeddings_container[name] = [x.detach().cpu() if torch.is_tensor(x) else x for x in inp]
+            elif isinstance(inp, dict):
+                hidden_embeddings_container[name] = {k: v.detach().cpu() if torch.is_tensor(v) else v for k, v in inp.items()}
+            else:
+                hidden_embeddings_container[name] = inp
+        return hook_fn
+
+
+    def register_hooks_for_embeddings(self, model, hidden_embeddings_container, layer_names=None):
+        """Register hooks to capture intermediate representations"""
+        hooks = []
+        
+        if layer_names is None:
+            for name, module in model.named_modules():
+                if name:
+                    hook = module.register_forward_hook(save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hooks.append(hook)
+        else:
+            for name, module in model.named_modules():
+                if name in layer_names:
+                    hook = module.register_forward_hook(save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hooks.append(hook)
+        return hooks
 
     def inference_embedding(self, feats):
         """Generate embeddings from a trained Mitra predictor"""
@@ -1375,22 +1414,16 @@ class TabularFMTransform(FeatTransform):
             max_samples_query=self.cfg.hyperparams['max_samples_query'],
             rng=self.rng,
         )      
-
-        loader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=1,
-            shuffle=False,
-            pin_memory=True,
-            num_workers=8,
-            drop_last=False,
-            collate_fn=CollatorWithPadding(
-                max_features=self.cfg.hyperparams['dim_embedding'],
-                pad_to_max_features=pad_to_max_features
-            ),
-        )
         self.model.eval()
+        embeddings = []
+        avg_embeddings = []
 
+        with th.no_grad():
+            cached_hidden_embeddings = {}
+            hooks = register_hooks_for_embeddings(self.model, cached_hidden_embeddings, ['final_layer_norm'])
 
+            with torch.autocast(device_type=self.device, dtype=getattr(torch, self.cfg.hyperparams['precision'])):
+                    x_s = batch['x_support'].to(self.device, non_blocking=True)
 
     def call(self, feats):
         """ This transforms the features with Tabular Model Embedding.
@@ -1444,6 +1477,9 @@ def parse_feat_ops(confs, input_data_format=None):
     assert isinstance(confs, list), \
             "The feature configurations need to be in a list."
     for feat in confs:
+        print(confs)
+        if feat.get('transform', {}).get('name') == 'tabular':
+            feat['feature_col'] = "*"
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
         assert (isinstance(feat['feature_col'], str) and feat['feature_col'] != "") \
@@ -1678,6 +1714,7 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
         else:
             wrapper = None
         for col in col_name:
+            print(op, op.col_name)
             res = op(data[col])
             # Do not expect multiple keys for multiple columns, the expected output will only
             # have 1 key/val pair. But for single column, some feature transformations like
