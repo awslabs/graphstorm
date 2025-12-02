@@ -910,6 +910,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
         return self.embed_size
 
 
+# pylint: disable=super-init-not-called
 class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
     """ The node encoder input layer for learnable embeddings for every node.
 
@@ -943,9 +944,9 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
                  g,
                  embed_size,
                  use_wholegraph_sparse_emb=False):
-        # need to initialize default sparse embedding with an empty torch zero tensors,
-        # because here not use the `GSPureLearnableInputLayer` __init__ method so we can
-        # avoid calling the initialization of real sparse embeddings.
+        # Need to initialize default sparse embedding with an empty torch zero tensors.
+        # We do not use the `GSPureLearnableInputLayer` __init__ method in order to avoid calling
+        # the initialization of real sparse embeddings in `GSPureLearnableInputLayer`.
         self._sparse_embeds = {}
         for ntype in g.ntypes:
             self._sparse_embeds[ntype] = th.zeros(0, embed_size)

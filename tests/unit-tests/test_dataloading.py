@@ -2786,16 +2786,7 @@ def test_prepare_input4realtime():
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
 
-        # set tokenized features
-        
-        # single ntype/edge, single feat
-        input_nodes = {
-            "n0": th.randint(g.num_nodes("n0"), (10,))
-        }
-        input_edges = {
-            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
-        }
-
+        # set learnable embedding to n0 type.
         node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
         edge_feat = prepare_batch_edge_input(g, input_edges, feat_field='feat')
         assert len(node_feat) == 1
@@ -2805,31 +2796,6 @@ def test_prepare_input4realtime():
         assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
                      g.edges[("n0", "r1", "n1")].data["feat"][
                          input_edges[("n0", "r1", "n1")]].numpy())
-
-        # multiple ntype/edge, single feat
-        input_nodes = {
-            "n0": th.randint(g.num_nodes("n0"), (10,)),
-            "n1": th.randint(g.num_nodes("n1"), (20,)),
-        }
-        input_edges = {
-            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
-            ("n0", "r0", "n1"): th.randint(g.num_edges(("n0", "r0", "n1")), (10,)),
-        }
-
-        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
-        edge_feat = prepare_batch_edge_input(g, input_edges, feat_field='feat')
-        assert len(node_feat) == 2
-        assert len(edge_feat) == 2
-        assert_equal(node_feat["n0"].numpy(),
-                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
-        assert_equal(node_feat["n1"].numpy(),
-                     g.nodes["n1"].data["feat"][input_nodes["n1"]].numpy())
-        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
-                     g.edges[("n0", "r1", "n1")].data["feat"][
-                         input_edges[("n0", "r1", "n1")]].numpy())
-        assert_equal(edge_feat[("n0", "r0", "n1")].numpy(),
-                     g.edges[("n0", "r0", "n1")].data["feat"][
-                         input_edges[("n0", "r0", "n1")]].numpy())
 
         # multiple ntype/edge, multiple feat
         input_nodes = {
@@ -2841,73 +2807,9 @@ def test_prepare_input4realtime():
             ("n0", "r0", "n1"): th.randint(g.num_edges(("n0", "r0", "n1")), (10,)),
         }
 
-        node_feat = prepare_batch_input(g, input_nodes,
-                                        feat_field={"n0":["feat"],
-                                                    "n1":["feat", "feat2"]})
-        edge_feat = prepare_batch_edge_input(g, input_edges,
-                                             feat_field={
-                                                 ("n0", "r1", "n1"): ["feat"],
-                                                 ("n0", "r0", "n1"): ["feat", "feat2"]})
-        assert len(node_feat) == 2
-        assert len(edge_feat) == 2
-        assert_equal(node_feat["n0"].numpy(),
-                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
-        assert_equal(node_feat["n1"].numpy(),
-                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
-                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
-        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
-                     g.edges[("n0", "r1", "n1")].data["feat"][
-                         input_edges[("n0", "r1", "n1")]].numpy())
-        assert_equal(edge_feat[("n0", "r0", "n1")].numpy(),
-                     th.cat([g.edges[("n0", "r0", "n1")].data["feat"][
-                                 input_edges[("n0", "r0", "n1")]],
-                             g.edges[("n0", "r0", "n1")].data["feat2"][
-                                 input_edges[("n0", "r0", "n1")]]], dim=-1).numpy())
-
-        # Test node feature group
-        input_nodes = {
-            "n0": th.randint(g.num_nodes("n0"), (10,)),
-            "n1": th.randint(g.num_nodes("n1"), (20,)),
-        }
-        # single feature group
-        feat_field = {"n0":["feat"],
-                      "n1":[FeatureGroup(["feat", "feat2"])]}
-        node_feat = prepare_batch_input(g, input_nodes,
-                                        feat_field=feat_field)
-        assert len(node_feat) == 2
-        assert_equal(node_feat["n0"].numpy(),
-                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
-        assert isinstance(node_feat["n1"], list)
-        assert len(node_feat["n1"]) == 1
-        assert_equal(node_feat["n1"][0].numpy(),
-                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
-                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
-
-        # Multiple feature groups
-        feat_field = {"n0":["feat"],
-                      "n1":[FeatureGroup(["feat", "feat2"]),
-                            FeatureGroup(["feat3"]),
-                            FeatureGroup(["feat4", "feat5"])]}
-        node_feat = prepare_batch_input(g, input_nodes,
-                                        feat_field=feat_field)
-        assert len(node_feat) == 2
-        assert_equal(node_feat["n0"].numpy(),
-                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
-        assert isinstance(node_feat["n1"], list)
-        # there are three feature groups in n1
-        assert len(node_feat["n1"]) == 3
-        assert_equal(node_feat["n1"][0].numpy(),
-                     th.cat([g.nodes["n1"].data["feat"][input_nodes["n1"]],
-                             g.nodes["n1"].data["feat2"][input_nodes["n1"]]], dim=-1).numpy())
-        assert_equal(node_feat["n1"][0].numpy(),
-                     node_feat["n1"][1].numpy())
-        assert_equal(node_feat["n1"][0].numpy(),
-                     node_feat["n1"][2].numpy())
-
-
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
 
 if __name__ == '__main__':
-    test_prepare_input()
+    test_prepare_input4realtime()

@@ -1867,8 +1867,7 @@ class GSgnnRealtimeInferNodeDataLoader(GSgnnNodeDataLoaderBase):
         # of target indexes, so that only use one mini batch.
         batch_size = 0
         for _, idx in target_idx.items():
-            if len(idx) > batch_size:
-                batch_size = len(idx)
+            batch_size = max(batch_size, len(idx))
 
         if batch_size > GS_WARNING_REALTIME_BATCH_SIZE:
             logging.warning(('The number of target nodes %s is larger than %s'
