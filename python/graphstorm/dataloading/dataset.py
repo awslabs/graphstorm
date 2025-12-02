@@ -150,9 +150,10 @@ def prepare_batch_input(g, input_nodes,
                 feat[GS_LM_FEATURE_KEY] = {}
             feat[GS_LM_FEATURE_KEY].update(lm_feat)
 
-        # For real-time inference, users will provide learnable embeddings as a special type
+        # For real-time inference, users could provide learnable embeddings as a special type
         # of node feature. This could happen when some node are featureless or features are not
-        # used in model training, or users set `use_node_embedding` to be True.
+        # used in model training, or users set `use_node_embedding` to be True. The feature name
+        # of learnable embeddings must be GS_LE_FEATURE_KEY, i.e., "gs_embedding"
         le_feat = None
         for feat_name, feats in g.nodes[ntype].data.items():
             le_feat = {}

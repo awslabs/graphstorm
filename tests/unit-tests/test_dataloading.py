@@ -43,11 +43,12 @@ from graphstorm.config import (TaskInfo,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_LINK_PREDICTION,
-                               TOKEN_IDX,
-                               VALID_LEN,
-                               ATT_MASK_IDX,
-                               TOKEN_TID_IDX)
-from graphstorm.config import FeatureGroup
+                               FeatureGroup)
+from graphstorm.config.config import (TOKEN_IDX,
+                                      VALID_LEN,
+                                      ATT_MASK_IDX,
+                                      TOKEN_TID_IDX,
+                                      GS_LE_FEATURE_KEY)
 from graphstorm.utils import setup_device, get_device
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
@@ -2771,45 +2772,38 @@ def test_realtime_infer_node_dataloader():
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
-def test_prepare_input4realtime():
-    """ Test two special inputs for real-time inference
-
-    1. tokenized text attributes;
-    2. learnable embeddings as node inputs.
-
+def test_prepare_input_learnable_embedding4realtime():
+    """ Test learnable embeddings as inputs for real-time inference
     """
-    th.distributed.init_process_group(backend='gloo',
-                                      init_method='tcp://127.0.0.1:23456',
-                                      rank=0,
-                                      world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        g, _ = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        # get the test dummy hetero graph
+        g = generate_dummy_hetero_graph(dirname=tmpdirname)
 
-        # set learnable embedding to n0 type.
-        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
-        edge_feat = prepare_batch_edge_input(g, input_edges, feat_field='feat')
-        assert len(node_feat) == 1
-        assert len(edge_feat) == 1
-        assert_equal(node_feat["n0"].numpy(),
-                     g.nodes["n0"].data["feat"][input_nodes["n0"]].numpy())
-        assert_equal(edge_feat[("n0", "r1", "n1")].numpy(),
-                     g.edges[("n0", "r1", "n1")].data["feat"][
-                         input_edges[("n0", "r1", "n1")]].numpy())
-
-        # multiple ntype/edge, multiple feat
+        # set input nodes, for extracting features from graph g
         input_nodes = {
             "n0": th.randint(g.num_nodes("n0"), (10,)),
             "n1": th.randint(g.num_nodes("n1"), (20,)),
         }
-        input_edges = {
-            ("n0", "r1", "n1"): th.randint(g.num_edges(("n0", "r1", "n1")), (20,)),
-            ("n0", "r0", "n1"): th.randint(g.num_edges(("n0", "r0", "n1")), (10,)),
-        }
+        # extract features without learnable embeddings
+        node_feat_wt_emb = prepare_batch_input(g, input_nodes, feat_field='feat')
 
-    # after test pass, destroy all process group
-    th.distributed.destroy_process_group()
+        assert len(node_feat_wt_emb) == 2
+        assert GS_LE_FEATURE_KEY not in node_feat_wt_emb
+
+        # set learnable embedding to n0 and n1 type.
+        hid_dim = 10
+        g.nodes['n0'].data[GS_LE_FEATURE_KEY] = th.ones(g.num_nodes('n0'), hid_dim)
+        g.nodes['n1'].data[GS_LE_FEATURE_KEY] = th.ones(g.num_nodes('n1'), hid_dim)
+
+        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
+
+        assert len(node_feat) == 3  # n0's "feat", n1's "feat", and "gs_embedding"
+        assert len(node_feat[GS_LE_FEATURE_KEY]) == 2   # include : {n0:, n1:}
+        assert node_feat[GS_LE_FEATURE_KEY]['n0'].shape == (10, hid_dim)
+        assert node_feat[GS_LE_FEATURE_KEY]['n0'].sum() == 10 * hid_dim
+        assert node_feat[GS_LE_FEATURE_KEY]['n1'].shape == (20, hid_dim)
+        assert node_feat[GS_LE_FEATURE_KEY]['n1'].sum() == 20 * hid_dim
 
 
 if __name__ == '__main__':
-    test_prepare_input4realtime()
+    test_prepare_input_learnable_embedding4realtime()
