@@ -51,7 +51,7 @@ def test_get_output_dtype():
     assert _get_output_dtype("float64") == np.float64
     assert_raises(Exception, _get_output_dtype, "int32")
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32, np.float16])
+@pytest.mark.parametrize("input_dtype", [np.complex128, np.float32, np.float16])
 def test_fp_min_max_bound(input_dtype):
     feats = np.random.randn(100).astype(input_dtype)
     feats[0] = 10.
@@ -72,7 +72,7 @@ def test_fp_min_max_bound(input_dtype):
 
     # without predefined bound.
     feats = np.random.randn(100).astype(input_dtype)
-    res_dtype = np.float32 if input_dtype == np.cfloat else input_dtype
+    res_dtype = np.float32 if input_dtype == np.complex128 else input_dtype
     fifo = np.finfo(res_dtype)
     max_v = np.max(feats) + 10
     min_v= np.min(feats) - 10
@@ -88,7 +88,7 @@ def test_fp_min_max_bound(input_dtype):
 
     # has predefined bound.
     feats = np.random.randn(100).astype(input_dtype)
-    res_dtype = np.float32 if input_dtype == np.cfloat else input_dtype
+    res_dtype = np.float32 if input_dtype == np.complex128 else input_dtype
     fifo = np.finfo(res_dtype)
     max_v = np.max(feats) + 10
     min_v= np.min(feats) - 10
@@ -142,7 +142,7 @@ def test_fp_min_max_bound(input_dtype):
         assert_almost_equal(min_val[0], min_v, decimal=2)
 
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+@pytest.mark.parametrize("input_dtype", [np.complex128, np.float32])
 def test_fp_transform(input_dtype):
     # test NumericalMinMaxTransform pre-process
     transform = NumericalMinMaxTransform("test", "test")
@@ -324,7 +324,7 @@ def test_fp_transform(input_dtype):
     true_result[true_result < 0] = 0
     assert_almost_equal(result["test"].astype(input_dtype), true_result)
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+@pytest.mark.parametrize("input_dtype", [np.complex128, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_fp_min_max_transform(input_dtype, out_dtype):
     transform = NumericalMinMaxTransform("test", "test", out_dtype=out_dtype)
@@ -619,7 +619,7 @@ def test_noop_str_vector():
 
     assert_equal(vector_feats["test"], expected_array)
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+@pytest.mark.parametrize("input_dtype", [np.complex128, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_rank_gauss_transform(input_dtype, out_dtype):
     eps = 1e-6
@@ -1259,7 +1259,7 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     ground_truth[1][-2] = -1
     assert_equal(neg["hard_neg"][:,:10], ground_truth)
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+@pytest.mark.parametrize("input_dtype", [np.complex128, np.float32])
 def test_standard_pre_process(input_dtype):
     np.random.seed(0)
     feats0 = np.random.randn(100).astype(input_dtype)
@@ -1351,7 +1351,7 @@ def test_standard_pre_process(input_dtype):
         transform.update_info(info)
 
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+@pytest.mark.parametrize("input_dtype", [np.complex128, np.float32])
 def test_standard_transform(input_dtype):
     np.random.seed(0)
     feats0 = np.random.randn(100).astype(input_dtype)

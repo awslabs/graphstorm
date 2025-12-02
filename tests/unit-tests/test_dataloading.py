@@ -2803,7 +2803,3 @@ def test_prepare_input_learnable_embedding4realtime():
         assert node_feat[GS_LE_FEATURE_KEY]['n0'].sum() == 10 * hid_dim
         assert node_feat[GS_LE_FEATURE_KEY]['n1'].shape == (20, hid_dim)
         assert node_feat[GS_LE_FEATURE_KEY]['n1'].sum() == 20 * hid_dim
-
-
-if __name__ == '__main__':
-    test_prepare_input_learnable_embedding4realtime()
