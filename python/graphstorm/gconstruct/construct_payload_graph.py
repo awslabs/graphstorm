@@ -17,12 +17,19 @@ import numpy as np
 import dgl
 import torch as th
 
-from .transform import parse_feat_ops, process_features, preprocess_features
+from .transform import (parse_feat_ops,
+                        process_features,
+                        preprocess_features,
+                        TwoPhaseFeatTransform,
+                        GlobalProcessFeatTransform,
+                        HardEdgeNegativeTransform,
+                        Noop)
 from .utils import update_two_phase_feat_ops
 from .payload_utils import (BaseApplicationError, MissingValError,
                             InvalidFeatTypeError,
                             DGLCreateError, MisMatchedTypeError,
                             MissingKeyError, MisMatchedFeatureError)
+from ..config.config import GS_LE_FEATURE_KEY
 
 PAYLOAD_PROCESSING_STATUS = "status_code"
 PAYLOAD_PROCESSING_ERROR_CODE = "error_code"
@@ -245,6 +252,63 @@ def merge_payload_input(payload_input_list):
     return final_merged_list
 
 
+def update_ops(feat_ops, input_feats):
+    """ update the feature operations based on existing input features.
+
+    This function handles the cases where some node features were not used in model training, but
+    exist in payload graphs. Or users set learnable embeddings as input features. In this case,
+    the graph construction JSON file does not have the embeddings information.
+    
+    1. For the first case, will remove the corresponding transformation operations from the
+       operation list. And let the steps after payload graph construction to check if node
+       featuers should be presented in graph by checking the updated model training YAML file.
+    2. For the learnable embedings, will use No-op transformation operation for it.
+
+    Parameters
+    ----------
+        feat_ops: List of FeatTransforms
+            A list of feature transformation operations.
+        input_feats: dict
+            Input features in the format of a {feat_name: feature}.
+
+    Returns
+    -------
+        ops: List of FeatTransforms
+            A list of feature transformation operations after handling two cases.
+        two_phase_feat_ops: List of FeatTransforms
+            A list of two phase feature transformation operations.
+        after_merge_feat_ops: dict
+            A dict of merged feature transformation operations.
+        hard_edge_neg_ops: List of FeatTransforms
+            A list of hard edge negative transformation operations.
+    """
+    # filter out operations on non-existing node features
+    new_feat_ops = [op for op in feat_ops if op.feat_name in input_feats]
+
+    # add No-op operation on learnable embedding
+    for feat_name, feat in input_feats.items():
+        if feat_name == GS_LE_FEATURE_KEY:
+            transform = Noop(
+                    feat_name,
+                    feat_name,
+                )
+            new_feat_ops.append(transform)
+
+    two_phase_feat_ops = []
+    after_merge_feat_ops = {}
+    hard_edge_neg_ops = []
+    
+    for op in new_feat_ops:
+        if isinstance(op, TwoPhaseFeatTransform):
+            two_phase_feat_ops.append(op)
+        if isinstance(op, GlobalProcessFeatTransform):
+            after_merge_feat_ops[op.feat_name] = op
+        if isinstance(op, HardEdgeNegativeTransform):
+            hard_edge_neg_ops.append(op)
+
+    return new_feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops
+
+
 def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list):
     """ Process json payload node input
 
@@ -290,6 +354,15 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
             if "features" not in node_conf:
                 raise MissingValError("features", "node payload")
             input_feat = node_conf["features"]
+            
+            # A common use case: a node feature(s) was not used in model training but exists
+            # in graph construction (e.g., gconstruct or gsprocessing). Therefore,
+            # these features may or may not be included in the payload by users. And
+            # there is a special case: use learnable embeddings as a node feature, instead using
+            # nodes' own feature(s). So, we handle these two cases here.
+            feat_ops, two_phase_feat_ops, after_merge_feat_ops, _ = \
+                update_ops(feat_ops, input_feat)
+
             # Input features raw data should be numpy array type
             for key, val in input_feat.items():
                 input_feat[key] = np.array(val)

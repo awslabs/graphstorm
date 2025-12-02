@@ -916,10 +916,10 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
     The input layer is dedicated for models that use a graph from metadata for initialization.
     Because graphs from metadata have no learnable embedding stored, this input layer will
     initialize the sparse embedding with an empty zero tensor that has 0 number of samples, and
-    the same embedding size as the rest dimensions. In the forward() function, this input layer
-    assume there is an `embed` feature in the inputfeatures. And the forward() function will
-    extract this `embed` feature and use it as the original spares embeddings. The rest operation
-    will be identical to the ``GSPureLearnableInputLayer``.
+    the same embedding size as the embedding dimensions. In the forward() function, this input
+    layer assume there is an `embed` feature in the inputfeatures. And the forward() function
+    will extract this `embed` feature and use it as the original spares embeddings. The rest
+    operation will be identical to the ``GSPureLearnableInputLayer``.
     
     This input layer could be used for real-time inference where trained model will be initialized
     by ``GSGraphFromMetadata``, e.g., ``GSDglGraphFromMetadata`` or ``GSDglDistGraphFromMetadata.``
@@ -943,20 +943,12 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
                  g,
                  embed_size,
                  use_wholegraph_sparse_emb=False):
-        super(GSPureLearnableInputLayer4GraphFromMetaData, self).__init__(
-            g=g,
-            embed_size=embed_size,
-            use_wholegraph_sparse_emb=False     # not support on graphs from metadata
-        )
-
-    # pylint: disable=unused-argument
-    def _init_node_embeddings(self, g, ntype, embed_size):
-        """ Initialize an empty zero tensor as node embedding for graphs created from metadata.
-        
-        This function overwrites GSPureLearnableInputLayer's same function by only return an
-        empty zero tensor as sparse embeddings.
-        """
-        return th.zeros(0, embed_size)
+        # need to initialize default sparse embedding with an empty torch zero tensors,
+        # because here not use the `GSPureLearnableInputLayer` __init__ method so we can
+        # avoid calling the initialization of real sparse embeddings.
+        self._sparse_embeds = {}
+        for ntype in g.ntypes:
+            self._sparse_embeds[ntype] = th.zeros(0, embed_size)
 
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation .
@@ -988,6 +980,7 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
             emb = None
 
             if len(input_nodes[ntype]) == 0:
+                # return the default empty tensor
                 embs[ntype] = self.sparse_embeds[ntype]
                 continue
 

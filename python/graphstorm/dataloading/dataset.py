@@ -57,7 +57,10 @@ def prepare_batch_input(g, input_nodes,
         1. Add a new argument ``lm_ntypes`` to support directly extracting tokenized text features
            based on the given node types in ``lm_ntypes``. The tokenized text features will be save
            in a new field `lm` in the feat dict returned. Values of the `lm` field 
-        2. Add a new field ``gs_embeddings``
+        2. Add a new function to support using learnable embeddings as node features. The learnable
+           embeddings will have a special feature name, `gs_embedding`. All nodes that have this
+           feature name will be automatically packed into the output dictionary for each node type,
+           no matter it exists in the ``feat_field`` or not.
 
     .. versionchanged:: 0.5.0
         When feat_field is a dict, its value(s) can be a list of str or a list
@@ -156,7 +159,7 @@ def prepare_batch_input(g, input_nodes,
             if feat_name == GS_LE_FEATURE_KEY:
                 if ntype not in le_feat:
                     le_feat[ntype] = {}
-                le_feat[ntype] = feat[nid]
+                le_feat[ntype] = feats[nid]
 
         if le_feat:
             # add learnable embeddings as a dict to feat with `gs_embeddings` as the key

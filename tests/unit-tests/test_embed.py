@@ -36,7 +36,9 @@ from graphstorm.model import (GSPureLearnableInputLayer,
                               GSEdgeEncoderInputLayer,
                               GSLMNodeEncoderInputLayer,
                               GSPureLMNodeInputLayer,
-                              GSLMNodeEncoderInputLayer4GraphFromMetaData)
+                              GSLMNodeEncoderInputLayer4GraphFromMetaData,
+                              GSPureLearnableInputLayer4GraphFromMetaData,
+                              GSNodeEncoderInputLayer4GraphFromMetadata)
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm.model.lm_embed import LMModels, LMCache
@@ -45,12 +47,12 @@ from graphstorm.model.utils import (LazyDistTensor,
                                     save_pytorch_embedding)
 from graphstorm.wholegraph import init_wholegraph
 
-from data_utils import (generate_dummy_dist_graph, 
-                    create_lm_learnable_model_dict_rt,
-                    load_weights_to_layer,
-                    create_lm_graph,
-                    create_lm_graph2,
-                    load_lm_graph)
+from data_utils import (generate_dummy_dist_graph,
+                        create_lm_learnable_model_dict_rt,
+                        load_weights_to_layer,
+                        create_lm_graph,
+                        create_lm_graph2,
+                        load_lm_graph)
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
@@ -1161,3 +1163,37 @@ def test_LM_learnable_rt_layer(dev, bert_model_name):
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_pure_learnable_input_layer4metadatagraph(dev):
+    """ Test the ``GSPureLearnableInputLayer4GraphFromMetaData`` class
+    
+    Although the ``GSPureLearnableInputLayer4GraphFromMetaData`` class is designed for graphs
+    from graph metadata, it also works for distributed graphs. Here we only test it using the
+    distributed graphs for simplicity.
+
+    """
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    embed_size = 10
+    layer = GSPureLearnableInputLayer4GraphFromMetaData(g, embed_size)
+
+    # normal case 1: all node types have empty tensors used for sparse embeddings
+    assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
+    assert all(th.all(value==0) for value in layer.sparse_embeds.values())
+    assert all(value.shape==(0, embed_size) for value in layer.sparse_embeds.values())
+
+    # normal case 2: inputs and outputs of the forward() function should be the same.
+    
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+if __name__ == '__main__':
+    test_pure_learnable_input_layer4metadatagraph('cpu')
