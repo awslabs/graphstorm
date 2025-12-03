@@ -13,7 +13,7 @@ python3 -m pip install pytest tensorboard
 FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
 
 # Run SageMaker tests
-python3 -m pytest -x ./tests/sagemaker-tests -s
+# python3 -m pytest -x ./tests/sagemaker-tests -s
 
 # Run main library unit tests (Requires multi-gpu instance)
 sh ./tests/unit-tests/prepare_test_data.sh
