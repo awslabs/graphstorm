@@ -124,7 +124,7 @@ def main():
     spin = ['-', '/', '|', '\\', '-', '/', '|', '\\']
     logGroupName = '/aws/batch/job' # This is the group where aws batch logs are stored in Cloudwatch
 
-    jobName = re.sub('[^A-Za-z0-9_\-]', '', args.name)[:128]  # Enforce AWS Batch jobName rules
+    jobName = re.sub('[^A-Za-z0-9_\\-]', '', args.name)[:128]  # Enforce AWS Batch jobName rules
     jobType = args.job_type
     jobQueue = job_type_info[jobType]['job_queue']
     jobDefinition = job_type_info[jobType]['job_definition']

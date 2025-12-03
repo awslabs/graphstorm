@@ -955,7 +955,7 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
         # Need to initialize default sparse embedding with an empty torch zero tensors.
         self._sparse_embeds = {}
         for ntype in g.ntypes:
-            self._sparse_embeds[ntype] = th.zeros(0, embed_size)        
+            self._sparse_embeds[ntype] = th.zeros(0, embed_size)
 
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation .
