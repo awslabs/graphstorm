@@ -627,11 +627,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 feats = feats.to_numpy()
             feats = self.feat2numerical(feats)
 
-            if np.isnan(feats[0]):
-                print('$'*74)
-                print(feats[0])
-                print('$'*74)
-
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 

@@ -62,6 +62,7 @@ def test_fp_min_max_bound(input_dtype):
     assert len(min_val.shape) == 1
 
     # test invalid inputs
+    feats[0] = np.nan
     with assert_raises(AssertionError):
         _ = transform.pre_process(feats.astype(input_dtype))
 
