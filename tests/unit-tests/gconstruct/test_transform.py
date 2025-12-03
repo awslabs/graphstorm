@@ -46,9 +46,6 @@ from graphstorm.gconstruct.transform import (LABEL_STATS_FIELD,
                                              LABEL_STATS_FREQUENCY_COUNT)
 from graphstorm.gconstruct.id_map import IdMap
 
-# set the validate to be true
-gs.gconstruct.utils.VALIDATE_FEATRE = True
-
 
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
