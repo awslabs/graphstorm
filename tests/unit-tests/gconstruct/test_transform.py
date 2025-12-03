@@ -61,6 +61,9 @@ def test_fp_min_max_bound(input_dtype):
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
 
+    print('='*74)
+    print(np.__version__)
+
     # test invalid inputs
     feats[0] = np.nan
     with assert_raises(AssertionError):
@@ -1449,3 +1452,6 @@ def test_hf_embedding(bert_model="bert-base-uncased"):
         np.testing.assert_almost_equal(
             hf_emb[idx], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
         )
+        
+if __name__ == '__main__':
+    test_fp_min_max_bound(np.complex128)
