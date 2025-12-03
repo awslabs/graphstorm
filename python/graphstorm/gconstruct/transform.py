@@ -619,15 +619,14 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             f"Feature {self.feat_name} of NumericalMinMaxTransform " \
             "must be numpy array or ExtMemArray"
-        print(f'{feats[0]} ...... in pre_process() ...')
-        print(f'{validate_features()} ... should validate? ...')
+
         if validate_features():
             if isinstance(feats, ExtMemArrayWrapper):
                 # TODO(xiangsx): This is not memory efficient.
                 # It will load all data into main memory.
                 feats = feats.to_numpy()
             feats = self.feat2numerical(feats)
-            print('*'*10, feats[0])
+
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
