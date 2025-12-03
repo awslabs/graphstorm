@@ -22,6 +22,7 @@ from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from scipy.special import erfinv
 from transformers import AutoTokenizer, AutoModel, AutoConfig
 
+import graphstorm as gs
 from graphstorm.gconstruct.transform import (
     parse_feat_ops,
     process_features,
@@ -45,10 +46,9 @@ from graphstorm.gconstruct.transform import (LABEL_STATS_FIELD,
                                              LABEL_STATS_FREQUENCY_COUNT)
 from graphstorm.gconstruct.id_map import IdMap
 
-from graphstorm.gconstruct.utils import VALIDATE_FEATRE
-
 # set the validate to be true
-VALIDATE_FEATRE = True
+gs.gconstruct.utils.VALIDATE_FEATRE = True
+
 
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
