@@ -63,8 +63,11 @@ def test_fp_min_max_bound(input_dtype):
 
     # test invalid inputs
     feats[0] = np.nan
+    print(f'{feats[0]} ... after assignment ...')
+    feats = feats.astype(input_dtype)
+    print(f'{feats[0]} ... after astype() ...')
     with assert_raises(AssertionError):
-        _ = transform.pre_process(feats.astype(input_dtype))
+        _ = transform.pre_process(feats)
 
     # feats[0] = np.inf
     # with assert_raises(AssertionError):
