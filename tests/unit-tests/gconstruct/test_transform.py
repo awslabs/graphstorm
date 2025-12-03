@@ -45,6 +45,8 @@ from graphstorm.gconstruct.transform import (LABEL_STATS_FIELD,
                                              LABEL_STATS_FREQUENCY_COUNT)
 from graphstorm.gconstruct.id_map import IdMap
 
+from graphstorm.gconstruct.utils import VALIDATE_FEATRE
+
 # def test_get_output_dtype():
 #     assert _get_output_dtype("float16") == np.float16
 #     assert _get_output_dtype("float32") == np.float32
@@ -53,6 +55,9 @@ from graphstorm.gconstruct.id_map import IdMap
 
 @pytest.mark.parametrize("input_dtype", [np.float32, np.float16])
 def test_fp_min_max_bound(input_dtype):
+    # set the validate to be true
+    VALIDATE_FEATRE = True
+
     feats = np.random.randn(100).astype(input_dtype)
     feats[0] = 10.
     feats[1] = -10.

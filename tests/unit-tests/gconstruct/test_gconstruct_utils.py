@@ -223,16 +223,16 @@ def test_ext_mem_array():
         data1 = read_data_hdf5(tensor_path, in_mem=False)
         check_ext_mem_array(data1['test'], data)
 
-# def dummy_read(in_file):
-#     assert False
+def dummy_read(in_file):
+    assert False
 
-# def test_multiprocessing_read():
-#     try:
-#         multiprocessing_data_read([str(i) for i in range(10)], 2, dummy_read)
-#     except RuntimeError as e:
-#         print(e)
-#         return
-#     assert False
+def test_multiprocessing_read():
+    try:
+        multiprocessing_data_read([str(i) for i in range(10)], 2, dummy_read)
+    except RuntimeError as e:
+        print(e)
+        return
+    assert False
 
 def test_read_empty_parquet():
     with tempfile.TemporaryDirectory() as tmpdirname:
