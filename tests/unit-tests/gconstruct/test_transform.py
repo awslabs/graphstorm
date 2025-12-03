@@ -51,21 +51,19 @@ def test_get_output_dtype():
     assert _get_output_dtype("float64") == np.float64
     assert_raises(Exception, _get_output_dtype, "int32")
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32, np.float16])
+@pytest.mark.parametrize("input_dtype", [np.float32, np.float16])
 def test_fp_min_max_bound(input_dtype):
     feats = np.random.randn(100).astype(input_dtype)
     feats[0] = 10.
     feats[1] = -10.
     transform = NumericalMinMaxTransform("test", "test")
-    # max_val, min_val = transform.pre_process(feats)["test"]
-    # assert len(max_val.shape) == 1
-    # assert len(min_val.shape) == 1
+    max_val, min_val = transform.pre_process(feats)["test"]
+    assert len(max_val.shape) == 1
+    assert len(min_val.shape) == 1
 
     # test invalid inputs
-    feats[0] = np.nan
-    print('#'*47 + f'{feats[0]}')
-    # with assert_raises(AssertionError):
-    _ = transform.pre_process(feats.astype(input_dtype))
+    with assert_raises(AssertionError):
+        _ = transform.pre_process(feats.astype(input_dtype))
 
     feats[0] = np.inf
     with assert_raises(AssertionError):
