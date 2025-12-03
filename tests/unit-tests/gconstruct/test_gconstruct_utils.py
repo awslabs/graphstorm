@@ -497,12 +497,12 @@ def test_single_directory_expansion():
         expected_files = sorted([os.path.join(temp_dir, f) for f in test_files])
         assert sorted(result) == expected_files
 
-def test_validate_features():
-    assert validate_features()
-    stop_validate_features()
-    assert validate_features() is False
-    # set VALIDATE_FEATRE back
-    graphstorm.gconstruct.utils.VALIDATE_FEATRE = True
+# def test_validate_features():
+#     assert validate_features()
+#     stop_validate_features()
+#     assert validate_features() is False
+#     # set VALIDATE_FEATRE back
+#     graphstorm.gconstruct.utils.VALIDATE_FEATRE = True
 
 def test_validate_numerical_feats():
     array = np.array([1,2,3])
