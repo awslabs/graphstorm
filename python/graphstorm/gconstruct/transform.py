@@ -620,6 +620,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             f"Feature {self.feat_name} of NumericalMinMaxTransform " \
             "must be numpy array or ExtMemArray"
         print(f'{feats[0]} ...... in pre_process() ...')
+        print(f'{validate_features()} ... should validate? ...')
         if validate_features():
             if isinstance(feats, ExtMemArrayWrapper):
                 # TODO(xiangsx): This is not memory efficient.
