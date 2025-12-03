@@ -626,6 +626,10 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 # It will load all data into main memory.
                 feats = feats.to_numpy()
             feats = self.feat2numerical(feats)
+            
+            print('^'*74)
+            print(feats)
+
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
