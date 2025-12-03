@@ -162,8 +162,8 @@ def main():
         describeJobsResponse = batch.describe_jobs(jobs=[jobId])
         status = describeJobsResponse['jobs'][0]['status']
         if status == 'SUCCEEDED' or status == 'FAILED':
-            if logStreamName:
-                startTime = printLogs(logGroupName, logStreamName, startTime) + 1
+            # if logStreamName:
+            startTime = printLogs(logGroupName, logStreamName, startTime) + 1
             print('=' * 80)
             print('Job [{} - {}] {}'.format(jobName, jobId, status))
             sys.exit(status == 'FAILED')
