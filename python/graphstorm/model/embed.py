@@ -270,7 +270,9 @@ class GSPureLearnableInputLayer(GSNodeInputLayer):
         super(GSPureLearnableInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self._use_wholegraph_sparse_emb = use_wholegraph_sparse_emb
+        self._init_node_embeddings(g, embed_size)
 
+    def _init_node_embeddings(self, g, embed_size):
         # Note: This is a tricky design
         # Use a dummy parameter to avoid triggering
         # the DDP error.
@@ -944,12 +946,16 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
                  g,
                  embed_size,
                  use_wholegraph_sparse_emb=False):
+        super(GSPureLearnableInputLayer4GraphFromMetaData, self).__init__(
+            g,
+            embed_size,
+            use_wholegraph_sparse_emb=False)    # not support on graphs from metadata
+
+    def _init_node_embeddings(self, g, embed_size):
         # Need to initialize default sparse embedding with an empty torch zero tensors.
-        # We do not use the `GSPureLearnableInputLayer` __init__ method in order to avoid calling
-        # the initialization of real sparse embeddings in `GSPureLearnableInputLayer`.
         self._sparse_embeds = {}
         for ntype in g.ntypes:
-            self._sparse_embeds[ntype] = th.zeros(0, embed_size)
+            self._sparse_embeds[ntype] = th.zeros(0, embed_size)        
 
     def forward(self, input_feats, input_nodes):
         """ Input layer forward computation .

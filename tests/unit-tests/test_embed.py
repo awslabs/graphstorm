@@ -30,7 +30,7 @@ from transformers import AutoTokenizer, AutoModel
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
 from graphstorm.config import FeatureGroup
-from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, GS_LE_FEATURE_KEY
 from graphstorm.model import (GSPureLearnableInputLayer,
                               GSNodeEncoderInputLayer,
                               GSEdgeEncoderInputLayer,
@@ -1171,7 +1171,6 @@ def test_pure_learnable_input_layer4metadatagraph(dev):
     Although the ``GSPureLearnableInputLayer4GraphFromMetaData`` class is designed for graphs
     from graph metadata, it also works for distributed graphs. Here we only test it using the
     distributed graphs for simplicity.
-
     """
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -1190,7 +1189,16 @@ def test_pure_learnable_input_layer4metadatagraph(dev):
     assert all(value.shape==(0, embed_size) for value in layer.sparse_embeds.values())
 
     # normal case 2: inputs and outputs of the forward() function should be the same.
-    
+    input_feats = {}
+    input_nodes = {}
+    embeds = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+        embeds[ntype] = np.random.rand(10, embed_size)
+    input_feats[GS_LE_FEATURE_KEY] = embeds
+
+    outputs = layer(input_feats, input_nodes)
+    assert len(outputs) == len(embeds)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
