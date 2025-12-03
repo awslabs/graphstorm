@@ -626,7 +626,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 # It will load all data into main memory.
                 feats = feats.to_numpy()
             feats = self.feat2numerical(feats)
-            
+
             print('^'*74)
             print(feats)
 
