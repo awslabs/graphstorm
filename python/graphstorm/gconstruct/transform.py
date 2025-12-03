@@ -627,7 +627,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 feats = feats.to_numpy()
             feats = self.feat2numerical(feats)
 
-            if feats[0] == np.nan:
+            if np.isnan(feats[0]):
                 print('$'*74)
                 print(feats[0])
                 print('$'*74)
