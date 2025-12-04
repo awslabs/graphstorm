@@ -86,8 +86,8 @@ def test_input_layer1(input_activate):
     assert len(embed) == len(input_nodes)
     assert len(embed) == len(node_feat)
     for ntype in embed:
-        assert_almost_equal(embed[ntype].detach().numpy(),
-                            node_feat[ntype].detach().numpy())
+        assert_almost_equal(embed[ntype].detach().cpu().numpy(),
+                            node_feat[ntype].detach().cpu().numpy())
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -127,8 +127,8 @@ def test_input_layer2():
     assert len(embed) == len(input_nodes)
     assert len(embed) == len(node_feat)
     for ntype in embed:
-        true_val = node_feat[ntype].detach().numpy() + node_embs[ntype].detach().numpy()
-        assert_almost_equal(embed[ntype].detach().numpy(), true_val)
+        true_val = node_feat[ntype].detach().cpu().numpy() + node_embs[ntype].detach().cpu().numpy()
+        assert_almost_equal(embed[ntype].detach().cpu().numpy(), true_val)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1298,7 +1298,7 @@ def test_input_layer4metadatagraph(dev):
     assert len(outputs) == len(input_nodes)
     for ntype in outputs:
         true_val = input_feats[ntype] + embeds[ntype]
-        assert_almost_equal(outputs[ntype].detach().numpy(), true_val)
+        assert_almost_equal(outputs[ntype].detach().cpu().numpy(), true_val.cpu().numpy())
 
     # 2. set n1 type featureless to use learnable embedding
     feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
@@ -1317,8 +1317,10 @@ def test_input_layer4metadatagraph(dev):
     outputs = layer(input_feats, input_nodes)
 
     assert len(outputs) == len(input_nodes)
-    assert_almost_equal(outputs['n0'].detach().numpy(), input_feats['n0'].numpy())
-    assert_almost_equal(outputs['n1'].detach().numpy(), input_feats[GS_LE_FEATURE_KEY]['n1'])
+    assert_almost_equal(outputs['n0'].detach().cpu().numpy(),
+                        input_feats['n0'].cpu().numpy())
+    assert_almost_equal(outputs['n1'].detach().cpu().numpy(),
+                        input_feats[GS_LE_FEATURE_KEY]['n1'].cpu().numpy())
 
     # 3. set n1 type featureless to use learnable embedding, and enforce to use embedding
     feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
@@ -1341,9 +1343,11 @@ def test_input_layer4metadatagraph(dev):
 
     assert len(outputs) == len(input_nodes)
     expect_n0 = input_feats['n0'] + input_feats[GS_LE_FEATURE_KEY]['n0']
-    assert_almost_equal(outputs['n0'].detach().numpy(), expect_n0.numpy())
+    assert_almost_equal(outputs['n0'].detach().cpu().numpy(),
+                        expect_n0.cpu().numpy())
 
-    assert_almost_equal(outputs['n1'].detach().numpy(), input_feats[GS_LE_FEATURE_KEY]['n1'])
+    assert_almost_equal(outputs['n1'].detach().cpu().numpy(),
+                        input_feats[GS_LE_FEATURE_KEY]['n1'].cpu().numpy())
 
     # 4. not use learnable embedding. So should function as a normal Node input layer
     feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
@@ -1357,8 +1361,10 @@ def test_input_layer4metadatagraph(dev):
     outputs = layer(input_feats, input_nodes)
 
     assert len(outputs) == len(input_nodes)
-    assert_almost_equal(outputs['n0'].detach().numpy(), input_feats['n0'].numpy())
-    assert_almost_equal(outputs['n1'].detach().numpy(), input_feats['n1'].numpy())
+    assert_almost_equal(outputs['n0'].detach().cpu().numpy(),
+                        input_feats['n0'].cpu().numpy())
+    assert_almost_equal(outputs['n1'].detach().cpu().numpy(),
+                        input_feats['n1'].cpu().numpy())
 
     # abnormal case: input features do not include the GS_LE_FEATURE_KEY embeddings
     layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
