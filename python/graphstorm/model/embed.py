@@ -1155,7 +1155,7 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
                     # In real-time inference, users might include some features for node types
                     # that were trained with learnable embeddings. So need to change here to only
                     # log the issue, but not raise Error
-                    logging.warning(f"We might need a projection for node type {ntype} if it " + 
+                    logging.warning(f"We might need a projection for node type {ntype} if it " +
                                      "was not used in training with learnable embeddings.")
 
                     # here continue to check if the ntype exists in the sparse embeddings
@@ -1168,9 +1168,9 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
 
                         assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
                             f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
-                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
-                            f'should include a dictionary that contains a key: {ntype}, but got '
-                            f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable '
+                            f'embeddings should include a dictionary that contains a key: {ntype}'
+                            f', but got {input_feats[GS_LE_FEATURE_KEY]}.')
                         # direct extract the learnable embeddings from input features
                         emb = input_feats[GS_LE_FEATURE_KEY][ntype]
                         emb = emb @ self.proj_matrix[ntype]
