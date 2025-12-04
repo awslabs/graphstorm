@@ -1353,6 +1353,7 @@ def test_input_layer4metadatagraph(dev):
     feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
     layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
                                                       use_node_embeddings=False)
+    layer = layer.to(dev)
 
     for ntype in g.ntypes:
         # all nodes only pass the input_projs
