@@ -1152,7 +1152,28 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
                     concat_emb = th.cat(feat_embs, dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
                 else:
-                    raise RuntimeError(f"We need a projection for node type {ntype}")
+                    # In real-time inference, users might include some features for node types
+                    # that were trained with learnable embeddings. So need to change here to only
+                    # log the issue, but not raise Error
+                    logging.warning(f"We might need a projection for node type {ntype} if it " + 
+                                     "was not used in training with learnable embeddings.")
+
+                    # here continue to check if the ntype exists in the sparse embeddings
+                    if ntype in self.sparse_embeds:
+                        # If the number of the input node of a node type is 0, just use the
+                        # empty zero embeddings of sparse embedding of this input layer.
+                        if len(input_nodes[ntype]) == 0:
+                            embs[ntype] = self.sparse_embeds[ntype]
+                            continue
+
+                        assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
+                            f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
+                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
+                            f'should include a dictionary that contains a key: {ntype}, but got '
+                            f'{input_feats[GS_LE_FEATURE_KEY]}.')
+                        # direct extract the learnable embeddings from input features
+                        emb = input_feats[GS_LE_FEATURE_KEY][ntype]
+                        emb = emb @ self.proj_matrix[ntype]
             elif ntype in self.sparse_embeds:  # nodes do not have input features
                 # If the number of the input node of a node type is 0, just use the
                 # empty zero embeddings of sparse embedding of this input layer.

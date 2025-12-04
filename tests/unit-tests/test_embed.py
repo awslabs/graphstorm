@@ -1172,6 +1172,7 @@ def test_pure_learnable_input_layer4metadatagraph(dev):
     from graph metadata, it also works for distributed graphs. Here we only test it using the
     distributed graphs for simplicity.
     """
+    # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
@@ -1194,14 +1195,174 @@ def test_pure_learnable_input_layer4metadatagraph(dev):
     embeds = {}
     for ntype in g.ntypes:
         input_nodes[ntype] = np.arange(10)
-        embeds[ntype] = np.random.rand(10, embed_size)
+        embeds[ntype] = th.from_numpy(np.random.rand(10, embed_size)).to(dev)
     input_feats[GS_LE_FEATURE_KEY] = embeds
 
+    layer = layer.to(dev)
     outputs = layer(input_feats, input_nodes)
     assert len(outputs) == len(embeds)
+
+    # abnormal case: input features do not include the GS_LE_FEATURE_KEY embeddings
+    # 1. no GS_LE_FEATURE_KEY at all
+    with pytest.raises(AssertionError, match="The input features should"):
+        _ = layer({}, input_nodes)
+
+    # 2. GS_LE_FEATURE_KEY values do not include all node types that should have embeddings
+    input_feats[GS_LE_FEATURE_KEY].pop('n1')
+    with pytest.raises(AssertionError, match="The learnable embeddings"):
+        _ = layer(input_feats, input_nodes)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_input_layer4metadatagraph(dev):
+    """ Test the ``GSNodeEncoderInputLayer4GraphFromMetadata`` class
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    embed_size = 10
+
+    # normal cases for initialization
+    # 1. force to use learnable embedding
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
+    assert all(th.all(value==0) for value in layer.sparse_embeds.values())
+    assert all(value.shape==(0, embed_size) for value in layer.sparse_embeds.values())
+
+    # 2. set n1 type featureless to use learnable embedding
+    feat_size = get_node_feat_size(g, 'feat1')   # feat_size = 4 for 'feat1' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+    assert not 'n0' in layer.sparse_embeds
+    assert 'n1' in layer.sparse_embeds
+    assert th.all(layer.sparse_embeds['n1']== 0)
+    assert layer.sparse_embeds['n1'].shape==(0, embed_size)
+
+    # 3. set n1 type featureless to use learnable embedding, and enforce to use embedding
+    feat_size = get_node_feat_size(g, 'feat1')   # feat_size = 4 for 'feat1' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
+    assert all(th.all(value==0) for value in layer.sparse_embeds.values())
+    assert all(value.shape==(0, embed_size) for value in layer.sparse_embeds.values())
+
+    # 4. not use learnable embedding. So should have an empty sparse_embeds
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+
+    assert layer.sparse_embeds == {}
+
+    # normal cases for forward()
+    embed_size = 2                              # simplify the forward compute test
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+
+    input_feats = {}
+    input_nodes = {}
+    embeds = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+        input_feats[ntype] = th.tensor(np.random.rand(10, feat_size[ntype]),
+                                       dtype=th.float).to(dev)
+        embeds[ntype] = th.tensor(np.random.rand(10, embed_size),
+                                  dtype=th.float).to(dev)
+    input_feats[GS_LE_FEATURE_KEY] = embeds
+
+    # 1. force to use learnable embedding
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    layer = layer.to(dev)
+    for ntype in g.ntypes:
+        # We make the projection matrix a diagonal matrix so that
+        # the input and output matrices are identical.
+        nn.init.eye_(layer.input_projs[ntype])
+        with th.no_grad():
+            layer.proj_matrix[ntype][:embed_size,:] = layer.input_projs[ntype]
+            layer.proj_matrix[ntype][embed_size:,:] = layer.input_projs[ntype]
+
+    outputs = layer(input_feats, input_nodes)
+    assert len(outputs) == len(input_nodes)
+    for ntype in outputs:
+        true_val = input_feats[ntype] + embeds[ntype]
+        assert_almost_equal(outputs[ntype].detach().numpy(), true_val)
+
+    # 2. set n1 type featureless to use learnable embedding
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+    layer = layer.to(dev)
+
+    # We make the projection and matrix a diagonal matrix so that
+    # the input and output matrices are identical for each node type
+    # n0 will only pass input_projs
+    nn.init.eye_(layer.input_projs['n0'])
+    # n1 will only pass proj_matrix
+    nn.init.eye_(layer.proj_matrix['n1'])
+
+    outputs = layer(input_feats, input_nodes)
+
+    assert len(outputs) == len(input_nodes)
+    assert_almost_equal(outputs['n0'].detach().numpy(), input_feats['n0'].numpy())
+    assert_almost_equal(outputs['n1'].detach().numpy(), input_feats[GS_LE_FEATURE_KEY]['n1'])
+
+    # 3. set n1 type featureless to use learnable embedding, and enforce to use embedding
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    layer = layer.to(dev)
+
+    # We make the projection and matrix a diagonal matrix so that
+    # the input and output matrices are identical for each node type
+    # n0 will pass input_projs and proj_matrix
+    nn.init.eye_(layer.input_projs['n0'])
+    with th.no_grad():
+        layer.proj_matrix['n0'][:embed_size,:] = layer.input_projs['n0']
+        layer.proj_matrix['n0'][embed_size:,:] = layer.input_projs['n0']
+    # n1 will only pass proj_matrix
+    nn.init.eye_(layer.proj_matrix['n1'])
+
+    outputs = layer(input_feats, input_nodes)
+
+    assert len(outputs) == len(input_nodes)
+    expect_n0 = input_feats['n0'] + input_feats[GS_LE_FEATURE_KEY]['n0']
+    assert_almost_equal(outputs['n0'].detach().numpy(), expect_n0.numpy())
+
+    assert_almost_equal(outputs['n1'].detach().numpy(), input_feats[GS_LE_FEATURE_KEY]['n1'])
+
+    # 4. not use learnable embedding. So should function as a normal Node input layer
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+
+    for ntype in g.ntypes:
+        # all nodes only pass the input_projs
+        nn.init.eye_(layer.input_projs[ntype])
+
+    outputs = layer(input_feats, input_nodes)
+
+    assert len(outputs) == len(input_nodes)
+    assert_almost_equal(outputs['n0'].detach().numpy(), input_feats['n0'].numpy())
+    assert_almost_equal(outputs['n1'].detach().numpy(), input_feats['n1'].numpy())
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+
 if __name__ == '__main__':
-    test_pure_learnable_input_layer4metadatagraph('cpu')
+    # test_pure_learnable_input_layer4metadatagraph('cpu')
+    test_input_layer4metadatagraph('cpu')
