@@ -16,6 +16,7 @@
 import os
 import multiprocessing as mp
 import pytest
+import copy
 from unittest.mock import patch
 import torch as th
 from torch import nn
@@ -1358,6 +1359,24 @@ def test_input_layer4metadatagraph(dev):
     assert len(outputs) == len(input_nodes)
     assert_almost_equal(outputs['n0'].detach().numpy(), input_feats['n0'].numpy())
     assert_almost_equal(outputs['n1'].detach().numpy(), input_feats['n1'].numpy())
+
+    # abnormal case: input features do not include the GS_LE_FEATURE_KEY embeddings
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    layer = layer.to(dev)
+
+    # 1. no GS_LE_FEATURE_KEY at all
+    new_input_feats = copy.deepcopy(input_feats)
+    new_input_feats.pop(GS_LE_FEATURE_KEY)
+    with pytest.raises(AssertionError, match="The input features should"):
+        _ = layer(new_input_feats, input_nodes)
+
+    # 2. GS_LE_FEATURE_KEY values do not include all node types that should have embeddings
+    new_input_feats = copy.deepcopy(input_feats)
+    new_input_feats[GS_LE_FEATURE_KEY].pop('n1')
+    with pytest.raises(AssertionError, match="The learnable embeddings"):
+        _ = layer(new_input_feats, input_nodes)
+
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()

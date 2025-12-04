@@ -1155,8 +1155,8 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
                     # In real-time inference, users might include some features for node types
                     # that were trained with learnable embeddings. So need to change here to only
                     # log the issue, but not raise Error
-                    logging.warning(f"We might need a projection for node type {ntype} if it " +
-                                     "was not used in training with learnable embeddings.")
+                    logging.warning("We might need a projection for node type %s if it "
+                                    "was not used in training with learnable embeddings.", ntype)
 
                     # here continue to check if the ntype exists in the sparse embeddings
                     if ntype in self.sparse_embeds:
