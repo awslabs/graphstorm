@@ -1167,10 +1167,11 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
                             continue
 
                         assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
-                            f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
-                        assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable '
-                            f'embeddings should include a dictionary that contains a key: {ntype}'
-                            f', but got {input_feats[GS_LE_FEATURE_KEY]}.')
+                            f'contains a field: {GS_LE_FEATURE_KEY} for models trained using '
+                            'learnable embeddings.')
+                        assert ntype in input_feats[GS_LE_FEATURE_KEY], ('The learnable '
+                            'embeddings should include a dictionary that contains node type: '
+                            f'{ntype} as the key, but got {input_feats[GS_LE_FEATURE_KEY]}.')
                         # direct extract the learnable embeddings from input features
                         emb = input_feats[GS_LE_FEATURE_KEY][ntype]
                         emb = emb @ self.proj_matrix[ntype]
