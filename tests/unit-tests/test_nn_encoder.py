@@ -1326,3 +1326,223 @@ def test_gatv2_encoder_edge_feature_error_cases(input_dim, output_dim):
     # Destroy process group after tests
     if th.distributed.is_initialized():
         th.distributed.destroy_process_group()
+
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32, 64])
+@pytest.mark.parametrize("dev", ['cpu', 'cuda:0'])
+@pytest.mark.parametrize("aggregator_type", ['mean', 'gcn', 'pool', 'lstm'])
+def test_sage_encoder_homogeneous_with_edge_features(input_dim, output_dim, dev, aggregator_type):
+    """ Test the SAGEEncoder on homogeneous graphs with edge features and different aggregation types
+    """
+    from graphstorm.model.sage_encoder import SAGEEncoder
+    # initialize the torch distributed environment
+    if not th.distributed.is_initialized():
+        th.distributed.init_process_group(backend='gloo',
+                                          init_method='tcp://127.0.0.1:23458',
+                                          rank=0,
+                                          world_size=1)
+    
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy homogeneous distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy_homo',
+                                                   dirname=tmpdirname, 
+                                                   is_homo=True,
+                                                   is_random=False)
+
+        # homogeneous graph has single node type '_N' and single edge type ('_N', '_E', '_N')
+        gdata = GSgnnData(part_config=part_config)
+
+        # Test 1: normal case, homogeneous graph with edge features and specified aggregator
+        nfeat_fields = {'_N': ['feat']}
+        efeat_fields = {('_N', '_E', '_N'): ['feat']}
+
+        fanout = [100, 100]
+        target_idx = {'_N': [0, 1]}
+        dataloader = GSgnnNodeDataLoader(gdata, target_idx, fanout, 10,
+                                        label_field='label',
+                                        train_task=False)
+        for input_nodes, _, blocks in dataloader:
+            nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
+            efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
+
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev)
+                       for efeats in efeats_list]
+
+        blocks = [block.to(dev) for block in blocks]
+
+        encoder = SAGEEncoder(input_dim, output_dim,
+                            num_hidden_layers=len(fanout)-1,
+                            edge_feat_name=efeat_fields,
+                            aggregator_type=aggregator_type)
+        assert len(encoder.layers) == 2
+        assert encoder.is_support_edge_feat() == True
+        encoder = encoder.to(dev)
+        emb1 = encoder(blocks, nfeats, efeats_list)
+        assert emb1['_N'].shape[-1] == output_dim
+        assert emb1['_N'].get_device() == (-1 if dev == 'cpu' else 0)
+
+        # Test 2: normal case, homogeneous graph without edge features
+        nfeat_fields = {'_N': ['feat']}
+        efeat_fields = None
+
+        fanout = [100, 100]
+        target_idx = {'_N': [0, 1]}
+        dataloader = GSgnnNodeDataLoader(gdata, target_idx, fanout, 10,
+                                        label_field='label',
+                                        train_task=False)
+        for input_nodes, _, blocks in dataloader:
+            nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
+            efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
+
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev)
+                       for efeats in efeats_list]
+
+        blocks = [block.to(dev) for block in blocks]
+
+        encoder = SAGEEncoder(input_dim, output_dim,
+                            num_hidden_layers=len(fanout)-1,
+                            edge_feat_name=efeat_fields,
+                            aggregator_type=aggregator_type)
+        assert len(encoder.layers) == 2
+        assert encoder.is_support_edge_feat() == False
+        # no need of input edge features
+        encoder = encoder.to(dev)
+        emb2 = encoder(blocks, nfeats)
+        assert emb2['_N'].shape[-1] == output_dim
+        assert emb2['_N'].get_device() == (-1 if dev == 'cpu' else 0)
+
+        # Test 3: normal case, single layer GNN with edge features and specified aggregator
+        nfeat_fields = {'_N': ['feat']}
+        efeat_fields = {('_N', '_E', '_N'): ['feat']}
+
+        fanout = [100]
+        target_idx = {'_N': [0, 1]}
+        dataloader = GSgnnNodeDataLoader(gdata, target_idx, fanout, 10,
+                                        label_field='label',
+                                        train_task=False)
+        for input_nodes, _, blocks in dataloader:
+            nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
+            efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
+
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev)
+                       for efeats in efeats_list]
+
+        blocks = [block.to(dev) for block in blocks]
+
+        encoder = SAGEEncoder(input_dim, output_dim,
+                            num_hidden_layers=len(fanout)-1,
+                            edge_feat_name=efeat_fields,
+                            aggregator_type=aggregator_type)
+        assert len(encoder.layers) == 1
+        assert encoder.is_support_edge_feat() == True
+        encoder = encoder.to(dev)
+        emb3 = encoder(blocks, nfeats, efeats_list)
+        assert emb3['_N'].shape[-1] == output_dim
+        assert emb3['_N'].get_device() == (-1 if dev == 'cpu' else 0)
+
+        # Test 4: abnormal case, input edge feature length is smaller than num. of blocks
+        #         should trigger an assertion error
+        nfeat_fields = {'_N': ['feat']}
+        efeat_fields = {('_N', '_E', '_N'): ['feat']}
+
+        fanout = [100, 100]
+        target_idx = {'_N': [0, 1]}
+        dataloader = GSgnnNodeDataLoader(gdata, target_idx, fanout, 10,
+                                        label_field='label',
+                                        train_task=False)
+        for input_nodes, _, blocks in dataloader:
+            nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
+            efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
+
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats_list[0], input_dim, feat_pattern='random', device=dev)]
+        blocks = [block.to(dev) for block in blocks]
+
+        encoder = SAGEEncoder(input_dim, output_dim,
+                            num_hidden_layers=len(fanout)-1,
+                            edge_feat_name=efeat_fields,
+                            aggregator_type=aggregator_type)
+        encoder = encoder.to(dev)
+        with assert_raises(AssertionError):
+            encoder(blocks, nfeats, efeats_list)
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32])
+def test_sage_encoder_edge_feature_error_cases(input_dim, output_dim):
+    """ Test SAGE encoder error cases when edge features are expected but not provided
+    """
+    from graphstorm.model.sage_encoder import SAGEEncoder
+    
+    # Initialize distributed environment
+    if not th.distributed.is_initialized():
+        th.distributed.init_process_group(backend='gloo',
+                                          init_method='tcp://127.0.0.1:23461',
+                                          rank=0,
+                                          world_size=1)
+    
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Test Case 1: Homogeneous graph - edge_feat_name is set but no edge features provided
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy_homo',
+                                                   dirname=tmpdirname, 
+                                                   is_homo=True,
+                                                   is_random=False)
+        
+        gdata = GSgnnData(part_config=part_config)
+        
+        # Set up encoder with edge feature name
+        efeat_fields = {('_N', '_E', '_N'): ['feat']}
+        encoder = SAGEEncoder(input_dim, output_dim,
+                             num_hidden_layers=1,
+                             edge_feat_name=efeat_fields,
+                             aggregator_type='mean')
+        
+        # Prepare node features but NO edge features
+        nfeat_fields = {'_N': ['feat']}
+        fanout = [100, 100]
+        target_idx = {'_N': [0, 1]}
+        dataloader = GSgnnNodeDataLoader(gdata, target_idx, fanout, 10,
+                                        label_field='label',
+                                        train_task=False)
+        
+        for input_nodes, _, blocks in dataloader:
+            nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device='cpu')
+            break
+        
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device='cpu')
+        blocks = [block.to('cpu') for block in blocks]
+        
+        # This should raise AssertionError because edge_feat_name is set but edge_feats is None
+        with assert_raises(AssertionError):
+            encoder(blocks, nfeats, edge_feats=None)
+    
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Test Case 2: Heterogeneous graph - should raise error with wrong edge type
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy_hetero',
+                                                   dirname=tmpdirname,
+                                                   is_homo=False,
+                                                   add_reverse=True,
+                                                   is_random=False)
+        
+        gdata = GSgnnData(part_config=part_config)
+        
+        # Try to create SAGE encoder with heterogeneous edge type (should fail)
+        efeat_fields_hetero = {('n0', 'r0', 'n1'): ['feat']}
+        
+        # This should raise AssertionError because SAGE only supports homogeneous graphs
+        with assert_raises(AssertionError):
+            encoder = SAGEEncoder(input_dim, output_dim,
+                                 num_hidden_layers=1,
+                                 edge_feat_name=efeat_fields_hetero,
+                                 aggregator_type='mean')
+    
+    # Destroy process group after tests
+    if th.distributed.is_initialized():
+        th.distributed.destroy_process_group()
