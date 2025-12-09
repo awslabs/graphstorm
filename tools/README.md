@@ -118,6 +118,46 @@ The conversion script has a minimum memory requirement of 2X of the size of the 
 python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --low-mem
 ```
 
+## Generate Mitra embeddings for graph data
+GraphStorm provides a tool to generate Mitra embeddings using AutoGluon's Mitra TFM (Tabular Foundation Model). The `gen_mitra_embedding.py` script supports both the MovieLens-100k dataset and custom DGL graphs constructed from parquet/CSV files. Mitra embeddings can be used as pre-trained node features to improve model performance.
+
+**Important**: The current version of Mitra TFM supports a maximum of 10 classes for multiclass classification problems.
+
+### MovieLens-100k Example
+The tool automatically downloads the MovieLens-100k dataset if not present and supports gender classification task:
+```bash
+python3 gen_mitra_embedding.py --dataset movie-len \
+                            --dataset_path data/ml-100k \
+                            --savedir output \
+                            --target-ntype user \
+                            --label-name gender
+```
+
+This generates embeddings for user nodes using age and occupation as features, with gender (M/F) as the binary classification label.
+
+### Custom Graph Example
+
+For custom graphs constructed from parquet files using gconstruct:
+
+```bash
+# First, construct the DGL graph from parquet files
+python3 -m graphstorm.gconstruct.construct_graph \
+    --conf-file config.json \
+    --output-dir /tmp/constructed \
+    --graph-name my-graph
+
+# Then generate Mitra embeddings
+python3 gen_mitra_embedding.py --dataset my-graph \
+                           --dataset_path data/constructed \
+                           --target-ntype _N_ \
+                           --feat-name feat \
+                           --label-name label \
+                           --savedir data/mitra_output
+```
+
+The output file `mitra_embeddings.pt` contains the generated embeddings as a PyTorch tensor that can be used as node features in GraphStorm training.
+
+
 ## Do graph data sanity check
 GraphStorm provides a tool to do graph feature and mask sanity check. Use `graph_sanity_check.py` script with `--dataset-path` pointing to the distDGL folder of partitions to check a partitioned graph data. By default, it will check whether any node feature or edge feature has `NaN` (Not a Number) or `Inf` (Infinite number) data. It will also check whether the features are normalized into the range of [-1, 1]. If not, it will print a warning. Use the argument `--node-masks` to specify the node masks to check and `--edge-masks` to specify the edge masks to check. The script will check whether GraphStorm can parse the mask without any error.
 
@@ -132,4 +172,3 @@ ERROR: [Node type: user][Feature Name: test][Part part0]: There are NaN values i
 ERROR: [Node type: user][Feature Name: test][Part part1]: There are NaN values in the feature, please check.
 WARNING: [Node type: movie][Feature Name: label][Part part0]: There are some value out of the range of [-1, 1].It won't cause any error, but it is recommended to normalize the feature.
 WARNING: [Node type: movie][Feature Name: label][Part part1]: There are some value out of the range of [-1, 1].It won't cause any error, but it is recommended to normalize the feature.
-```
