@@ -22,7 +22,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, fields, is_dataclass
-from typing import List
+from typing import List, Literal
 
 
 JOB_ORDER = {
@@ -30,8 +30,9 @@ JOB_ORDER = {
     "gsprocessing": 1,
     "dist_part": 2,
     "gb_convert": 3,
-    "train": 4,
-    "inference": 5,
+    "hpo": 4,
+    "train": 5,
+    "inference": 6,
 }
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -239,6 +240,28 @@ class TrainingConfig:
     def __post_init__(self):
         self.use_graphbolt_str = self.use_graphbolt_str.lower()
 
+@dataclass
+class TuningConfig:
+    """Configuration for the tuning step.
+
+    """
+
+    max_jobs: int
+    max_parallel_jobs: int
+    hyperparameter_ranges: str
+    metric_name: str
+    eval_mask: Literal["test", "val"]
+    objective_type: Literal["Maximize", "Minimize"]
+    strategy: Literal["Bayesian", "Random", "Hyperband", "Grid"]
+    hb_min_epochs: int = 1
+    hb_max_epochs: int = 20
+
+    def __post_init__(self):
+        assert self.eval_mask in ["test", "val"]
+        assert self.objective_type in ["Maximize", "Minimize"]
+        assert self.strategy in ["Bayesian", "Random", "Hyperband", "Grid"]
+        assert self.hb_min_epochs >= 1
+        assert self.hb_max_epochs >= self.hb_min_epochs
 
 @dataclass
 class InferenceConfig:
@@ -305,6 +328,8 @@ class PipelineArgs:
         Partition configuration settings.
     training_config : TrainingConfig
         Training configuration settings.
+    tuning_config: TuningCofig
+        HPO tuning jobs settings.
     inference_config : InferenceConfig
         Inference configuration settings.
     script_paths : ScriptPaths
@@ -321,6 +346,7 @@ class PipelineArgs:
     task_config: TaskConfig
     partition_config: PartitionConfig
     training_config: TrainingConfig
+    tuning_config: TuningConfig
     inference_config: InferenceConfig
     script_paths: ScriptPaths
     step_cache_expiration: str
@@ -752,6 +778,67 @@ def parse_pipeline_args() -> PipelineArgs:
         help="Whether to use GraphBolt. Default: 'false'",
     )
 
+    # HPO tuning configuration
+    hpo_group = parser.add_argument_group("Hyperparameter tuning arguments")
+
+    hpo_group.add_argument(
+        "--hpo-max-jobs",
+        type=int,
+        default=10,
+        help="Maximum number of training jobs to run",
+    )
+    hpo_group.add_argument(
+        "--hpo-max-parallel-jobs",
+        type=int,
+        default=2,
+        help="Maximum number of parallel training jobs",
+    )
+    hpo_group.add_argument(
+        "--hyperparameter-ranges",
+        type=str,
+        help="Path to a JSON file, or a JSON string defining hyperparameter ranges. "
+        "For syntax see 'Dynamic hyperparameters' in "
+        "https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html",
+    )
+    hpo_group.add_argument(
+        "--hpo-metric-name",
+        type=str,
+        help="Name of the metric to optimize for (e.g., 'accuracy', 'amri')",
+    )
+    hpo_group.add_argument(
+        "--hpo-eval-mask",
+        type=str,
+        choices=["test", "val"],
+        help="Whether to use test or validation metrics for HPO.",
+    )
+    hpo_group.add_argument(
+        "--hpo-objective-type",
+        type=str,
+        default="Maximize",
+        choices=["Maximize", "Minimize"],
+        help="Type of objective, can be 'Maximize' or 'Minimize'",
+    )
+    hpo_group.add_argument(
+        "--hpo-strategy",
+        type=str,
+        default="Bayesian",
+        choices=["Bayesian", "Random", "Hyperband", "Grid"],
+        help="Optimization strategy. Default: 'Bayesian'.",
+    )
+    # Hyperband-specific arguments
+    hpo_group.add_argument(
+        "--hpo-hb-min-epochs",
+        type=int,
+        default=1,
+        help="Minimum number of epochs for Hyperband strategy. Default: 1",
+    )
+    hpo_group.add_argument(
+        "--hpo-hb-max-epochs",
+        type=int,
+        default=20,
+        help="Maximum number of epochs for Hyperband strategy. Default: 20",
+    )
+
     # Inference Configuration
     optional_args.add_argument(
         "--inference-yaml-s3",
@@ -863,6 +950,17 @@ def parse_pipeline_args() -> PipelineArgs:
             train_inference_task=args.train_inference_task,
             train_yaml_file=args.train_yaml_s3,
             use_graphbolt_str=args.use_graphbolt,
+        ),
+        tuning_config=TuningConfig(
+            args.hpo_max_jobs,
+            args.hpo_max_parallel_jobs,
+            args.hyperparameter_ranges,
+            args.hpo_metric_name,
+            args.hpo_eval_mask,
+            args.hpo_objective_type,
+            args.hpo_strategy,
+            args.hpo_hb_min_epochs,
+            args.hpo_hb_max_epochs,
         ),
         inference_config=InferenceConfig(
             save_predictions=args.save_predictions,
