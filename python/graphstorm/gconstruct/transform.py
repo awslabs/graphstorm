@@ -23,12 +23,15 @@ import sys
 import abc
 import json
 import warnings
+import gc
 from abc import ABC, abstractmethod
 from numbers import Integral
 from typing import Any, Dict, List, Optional
+from tqdm import tqdm
 
 import numpy as np
 import torch as th
+import pandas as pd
 
 from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import AutoTokenizer
@@ -1350,7 +1353,7 @@ class TabularFMTransform(FeatTransform):
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(TabularFMTransform, self).__init__(col_name, feat_name, out_dtype)
         assert self.out_dtype is not None
-        self.tabularFMPredictor = TabularPredictor(label=target_col)
+        self.tabularFMPredictor = TabularPredictor(label=target_col, problem_type='multiclass')
 
         if th.cuda.is_available():
             gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
@@ -1362,12 +1365,12 @@ class TabularFMTransform(FeatTransform):
     def save_input_embeddings_hook(self, name, hidden_embeddings_container):
         """Create a hook function that captures intermediate representations"""
         def hook_fn(module, inp, out):
-            if torch.is_tensor(inp):
+            if th.is_tensor(inp):
                 hidden_embeddings_container[name] = inp.detach().cpu()
             elif isinstance(inp, (tuple, list)):
-                hidden_embeddings_container[name] = [x.detach().cpu() if torch.is_tensor(x) else x for x in inp]
+                hidden_embeddings_container[name] = [x.detach().cpu() if th.is_tensor(x) else x for x in inp]
             elif isinstance(inp, dict):
-                hidden_embeddings_container[name] = {k: v.detach().cpu() if torch.is_tensor(v) else v for k, v in inp.items()}
+                hidden_embeddings_container[name] = {k: v.detach().cpu() if th.is_tensor(v) else v for k, v in inp.items()}
             else:
                 hidden_embeddings_container[name] = inp
         return hook_fn
@@ -1380,50 +1383,147 @@ class TabularFMTransform(FeatTransform):
         if layer_names is None:
             for name, module in model.named_modules():
                 if name:
-                    hook = module.register_forward_hook(save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hook = module.register_forward_hook(self.save_input_embeddings_hook(name, hidden_embeddings_container))
                     hooks.append(hook)
         else:
             for name, module in model.named_modules():
                 if name in layer_names:
-                    hook = module.register_forward_hook(save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hook = module.register_forward_hook(self.save_input_embeddings_hook(name, hidden_embeddings_container))
                     hooks.append(hook)
         return hooks
 
-    def inference_embedding(self, feats):
+    def inference_embedding(self, feats_df):
         """Generate embeddings from a trained Mitra predictor"""
         if self.tabularFMPredictor.transform_features is not None:
-            feats = self.tabularFMPredictor._learner.transform_features(feats)
+            feats = self.tabularFMPredictor._learner.transform_features(feats_df)
         tabularFMTrainer = self.tabularFMPredictor._learner.load_trainer()
-        ensemble_model = self.tabularFMPredictor.load_model("Mitra")
-        feats = ensemble_model.preprocess(feats)
+        ensemble_model = tabularFMTrainer.load_model("Mitra")
+        feats_df = ensemble_model.preprocess(feats_df)
         model = ensemble_model.model
 
+        assert len(model.trainers) == 1, "the number of trainer should be one instead of a ensembled one"
         trainer = model.trainers[0]
-        x_support, y_support, x_query = model.X, model.y, batch_data
+        if isinstance(feats_df, pd.DataFrame):
+            feats_df = feats_df.values
+        x_support, y_support, x_query = model.X, model.y, feats_df
         x_support_transformed = trainer.preprocessor.transform_X(x_support)
         y_support_transformed = trainer.preprocessor.transform_y(y_support)
         x_query_transformed = trainer.preprocessor.transform_X(x_query)
 
-        dataset = DatasetFinetune(
-            self.cfg,                                                                          
+        dataset = DatasetFinetune(                                                             
+            trainer.cfg,                                                                          
             x_support=x_support_transformed,
             y_support=y_support_transformed,                      
             x_query=x_query_transformed,
             y_query=None,
-            max_samples_support=self.cfg.hyperparams['max_samples_support'],
-            max_samples_query=self.cfg.hyperparams['max_samples_query'],
-            rng=self.rng,
+            max_samples_support=trainer.cfg.hyperparams['max_samples_support'],
+            max_samples_query=trainer.cfg.hyperparams['max_samples_query'],
+            rng=trainer.rng,
         )      
-        self.model.eval()
+
+        loader = th.utils.data.DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            pin_memory=True,
+            num_workers=8,
+            drop_last=False,
+            collate_fn=CollatorWithPadding(
+                max_features=trainer.cfg.hyperparams['dim_embedding'],
+                pad_to_max_features=False
+            ),
+        )
+        trainer.model.eval()
+
         embeddings = []
         avg_embeddings = []
+        save_interval = 1024 * 10
+        file_counter = 0
+        temp_files = []
+        
+        with th.no_grad():                                                                  
+            for batch_idx, batch in enumerate(tqdm(loader, desc="Processing batches for mitra embeddings")):
+                cached_hidden_embeddings = {}
+                hooks = self.register_hooks_for_embeddings(trainer.model, cached_hidden_embeddings, ['final_layer_norm'])
+                
+                try:
+                    with th.autocast(device_type=trainer.device, dtype=getattr(th, trainer.cfg.hyperparams['precision'])):
+                        x_s = batch['x_support'].to(trainer.device, non_blocking=True)
+                        y_s = batch['y_support'].to(trainer.device, non_blocking=True)
+                        x_q = batch['x_query'].to(trainer.device, non_blocking=True)
+                        padding_features = batch['padding_features'].to(trainer.device, non_blocking=True)
+                        padding_obs_support = batch['padding_obs_support'].to(trainer.device, non_blocking=True)
+                        padding_obs_query = batch['padding_obs_query'].to(trainer.device, non_blocking=True)
+                        
+                        if trainer.cfg.task == Task.REGRESSION and trainer.cfg.hyperparams['regression_loss'] == LossName.CROSS_ENTROPY:
+                            y_s = th.bucketize(y_s, trainer.bins) - 1
+                            y_s = th.clamp(y_s, 0, trainer.cfg.hyperparams['dim_output']-1).to(th.int64)
+                    
+                    if 'final_layer_norm' in cached_hidden_embeddings.keys():
+                        embedding_slice = cached_hidden_embeddings['final_layer_norm'][0][0, :, 0].detach().cpu().numpy()
+                        avg_embedding_slice = cached_hidden_embeddings['final_layer_norm'][0][0, :, 1:].detach().mean(dim=-1).cpu().numpy()
+                        
+                        embeddings.append(embedding_slice.astype(np.float32))
+                        avg_embeddings.append(avg_embedding_slice.astype(np.float32))
+                        
+                        if len(embeddings) >= save_interval:
+                            temp_emb_file = os.path.join(save_dir, f'embeddings_part_{file_counter}.npy')
+                            temp_avg_file = os.path.join(save_dir, f'avg_embeddings_part_{file_counter}.npy')
+                            
+                            try:
+                                np.save(temp_emb_file, np.concatenate(embeddings, axis=0))
+                                np.save(temp_avg_file, np.concatenate(avg_embeddings, axis=0))
+                            except ValueError:
+                                np.save(temp_emb_file, np.vstack(embeddings))
+                                np.save(temp_avg_file, np.vstack(avg_embeddings))
+                            
+                            temp_files.append((temp_emb_file, temp_avg_file))
+                            file_counter += 1
+                            embeddings = []
+                            avg_embeddings = []
+                            gc.collect()
+                        
+                        del cached_hidden_embeddings['final_layer_norm']
+                    
+                finally:
+                    for hook in hooks:
+                        hook.remove()
+                    cached_hidden_embeddings.clear()
+                    if batch_idx % 10 == 0:
+                        th.cuda.empty_cache()
+                        gc.collect()
+            
+            th.cuda.empty_cache()
+            gc.collect()
 
-        with th.no_grad():
-            cached_hidden_embeddings = {}
-            hooks = register_hooks_for_embeddings(self.model, cached_hidden_embeddings, ['final_layer_norm'])
+        if temp_files:
+            all_embeddings = []
+            all_avg_embeddings = []
+            
+            for emb_file, avg_file in temp_files:
+                emb_data = np.load(emb_file)
+                avg_data = np.load(avg_file)
+                all_embeddings.append(emb_data)
+                all_avg_embeddings.append(avg_data)
+                
+                try:
+                    os.remove(emb_file)
+                    os.remove(avg_file)
+                except:
+                    pass
+            
+            try:
+                embeddings_result = np.concatenate(all_embeddings, axis=0)
+                avg_embeddings_result = np.concatenate(all_avg_embeddings, axis=0)
+            except ValueError:
+                embeddings_result = np.vstack(all_embeddings)
+                avg_embeddings_result = np.vstack(all_avg_embeddings)
+            
+            del all_embeddings, all_avg_embeddings
+            gc.collect()
 
-            with torch.autocast(device_type=self.device, dtype=getattr(torch, self.cfg.hyperparams['precision'])):
-                    x_s = batch['x_support'].to(self.device, non_blocking=True)
+            print(all_embeddings, all_avg_embeddings)
+            exit(-1)
 
     def call(self, feats):
         """ This transforms the features with Tabular Model Embedding.
@@ -1437,8 +1537,19 @@ class TabularFMTransform(FeatTransform):
         -------
         dict : The key is the feature name, the value is the feature.
         """
+        # Expand 2-D array into 1-D array
+        result = {}
+        for k, v in feats.items():
+            arr = np.array(v)
+            if arr.ndim > 1:
+                for i in range(arr.shape[1]):
+                    result[f'{k}_{i}'] = arr[:, i]
+            else:
+                result[k] = arr
+
+        feats_df = pd.DataFrame(result)
         self.tabularFMPredictor.fit(
-            feats, 
+            feats_df, 
             hyperparameters={
                 "MITRA": {
                     "fine_tune": False,
@@ -1446,7 +1557,7 @@ class TabularFMTransform(FeatTransform):
                     "ag.max_rows": None,
                 }
             })
-        embs = self.inference_embedding(feats)
+        embs = self.inference_embedding(feats_df)
 
         self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
         return {self.feat_name: feats}
@@ -1477,14 +1588,16 @@ def parse_feat_ops(confs, input_data_format=None):
     assert isinstance(confs, list), \
             "The feature configurations need to be in a list."
     for feat in confs:
-        print(confs)
-        if feat.get('transform', {}).get('name') == 'tabular':
-            feat['feature_col'] = "*"
-        assert 'feature_col' in feat, \
-                "'feature_col' must be defined in a feature field."
-        assert (isinstance(feat['feature_col'], str) and feat['feature_col'] != "") \
-               or (isinstance(feat['feature_col'], list) and len(feat['feature_col']) >= 1), \
-            "feature column should not be empty"
+        if feat.get('transform', {}).get('name') != 'tabular':
+            assert 'feature_col' in feat, \
+                    "'feature_col' must be defined in a feature field."
+            assert (isinstance(feat['feature_col'], str) and feat['feature_col'] != "") \
+                or (isinstance(feat['feature_col'], list) and len(feat['feature_col']) >= 1), \
+                "feature column should not be empty"
+        else:
+            feat['feature_col'] = None
+            assert 'feature_name' in feat, ("The feature 'feature_name' is missing. " 
+                "It must be defined for tabular model transformation")
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
 
         out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
@@ -1597,8 +1710,11 @@ def parse_feat_ops(confs, input_data_format=None):
                     target_col = conf['target_col']
                 else:
                     target_col = None
-                print(conf)
-                exit(-1)
+                transform = TabularFMTransform(
+                    feat["feature_col"],
+                    feat_name,
+                    target_col=target_col
+                )
             elif conf['name'] == 'no-op':
                 if 'separator' in conf:
                     assert isinstance(conf['separator'], str), \
@@ -1713,9 +1829,11 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
             wrapper = ExtFeatureWrapper(feature_path)
         else:
             wrapper = None
-        for col in col_name:
-            print(op, op.col_name)
-            res = op(data[col])
+        for col in col_name or ["all"]:
+            if col != 'all':
+                res = op(data[col])
+            else:
+                res = op(data)
             # Do not expect multiple keys for multiple columns, the expected output will only
             # have 1 key/val pair. But for single column, some feature transformations like
             # Tokenizer will return multiple key-val pairs, so do not check for single column
