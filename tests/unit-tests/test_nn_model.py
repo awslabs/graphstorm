@@ -200,7 +200,8 @@ def test_hgt_with_zero_input(input_dim, output_dim):
     assert out["n2"].shape[1] == output_dim
     assert out["n3"].shape[0] == 0
     assert out["n3"].shape[1] == output_dim
-    assert "n4" not in out
+    assert "n4" in out    # for a very rare case, we allow source node only type to have 0s 
+                          # in output dict.
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
@@ -382,7 +383,8 @@ def test_hgt_with_zero_dstnodes(input_dim, output_dim):
                      num_heads=4)
     outputs = layer(block, inputs)
 
-    assert not 'n0' in outputs                      # No edge type to n0, so not in outputs
+    assert 'n0' in outputs    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
     assert outputs['n1'].shape[0] == 2              # 2 n1 destination nodes
     assert outputs['n1'].shape[1] == output_dim     # same as output dim
     assert outputs['n2'].shape[0] == 0              # 0 n2 destinnation nodes
@@ -1885,7 +1887,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
         emb = layerwithef(block, node_feats, edge_feats)
 
-        assert 'n0' not in emb
+        assert 'n0' in emb    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
         assert emb['n1'].shape[0] == len(seeds['n1'])
         assert emb['n1'].shape[1] == output_dim
 
@@ -1909,7 +1912,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
         emb = layerwithef(block, node_feats, edge_feats)
 
-        assert 'n0' not in emb
+        assert 'n0' in emb    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
         assert emb['n1'].shape[0] == len(seeds['n1'])
         assert emb['n1'].shape[1] == output_dim
 
@@ -1977,7 +1981,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
         emb = layerwithef(block, node_feats, edge_feats)
 
-        assert 'n0' not in emb
+        assert 'n0' in emb    # for a very rare case, we allow source node only type to have 0s 
+                              # in output dict.
         assert emb['n1'].shape[0] == len(seeds['n1'])
         assert emb['n1'].shape[1] == output_dim
 
@@ -2047,14 +2052,16 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     # method A: not provide input edge feature
     emb_a = layerwithef(block_zero_edge, node_feats)
 
-    assert 'n0' not in emb_a
+    assert 'n0' in emb_a    # for a very rare case, we allow source node only type to have 0s 
+                            # in output dict.
     assert emb_a['n1'].shape[0] == len(seeds['n1'])
     assert emb_a['n1'].shape[1] == output_dim
 
     # method B: provide an empty dict as input edge feature
     emb_b = layerwithef(block_zero_edge, node_feats, {})
 
-    assert 'n0' not in emb_b
+    assert 'n0' in emb_b    # for a very rare case, we allow source node only type to have 0s 
+                            # in output dict.
     assert emb_b['n1'].shape[0] == len(seeds['n1'])
     assert emb_b['n1'].shape[1] == output_dim
 
@@ -2273,6 +2280,63 @@ def test_gatv2_with_edge_features(input_dim, output_dim, dev):
     gatv2_encoder = gatv2_encoder.to(dev)
 
     emb1 = gatv2_encoder(blocks, node_feats)
+    # check output numbers, and dimensions
+    assert emb1[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb1[DEFAULT_NTYPE].shape[1] == output_dim
+
+    # the value of emb0 and emb1 should be different,
+    # as emb0 integrates edge features and emb1 does not
+    assert not th.allclose(emb0[DEFAULT_NTYPE], emb1[DEFAULT_NTYPE], atol=0.001)
+
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_sage_with_edge_features(input_dim, output_dim, dev):
+    """ Test the SAGE encoder that supports edge features """
+    from graphstorm.model.sage_encoder import SAGEEncoder
+    from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+    import torch as th
+    import dgl
+    
+    # Create a simple homogeneous graph
+    num_src_nodes = 10
+    num_dst_nodes = 5
+    
+    src_nodes = th.tensor([0, 1, 2, 3, 4, 5, 6, 7])
+    dst_nodes = th.tensor([0, 1, 2, 3, 0, 1, 2, 4])
+    
+    block = dgl.create_block((src_nodes, dst_nodes), 
+                           num_src_nodes=num_src_nodes, 
+                           num_dst_nodes=num_dst_nodes).to(dev)
+    
+    # Add required node IDs for SAGE encoder
+    block.nodes[DEFAULT_NTYPE].data[dgl.NID] = th.arange(num_src_nodes).to(dev)
+    
+    node_feats = {DEFAULT_NTYPE: th.rand(num_src_nodes, input_dim).to(dev)}
+    edge_feats = {DEFAULT_ETYPE: th.rand(len(src_nodes), input_dim).to(dev)}
+
+    # Test case 0: normal case, have both node and edge features
+    edge_feat_name = {DEFAULT_ETYPE: ['feat']}
+    sage_encoder = SAGEEncoder(input_dim, output_dim, 
+                           num_hidden_layers=0, 
+                           edge_feat_name=edge_feat_name)
+    sage_encoder = sage_encoder.to(dev)
+
+    blocks = [block]
+    edge_feat_blocks = [edge_feats]
+    
+    emb0 = sage_encoder(blocks, node_feats, edge_feats=edge_feat_blocks)
+    # check output numbers, dimensions and device
+    assert emb0[DEFAULT_NTYPE].shape[0] == num_dst_nodes
+    assert emb0[DEFAULT_NTYPE].shape[1] == output_dim
+    assert emb0[DEFAULT_NTYPE].get_device() == (-1 if dev == 'cpu' else 0)
+
+    # Test case 1: normal case, no edge features as inputs
+    sage_encoder = SAGEEncoder(input_dim, output_dim, num_hidden_layers=0)
+    sage_encoder = sage_encoder.to(dev)
+
+    emb1 = sage_encoder(blocks, node_feats)
     # check output numbers, and dimensions
     assert emb1[DEFAULT_NTYPE].shape[0] == num_dst_nodes
     assert emb1[DEFAULT_NTYPE].shape[1] == output_dim
