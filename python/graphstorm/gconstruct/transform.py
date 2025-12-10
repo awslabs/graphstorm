@@ -1413,10 +1413,10 @@ class TabularFMTransform(FeatTransform):
         y_support_transformed = trainer.preprocessor.transform_y(y_support)
         x_query_transformed = trainer.preprocessor.transform_X(x_query)
 
-        dataset = DatasetFinetune(                                     
-            trainer.cfg,                      
+        dataset = DatasetFinetune(                                
+            trainer.cfg,                    
             x_support=x_support_transformed,
-            y_support=y_support_transformed,       
+            y_support=y_support_transformed, 
             x_query=x_query_transformed,
             y_query=None,
             max_samples_support=trainer.cfg.hyperparams['max_samples_support'],
