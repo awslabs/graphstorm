@@ -1512,7 +1512,7 @@ def update_ops(feat_ops, input_feats):
     1. For the first case, will remove the corresponding transformation operations from the
        operation list. And let the steps after payload graph construction to check if node
        featuers should be presented in graph by checking the updated model training YAML file.
-    2. For the learnable embedings, will use No-op transformation operation for it.
+    2. For the learnable embedings, will apply No-op transformation operation.
 
     Parameters
     ----------
