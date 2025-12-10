@@ -340,11 +340,11 @@ def transform_fn(model,
                     return res.to_json(), response_content_type
 
             # TODO(Jian): check if node types that are NOT in the feat_list, in theory,
-            #             should have "gs_embedding" feature in the payload graph.
-            # In the v0.5.1, if users do not provide the "gs_embedding" for node types
-            # that are NOT in the feat_list, it will trigger an error in the inference
-            # step, asking for the "gs_embedding" feature for them. So still users can
-            # get correct feedback.
+            #             should have "gs_learnable_embedding" feature in the payload graph.
+            # In the v0.5.1, if users do not provide the "gs_learnable_embedding" for node
+            # types that are NOT in the feat_list, it will trigger an error in the inference
+            # step, asking for the "gs_learnable_embedding" feature for them. So still users
+            # can get correct feedback.
 
     if gs_train_config.edge_feat_name is not None:
         for etype, feat_list in gs_train_config.edge_feat_name.items():

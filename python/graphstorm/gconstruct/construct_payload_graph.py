@@ -294,29 +294,30 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
                 raise MissingValError("features", "node payload")
             input_feat = node_conf["features"]
 
-            # A common use case: a node feature(s) was not used in model training but exists
-            # in graph construction (e.g., gconstruct or gsprocessing). Therefore,
-            # these features may or may not be included in the payload by users. And
-            # there is a special case: use learnable embeddings as a node feature, instead using
-            # nodes' own feature(s). So, we handle these two cases here.
-            feat_ops, two_phase_feat_ops, after_merge_feat_ops, _ = \
+            # - A common use case: a node feature(s) was not used in model training but exists
+            #   in graph construction (e.g., gconstruct or gsprocessing). Therefore,
+            #   these features may or may not be included in the payload by users. And
+            # - A special case: use learnable embeddings as a node feature, instead using
+            #   nodes' own feature(s).
+            # Here handle these two cases with the update_ops() function.
+            new_feat_ops, new_two_phase_feat_ops, new_after_merge_feat_ops, _ = \
                 update_ops(feat_ops, input_feat)
 
             # Input features raw data should be numpy array type
             for key, val in input_feat.items():
                 input_feat[key] = np.array(val)
-            if len(two_phase_feat_ops) > 0:
-                phase_one_ret = prepare_data(input_feat, two_phase_feat_ops)
-                update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
-            feat_data, _ = process_features(input_feat, feat_ops, None)
+            if len(new_two_phase_feat_ops) > 0:
+                phase_one_ret = prepare_data(input_feat, new_two_phase_feat_ops)
+                update_two_phase_feat_ops(phase_one_ret, new_two_phase_feat_ops)
+            feat_data, _ = process_features(input_feat, new_feat_ops, None)
         else:
             feat_data = {}
 
         for feat_name in list(feat_data):
-            if feat_name in after_merge_feat_ops:
+            if feat_name in new_after_merge_feat_ops:
                 # do data transformation with the entire feat array.
                 merged_feat = \
-                    after_merge_feat_ops[feat_name].after_merge_transform(feat_data[feat_name])
+                    new_after_merge_feat_ops[feat_name].after_merge_transform(feat_data[feat_name])
                 feat_data[feat_name] = merged_feat
         node_data[node_type] = feat_data
         # Avoid using id_map class as we do not save to the disk

@@ -2797,7 +2797,7 @@ def test_prepare_input_learnable_embedding4realtime():
 
         node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
 
-        assert len(node_feat) == 3  # n0's "feat", n1's "feat", and "gs_embedding"
+        assert len(node_feat) == 3  # n0's "feat", n1's "feat", and "gs_learnable_embedding"
         assert len(node_feat[GS_LE_FEATURE_KEY]) == 2   # include : {n0:, n1:}
         assert node_feat[GS_LE_FEATURE_KEY]['n0'].shape == (10, hid_dim)
         assert node_feat[GS_LE_FEATURE_KEY]['n0'].sum() == 10 * hid_dim

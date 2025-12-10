@@ -961,15 +961,15 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
         """ Input layer forward computation .
 
         This function overwrites ``GSPureLearnableInputLayer``'s same function by only replacing
-        the computation of sparse embeddings with extraction of the `gs_embedding` features from
-        `input_feats` variable for cases like real-time inference.
+        the computation of sparse embeddings with extraction of the `gs_learnable_embedding`
+        features from `input_feats` variable for cases like real-time inference.
 
         Parameters
         ----------
         input_feats: dict of Tensor
-            The input features in the format of {[ntype|'lm'|'gs_embedding']: feats}. This layer
-            assume there is a key, 'gs_embedding', and its value is another dictionary in the
-            format of {ntype: tensor}.
+            The input features in the format of {[ntype|'lm'|'gs_learnable_embedding']: feats}.
+            This layer assume there is a key, 'gs_learnable_embedding', and its value is another
+            dictionary in the format of {ntype: tensor}.
         input_nodes: dict of Tensor
             The input node indexes in the format of {ntype: indexes}. 
             Ignored because learnable embeddings are in the `input_feats` now, and no need to use
@@ -994,7 +994,7 @@ class GSPureLearnableInputLayer4GraphFromMetaData(GSPureLearnableInputLayer):
             assert GS_LE_FEATURE_KEY in input_feats, ('The input features should '
                 f'contains a key: {GS_LE_FEATURE_KEY} for using learnable embeddings.')
             assert ntype in input_feats[GS_LE_FEATURE_KEY], (f'The learnable embeddings '
-                f'should include a dictionary that contains a key: {ntype}, but got '
+                f'miss the "{ntype}" node type as a key, but got '
                 f'{input_feats[GS_LE_FEATURE_KEY]}.')
 
             # direct extract the learnable embeddings from input features
@@ -1093,15 +1093,15 @@ class GSNodeEncoderInputLayer4GraphFromMetadata(GSNodeEncoderInputLayer):
         """ Input layer forward computation.
 
         This function overwrites ``GSNodeEncoderInputLayer``'s same function by only replacing the
-        computation of sparse embeddings with extraction of the ``gs_embedding`` features from
-        ``input_feats`` variable for cases like real-time inference.
+        computation of sparse embeddings with extraction of the ``gs_learnable_embedding``
+        features from ``input_feats`` variable for cases like real-time inference.
 
         Parameters
         ----------
         input_feats: dict of Tensor
-            The input features in the format of {[ntype|'lm'|'gs_embedding']: feats}. This layer
-            assume there is a key, 'gs_embedding', and its value is another dictionary in the format
-            of {ntype: tensor}.
+            The input features in the format of {[ntype|'lm'|'gs_learnable_embedding']: feats}.
+            This layer assume there is a key, 'gs_learnable_embedding', and its value is another
+            dictionary in the format of {ntype: tensor}.
         input_nodes: dict of Tensor
             The input node indexes in the format of {ntype: indexes}.
             Ignored because learnable embeddings are in the ``input_feats``. No need to use the

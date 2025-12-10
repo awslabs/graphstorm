@@ -58,9 +58,9 @@ def prepare_batch_input(g, input_nodes,
            based on the given node types in ``lm_ntypes``. The tokenized text features will be save
            in a new field `lm` in the feat dict returned. Values of the `lm` field 
         2. Add a new function to support using learnable embeddings as node features. The learnable
-           embeddings will have a special feature name, `gs_embedding`. All nodes that have this
-           feature name will be automatically packed into the output dictionary for each node type,
-           no matter it exists in the ``feat_field`` or not.
+           embeddings will have a special feature name, `gs_learnable_embedding`. All nodes that
+           have this feature name will be automatically packed into the output dictionary for each
+           node type, no matter it exists in the ``feat_field`` or not.
 
     .. versionchanged:: 0.5.0
         When feat_field is a dict, its value(s) can be a list of str or a list
@@ -153,7 +153,7 @@ def prepare_batch_input(g, input_nodes,
         # For real-time inference, users could provide learnable embeddings as a special type
         # of node feature. This could happen when some node are featureless or features are not
         # used in model training, or users set `use_node_embedding` to be True. The feature name
-        # of learnable embeddings must be GS_LE_FEATURE_KEY, i.e., "gs_embedding"
+        # of learnable embeddings must be GS_LE_FEATURE_KEY, i.e., "gs_learnable_embedding".
         le_feat = None
         for feat_name, feats in g.nodes[ntype].data.items():
             le_feat = {}
@@ -163,7 +163,7 @@ def prepare_batch_input(g, input_nodes,
                 le_feat[ntype] = feats[nid]
 
         if le_feat:
-            # add learnable embeddings as a dict to feat with `gs_embeddings` as the key
+            # add learnable embeddings as a dict to feat with `gs_learnable_embedding` as the key
             if GS_LE_FEATURE_KEY not in feat:
                 feat[GS_LE_FEATURE_KEY] = {}
             feat[GS_LE_FEATURE_KEY].update(le_feat)
