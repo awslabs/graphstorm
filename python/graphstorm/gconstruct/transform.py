@@ -1366,9 +1366,11 @@ class TabularFMTransform(FeatTransform):
             if th.is_tensor(inp):
                 hidden_embeddings_container[name] = inp.detach().cpu()
             elif isinstance(inp, (tuple, list)):
-                hidden_embeddings_container[name] = [x.detach().cpu() if th.is_tensor(x) else x for x in inp]
+                hidden_embeddings_container[name] = [x.detach().cpu() \
+                    if th.is_tensor(x) else x for x in inp]
             elif isinstance(inp, dict):
-                hidden_embeddings_container[name] = {k: v.detach().cpu() if th.is_tensor(v) else v for k, v in inp.items()}
+                hidden_embeddings_container[name] = {k: v.detach().cpu() \
+                    if th.is_tensor(v) else v for k, v in inp.items()}
             else:
                 hidden_embeddings_container[name] = inp
         return hook_fn
@@ -1377,16 +1379,18 @@ class TabularFMTransform(FeatTransform):
     def register_hooks_for_embeddings(self, model, hidden_embeddings_container, layer_names=None):
         """Register hooks to capture intermediate representations"""
         hooks = []
-        
+
         if layer_names is None:
             for name, module in model.named_modules():
                 if name:
-                    hook = module.register_forward_hook(self.save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hook = module.register_forward_hook(
+                        self.save_input_embeddings_hook(name, hidden_embeddings_container))
                     hooks.append(hook)
         else:
             for name, module in model.named_modules():
                 if name in layer_names:
-                    hook = module.register_forward_hook(self.save_input_embeddings_hook(name, hidden_embeddings_container))
+                    hook = module.register_forward_hook(
+                        self.save_input_embeddings_hook(name, hidden_embeddings_container))
                     hooks.append(hook)
         return hooks
 
@@ -1399,7 +1403,8 @@ class TabularFMTransform(FeatTransform):
         feats_df = ensemble_model.preprocess(feats_df)
         model = ensemble_model.model
 
-        assert len(model.trainers) == 1, "the number of trainer should be one instead of a ensembled one"
+        assert len(model.trainers) == 1, \
+            "the number of trainer should be one instead of a ensembled one"
         trainer = model.trainers[0]
         if isinstance(feats_df, pd.DataFrame):
             feats_df = feats_df.values
@@ -1408,8 +1413,8 @@ class TabularFMTransform(FeatTransform):
         y_support_transformed = trainer.preprocessor.transform_y(y_support)
         x_query_transformed = trainer.preprocessor.transform_X(x_query)
 
-        dataset = DatasetFinetune(                                                             
-            trainer.cfg,                                                                          
+        dataset = DatasetFinetune(                                                         
+            trainer.cfg,                                                                
             x_support=x_support_transformed,
             y_support=y_support_transformed,                      
             x_query=x_query_transformed,
@@ -1438,14 +1443,19 @@ class TabularFMTransform(FeatTransform):
         save_interval = 1024 * 10
         file_counter = 0
         temp_files = []
-        
-        with th.no_grad():                                                                  
-            for batch_idx, batch in enumerate(tqdm(loader, desc="Processing batches for mitra embeddings")):
+
+        with th.no_grad():                                                         
+            for batch_idx, batch in enumerate(
+                tqdm(loader, desc="Processing batches for mitra embeddings")
+            ):
                 cached_hidden_embeddings = {}
-                hooks = self.register_hooks_for_embeddings(trainer.model, cached_hidden_embeddings, ['final_layer_norm'])
+                hooks = self.register_hooks_for_embeddings(
+                    trainer.model, cached_hidden_embeddings, ['final_layer_norm']
+                )
                 
                 try:
-                    with th.autocast(device_type=self.device, dtype=getattr(th, trainer.cfg.hyperparams['precision'])):
+                    with th.autocast(device_type=self.device, 
+                                    dtype=getattr(th, trainer.cfg.hyperparams['precision'])):
                         x_s = batch['x_support'].to(self.device, non_blocking=True)
                         y_s = batch['y_support'].to(self.device, non_blocking=True)
                         x_q = batch['x_query'].to(self.device, non_blocking=True)

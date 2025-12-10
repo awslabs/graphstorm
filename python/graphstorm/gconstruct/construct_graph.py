@@ -961,7 +961,7 @@ def verify_tabularfm_transformation_confs(confs, metatype):
                 raise ValueError(f"Not valid type name {type} for \
                     tabularFM verification function")
             logging.warning("There are two tabular foundation model embedding transform \
-                in node type %s, both of which will generate the same embedding", 
+                in node type %s, both of which will generate the same embedding",
                 type_name)
 
         label_conf_list = type_conf["labels"] if "labels" in type_conf else []
