@@ -953,8 +953,8 @@ def verify_tabularfm_transformation_confs(confs, entity_type):
         )
 
         # Initialize defaults to avoid "possibly undefined" errors (Pylint W0631)
-        type_name = "" 
-        
+        type_name = ""
+
         if tabular_transformation_count > 1:
             if entity_type == "nodes":
                 type_name = type_conf["node_type"]
@@ -977,7 +977,7 @@ def verify_tabularfm_transformation_confs(confs, entity_type):
         if "features" in type_conf:
             for feat_conf in type_conf["features"]:
                 transform = feat_conf.get("transform")
-                
+
                 # Using parentheses fixes the Bad Indentation (W0311)
                 if (
                     transform
