@@ -1356,9 +1356,7 @@ class TabularFMTransform(FeatTransform):
         self.tabularFMPredictor = TabularPredictor(label=target_col, problem_type='multiclass')
 
         if th.cuda.is_available():
-            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
-                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
-            self.device = f"cuda:{gpu}"
+            self.device = f"cuda"
         else:
             self.device = "cpu"
 
@@ -1447,18 +1445,23 @@ class TabularFMTransform(FeatTransform):
                 hooks = self.register_hooks_for_embeddings(trainer.model, cached_hidden_embeddings, ['final_layer_norm'])
                 
                 try:
-                    with th.autocast(device_type=trainer.device, dtype=getattr(th, trainer.cfg.hyperparams['precision'])):
-                        x_s = batch['x_support'].to(trainer.device, non_blocking=True)
-                        y_s = batch['y_support'].to(trainer.device, non_blocking=True)
-                        x_q = batch['x_query'].to(trainer.device, non_blocking=True)
-                        padding_features = batch['padding_features'].to(trainer.device, non_blocking=True)
-                        padding_obs_support = batch['padding_obs_support'].to(trainer.device, non_blocking=True)
-                        padding_obs_query = batch['padding_obs_query'].to(trainer.device, non_blocking=True)
+                    with th.autocast(device_type=self.device, dtype=getattr(th, trainer.cfg.hyperparams['precision'])):
+                        x_s = batch['x_support'].to(self.device, non_blocking=True)
+                        y_s = batch['y_support'].to(self.device, non_blocking=True)
+                        x_q = batch['x_query'].to(self.device, non_blocking=True)
+                        padding_features = batch['padding_features'].to(self.device, non_blocking=True)
+                        padding_obs_support = batch['padding_obs_support'].to(self.device, non_blocking=True)
+                        padding_obs_query = batch['padding_obs_query'].to(self.device, non_blocking=True)
                         
                         if trainer.cfg.task == Task.REGRESSION and trainer.cfg.hyperparams['regression_loss'] == LossName.CROSS_ENTROPY:
                             y_s = th.bucketize(y_s, trainer.bins) - 1
                             y_s = th.clamp(y_s, 0, trainer.cfg.hyperparams['dim_output']-1).to(th.int64)
-                    
+                        
+                        if trainer.cfg.model_name == ModelName.TABPFN:
+                            _ = trainer.model(x_s, y_s, x_q, task=trainer.cfg.task).squeeze(-1)
+                        elif trainer.cfg.model_name in [ModelName.TAB2D, ModelName.TAB2D_COL_ROW, ModelName.TAB2D_SDPA]:
+                            _ = trainer.model(x_s, y_s, x_q, padding_features, padding_obs_support, padding_obs_query)
+                            
                     if 'final_layer_norm' in cached_hidden_embeddings.keys():
                         embedding_slice = cached_hidden_embeddings['final_layer_norm'][0][0, :, 0].detach().cpu().numpy()
                         avg_embedding_slice = cached_hidden_embeddings['final_layer_norm'][0][0, :, 1:].detach().mean(dim=-1).cpu().numpy()
@@ -1496,34 +1499,8 @@ class TabularFMTransform(FeatTransform):
             th.cuda.empty_cache()
             gc.collect()
 
-        if temp_files:
-            all_embeddings = []
-            all_avg_embeddings = []
-            
-            for emb_file, avg_file in temp_files:
-                emb_data = np.load(emb_file)
-                avg_data = np.load(avg_file)
-                all_embeddings.append(emb_data)
-                all_avg_embeddings.append(avg_data)
-                
-                try:
-                    os.remove(emb_file)
-                    os.remove(avg_file)
-                except:
-                    pass
-            
-            try:
-                embeddings_result = np.concatenate(all_embeddings, axis=0)
-                avg_embeddings_result = np.concatenate(all_avg_embeddings, axis=0)
-            except ValueError:
-                embeddings_result = np.vstack(all_embeddings)
-                avg_embeddings_result = np.vstack(all_avg_embeddings)
-            
-            del all_embeddings, all_avg_embeddings
-            gc.collect()
-
-            print(all_embeddings, all_avg_embeddings)
-            exit(-1)
+        embeddings = np.concatenate(embeddings, axis=0)
+        return embeddings
 
     def call(self, feats):
         """ This transforms the features with Tabular Model Embedding.
@@ -1559,8 +1536,8 @@ class TabularFMTransform(FeatTransform):
             })
         embs = self.inference_embedding(feats_df)
 
-        self.feat_dim = feats.shape[1:] if len(feats.shape) > 1 else (1,)
-        return {self.feat_name: feats}
+        self.feat_dim = embs.shape[1:] if len(embs.shape) > 1 else (1,)
+        return {self.feat_name: embs}
 
 
 def parse_feat_ops(confs, input_data_format=None):
@@ -1711,7 +1688,7 @@ def parse_feat_ops(confs, input_data_format=None):
                 else:
                     target_col = None
                 transform = TabularFMTransform(
-                    feat["feature_col"],
+                    'tabular',
                     feat_name,
                     target_col=target_col
                 )
@@ -1829,8 +1806,8 @@ def process_features(data, ops: List[FeatTransform], ext_mem_path=None):
             wrapper = ExtFeatureWrapper(feature_path)
         else:
             wrapper = None
-        for col in col_name or ["all"]:
-            if col != 'all':
+        for col in col_name or col == "tabular":
+            if col != 'tabular':
                 res = op(data[col])
             else:
                 res = op(data)
