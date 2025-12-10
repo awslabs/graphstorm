@@ -483,9 +483,11 @@ def _parse_file_format(conf, is_node, in_mem):
             elif isinstance(feat_conf["feature_col"], list):
                 for feat_key in feat_conf["feature_col"]:
                     keys.append(feat_key)
-            else:
+            elif 'transform' in feat_conf and feat_conf['transform']['name'] == 'tabular':
+                # We need to read all columns
                 keys = None
-                break
+                continue
+            else:
                 raise TypeError("Feature column must be a str or a list of string.")
 
     # We need to remove duplicated keys to avoid retrieve the same data multiple times.

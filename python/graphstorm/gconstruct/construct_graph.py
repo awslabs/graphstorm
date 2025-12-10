@@ -936,22 +936,22 @@ def is_homogeneous(confs):
     etypes = set(tuple(conf['relation']) for conf in confs["edges"])
     return len(ntypes) == 1 and len(etypes) == 1
 
-def verify_tabularFM_transformation_confs(confs, type):
+def verify_tabularfm_transformation_confs(confs, metatype):
     """ Verify the tabularFM feature transformation
     Parameter
     ----------
     confs: dict
         A dict containing the node/edge type config
-    type: str
+    metatype: str
         Node/Edge
     """
-    for type_conf in confs[type]:
+    for type_conf in confs[metatype]:
         tabular_transformation_count = sum(
             1
             for feat_conf in type_conf.get("features", [])
             if feat_conf.get("transform", {}).get("name") == "tabular"
         )
-        
+
         if tabular_transformation_count > 1:
             if type == "nodes":
                 type_name = type_conf["node_type"]
@@ -960,14 +960,14 @@ def verify_tabularFM_transformation_confs(confs, type):
             else:
                 raise ValueError(f"Not valid type name {type} for \
                     tabularFM verification function")
-            logging.warning(f"There are two tabular foundation model embedding \
-                transform in node type {type_name}, \
-                both of which will generate the same embedding")
+            logging.warning("There are two tabular foundation model embedding transform \
+                in node type %s, both of which will generate the same embedding", 
+                type_name)
 
         label_conf_list = type_conf["labels"] if "labels" in type_conf else []
         if "features" in type_conf:
             for feat_conf in type_conf["features"]:
-                # Assign target column if target column is not in 
+                # Assign target column if target column is not in
                 # current feature transformation
                 if 'transform' in feat_conf and \
                     feat_conf['transform']["name"] == "tabular" and \
@@ -978,7 +978,7 @@ def verify_tabularFM_transformation_confs(confs, type):
                         # Assign the first classification column to the TabularFM Model
                         for label_conf in label_conf_list:
                             if label_conf['task_type'] == "classification":
-                                feat_conf["transform"]["target_col"] = label_conf["label_col"] 
+                                feat_conf["transform"]["target_col"] = label_conf["label_col"]
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
@@ -1020,8 +1020,8 @@ def verify_confs(confs):
         confs["is_homogeneous"] = False
 
     # Add target column to tabularFM transform
-    verify_tabularFM_transformation_confs(confs, "nodes")
-    verify_tabularFM_transformation_confs(confs, "edges")
+    verify_tabularfm_transformation_confs(confs, "nodes")
+    verify_tabularfm_transformation_confs(confs, "edges")
 
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
