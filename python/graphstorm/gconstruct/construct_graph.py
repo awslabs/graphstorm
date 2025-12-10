@@ -936,49 +936,63 @@ def is_homogeneous(confs):
     etypes = set(tuple(conf['relation']) for conf in confs["edges"])
     return len(ntypes) == 1 and len(etypes) == 1
 
-def verify_tabularfm_transformation_confs(confs, metatype):
+def verify_tabularfm_transformation_confs(confs, entity_type):
     """ Verify the tabularFM feature transformation
     Parameter
     ----------
     confs: dict
         A dict containing the node/edge type config
-    metatype: str
+    entity_type: str
         Node/Edge
     """
-    for type_conf in confs[metatype]:
+    for type_conf in confs[entity_type]:
         tabular_transformation_count = sum(
             1
             for feat_conf in type_conf.get("features", [])
             if feat_conf.get("transform", {}).get("name") == "tabular"
         )
 
+        # Initialize defaults to avoid "possibly undefined" errors (Pylint W0631)
+        type_name = "" 
+        
         if tabular_transformation_count > 1:
-            if type == "nodes":
+            if entity_type == "nodes":
                 type_name = type_conf["node_type"]
-            elif type == "edges":
-                type_name = type_conf['relation'].join(":")
+            elif entity_type == "edges":
+                type_name = ":".join(type_conf['relation'])
             else:
-                raise ValueError(f"Not valid type name {type} for \
-                    tabularFM verification function")
-            logging.warning("There are two tabular foundation model embedding transform \
-                in node type %s, both of which will generate the same embedding",
-                type_name)
+                raise ValueError(
+                    f"Not valid type name {entity_type} for "
+                    "tabularFM verification function"
+                )
 
-        label_conf_list = type_conf["labels"] if "labels" in type_conf else []
+            logging.warning(
+                "There are two tabular foundation model embedding transforms "
+                "in node type %s, both of which will generate the same embedding",
+                type_name
+            )
+
+        label_conf_list = type_conf.get("labels", [])
+
         if "features" in type_conf:
             for feat_conf in type_conf["features"]:
-                # Assign target column if target column is not in
-                # current feature transformation
-                if 'transform' in feat_conf and \
-                    feat_conf['transform']["name"] == "tabular" and \
-                    'target_col' not in feat_conf['transform']:
-                        if not label_conf_list:
-                            raise ValueError(f"Not found target_col defined \
-                                in unlabeled {type} {type_name}")
-                        # Assign the first classification column to the TabularFM Model
-                        for label_conf in label_conf_list:
-                            if label_conf['task_type'] == "classification":
-                                feat_conf["transform"]["target_col"] = label_conf["label_col"]
+                transform = feat_conf.get("transform")
+                
+                # Using parentheses fixes the Bad Indentation (W0311)
+                if (
+                    transform
+                    and transform.get("name") == "tabular"
+                    and "target_col" not in transform
+                ):
+                    if not label_conf_list:
+                        raise ValueError(
+                            f"Not found target_col defined in unlabeled "
+                            f"{entity_type} {type_name}"
+                        )
+
+                    for label_conf in label_conf_list:
+                        if label_conf["task_type"] == "classification":
+                            feat_conf["transform"]["target_col"] = label_conf["label_col"]
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
