@@ -284,7 +284,7 @@ def process_json_payload_nodes(gconstruct_node_conf_list, payload_node_conf_list
         node_type = node_conf["node_type"]
         node_ids = np.array(node_conf["node_id"])
         gconstruct_node_conf = get_gconstruct_conf(gconstruct_node_conf_list, node_type, "Node")
-        (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
+        (feat_ops, _, _, _) = \
             parse_feat_ops(gconstruct_node_conf["features"],
                            gconstruct_node_conf["format"]["name"]) \
                 if 'features' in gconstruct_node_conf else (None, [], {}, [])
