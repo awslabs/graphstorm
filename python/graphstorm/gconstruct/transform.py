@@ -36,6 +36,11 @@ import pandas as pd
 from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
+# Auto-Tabular feature encoding
+from autogluon.tabular import TabularPredictor
+from autogluon.tabular.models.mitra._internal.data.dataset_finetune import DatasetFinetune
+from autogluon.tabular.models.mitra._internal.config.enums import Task, LossName, ModelName
+from autogluon.tabular.models.mitra._internal.core.trainer_finetune import CollatorWithPadding
 
 from .file_io import read_index
 from .utils import (ExtMemArrayWrapper,
@@ -43,11 +48,6 @@ from .utils import (ExtMemArrayWrapper,
                     generate_hash,
                     validate_features,
                     validate_numerical_feats)
-
-from autogluon.tabular import TabularPredictor
-from autogluon.tabular.models.mitra._internal.data.dataset_finetune import DatasetFinetune
-from autogluon.tabular.models.mitra._internal.config.enums import Task, LossName, ModelName
-from autogluon.tabular.models.mitra._internal.core.trainer_finetune import CollatorWithPadding
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
@@ -1353,7 +1353,7 @@ class TabularFMTransform(FeatTransform):
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(TabularFMTransform, self).__init__(col_name, feat_name, out_dtype)
         assert self.out_dtype is not None
-        self.tabularFMPredictor = TabularPredictor(label=target_col, problem_type='multiclass')
+        self.tabular_fm_predictor = TabularPredictor(label=target_col, problem_type='multiclass')
 
         if th.cuda.is_available():
             self.device = f"cuda"
@@ -1396,9 +1396,9 @@ class TabularFMTransform(FeatTransform):
 
     def inference_embedding(self, feats_df):
         """Generate embeddings from a trained Mitra predictor"""
-        if self.tabularFMPredictor.transform_features is not None:
-            feats = self.tabularFMPredictor._learner.transform_features(feats_df)
-        tabularFMTrainer = self.tabularFMPredictor._learner.load_trainer()
+        if self.tabular_fm_predictor.transform_features is not None:
+            feats_df = self.tabular_fm_predictor._learner.transform_features(feats_df)
+        tabularFMTrainer = self.tabular_fm_predictor._learner.load_trainer()
         ensemble_model = tabularFMTrainer.load_model("Mitra")
         feats_df = ensemble_model.preprocess(feats_df)
         model = ensemble_model.model
@@ -1413,16 +1413,16 @@ class TabularFMTransform(FeatTransform):
         y_support_transformed = trainer.preprocessor.transform_y(y_support)
         x_query_transformed = trainer.preprocessor.transform_X(x_query)
 
-        dataset = DatasetFinetune(                                                         
-            trainer.cfg,                                                                
+        dataset = DatasetFinetune(                                               
+            trainer.cfg,                                                      
             x_support=x_support_transformed,
-            y_support=y_support_transformed,                      
+            y_support=y_support_transformed,           
             x_query=x_query_transformed,
             y_query=None,
             max_samples_support=trainer.cfg.hyperparams['max_samples_support'],
             max_samples_query=trainer.cfg.hyperparams['max_samples_query'],
             rng=trainer.rng,
-        )      
+        )  
 
         loader = th.utils.data.DataLoader(
             dataset,
@@ -1444,7 +1444,7 @@ class TabularFMTransform(FeatTransform):
         file_counter = 0
         temp_files = []
 
-        with th.no_grad():                                                         
+        with th.no_grad():                                           
             for batch_idx, batch in enumerate(
                 tqdm(loader, desc="Processing batches for mitra embeddings")
             ):
@@ -1452,16 +1452,19 @@ class TabularFMTransform(FeatTransform):
                 hooks = self.register_hooks_for_embeddings(
                     trainer.model, cached_hidden_embeddings, ['final_layer_norm']
                 )
-                
+
                 try:
-                    with th.autocast(device_type=self.device, 
+                    with th.autocast(device_type=self.device,
                                     dtype=getattr(th, trainer.cfg.hyperparams['precision'])):
                         x_s = batch['x_support'].to(self.device, non_blocking=True)
                         y_s = batch['y_support'].to(self.device, non_blocking=True)
                         x_q = batch['x_query'].to(self.device, non_blocking=True)
-                        padding_features = batch['padding_features'].to(self.device, non_blocking=True)
-                        padding_obs_support = batch['padding_obs_support'].to(self.device, non_blocking=True)
-                        padding_obs_query = batch['padding_obs_query'].to(self.device, non_blocking=True)
+                        padding_features = batch['padding_features'].to(self.device, 
+                                                                        non_blocking=True)
+                        padding_obs_support = batch['padding_obs_support'].to(self.device, 
+                                                                        non_blocking=True)
+                        padding_obs_query = batch['padding_obs_query'].to(self.device,
+                                                                        non_blocking=True)
                         
                         if trainer.cfg.task == Task.REGRESSION and trainer.cfg.hyperparams['regression_loss'] == LossName.CROSS_ENTROPY:
                             y_s = th.bucketize(y_s, trainer.bins) - 1
@@ -1535,7 +1538,7 @@ class TabularFMTransform(FeatTransform):
                 result[k] = arr
 
         feats_df = pd.DataFrame(result)
-        self.tabularFMPredictor.fit(
+        self.tabular_fm_predictor.fit(
             feats_df, 
             hyperparameters={
                 "MITRA": {
