@@ -5,6 +5,8 @@ pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com pylibwholeg
 
 set -ex
 
+python3 -m pip install autogluon.tabular[mitra]==1.4.0 einops==0.8.1
+
 sh ./tests/end2end-tests/setup.sh
 sh ./tests/end2end-tests/create_data.sh
 bash ./tests/end2end-tests/graphstorm-lp/mgpu_test.sh
