@@ -1356,12 +1356,13 @@ class TabularFMTransform(FeatTransform):
         self.tabular_fm_predictor = TabularPredictor(label=target_col, problem_type='multiclass')
 
         if th.cuda.is_available():
-            self.device = f"cuda"
+            self.device = "cuda"
         else:
             self.device = "cpu"
 
     def save_input_embeddings_hook(self, name, hidden_embeddings_container):
         """Create a hook function that captures intermediate representations"""
+        # pylint: disable=unused-argument
         def hook_fn(module, inp, out):
             if th.is_tensor(inp):
                 hidden_embeddings_container[name] = inp.detach().cpu()
@@ -1444,7 +1445,7 @@ class TabularFMTransform(FeatTransform):
         file_counter = 0
         temp_files = []
 
-        with th.no_grad():                                           
+        with th.no_grad():
             for batch_idx, batch in enumerate(
                 tqdm(loader, desc="Processing batches for mitra embeddings")
             ):
@@ -1459,9 +1460,9 @@ class TabularFMTransform(FeatTransform):
                         x_s = batch['x_support'].to(self.device, non_blocking=True)
                         y_s = batch['y_support'].to(self.device, non_blocking=True)
                         x_q = batch['x_query'].to(self.device, non_blocking=True)
-                        padding_features = batch['padding_features'].to(self.device, 
+                        padding_features = batch['padding_features'].to(self.device,
                                                                         non_blocking=True)
-                        padding_obs_support = batch['padding_obs_support'].to(self.device, 
+                        padding_obs_support = batch['padding_obs_support'].to(self.device,
                                                                         non_blocking=True)
                         padding_obs_query = batch['padding_obs_query'].to(self.device,
                                                                         non_blocking=True)
@@ -1469,15 +1470,16 @@ class TabularFMTransform(FeatTransform):
                         if trainer.cfg.task == Task.REGRESSION and \
                             trainer.cfg.hyperparams['regression_loss'] == LossName.CROSS_ENTROPY:
                             y_s = th.bucketize(y_s, trainer.bins) - 1
-                            y_s = th.clamp(y_s, 0, trainer.cfg.hyperparams['dim_output']-1).to(th.int64)
-                        
+                            y_s = th.clamp(y_s, 0, 
+                                trainer.cfg.hyperparams['dim_output']-1).to(th.int64)
+
                         if trainer.cfg.model_name == ModelName.TABPFN:
                             _ = trainer.model(x_s, y_s, x_q, task=trainer.cfg.task).squeeze(-1)
-                        elif trainer.cfg.model_name in [ModelName.TAB2D, 
+                        elif trainer.cfg.model_name in [ModelName.TAB2D,
                                                     ModelName.TAB2D_COL_ROW, ModelName.TAB2D_SDPA]:
-                            _ = trainer.model(x_s, y_s, x_q, padding_features, 
+                            _ = trainer.model(x_s, y_s, x_q, padding_features,
                                             padding_obs_support, padding_obs_query)
-                            
+
                     if 'final_layer_norm' in cached_hidden_embeddings.keys():
                         embedding_slice = \
                             cached_hidden_embeddings['final_layer_norm'][0][0, :, 0]\
@@ -1488,26 +1490,28 @@ class TabularFMTransform(FeatTransform):
 
                         embeddings.append(embedding_slice.astype(np.float32))
                         avg_embeddings.append(avg_embedding_slice.astype(np.float32))
-                        
+
                         if len(embeddings) >= save_interval:
-                            temp_emb_file = os.path.join(save_dir, f'embeddings_part_{file_counter}.npy')
-                            temp_avg_file = os.path.join(save_dir, f'avg_embeddings_part_{file_counter}.npy')
-                            
+                            temp_emb_file = os.path.join(save_dir, 
+                                            f'embeddings_part_{file_counter}.npy')
+                            temp_avg_file = os.path.join(save_dir, 
+                                            f'avg_embeddings_part_{file_counter}.npy')
+
                             try:
                                 np.save(temp_emb_file, np.concatenate(embeddings, axis=0))
                                 np.save(temp_avg_file, np.concatenate(avg_embeddings, axis=0))
                             except ValueError:
                                 np.save(temp_emb_file, np.vstack(embeddings))
                                 np.save(temp_avg_file, np.vstack(avg_embeddings))
-                            
+
                             temp_files.append((temp_emb_file, temp_avg_file))
                             file_counter += 1
                             embeddings = []
                             avg_embeddings = []
                             gc.collect()
-                        
+
                         del cached_hidden_embeddings['final_layer_norm']
-                    
+
                 finally:
                     for hook in hooks:
                         hook.remove()
@@ -1515,7 +1519,7 @@ class TabularFMTransform(FeatTransform):
                     if batch_idx % 10 == 0:
                         th.cuda.empty_cache()
                         gc.collect()
-            
+
             th.cuda.empty_cache()
             gc.collect()
 
@@ -1593,7 +1597,7 @@ def parse_feat_ops(confs, input_data_format=None):
                 "feature column should not be empty"
         else:
             feat['feature_col'] = None
-            assert 'feature_name' in feat, ("The feature 'feature_name' is missing. " 
+            assert 'feature_name' in feat, ("The feature 'feature_name' is missing. "
                 "It must be defined for tabular model transformation")
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
 
