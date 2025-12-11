@@ -1470,7 +1470,7 @@ class TabularFMTransform(FeatTransform):
                         if trainer.cfg.task == Task.REGRESSION and \
                             trainer.cfg.hyperparams['regression_loss'] == LossName.CROSS_ENTROPY:
                             y_s = th.bucketize(y_s, trainer.bins) - 1
-                            y_s = th.clamp(y_s, 0, 
+                            y_s = th.clamp(y_s, 0,
                                 trainer.cfg.hyperparams['dim_output']-1).to(th.int64)
 
                         if trainer.cfg.model_name == ModelName.TABPFN:
