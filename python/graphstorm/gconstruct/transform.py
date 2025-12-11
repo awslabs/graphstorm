@@ -1398,8 +1398,8 @@ class TabularFMTransform(FeatTransform):
         """Generate embeddings from a trained Mitra predictor"""
         if self.tabular_fm_predictor.transform_features is not None:
             feats_df = self.tabular_fm_predictor._learner.transform_features(feats_df)
-        tabularFMTrainer = self.tabular_fm_predictor._learner.load_trainer()
-        ensemble_model = tabularFMTrainer.load_model("Mitra")
+        tabular_fm_trainer = self.tabular_fm_predictor._learner.load_trainer()
+        ensemble_model = tabular_fm_trainer.load_model("Mitra")
         feats_df = ensemble_model.preprocess(feats_df)
         model = ensemble_model.model
 
@@ -1413,16 +1413,16 @@ class TabularFMTransform(FeatTransform):
         y_support_transformed = trainer.preprocessor.transform_y(y_support)
         x_query_transformed = trainer.preprocessor.transform_X(x_query)
 
-        dataset = DatasetFinetune(                                
-            trainer.cfg,                    
+        dataset = DatasetFinetune(
+            trainer.cfg,
             x_support=x_support_transformed,
-            y_support=y_support_transformed, 
+            y_support=y_support_transformed,
             x_query=x_query_transformed,
             y_query=None,
             max_samples_support=trainer.cfg.hyperparams['max_samples_support'],
             max_samples_query=trainer.cfg.hyperparams['max_samples_query'],
             rng=trainer.rng,
-        )  
+        )
 
         loader = th.utils.data.DataLoader(
             dataset,
@@ -1465,20 +1465,27 @@ class TabularFMTransform(FeatTransform):
                                                                         non_blocking=True)
                         padding_obs_query = batch['padding_obs_query'].to(self.device,
                                                                         non_blocking=True)
-                        
-                        if trainer.cfg.task == Task.REGRESSION and trainer.cfg.hyperparams['regression_loss'] == LossName.CROSS_ENTROPY:
+
+                        if trainer.cfg.task == Task.REGRESSION and \
+                            trainer.cfg.hyperparams['regression_loss'] == LossName.CROSS_ENTROPY:
                             y_s = th.bucketize(y_s, trainer.bins) - 1
                             y_s = th.clamp(y_s, 0, trainer.cfg.hyperparams['dim_output']-1).to(th.int64)
                         
                         if trainer.cfg.model_name == ModelName.TABPFN:
                             _ = trainer.model(x_s, y_s, x_q, task=trainer.cfg.task).squeeze(-1)
-                        elif trainer.cfg.model_name in [ModelName.TAB2D, ModelName.TAB2D_COL_ROW, ModelName.TAB2D_SDPA]:
-                            _ = trainer.model(x_s, y_s, x_q, padding_features, padding_obs_support, padding_obs_query)
+                        elif trainer.cfg.model_name in [ModelName.TAB2D, 
+                                                    ModelName.TAB2D_COL_ROW, ModelName.TAB2D_SDPA]:
+                            _ = trainer.model(x_s, y_s, x_q, padding_features, 
+                                            padding_obs_support, padding_obs_query)
                             
                     if 'final_layer_norm' in cached_hidden_embeddings.keys():
-                        embedding_slice = cached_hidden_embeddings['final_layer_norm'][0][0, :, 0].detach().cpu().numpy()
-                        avg_embedding_slice = cached_hidden_embeddings['final_layer_norm'][0][0, :, 1:].detach().mean(dim=-1).cpu().numpy()
-                        
+                        embedding_slice = \
+                            cached_hidden_embeddings['final_layer_norm'][0][0, :, 0]\
+                                .detach().cpu().numpy()
+                        avg_embedding_slice = \
+                            cached_hidden_embeddings['final_layer_norm'][0][0, :, 1:]\
+                                .detach().mean(dim=-1).cpu().numpy()
+
                         embeddings.append(embedding_slice.astype(np.float32))
                         avg_embeddings.append(avg_embedding_slice.astype(np.float32))
                         
