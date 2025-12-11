@@ -1480,7 +1480,7 @@ class TabularFMTransform(FeatTransform):
                             _ = trainer.model(x_s, y_s, x_q, padding_features,
                                             padding_obs_support, padding_obs_query)
 
-                    if 'final_layer_norm' in cached_hidden_embeddings.keys():
+                    if 'final_layer_norm' in cached_hidden_embeddings:
                         embedding_slice = \
                             cached_hidden_embeddings['final_layer_norm'][0][0, :, 0]\
                                 .detach().cpu().numpy()
@@ -1492,9 +1492,9 @@ class TabularFMTransform(FeatTransform):
                         avg_embeddings.append(avg_embedding_slice.astype(np.float32))
 
                         if len(embeddings) >= save_interval:
-                            temp_emb_file = os.path.join(save_dir, 
+                            temp_emb_file = os.path.join(save_dir,
                                             f'embeddings_part_{file_counter}.npy')
-                            temp_avg_file = os.path.join(save_dir, 
+                            temp_avg_file = os.path.join(save_dir,
                                             f'avg_embeddings_part_{file_counter}.npy')
 
                             try:
@@ -1550,7 +1550,7 @@ class TabularFMTransform(FeatTransform):
 
         feats_df = pd.DataFrame(result)
         self.tabular_fm_predictor.fit(
-            feats_df, 
+            feats_df,
             hyperparameters={
                 "MITRA": {
                     "fine_tune": False,

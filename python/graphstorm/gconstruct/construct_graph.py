@@ -945,6 +945,7 @@ def verify_tabularfm_transformation_confs(confs, entity_type):
     entity_type: str
         Node/Edge
     """
+    # pylint: disable=too-many-nested-blocks
     for type_conf in confs[entity_type]:
         tabular_transformation_count = sum(
             1
