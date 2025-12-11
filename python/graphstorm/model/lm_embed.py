@@ -41,7 +41,7 @@ from .utils import (
 from ..utils import get_rank, get_world_size, create_dist_tensor
 from ..wholegraph import WholeGraphDistTensor
 from ..distributed import flush_data
-from ..config.config import GS_LM_FEATURE_KEY
+from ..config.config import GS_LM_FEATURE_KEY, GS_LE_FEATURE_KEY
 
 class LMModels(nn.Module):
     """ LM model collection
@@ -1056,6 +1056,10 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer4GraphF
                     nfeat_w_lm_emb[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
                 nfeat_w_lm_emb[ntype] = lm_feat
+
+        # add learnable embedding (if contains) to output dict for downstream forward()
+        if GS_LE_FEATURE_KEY in input_feats:
+            nfeat_w_lm_emb[GS_LE_FEATURE_KEY] = input_feats[GS_LE_FEATURE_KEY]
 
         return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).\
                 forward(nfeat_w_lm_emb, input_nodes)

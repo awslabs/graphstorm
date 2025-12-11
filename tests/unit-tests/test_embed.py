@@ -1113,8 +1113,9 @@ def test_LM_learnable_rt_layer(dev, bert_model_name):
     g.nodes['n0'].data[TOKEN_IDX] = input_ids
     g.nodes['n0'].data[ATT_MASK_IDX] = attention_mask
 
+    embed_size = 2
     layer = GSLMNodeEncoderInputLayer4GraphFromMetaData(g, 
-                    lm_config, feat_size, 2)
+                    lm_config, feat_size, embed_size)
     layer = layer.to(dev)
 
     hf_model = AutoModel.from_pretrained(bert_model_name)
@@ -1158,9 +1159,85 @@ def test_LM_learnable_rt_layer(dev, bert_model_name):
         input_nodes['n0'] = input_nodes['n0'].to(dev)
         emb_out = layer(feat, input_nodes)
 
-        assert emb_out["n0"].shape[1] == 2
+        assert emb_out["n0"].shape[1] == embed_size
         assert_almost_equal(emb_out['n0'].detach().cpu().numpy(),
                             embed_n0.detach().cpu().numpy())
+
+    # Test case for 0.5.1: extending GSLMNodeEncoderInputLayer4GraphFromMetaData class from
+    # GSNodeEncoderInputLayer4GraphFromMetaData, instead of GSNodeEncoderInputLayer, hence
+    # the GSLMNodeEncoderInputLayer4GraphFromMetaData need to pass the learnable embedding to
+    # its parent class forward()
+
+    # set learnable embeddings to n1 nodes
+    g.nodes['n1'].data[GS_LE_FEATURE_KEY] = th.tensor(np.random.rand(
+                                  g.num_nodes('n1'), embed_size), dtype=th.float).to(dev)
+
+    feat_field={'n0' : ["feat"]}    # Use n0 feat, but not n1. So n1 will use learnable embeddings
+    feat_size = get_node_feat_size(g, feat_field)
+
+    num_nodes = 10
+    input_nodes = {"n0": th.arange(0, num_nodes, dtype=th.int64),
+                   "n1": th.arange(0, num_nodes, dtype=th.int64)}
+    input_feat = prepare_batch_input(g, input_nodes, dev=dev, 
+                    feat_field=feat_field, lm_ntypes=['n0'])
+
+    layer = GSLMNodeEncoderInputLayer4GraphFromMetaData(g, 
+                    lm_config, feat_size, embed_size)
+    layer = layer.to(dev)
+
+    assert 'n0' in layer.input_projs and 'n1' not in layer.input_projs
+    assert 'n0' not in layer.proj_matrix and 'n1' in layer.proj_matrix
+    assert layer.input_projs['n0'].shape == (feat_size['n0'] + 768, embed_size)
+    assert layer.proj_matrix['n1'].shape == (embed_size, embed_size)
+
+    outputs = layer(input_feat, input_nodes)  # forward() with lm and le features
+
+    assert len(outputs) == 2    # only contains n0 and n1 two fields
+    assert 'n0' in outputs and 'n1' in outputs
+    assert outputs['n0'].shape == (num_nodes, embed_size)
+    assert outputs['n1'].shape == (num_nodes, embed_size)
+    # not do computation accuracy check here because the parent class has the corresponding tests
+
+    # force to use learnable embeddings on both n0 and n1
+    g.nodes['n0'].data[GS_LE_FEATURE_KEY] = th.tensor(np.random.rand(
+                                  g.num_nodes('n0'), embed_size), dtype=th.float).to(dev)
+    g.nodes['n1'].data[GS_LE_FEATURE_KEY] = th.tensor(np.random.rand(
+                                  g.num_nodes('n1'), embed_size), dtype=th.float).to(dev)
+
+    feat_field={'n0' : ["feat"]}    # Use n0 feat, but not n1.
+    feat_size = get_node_feat_size(g, feat_field)
+
+    num_nodes = 10
+    input_nodes = {"n0": th.arange(0, num_nodes, dtype=th.int64),
+                   "n1": th.arange(0, num_nodes, dtype=th.int64)}
+    input_feat = prepare_batch_input(g, input_nodes, dev=dev, 
+                    feat_field=feat_field, lm_ntypes=['n0'])
+
+    # enforce all node types to use node embeddings
+    layer = GSLMNodeEncoderInputLayer4GraphFromMetaData(g, 
+                    lm_config, feat_size, embed_size, use_node_embeddings=True)
+    layer = layer.to(dev)
+
+    assert 'n0' in layer.input_projs and 'n1' not in layer.input_projs
+    assert 'n0' in layer.proj_matrix and 'n1' in layer.proj_matrix
+    assert layer.input_projs['n0'].shape == (feat_size['n0'] + 768, embed_size)
+    assert layer.proj_matrix['n0'].shape == (2*embed_size, embed_size)
+    assert layer.proj_matrix['n1'].shape == (embed_size, embed_size)
+
+    outputs = layer(input_feat, input_nodes)  # forward() with lm and le features
+
+    assert len(outputs) == 2    # only contains n0 and n1 two fields
+    assert 'n0' in outputs and 'n1' in outputs
+    assert outputs['n0'].shape == (num_nodes, embed_size)
+    assert outputs['n1'].shape == (num_nodes, embed_size)
+
+    # remove learnable embedding from n0
+    g.nodes['n1'].data.pop(GS_LE_FEATURE_KEY)
+    input_feat = prepare_batch_input(g, input_nodes, dev=dev, 
+                    feat_field=feat_field, lm_ntypes=['n0'])
+    # the model will raise an error, asking for learnable embedding on n1
+    with pytest.raises(AssertionError, match="The learnable embeddings"):
+        _ = layer(input_feat, input_nodes)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1390,5 +1467,6 @@ def test_input_layer4metadatagraph(dev):
 
 
 if __name__ == '__main__':
-    # test_pure_learnable_input_layer4metadatagraph('cpu')
+    test_LM_learnable_rt_layer('cpu', 'bert-base-uncased')
+    test_pure_learnable_input_layer4metadatagraph('cpu')
     test_input_layer4metadatagraph('cpu')
