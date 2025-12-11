@@ -388,8 +388,10 @@ class GATEncoder(GraphConvEncoder):
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         if self.edge_feat_name is not None:
-            assert edge_feats is not None,\
-             f"edge features for {DEFAULT_ETYPE} should not be None"
+            assert DEFAULT_ETYPE in self.edge_feat_name, \
+                f"edge_feat_name should contain {DEFAULT_ETYPE} for homogeneous graphs"
+            assert edge_feats is not None, \
+                f"edge features for {DEFAULT_ETYPE} should not be None"
 
         # Add assertion check consistent with RGCN
         if edge_feats is not None:
