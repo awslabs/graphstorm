@@ -16,6 +16,7 @@
 import os
 import multiprocessing as mp
 import pytest
+import copy
 from unittest.mock import patch
 import torch as th
 from torch import nn
@@ -30,13 +31,15 @@ from transformers import AutoTokenizer, AutoModel
 import graphstorm as gs
 from graphstorm import get_node_feat_size, get_edge_feat_size
 from graphstorm.config import FeatureGroup
-from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
+from graphstorm.config.config import TOKEN_IDX, ATT_MASK_IDX, GS_LE_FEATURE_KEY
 from graphstorm.model import (GSPureLearnableInputLayer,
                               GSNodeEncoderInputLayer,
                               GSEdgeEncoderInputLayer,
                               GSLMNodeEncoderInputLayer,
                               GSPureLMNodeInputLayer,
-                              GSLMNodeEncoderInputLayer4GraphFromMetaData)
+                              GSLMNodeEncoderInputLayer4GraphFromMetaData,
+                              GSPureLearnableInputLayer4GraphFromMetaData,
+                              GSNodeEncoderInputLayer4GraphFromMetadata)
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm.model.lm_embed import LMModels, LMCache
@@ -45,12 +48,12 @@ from graphstorm.model.utils import (LazyDistTensor,
                                     save_pytorch_embedding)
 from graphstorm.wholegraph import init_wholegraph
 
-from data_utils import (generate_dummy_dist_graph, 
-                    create_lm_learnable_model_dict_rt,
-                    load_weights_to_layer,
-                    create_lm_graph,
-                    create_lm_graph2,
-                    load_lm_graph)
+from data_utils import (generate_dummy_dist_graph,
+                        create_lm_learnable_model_dict_rt,
+                        load_weights_to_layer,
+                        create_lm_graph,
+                        create_lm_graph2,
+                        load_lm_graph)
 from util import create_tokens
 
 # In this case, we only use the node features to generate node embeddings.
@@ -83,8 +86,8 @@ def test_input_layer1(input_activate):
     assert len(embed) == len(input_nodes)
     assert len(embed) == len(node_feat)
     for ntype in embed:
-        assert_almost_equal(embed[ntype].detach().numpy(),
-                            node_feat[ntype].detach().numpy())
+        assert_almost_equal(embed[ntype].detach().cpu().numpy(),
+                            node_feat[ntype].detach().cpu().numpy())
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -124,8 +127,8 @@ def test_input_layer2():
     assert len(embed) == len(input_nodes)
     assert len(embed) == len(node_feat)
     for ntype in embed:
-        true_val = node_feat[ntype].detach().numpy() + node_embs[ntype].detach().numpy()
-        assert_almost_equal(embed[ntype].detach().numpy(), true_val)
+        true_val = node_feat[ntype].detach().cpu().numpy() + node_embs[ntype].detach().cpu().numpy()
+        assert_almost_equal(embed[ntype].detach().cpu().numpy(), true_val)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1110,8 +1113,9 @@ def test_LM_learnable_rt_layer(dev, bert_model_name):
     g.nodes['n0'].data[TOKEN_IDX] = input_ids
     g.nodes['n0'].data[ATT_MASK_IDX] = attention_mask
 
+    embed_size = 2
     layer = GSLMNodeEncoderInputLayer4GraphFromMetaData(g, 
-                    lm_config, feat_size, 2)
+                    lm_config, feat_size, embed_size)
     layer = layer.to(dev)
 
     hf_model = AutoModel.from_pretrained(bert_model_name)
@@ -1155,9 +1159,314 @@ def test_LM_learnable_rt_layer(dev, bert_model_name):
         input_nodes['n0'] = input_nodes['n0'].to(dev)
         emb_out = layer(feat, input_nodes)
 
-        assert emb_out["n0"].shape[1] == 2
+        assert emb_out["n0"].shape[1] == embed_size
         assert_almost_equal(emb_out['n0'].detach().cpu().numpy(),
                             embed_n0.detach().cpu().numpy())
 
+    # Test case for 0.5.1: extending GSLMNodeEncoderInputLayer4GraphFromMetaData class from
+    # GSNodeEncoderInputLayer4GraphFromMetaData, instead of GSNodeEncoderInputLayer, hence
+    # the GSLMNodeEncoderInputLayer4GraphFromMetaData need to pass the learnable embedding to
+    # its parent class forward()
+
+    # set learnable embeddings to n1 nodes
+    g.nodes['n1'].data[GS_LE_FEATURE_KEY] = th.tensor(np.random.rand(
+                                  g.num_nodes('n1'), embed_size), dtype=th.float).to(dev)
+
+    feat_field={'n0' : ["feat"]}    # Use n0 feat, but not n1. So n1 will use learnable embeddings
+    feat_size = get_node_feat_size(g, feat_field)
+
+    num_nodes = 10
+    input_nodes = {"n0": th.arange(0, num_nodes, dtype=th.int64),
+                   "n1": th.arange(0, num_nodes, dtype=th.int64)}
+    input_feat = prepare_batch_input(g, input_nodes, dev=dev, 
+                    feat_field=feat_field, lm_ntypes=['n0'])
+
+    layer = GSLMNodeEncoderInputLayer4GraphFromMetaData(g, 
+                    lm_config, feat_size, embed_size)
+    layer = layer.to(dev)
+
+    assert 'n0' in layer.input_projs and 'n1' not in layer.input_projs
+    assert 'n0' not in layer.proj_matrix and 'n1' in layer.proj_matrix
+    assert layer.input_projs['n0'].shape == (feat_size['n0'] + 768, embed_size)
+    assert layer.proj_matrix['n1'].shape == (embed_size, embed_size)
+
+    outputs = layer(input_feat, input_nodes)  # forward() with lm and le features
+
+    assert len(outputs) == 2    # only contains n0 and n1 two fields
+    assert 'n0' in outputs and 'n1' in outputs
+    assert outputs['n0'].shape == (num_nodes, embed_size)
+    assert outputs['n1'].shape == (num_nodes, embed_size)
+    # not do computation accuracy check here because the parent class has the corresponding tests
+
+    # force to use learnable embeddings on both n0 and n1
+    g.nodes['n0'].data[GS_LE_FEATURE_KEY] = th.tensor(np.random.rand(
+                                  g.num_nodes('n0'), embed_size), dtype=th.float).to(dev)
+    g.nodes['n1'].data[GS_LE_FEATURE_KEY] = th.tensor(np.random.rand(
+                                  g.num_nodes('n1'), embed_size), dtype=th.float).to(dev)
+
+    feat_field={'n0' : ["feat"]}    # Use n0 feat, but not n1.
+    feat_size = get_node_feat_size(g, feat_field)
+
+    num_nodes = 10
+    input_nodes = {"n0": th.arange(0, num_nodes, dtype=th.int64),
+                   "n1": th.arange(0, num_nodes, dtype=th.int64)}
+    input_feat = prepare_batch_input(g, input_nodes, dev=dev, 
+                    feat_field=feat_field, lm_ntypes=['n0'])
+
+    # enforce all node types to use node embeddings
+    layer = GSLMNodeEncoderInputLayer4GraphFromMetaData(g, 
+                    lm_config, feat_size, embed_size, use_node_embeddings=True)
+    layer = layer.to(dev)
+
+    assert 'n0' in layer.input_projs and 'n1' not in layer.input_projs
+    assert 'n0' in layer.proj_matrix and 'n1' in layer.proj_matrix
+    assert layer.input_projs['n0'].shape == (feat_size['n0'] + 768, embed_size)
+    assert layer.proj_matrix['n0'].shape == (2*embed_size, embed_size)
+    assert layer.proj_matrix['n1'].shape == (embed_size, embed_size)
+
+    outputs = layer(input_feat, input_nodes)  # forward() with lm and le features
+
+    assert len(outputs) == 2    # only contains n0 and n1 two fields
+    assert 'n0' in outputs and 'n1' in outputs
+    assert outputs['n0'].shape == (num_nodes, embed_size)
+    assert outputs['n1'].shape == (num_nodes, embed_size)
+
+    # remove learnable embedding from n0
+    g.nodes['n1'].data.pop(GS_LE_FEATURE_KEY)
+    input_feat = prepare_batch_input(g, input_nodes, dev=dev, 
+                    feat_field=feat_field, lm_ntypes=['n0'])
+    # the model will raise an error, asking for learnable embedding on n1
+    with pytest.raises(AssertionError, match="The learnable embeddings"):
+        _ = layer(input_feat, input_nodes)
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_pure_learnable_input_layer4metadatagraph(dev):
+    """ Test the ``GSPureLearnableInputLayer4GraphFromMetaData`` class
+    
+    Although the ``GSPureLearnableInputLayer4GraphFromMetaData`` class is designed for graphs
+    from graph metadata, it also works for distributed graphs. Here we only test it using the
+    distributed graphs for simplicity.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    embed_size = 10
+    layer = GSPureLearnableInputLayer4GraphFromMetaData(g, embed_size)
+
+    # normal case 1: all node types have empty tensors used for sparse embeddings
+    assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
+    assert all(th.all(value==0) for value in layer.sparse_embeds.values())
+    assert all(value.shape==(0, embed_size) for value in layer.sparse_embeds.values())
+
+    # normal case 2: inputs and outputs of the forward() function should be the same.
+    input_feats = {}
+    input_nodes = {}
+    embeds = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+        embeds[ntype] = th.from_numpy(np.random.rand(10, embed_size)).to(dev)
+    input_feats[GS_LE_FEATURE_KEY] = embeds
+
+    layer = layer.to(dev)
+    outputs = layer(input_feats, input_nodes)
+    assert len(outputs) == len(embeds)
+
+    # abnormal case: input features do not include the GS_LE_FEATURE_KEY embeddings
+    # 1. no GS_LE_FEATURE_KEY at all
+    with pytest.raises(AssertionError, match="The input features should"):
+        _ = layer({}, input_nodes)
+
+    # 2. GS_LE_FEATURE_KEY values do not include all node types that should have embeddings
+    input_feats[GS_LE_FEATURE_KEY].pop('n1')
+    with pytest.raises(AssertionError, match="The learnable embeddings"):
+        _ = layer(input_feats, input_nodes)
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_input_layer4metadatagraph(dev):
+    """ Test the ``GSNodeEncoderInputLayer4GraphFromMetadata`` class
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    embed_size = 10
+
+    # normal cases for initialization
+    # 1. force to use learnable embedding
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
+    assert all(th.all(value==0) for value in layer.sparse_embeds.values())
+    assert all(value.shape==(0, embed_size) for value in layer.sparse_embeds.values())
+
+    # 2. set n1 type featureless to use learnable embedding
+    feat_size = get_node_feat_size(g, 'feat1')   # feat_size = 4 for 'feat1' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+    assert not 'n0' in layer.sparse_embeds
+    assert 'n1' in layer.sparse_embeds
+    assert th.all(layer.sparse_embeds['n1']== 0)
+    assert layer.sparse_embeds['n1'].shape==(0, embed_size)
+
+    # 3. set n1 type featureless to use learnable embedding, and enforce to use embedding
+    feat_size = get_node_feat_size(g, 'feat1')   # feat_size = 4 for 'feat1' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
+    assert all(th.all(value==0) for value in layer.sparse_embeds.values())
+    assert all(value.shape==(0, embed_size) for value in layer.sparse_embeds.values())
+
+    # 4. not use learnable embedding. So should have an empty sparse_embeds
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+
+    assert layer.sparse_embeds == {}
+
+    # normal cases for forward()
+    embed_size = 2                              # simplify the forward compute test
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+
+    input_feats = {}
+    input_nodes = {}
+    embeds = {}
+    for ntype in g.ntypes:
+        input_nodes[ntype] = np.arange(10)
+        input_feats[ntype] = th.tensor(np.random.rand(10, feat_size[ntype]),
+                                       dtype=th.float).to(dev)
+        embeds[ntype] = th.tensor(np.random.rand(10, embed_size),
+                                  dtype=th.float).to(dev)
+    input_feats[GS_LE_FEATURE_KEY] = embeds
+
+    # 1. force to use learnable embedding
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    layer = layer.to(dev)
+    for ntype in g.ntypes:
+        # We make the projection matrix a diagonal matrix so that
+        # the input and output matrices are identical.
+        nn.init.eye_(layer.input_projs[ntype])
+        with th.no_grad():
+            layer.proj_matrix[ntype][:embed_size,:] = layer.input_projs[ntype]
+            layer.proj_matrix[ntype][embed_size:,:] = layer.input_projs[ntype]
+
+    outputs = layer(input_feats, input_nodes)
+    assert len(outputs) == len(input_nodes)
+    for ntype in outputs:
+        true_val = input_feats[ntype] + embeds[ntype]
+        assert_almost_equal(outputs[ntype].detach().cpu().numpy(), true_val.cpu().numpy())
+
+    # 2. set n1 type featureless to use learnable embedding
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+    layer = layer.to(dev)
+
+    # We make the projection and matrix a diagonal matrix so that
+    # the input and output matrices are identical for each node type
+    # n0 will only pass input_projs
+    nn.init.eye_(layer.input_projs['n0'])
+    # n1 will only pass proj_matrix
+    nn.init.eye_(layer.proj_matrix['n1'])
+
+    outputs = layer(input_feats, input_nodes)
+
+    assert len(outputs) == len(input_nodes)
+    assert_almost_equal(outputs['n0'].detach().cpu().numpy(),
+                        input_feats['n0'].cpu().numpy())
+    assert_almost_equal(outputs['n1'].detach().cpu().numpy(),
+                        input_feats[GS_LE_FEATURE_KEY]['n1'].cpu().numpy())
+
+    # 3. set n1 type featureless to use learnable embedding, and enforce to use embedding
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    feat_size['n1'] = 0                          # set n1 feat_size = 0
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    layer = layer.to(dev)
+
+    # We make the projection and matrix a diagonal matrix so that
+    # the input and output matrices are identical for each node type
+    # n0 will pass input_projs and proj_matrix
+    nn.init.eye_(layer.input_projs['n0'])
+    with th.no_grad():
+        layer.proj_matrix['n0'][:embed_size,:] = layer.input_projs['n0']
+        layer.proj_matrix['n0'][embed_size:,:] = layer.input_projs['n0']
+    # n1 will only pass proj_matrix
+    nn.init.eye_(layer.proj_matrix['n1'])
+
+    outputs = layer(input_feats, input_nodes)
+
+    assert len(outputs) == len(input_nodes)
+    expect_n0 = input_feats['n0'] + input_feats[GS_LE_FEATURE_KEY]['n0']
+    assert_almost_equal(outputs['n0'].detach().cpu().numpy(),
+                        expect_n0.cpu().numpy())
+
+    assert_almost_equal(outputs['n1'].detach().cpu().numpy(),
+                        input_feats[GS_LE_FEATURE_KEY]['n1'].cpu().numpy())
+
+    # 4. not use learnable embedding. So should function as a normal Node input layer
+    feat_size = get_node_feat_size(g, 'feat')   # feat_size = 2 for 'feat' in n0 and n1
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=False)
+    layer = layer.to(dev)
+
+    for ntype in g.ntypes:
+        # all nodes only pass the input_projs
+        nn.init.eye_(layer.input_projs[ntype])
+
+    outputs = layer(input_feats, input_nodes)
+
+    assert len(outputs) == len(input_nodes)
+    assert_almost_equal(outputs['n0'].detach().cpu().numpy(),
+                        input_feats['n0'].cpu().numpy())
+    assert_almost_equal(outputs['n1'].detach().cpu().numpy(),
+                        input_feats['n1'].cpu().numpy())
+
+    # abnormal case: input features do not include the GS_LE_FEATURE_KEY embeddings
+    layer = GSNodeEncoderInputLayer4GraphFromMetadata(g, feat_size, embed_size,
+                                                      use_node_embeddings=True)
+    layer = layer.to(dev)
+
+    # 1. no GS_LE_FEATURE_KEY at all
+    new_input_feats = copy.deepcopy(input_feats)
+    new_input_feats.pop(GS_LE_FEATURE_KEY)
+    with pytest.raises(AssertionError, match="The input features should"):
+        _ = layer(new_input_feats, input_nodes)
+
+    # 2. GS_LE_FEATURE_KEY values do not include all node types that should have embeddings
+    new_input_feats = copy.deepcopy(input_feats)
+    new_input_feats[GS_LE_FEATURE_KEY].pop('n1')
+    with pytest.raises(AssertionError, match="The learnable embeddings"):
+        _ = layer(new_input_feats, input_nodes)
+
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+
+if __name__ == '__main__':
+    test_LM_learnable_rt_layer('cpu', 'bert-base-uncased')
+    test_pure_learnable_input_layer4metadatagraph('cpu')
+    test_input_layer4metadatagraph('cpu')

@@ -329,7 +329,7 @@ def transform_fn(model,
             # it is possible that some node types are not sampled
             if ntype not in dgl_graph.ntypes:
                 continue
-
+            # defined node_feat_name must be included in the payload graph
             for feat in feat_list:
                 if feat not in dgl_graph.nodes[ntype].data:
                     res = RTResponseMsg.missing_feature(request_uid=request_uid,
@@ -338,6 +338,13 @@ def transform_fn(model,
                                                         feat_name=feat)
                     logging.error(res.to_json())
                     return res.to_json(), response_content_type
+
+            # TODO(Jian): check if node types that are NOT in the feat_list, in theory,
+            #             should have "gs_learnable_embedding" feature in the payload graph.
+            # In the v0.5.1, if users do not provide the "gs_learnable_embedding" for node
+            # types that are NOT in the feat_list, it will trigger an error in the inference
+            # step, asking for the "gs_learnable_embedding" feature for them. So still users
+            # can get correct feedback.
 
     if gs_train_config.edge_feat_name is not None:
         for etype, feat_list in gs_train_config.edge_feat_name.items():

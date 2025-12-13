@@ -42,8 +42,13 @@ from graphstorm.config import (TaskInfo,
                                BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
-                               BUILTIN_TASK_LINK_PREDICTION)
-from graphstorm.config import FeatureGroup
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               FeatureGroup)
+from graphstorm.config.config import (TOKEN_IDX,
+                                      VALID_LEN,
+                                      ATT_MASK_IDX,
+                                      TOKEN_TID_IDX,
+                                      GS_LE_FEATURE_KEY)
 from graphstorm.utils import setup_device, get_device
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
@@ -1116,6 +1121,7 @@ def test_prepare_input():
             lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))] * 2
 
         g = lp_data.g
+
         # single ntype/edge, single feat
         input_nodes = {
             "n0": th.randint(g.num_nodes("n0"), (10,))
@@ -2765,3 +2771,35 @@ def test_realtime_infer_node_dataloader():
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
+
+def test_prepare_input_learnable_embedding4realtime():
+    """ Test learnable embeddings as inputs for real-time inference
+    """
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy hetero graph
+        g = generate_dummy_hetero_graph(dirname=tmpdirname)
+
+        # set input nodes, for extracting features from graph g
+        input_nodes = {
+            "n0": th.randint(g.num_nodes("n0"), (10,)),
+            "n1": th.randint(g.num_nodes("n1"), (20,)),
+        }
+        # extract features without learnable embeddings
+        node_feat_wt_emb = prepare_batch_input(g, input_nodes, feat_field='feat')
+
+        assert len(node_feat_wt_emb) == 2
+        assert GS_LE_FEATURE_KEY not in node_feat_wt_emb
+
+        # set learnable embedding to n0 and n1 type.
+        hid_dim = 10
+        g.nodes['n0'].data[GS_LE_FEATURE_KEY] = th.ones(g.num_nodes('n0'), hid_dim)
+        g.nodes['n1'].data[GS_LE_FEATURE_KEY] = th.ones(g.num_nodes('n1'), hid_dim)
+
+        node_feat = prepare_batch_input(g, input_nodes, feat_field='feat')
+
+        assert len(node_feat) == 3  # n0's "feat", n1's "feat", and "gs_learnable_embedding"
+        assert len(node_feat[GS_LE_FEATURE_KEY]) == 2   # include : {n0:, n1:}
+        assert node_feat[GS_LE_FEATURE_KEY]['n0'].shape == (10, hid_dim)
+        assert node_feat[GS_LE_FEATURE_KEY]['n0'].sum() == 10 * hid_dim
+        assert node_feat[GS_LE_FEATURE_KEY]['n1'].shape == (20, hid_dim)
+        assert node_feat[GS_LE_FEATURE_KEY]['n1'].sum() == 20 * hid_dim

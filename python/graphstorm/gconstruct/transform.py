@@ -40,6 +40,7 @@ from .utils import (ExtMemArrayWrapper,
                     generate_hash,
                     validate_features,
                     validate_numerical_feats)
+from ..config.config import GS_LE_FEATURE_KEY
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
@@ -625,6 +626,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 # It will load all data into main memory.
                 feats = feats.to_numpy()
             feats = self.feat2numerical(feats)
+
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
@@ -1499,6 +1501,63 @@ def parse_feat_ops(confs, input_data_format=None):
             hard_edge_neg_ops.append(op)
 
     return ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops
+
+def update_ops(feat_ops, input_feats):
+    """ update the feature operations based on existing input features.
+
+    This function handles the cases where some node features were not used in model training, but
+    exist in payload graphs. Or users set learnable embeddings as input features. In this case,
+    the graph construction JSON file does not have the embeddings information.
+    
+    1. For the first case, will remove the corresponding transformation operations from the
+       operation list. And let the steps after payload graph construction to check if node
+       featuers should be presented in graph by checking the updated model training YAML file.
+    2. For the learnable embedings, will apply No-op transformation operation.
+
+    Parameters
+    ----------
+        feat_ops: List of FeatTransforms
+            A list of feature transformation operations.
+        input_feats: dict
+            Input features in the format of a {feat_name: feature}.
+
+    Returns
+    -------
+        ops: List of FeatTransforms
+            A list of feature transformation operations after handling two cases.
+        two_phase_feat_ops: List of FeatTransforms
+            A list of two phase feature transformation operations.
+        after_merge_feat_ops: dict
+            A dict of merged feature transformation operations.
+        hard_edge_neg_ops: List of FeatTransforms
+            A list of hard edge negative transformation operations.
+    """
+    # filter out operations of non-existing node features
+    new_feat_ops = [op for op in feat_ops if op.feat_name in input_feats]
+
+    # add No-op operation on learnable embedding
+    for feat_name, _ in input_feats.items():
+        if feat_name == GS_LE_FEATURE_KEY:
+            transform = Noop(
+                    feat_name,
+                    feat_name,
+                )
+            new_feat_ops.append(transform)
+
+    # recreate other operations
+    two_phase_feat_ops = []
+    after_merge_feat_ops = {}
+    hard_edge_neg_ops = []
+
+    for op in new_feat_ops:
+        if isinstance(op, TwoPhaseFeatTransform):
+            two_phase_feat_ops.append(op)
+        if isinstance(op, GlobalProcessFeatTransform):
+            after_merge_feat_ops[op.feat_name] = op
+        if isinstance(op, HardEdgeNegativeTransform):
+            hard_edge_neg_ops.append(op)
+
+    return new_feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops
 
 def preprocess_features(data, ops: List[TwoPhaseFeatTransform]):
     """ Pre-process the data with the specified operations.

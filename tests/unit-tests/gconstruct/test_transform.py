@@ -22,14 +22,17 @@ from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 from scipy.special import erfinv
 from transformers import AutoTokenizer, AutoModel, AutoConfig
 
+import graphstorm as gs
 from graphstorm.gconstruct.transform import (
     parse_feat_ops,
     process_features,
-    preprocess_features
+    preprocess_features,
+    update_ops
 )
 from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              NumericalMinMaxTransform,
                                              NumericalStandardTransform,
+                                             GlobalProcessFeatTransform,
                                              Noop,
                                              RankGaussTransform,
                                              CategoricalTransform,
@@ -44,6 +47,7 @@ from graphstorm.gconstruct.transform import (_check_label_stats_type,
 from graphstorm.gconstruct.transform import (LABEL_STATS_FIELD,
                                              LABEL_STATS_FREQUENCY_COUNT)
 from graphstorm.gconstruct.id_map import IdMap
+
 
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
@@ -1449,3 +1453,42 @@ def test_hf_embedding(bert_model="bert-base-uncased"):
         np.testing.assert_almost_equal(
             hf_emb[idx], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
         )
+        
+
+def test_update_ops():
+    """ test the update operation function
+    """
+    np.random.seed(0)
+    feats0 = np.random.randn(100)
+    feats0 = feats0 + 1
+    feats1 = np.random.randn(100)
+    feats1 = feats1 + 1
+    feats2 = np.random.randn(100)
+    feats2 = feats2 + 1
+    
+    # only feats0 and feats2 are in the input feature dict
+    input_feats = {
+        'feat0': feats0,
+        'feat2': feats2
+    }
+    # all three features have transforms in construction json
+    ops = [
+        NumericalStandardTransform("feat0", "feat0"),
+        GlobalProcessFeatTransform("feat1", "feat1", np.float32),
+        NumericalMinMaxTransform("feat2", "feat2")
+    ]
+
+    # run update_ops
+    new_feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops = \
+        update_ops(ops, input_feats)
+    
+    # new ops list should only have two ops
+    assert len(new_feat_ops) == 2
+    assert len(two_phase_feat_ops) == 2
+    assert len(after_merge_feat_ops) == 0
+    assert len(hard_edge_neg_ops) == 0
+    # new ops list should only have feat0 and feat2
+    assert all([op.feat_name in ['feat0', 'feat2'] for op in new_feat_ops])
+
+if __name__ == '__main__':
+    test_update_ops()

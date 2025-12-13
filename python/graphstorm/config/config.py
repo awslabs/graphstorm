@@ -125,6 +125,9 @@ VALID_LEN = 'valid_len'
 ATT_MASK_IDX = 'attention_mask'
 TOKEN_TID_IDX = 'token_type_ids'
 
+# Learnable embedding feature key
+GS_LE_FEATURE_KEY = "gs_learnable_embedding"
+
 ################ Task info data classes ############################
 def get_mttask_id(task_type, ntype=None, etype=None, label=None):
     """ Generate task ID for multi-task learning tasks.

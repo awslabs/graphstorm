@@ -31,7 +31,9 @@ from .utils import create_sparse_embeds_path
 from .utils import LazyDistTensor
 from .utils import get_data_range
 from .embed import compute_node_input_embeddings
-from .embed import GSNodeInputLayer
+from .embed import (GSNodeInputLayer,
+                    GSPureLearnableInputLayer4GraphFromMetaData,
+                    GSNodeEncoderInputLayer4GraphFromMetadata)
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_minibatch_inference
 from ..utils import (
@@ -766,6 +768,12 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                              if GRAPHSTORM_MODEL_EDGE_EMBED_LAYER in model_layer_to_load else None)
 
     def restore_sparse_model(self, restore_model_path):
+        # a special case: input encoders are initialized from graphs from metadata,
+        # hence no sparse embeddings available to restore. Just do nothing and return
+        if isinstance(self.node_input_encoder, (GSPureLearnableInputLayer4GraphFromMetaData,
+                                                GSNodeEncoderInputLayer4GraphFromMetadata)):
+            return
+
         # restore sparse embeddings for node_input_encoder.
         if self.node_input_encoder.use_wholegraph_sparse_emb:
             # restore sparse embeddings from the output of wholegraph sparse emb/opt

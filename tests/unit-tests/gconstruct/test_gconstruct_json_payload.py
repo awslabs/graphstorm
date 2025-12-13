@@ -18,6 +18,7 @@ import os
 import pytest
 import json
 import torch as th
+import numpy as np
 
 from graphstorm.gconstruct.construct_payload_graph import (process_json_payload_graph,
                                             get_gconstruct_conf, merge_payload_input,
@@ -27,6 +28,7 @@ from graphstorm.gconstruct.construct_payload_graph import (process_json_payload_
                                             PAYLOAD_GRAPH,
                                             PAYLOAD_GRAPH_NODE_MAPPING)
 from graphstorm.gconstruct.payload_utils import BaseApplicationError
+from graphstorm.config.config import GS_LE_FEATURE_KEY
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 gconstruct_file_path = os.path.join(_ROOT, "../../end2end-tests/"
@@ -84,6 +86,7 @@ def check_heterogeneous_graph(dgl_hg):
 
 
 def test_process_json_payload_graph():
+    
     response = process_json_payload_graph(json_payload, gconstruct_confs)
     assert response[PAYLOAD_PROCESSING_STATUS] == 200
     assert PAYLOAD_PROCESSING_RETURN_MSG in response
@@ -105,6 +108,35 @@ def test_process_json_payload_graph():
         if not etype[1].endswith('-rev'):
             assert "rate" in dgl_hg.edges[etype].data
 
+    # ============================ v0.5.1 ============================ #
+
+    # 1. test for some node features are not presented in the construction json
+    # add the 'feat' to "movie" nodes into the construction json
+    new_gconstruct_confs = copy.deepcopy(gconstruct_confs)
+    new_gconstruct_confs['nodes'][2]['features'].append({'feature_col': 'feat'})
+    # remove the 'feat' from movie nodes
+    new_json_payload = copy.deepcopy(json_payload)
+    new_json_payload['graph']['nodes'][1]['features'].pop('feat')
+    new_json_payload['graph']['nodes'][2]['features'].pop('feat')
+
+    # should be able to process the new json payload
+    response = process_json_payload_graph(new_json_payload, new_gconstruct_confs)
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+
+    dgl_hg = response[PAYLOAD_GRAPH]
+    assert 'feat' in dgl_hg.nodes['user'].data
+    assert not 'feat' in dgl_hg.nodes['movie'].data
+
+    # 2. test for learnable embedding that construction json does not know
+    new_json_payload['graph']['nodes'][1]['features'][GS_LE_FEATURE_KEY] = np.random.rand(16)
+    new_json_payload['graph']['nodes'][2]['features'][GS_LE_FEATURE_KEY] = np.random.rand(16)
+
+    response = process_json_payload_graph(new_json_payload, new_gconstruct_confs)
+    assert response[PAYLOAD_PROCESSING_STATUS] == 200
+
+    dgl_hg = response[PAYLOAD_GRAPH]
+    assert GS_LE_FEATURE_KEY in dgl_hg.nodes['movie'].data
+    assert dgl_hg.nodes['movie'].data[GS_LE_FEATURE_KEY].shape == (2, 16)
 
 def test_with_two_phase_transformation():
     # Node Feature Transformation
