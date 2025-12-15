@@ -43,18 +43,18 @@ SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
 FEAT_DIM_COLUMN_NAME = "feature_dim"
-VALIDATE_FEATRE= True
+VALIDATE_FEATURES= True
 
 def validate_features():
     """ Check whether gconstruct needs to validate the input features
     """
-    return VALIDATE_FEATRE
+    return VALIDATE_FEATURES
 
 def stop_validate_features():
     """ Set gconstruct in debug mode.
     """
-    global VALIDATE_FEATRE
-    VALIDATE_FEATRE = False
+    global VALIDATE_FEATURES
+    VALIDATE_FEATURES = False
 
 def validate_numerical_feats(feats):
     """ Validate the numerical features

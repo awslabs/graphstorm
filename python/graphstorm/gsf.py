@@ -61,10 +61,12 @@ from .config import (FeatureGroup,
                      FeatureGroupSize)
 from .model.embed import (GSPureLearnableInputLayer,
                           GSNodeEncoderInputLayer,
-                          GSEdgeEncoderInputLayer)
+                          GSEdgeEncoderInputLayer,
+                          GSPureLearnableInputLayer4GraphFromMetaData,
+                          GSNodeEncoderInputLayer4GraphFromMetadata)
 from .model.lm_embed import (GSLMNodeEncoderInputLayer,
-                            GSPureLMNodeInputLayer,
-                            GSLMNodeEncoderInputLayer4GraphFromMetaData)
+                             GSPureLMNodeInputLayer,
+                             GSLMNodeEncoderInputLayer4GraphFromMetaData)
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
 from .model.hgt_encoder import HGTEncoder
@@ -1124,18 +1126,37 @@ def set_encoder(model, g, config, train_task):
     else:
         if model_encoder_type == "learnable_embed":
             # only use learnable embeddings as features of every node
-            node_encoder = GSPureLearnableInputLayer(g,
-                config.hidden_size,
-                use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+            if isinstance(g, GSDglDistGraphFromMetadata):
+                # for real-time inference case only
+                node_encoder = GSPureLearnableInputLayer4GraphFromMetaData(
+                    g,
+                    config.hidden_size
+                )
+            else:
+                # for offline training and inference
+                node_encoder = GSPureLearnableInputLayer(g,
+                    config.hidden_size,
+                    use_wholegraph_sparse_emb=config.use_wholegraph_embed)
         else:
-            node_encoder = GSNodeEncoderInputLayer(g,
-                node_feat_size, config.hidden_size,
-                dropout=config.dropout,
-                activation=config.input_activate,
-                use_node_embeddings=config.use_node_embeddings,
-                force_no_embeddings=config.construct_feat_ntype,
-                num_ffn_layers_in_input=config.num_ffn_layers_in_input,
-                use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+            if isinstance(g, GSDglDistGraphFromMetadata):
+                # for real-time inference case only
+                node_encoder = GSNodeEncoderInputLayer4GraphFromMetadata(
+                    g, node_feat_size, config.hidden_size,
+                    dropout=config.dropout,
+                    activation=config.input_activate,
+                    use_node_embeddings=config.use_node_embeddings,
+                    force_no_embeddings=config.construct_feat_ntype,
+                    num_ffn_layers_in_input=config.num_ffn_layers_in_input
+                )
+            else:
+                node_encoder = GSNodeEncoderInputLayer(g,
+                    node_feat_size, config.hidden_size,
+                    dropout=config.dropout,
+                    activation=config.input_activate,
+                    use_node_embeddings=config.use_node_embeddings,
+                    force_no_embeddings=config.construct_feat_ntype,
+                    num_ffn_layers_in_input=config.num_ffn_layers_in_input,
+                    use_wholegraph_sparse_emb=config.use_wholegraph_embed)
         # set edge encoder input layer no matter if having edge feature names or not
         # TODO: add support of languange models and GLEM
         edge_feat_size = get_edge_feat_size(g, config.edge_feat_name)
