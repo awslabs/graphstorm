@@ -103,8 +103,7 @@ def printLogs(logGroupName, logStreamName, startTime):
 
         for event in logEvents['events']:
             lastTimestamp = event['timestamp']
-            timestamp = datetime.datetime.fromtimestamp(lastTimestamp / 1000.0, datetime.UTC).isoformat()
-            # timestamp = datetime.utcfromtimestamp(lastTimestamp / 1000.0).isoformat()
+            timestamp = datetime.utcfromtimestamp(lastTimestamp / 1000.0).isoformat()
             print('[{}] {}'.format((timestamp + '.000')[:23] + 'Z', event['message']))
 
         nextToken = logEvents['nextForwardToken']
