@@ -142,13 +142,10 @@ echo "********* GraphBolt graph construction and partitioning tests passed *****
 
 echo "********* Test GConstruct with Tabular Embedding Feature Transformation ********"
 
-GCONS_GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-gconstruct-lp"
 python3 -m graphstorm.gconstruct.construct_graph \
     --add-reverse-edges \
     --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lp.json \
-    --graph-name ml-lp \
+    --graph-name ml-tfm \
     --num-parts 2 \
     --num-processes 1 \
-    --output-dir "$GCONS_GRAPHBOLT_PATH" \
-    --part-method random \
-    --use-graphbolt "true"
+    --output-dir "${OUTPUT_PATH}/mitra-embedding-graph" 
