@@ -2,7 +2,17 @@
     "version": "gconstruct-v0.1",
     "nodes": [
             {
-                    "node_id":      "id",
+                    "node_id_col":  "id",
+                    "node_type":    "user",
+                    "format":       {"name": "hdf5"},
+                    "files":        "/data/ml-100k/user.hdf5",
+                    "features":     [
+                           {
+                                   "feature_col":  "feat"
+                           }
+                    ]
+            },
+            {
                     "node_type":    "user",
                     "format":       {"name": "parquet"},
                     "files":        "/data/ml-100k/users.parquet",
