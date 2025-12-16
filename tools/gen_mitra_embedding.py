@@ -15,10 +15,61 @@
 
     Mitra Embedding Generation Tool for GraphStorm
 
-    This tool generates Mitra embeddings from graph data for use in GraphStorm.
-    It supports:
-    1. MovieLens-100k dataset for User gender classification (with automatic download)
-    2. Custom DGL graphs constructed from parquet/CSV files using gconstruct
+    This tool generates Mitra embeddings from custom datasets in parquet format
+    for use in GraphStorm.
+
+    Expected Input Directory Structure
+    -----------------------------------
+    The tool expects parquet files organized by node type:
+    
+    dataset_path/
+    └── target_ntype/              # Node type directory (e.g., 'user', 'product', 'movie')
+        ├── data.parquet           # Single parquet file, OR
+        ├── part-00000.parquet     # Multiple parquet files
+        ├── part-00001.parquet
+        └── ...
+    
+    Example structures:
+    
+ ingle node type:
+       data/
+      user/
+           └── users.parquet
+    
+    2. Multiple node types:
+       data/
+       ├── user/
+       │   └── users.parquet
+       └── product/
+           └── products.parquet
+    
+    3. Partitioned data:
+       data/
+       └── target_ntype/
+           ├── part-00000.parquet
+           ├── part-00001.parquet
+           └── part-00002.parquet
+    
+    Parquet File Requirements
+    -------------------------
+    Each parquet file must contain:
+    - Feature columns: Numeric columns used for embedding generation
+    - Label column: Target column for classification (specified by --label-name)
+    - Node ID column: Unique identifier for each node (specified by --node-id-col)
+      If not present, sequential IDs will be auto-generated
+    
+    Output Structure
+    ----------------
+    The tool generates embeddings in the following structure:
+    
+    data/
+    └── mitra_emb/
+        └── mitra_embeddings.parquet
+    
+    The output parquet contains:
+    - node_id: Node identifiers
+    - label_column: Original label values
+    - 0, 1, 2, ...: Embedding dimensions (512-dimensional by default)
 
     Important Limitation
     --------------------
@@ -40,9 +91,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import dgl
-import urllib.request
-import zipfile
+from pathlib import Path
 
 # Add parent directory to path to import graphstorm
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
@@ -52,55 +101,76 @@ from autogluon.tabular.models.mitra._internal.data.dataset_finetune import Datas
 from autogluon.tabular.models.mitra._internal.config.enums import Task, LossName, ModelName
 from autogluon.tabular.models.mitra._internal.core.trainer_finetune import CollatorWithPadding
 
-from graphstorm.data.movielens import MovieLens100kNCDataset
-from graphstorm.data.dataset import ConstructedGraphDataset
 
-
-def download_movielens_100k(raw_dir):
+def load_parquet_data(data_path, feature_cols=None, label_col='label', node_id_col='node_id'):
     """
-    Download and extract MovieLens 100k dataset if not already present.
+    Load custom data from parquet directory.
     
     Parameters
     ----------
-    raw_dir : str
-        Directory where the dataset should be stored
+    data_path : str
+        Path to directory containing parquet files
+    feature_cols : list of str, optional
+        List of column names to use as features. If None, uses all columns except label_col and node_id_col
+    label_col : str
+        Column name to use as label
+    node_id_col : str
+        Column name for node IDs. If not present, sequential IDs will be created
         
     Returns
     -------
-    str
-        Path to the directory containing the extracted ml-100k folder
+    tuple of (pd.DataFrame, pd.Series)
+        DataFrame with features and label column 'y', and Series with node_ids
     """
-    ml_dir = os.path.join(raw_dir, 'ml-100k')
+    data_path = Path(data_path)
     
-    # Check if already downloaded
-    if os.path.exists(os.path.join(ml_dir, 'u.user')):
-        print(f"MovieLens 100k dataset already exists at {ml_dir}")
-        return raw_dir
+    # Only support directory input
+    if not data_path.is_dir():
+        raise ValueError(f"data_path must be a directory: {data_path}")
     
-    # Create directory if it doesn't exist
-    os.makedirs(raw_dir, exist_ok=True)
+    # Load all parquet files in directory (exclude mitra_embeddings.parquet to avoid loading previous outputs)
+    parquet_files = sorted([f for f in data_path.glob("*.parquet") if f.name != "mitra_embeddings.parquet"])
+    if not parquet_files:
+        parquet_files = sorted([f for f in data_path.glob("part-*.parquet") if f.name != "mitra_embeddings.parquet"])
     
-    # Download URL
-    url = "https://files.grouplens.org/datasets/movielens/ml-100k.zip"
-    zip_path = os.path.join(raw_dir, 'ml-100k.zip')
+    if not parquet_files:
+        raise FileNotFoundError(f"No parquet files found in {data_path} (excluding mitra_embeddings.parquet)")
     
-    print(f"Downloading MovieLens 100k dataset from {url}...")
-    try:
-        urllib.request.urlretrieve(url, zip_path)
-        print(f"Downloaded to {zip_path}")
-        
-        # Extract zip file
-        print(f"Extracting {zip_path}...")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(raw_dir)
-        
-        # Remove zip file
-        os.remove(zip_path)
-        print(f"MovieLens 100k dataset extracted to {ml_dir}")
-        
-        return raw_dir
-    except Exception as e:
-        raise RuntimeError(f"Failed to download MovieLens 100k dataset: {e}")
+    print(f"Loading data from {len(parquet_files)} parquet files in {data_path}")
+    dfs = [pd.read_parquet(f) for f in parquet_files]
+    df = pd.concat(dfs, ignore_index=True)
+    
+    print(f"Loaded {len(df)} rows with columns: {list(df.columns)}")
+    
+    # Extract or create node IDs
+    if node_id_col in df.columns:
+        node_ids = df[node_id_col].copy()
+        print(f"Using existing node ID column: {node_id_col}")
+    else:
+        node_ids = pd.Series(range(len(df)), name='node_id')
+        print(f"Node ID column '{node_id_col}' not found, creating sequential IDs")
+    
+    # Check if label column exists
+    if label_col not in df.columns:
+        raise ValueError(f"Label column '{label_col}' not found in data. Available columns: {list(df.columns)}")
+    
+    # Select features
+    if feature_cols is None:
+        # Use all columns except label and node_id as features
+        feature_cols = [col for col in df.columns if col not in [label_col, node_id_col]]
+    else:
+        # Verify all feature columns exist
+        missing_cols = [col for col in feature_cols if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Feature columns not found: {missing_cols}")
+    
+    print(f"Using {len(feature_cols)} feature columns: {feature_cols}")
+    
+    # Create features dataframe
+    features_df = df[feature_cols].copy()
+    features_df['y'] = df[label_col]
+    
+    return features_df, node_ids
 
 
 def save_input_embeddings_hook(name, hidden_embeddings_container):
@@ -364,138 +434,101 @@ def get_instance_embeddings(fold_predictor, batch_data, save_dir=None) -> tuple:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='Tools to generate Mitra embeddings from GraphStorm datasets',
+        description='Tools to generate Mitra embeddings from custom parquet data directories',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-            Examples:
-            # MovieLens dataset - user gender classification
-            python gen_mitra_embedding.py --dataset movie-len --dataset_path data/ml-100k \
-                    --savedir output --target-ntype user --label-name gender
-            
-            # Custom DGL graph constructed from parquet files using gconstruct
-            python gen_mitra_embedding.py --dataset my-graph --dataset_path data/constructed --savedir output
-            
-            # For parquet input, first use gconstruct to create a DGL graph:
-            python -m graphstorm.gconstruct.construct_graph --conf-file config.json --output-dir data/constructed
-            # Then use this tool to generate embeddings from the constructed graph
-        """
+        Expected Directory Structure:
+            dataset_path/
+            └── target_ntype/
+                └── *.parquet files
+
+        Examples:
+            # Auto-detect all feature columns excluding the mitra_embedding.parquet
+            # Reads from: data/target_ntype/*.parquet
+            # Writes to:  output/target_ntype/mitra_embeddings.parquet
+            python tools/gen_mitra_embedding.py \\
+                --dataset_path data \\
+                --target-ntype target_ntype \\
+                --label-name target_label
+                --node-id-col node_id
+                """
     )
-    parser.add_argument("--savedir", type=str, required=True, 
-                       help="Path to the directory to save embeddings")
-    parser.add_argument("--dataset", type=str, default="ogbn-arxiv", 
-                       help="Dataset name: 'movie-len' for MovieLens or custom name for DGL graphs")
     parser.add_argument("--dataset_path", type=str, required=True,
-                       help="Path to dataset: MovieLens raw data dir or DGL graph directory")
-    parser.add_argument("--target-ntype", type=str, default="_N",     
-                       help="Target node type (for heterogeneous graphs)")
-    parser.add_argument("--feat-name", type=str, default="feat",   
-                       help="Feature name in graph node data")
-    parser.add_argument("--label-name", type=str, default="labels", 
-                       help="Label name in graph node data")
+                       help="Base path to dataset directory. Tool will look for parquet files in dataset_path/target-ntype/")
+    parser.add_argument("--target-ntype", type=str, required=True,
+                       help="Target node type. Tool will read and write in dataset_path/target-ntype/")
+    parser.add_argument("--label-name", type=str, required=True, 
+                       help="Label column name in parquet files (used for classification task)")
+    parser.add_argument("--feature-cols", type=str, default=None,
+                       help="Comma-separated list of feature column names. If not specified, uses all columns except label and node_id")
+    parser.add_argument("--node-id-col", type=str, default="node_id",
+                       help="Node ID column name in parquet files. If not present, sequential IDs will be created (default: 'node_id')")
     args = parser.parse_args()
 
-    # Load graph data
-    print(f"Loading dataset: {args.dataset}")
-    if args.dataset == 'movie-len':
-        # Load MovieLens dataset without text features
-        print(f"Loading MovieLens dataset from: {args.dataset_path}")
-        # Download MovieLens if not present
-        dataset_path = download_movielens_100k(args.dataset_path)
-        # Load dataset for gender classification
-        print("Setting up for user gender classification...")
-        dataset = MovieLens100kNCDataset(dataset_path, use_text_feat=False)
-        g = dataset[0]
-        
-        # Extract individual features from user nodes
-        user_feat = g.nodes['user'].data['feat']
-        g.nodes['user'].data['age']         = user_feat[:, 0:1]  
-        g.nodes['user'].data['gender']      = user_feat[:, 1:2]
-        g.nodes['user'].data['occupation']   = user_feat[:, 2:]
-        
-        # Use age and occupation as features (gender is now the label)
-        g.nodes['user'].data['feat'] = torch.cat(
-            [g.nodes['user'].data['age'], g.nodes['user'].data['occupation']], dim=1)
-        print(f"Gender classification setup: "
-            f"{g.nodes['user'].data['feat'].shape[0]} users, "
-            f"features shape: {g.nodes['user'].data['feat'].shape}"
-        )
-    else:
-        # Load custom DGL graph constructed from parquet/csv files using gconstruct
-        # The graph should be saved as <dataset_name>.dgl in dataset_path
-        print(f"Loading constructed DGL graph: {args.dataset}")
-        print(f"Graph directory: {args.dataset_path}")
-        dataset = ConstructedGraphDataset(args.dataset, args.dataset_path)
-        g = dataset[0]
+    # Construct path: dataset_path/target-ntype/
+    data_path_with_ntype = os.path.join(args.dataset_path, args.target_ntype)
+    print(f"{'='*70}")
+    print(f"Mitra Embedding Generation")
+    print(f"{'='*70}")
+    print(f"Input directory:  {data_path_with_ntype}")
+    print(f"Output directory: {data_path_with_ntype}")
+    print(f"Node type:        {args.target_ntype}")
+    print(f"Label column:     {args.label_name}")
+    print(f"Node ID column:   {args.node_id_col}")
+    print(f"{'='*70}\n")
     
-    print(f"Graph loaded successfully: {g}")
+    # Verify input directory exists
+    if not os.path.exists(data_path_with_ntype):
+        print(f"ERROR: Input directory does not exist: {data_path_with_ntype}")
+        print(f"\nExpected structure:")
+        print(f"  {args.dataset_path}/")
+        print(f"  └── {args.target_ntype}/")
+        print(f"      └── *.parquet files")
+        sys.exit(1)
     
-    # Get features and labels from the DGL graph
-    # Handle both homogeneous and heterogeneous graphs
-    if len(g.ntypes) == 1:
-        # Homogeneous graph
-        target_ntype = g.ntypes[0]
-        print(f"Homogeneous graph detected, using node type: {target_ntype}")
-    else:
-        # Heterogeneous graph
-        target_ntype = args.target_ntype
-        if target_ntype not in g.ntypes:
-            print(f"Target node type '{target_ntype}' not found. Searching for valid node type...")
-            for ntype in g.ntypes:
-                if args.feat_name in g.nodes[ntype].data and args.label_name in g.nodes[ntype].data:
-                    target_ntype = ntype
-                    print(f"Using node type: {target_ntype}")
-                    break
-            else:
-                raise ValueError(f"No node type found with '{args.feat_name}' and '{args.label_name}'. "
-                               f"Available node types: {g.ntypes}")
+    print(f"Loading custom data from: {data_path_with_ntype}")
+    feature_cols = None
+    if args.feature_cols:
+        feature_cols = [col.strip() for col in args.feature_cols.split(',')]
     
-    # Verify features and labels exist
-    if args.feat_name not in g.nodes[target_ntype].data:
-        raise ValueError(f"Node type '{target_ntype}' does not have '{args.feat_name}' in data. "
-                        f"Available keys: {list(g.nodes[target_ntype].data.keys())}")
-    if args.label_name not in g.nodes[target_ntype].data:
-        raise ValueError(f"Node type '{target_ntype}' does not have '{args.label_name}' in data. "
-                        f"Available keys: {list(g.nodes[target_ntype].data.keys())}")
+    table, node_ids = load_parquet_data(
+        data_path_with_ntype, feature_cols=feature_cols, 
+        label_col=args.label_name, node_id_col=args.node_id_col
+    )
     
-    target_features = g.nodes[target_ntype].data[args.feat_name]
-    target_labels   = g.nodes[target_ntype].data[args.label_name]
-    print(f"Using node type '{target_ntype}' with {target_features.shape[0]} nodes")
-    
-    # Create DataFrame for Mitra
-    print(f"Creating DataFrame with {target_features.shape[0]} samples and {target_features.shape[1]} features")
-    table = pd.DataFrame(target_features.cpu().numpy())
+    print(f"  Data loaded successfully:")
+    print(f"  Total samples: {len(table)}")
+    print(f"  Feature columns: {len(table.columns) - 1}")
+    print(f"  Label column: 'y'")
     
     # Ensure labels are 0-indexed for Mitra
-    labels_np = target_labels.cpu().numpy().flatten()
+    labels_np = table['y'].values
     unique_labels = np.unique(labels_np)
-    print(f"Original label range: {labels_np.min()} to {labels_np.max()}")
-    
     if labels_np.min() != 0 or not np.array_equal(unique_labels, np.arange(len(unique_labels))):
-        print("Remapping labels to 0-indexed...")
+        print("  Remapping labels to 0-indexed...")
         label_map = {old_label: new_label for new_label, old_label in enumerate(unique_labels)}
-        labels_np = np.array([label_map[label] for label in labels_np])
-    
-    table['y'] = labels_np.astype(int)
-    print(f"Final label range: {labels_np.min()} to {labels_np.max()}")
+        table['y'] = table['y'].map(label_map)
+        labels_np = table['y'].values
+        print(f"  Remapped label range: {labels_np.min()} to {labels_np.max()}")
     
     # Get number of unique classes
     num_classes = len(table['y'].unique())
-    print(f"Number of classes: {num_classes}")
+    print(f"  Number of classes: {num_classes}")
     
     # Check if number of classes exceeds Mitra's limitation
     if num_classes > 10:
-        print(f"\n{'='*70}")
+        print(f"{'='*70}")
         print(f"ERROR: Dataset has {num_classes} classes")
         print(f"{'='*70}")
-        print(f"\nThe current version of Mitra TFM (Tabular Foundation Model) supports")
+        print(f"The current version of Mitra TFM (Tabular Foundation Model) supports")
         print(f"a maximum of 10 classes for multiclass classification problems.")
-        print(f"\nYour dataset has {num_classes} classes, which exceeds this limitation.")
-        print(f"\nPossible solutions:")
+        print(f"Your dataset has {num_classes} classes, which exceeds this limitation.")
+        print(f"Possible solutions:")
         print(f"  1. Use a different embedding method (e.g., traditional GNN encoders)")
         print(f"  2. Reduce the number of classes through label grouping/merging")
         print(f"  3. Convert to a binary or regression task if applicable")
         print(f"  4. Wait for future versions of AutoGluon with expanded class support")
-        print(f"\n{'='*70}")
+        print(f"{'='*70}")
         sys.exit(1)
     
     # Initialize and fit Mitra predictor
@@ -516,10 +549,31 @@ if __name__ == '__main__':
     
     # Generate embeddings
     print("Generating Mitra embeddings...")
-    mitra_embeddings, _ = get_instance_embeddings(mitra_predictor, table, save_dir=args.savedir)
+    mitra_embeddings, _ = get_instance_embeddings(mitra_predictor, table, save_dir=data_path_with_ntype)
     
-    # Save embeddings
-    output_path = os.path.join(args.savedir, "mitra_embeddings.pt")
-    print(f"Saving embeddings to {output_path}")
-    torch.save(torch.from_numpy(mitra_embeddings), output_path)
-    print("Done!")
+    # Save embeddings as parquet with node IDs
+    # Create subdirectory for node type
+    output_dir = os.path.join(data_path_with_ntype, args.target_ntype)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Determine target column name
+    target_col_name = args.label_name
+    
+    # Create DataFrame with node_id, target label, and embeddings
+    embedding_df = pd.DataFrame(mitra_embeddings)
+    embedding_df.insert(0, 'node_id', node_ids.values)
+    embedding_df.insert(1, target_col_name, table['y'].values)
+    
+    # Save as parquet
+    output_path = os.path.join(output_dir, "mitra_embeddings.parquet")
+    print(f"\n{'='*70}")
+    print(f"Saving embeddings to: {output_path}")
+    print(f"{'='*70}")
+    print(f"  Node type:        {args.target_ntype}")
+    print(f"  Embedding shape:  {mitra_embeddings.shape}")
+    print(f"  Number of nodes:  {len(node_ids)}")
+    print(f"  Target column:    {target_col_name}")
+    embedding_df.to_parquet(output_path, index=False)
+    print(f"{'='*70}")
+    print(f"SUCCESS: Embeddings saved successfully!")
+    print(f"{'='*70}")

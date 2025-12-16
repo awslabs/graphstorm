@@ -119,43 +119,94 @@ python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat
 ```
 
 ## Generate Mitra embeddings for graph data
-GraphStorm provides a tool to generate Mitra embeddings using AutoGluon's Mitra TFM (Tabular Foundation Model). The `gen_mitra_embedding.py` script supports both the MovieLens-100k dataset and custom DGL graphs constructed from parquet/CSV files. Mitra embeddings can be used as pre-trained node features to improve model performance.
+The features in target nodes are usually crucial to the final prediction results. However, feature engineering for node features is often challenging when different feature types (numerical, categorical, temporal) appear within the same node type, and this can significantly influence final performance. For example, it is difficult to determine whether performance issues stem from feature normalization or the model training procedure. This script supports the usage of Mitra [[paper](https://arxiv.org/abs/2510.21204) [website](https://auto.gluon.ai/dev/tutorials/tabular/tabular-foundational-models.html)], a Tabular Foundation Model (TFM) developed by AutoGluon, to automatically handle the feature engineering process. With the usage of mitra embedding, users can get rid of the consideration of feature engineering and focus more on the problem itself.
 
 **Important**: The current version of Mitra TFM supports a maximum of 10 classes for multiclass classification problems.
 
+**Installation:**
+```bash
+# version: 
+# autogluon.common 1.4.0
+# autogluon.core 1.4.0
+# autogluon.features 1.4.0
+# autogluon.tabular 1.4.0
+pip install autogluon.tabular[mitra]
+```
+
+
+### Custom Dataset Example
+For custom datasets, parquet files should be organized in subdirectories by node and edge types:
+
+```
+dataset_path/
+├── ntype_1/
+│   ├── *.parquet
+│   └── ...
+├── ntype_2/
+│   ├── *.parquet
+│   └── ...
+├── etype_1/
+├── *.parquet
+│   └── ...
+```
+You can also refer to the [GraphStorm Use Your Own Data](https://graphstorm.readthedocs.io/en/latest/tutorials/own-data.html) for details on its support for Parquet-format data when using custom datasets.
+
+```bash
+# Custom parquet data (auto-detect all feature columns)
+python3 tools/gen_mitra_embedding.py \
+    --dataset_path data_path \
+    --target-ntype target_ntype \
+    --label-name label \
+    --node-id-col node_id
+```
+
+**Custom Dataset Parameters:**
+- `--dataset_path`: Path to base directory containing node type subdirectories (e.g., `data/my_data/`)
+- `--target-ntype`: Node type name (used as subdirectory name, e.g., `user`, `product`, `movie`)
+- `--label-name`: Column name to use as the label/target in input parquet (required)
+- `--feature-cols`: (Optional) Comma-separated feature column names. If omitted, uses all columns except label and node_id
+- `--node-id-col`: Column name for node IDs (default: `node_id`). If not present, sequential IDs will be created
+
+**Directory Structure:**
+- Input parquet files: `{dataset_path}/{target-ntype}/*.parquet`
+- Output embeddings: `{dataset_path}/{target-ntype}/mitra_embeddings.parquet`
+
+**Output Files:**
+The output file `mitra_embeddings.parquet` contains:
+1. `node_id`: Node identifier
+2. Label column (name from `--label-name`): Original label values
+3. Embedding dimensions: `0`, `1`, `2`, ... (numeric column names, typically 512 dimensions)
+The output file can be used as node features in GraphStorm graph construction and replace the raw features in the target node types.
+
+
+After generating Mitra embeddings, the resulting features are saved to  
+`{dataset_path}/{target-ntype}/mitra_embeddings.parquet`.
+Next, refer to the [GraphStorm “Use Your Own Data” guide](https://graphstorm.readthedocs.io/en/latest/tutorials/own-data.html) to write the json configuration for graph construction. 
+Note that for the target node type, only the `mitra_embedding` feature is required.
+You can then leverage GraphStorm’s built-in GNN models—such as RGCN, RGAT, and HGT—to perform graph machine learning (GML) tasks. 
+
+
 ### MovieLens-100k Example
-The tool automatically downloads the MovieLens-100k dataset if not present and supports gender classification task:
-```bash
-python3 gen_mitra_embedding.py --dataset movie-len \
-                            --dataset_path data/ml-100k \
-                            --savedir output \
-                            --target-ntype user \
-                            --label-name gender
-```
+The MovieLens workflow involves two steps: downloading/converting the dataset, then generating embeddings.
 
-This generates embeddings for user nodes using age and occupation as features, with gender (M/F) as the binary classification label.
-
-### Custom Graph Example
-
-For custom graphs constructed from parquet files using gconstruct:
+**Step 1: Download and Convert MovieLens Data**
 
 ```bash
-# First, construct the DGL graph from parquet files
-python3 -m graphstorm.gconstruct.construct_graph \
-    --conf-file config.json \
-    --output-dir /tmp/constructed \
-    --graph-name my-graph
-
-# Then generate Mitra embeddings
-python3 gen_mitra_embedding.py --dataset my-graph \
-                           --dataset_path data/constructed \
-                           --target-ntype _N_ \
-                           --feat-name feat \
-                           --label-name label \
-                           --savedir data/mitra_output
+# Download and convert all MovieLens data (users, movies, ratings)
+# Output: data/ml-100k-parquet/user/, data/ml-100k-parquet/movie/, data/ml-100k-parquet/rating/
+python3 tools/download_movielens.py --output-dir data/ml-100k-parquet
 ```
 
-The output file `mitra_embeddings.pt` contains the generated embeddings as a PyTorch tensor that can be used as node features in GraphStorm training.
+**Step 2: Generate Mitra Embeddings**
+
+```bash
+# Generate embeddings for users with prediction target gender
+python3 tools/gen_mitra_embedding.py \
+    --dataset_path data/ml-100k-parquet \
+    --target-ntype user \
+    --label-name gender \
+    --node-id-col user_id
+```
 
 
 ## Do graph data sanity check
