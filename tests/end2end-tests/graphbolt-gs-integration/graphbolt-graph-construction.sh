@@ -146,6 +146,6 @@ python3 -m graphstorm.gconstruct.construct_graph \
     --add-reverse-edges \
     --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_tfm.json \
     --graph-name ml-tfm \
-    --num-parts 2 \
+    --num-parts 1 \
     --num-processes 1 \
     --output-dir "${OUTPUT_PATH}/mitra-embedding-graph" 
