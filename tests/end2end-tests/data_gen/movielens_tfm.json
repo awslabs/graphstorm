@@ -2,6 +2,7 @@
     "version": "gconstruct-v0.1",
     "nodes": [
             {
+                    "node_id":      "id",
                     "node_type":    "user",
                     "format":       {"name": "parquet"},
                     "files":        "/data/ml-100k/users.parquet",
