@@ -119,7 +119,7 @@ python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat
 ```
 
 ## Generate Mitra embeddings for graph data
-The features in target nodes are usually crucial to the final prediction results. However, feature engineering for node features is often challenging when different feature types (numerical, categorical, temporal) appear within the same node type, and this can significantly influence final performance. For example, it is difficult to determine whether performance issues stem from feature normalization or the model training procedure. This script supports the usage of Mitra [[paper](https://arxiv.org/abs/2510.21204) [website](https://auto.gluon.ai/dev/tutorials/tabular/tabular-foundational-models.html)], a Tabular Foundation Model (TFM) developed by AutoGluon, to automatically handle the feature engineering process. With the usage of mitra embedding, users can get rid of the consideration of feature engineering and focus more on the problem itself.
+The features in target nodes are usually crucial to the final prediction results. However, feature engineering for node features is often challenging when different feature types (numerical, categorical, temporal) appear within the same node type, and this can significantly influence final performance. For example, it is difficult to determine whether performance issues stem from feature normalization or the model training procedure. This script supports the usage of Mitra [[paper](https://arxiv.org/abs/2510.21204) [website](https://auto.gluon.ai/dev/tutorials/tabular/tabular-foundational-models.html)], a Tabular Foundation Model (TFM) developed by AutoGluon, to automatically handle the feature engineering process. TFM is trained to automatically handle single-table prediction tasks with heterogeneous column types and diverse data distributions via in-context learning, without manual feature engineering. With the usage of mitra embedding, users can get rid of the consideration of feature engineering and focus more on the problem itself.
 
 **Important**: The current version of Mitra TFM supports a maximum of 10 classes for multiclass classification problems.
 
@@ -149,7 +149,8 @@ dataset_path/
 ├── *.parquet
 │   └── ...
 ```
-You can also refer to the [GraphStorm Use Your Own Data](https://graphstorm.readthedocs.io/en/latest/tutorials/own-data.html) for details on its support for Parquet-format data when using custom datasets.
+You can also refer to the GraphStorm [Use Your Own Data](https://graphstorm.readthedocs.io/en/latest/tutorials/own-data.html) guide for details on Parquet-format support and instructions on the format of customer raw data in parquet when working with custom datasets.
+
 
 ```bash
 # Custom parquet data (auto-detect all feature columns)
