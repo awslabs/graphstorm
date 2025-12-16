@@ -144,7 +144,7 @@ echo "********* Test GConstruct with Tabular Embedding Feature Transformation **
 
 python3 -m graphstorm.gconstruct.construct_graph \
     --add-reverse-edges \
-    --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lp.json \
+    --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_tfm.json \
     --graph-name ml-tfm \
     --num-parts 2 \
     --num-processes 1 \
