@@ -27,7 +27,8 @@
                         {
                             "feature_name": "tabular_feat",
                             "transform": {
-                                "name": "tabular"
+                                "name": "tabular",
+                                "target_col": "age"
                             }
                         }
                     ]
