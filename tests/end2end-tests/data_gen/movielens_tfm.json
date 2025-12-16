@@ -2,17 +2,6 @@
     "version": "gconstruct-v0.1",
     "nodes": [
             {
-                    "node_id_col":  "id",
-                    "node_type":    "user",
-                    "format":       {"name": "hdf5"},
-                    "files":        "/data/ml-100k/user.hdf5",
-                    "features":     [
-                           {
-                                   "feature_col":  "feat"
-                           }
-                    ]
-            },
-            {
                     "node_type":    "user",
                     "format":       {"name": "parquet"},
                     "files":        "/data/ml-100k/users.parquet",
@@ -28,7 +17,7 @@
                             "feature_name": "tabular_feat",
                             "transform": {
                                 "name": "tabular",
-                                "target_col": "age"
+                                "target_col": "feat_1"
                             }
                         }
                     ]
