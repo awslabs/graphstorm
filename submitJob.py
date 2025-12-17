@@ -123,7 +123,7 @@ def main():
     spin = ['-', '/', '|', '\\', '-', '/', '|', '\\']
     logGroupName = '/aws/batch/job' # This is the group where aws batch logs are stored in Cloudwatch
 
-    jobName = re.sub('[^A-Za-z0-9_\\-]', '', args.name)[:128]  # Enforce AWS Batch jobName rules
+    jobName = re.sub('[^A-Za-z0-9_\-]', '', args.name)[:128]  # Enforce AWS Batch jobName rules
     jobType = args.job_type
     jobQueue = job_type_info[jobType]['job_queue']
     jobDefinition = job_type_info[jobType]['job_definition']
@@ -162,8 +162,8 @@ def main():
         describeJobsResponse = batch.describe_jobs(jobs=[jobId])
         status = describeJobsResponse['jobs'][0]['status']
         if status == 'SUCCEEDED' or status == 'FAILED':
-            # if logStreamName:
-            startTime = printLogs(logGroupName, logStreamName, startTime) + 1
+            if logStreamName:
+                startTime = printLogs(logGroupName, logStreamName, startTime) + 1
             print('=' * 80)
             print('Job [{} - {}] {}'.format(jobName, jobId, status))
             sys.exit(status == 'FAILED')
@@ -186,4 +186,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
