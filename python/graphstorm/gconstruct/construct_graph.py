@@ -991,7 +991,7 @@ def verify_tabularfm_transformation_confs(confs, entity_type):
                         )
 
                     # Read the first classification label as the target column.
-                    target_label = next((lc for lc in label_conf_list 
+                    target_label = next((lc for lc in label_conf_list
                                         if lc["task_type"] == "classification"), None)
 
                     if not target_label:
