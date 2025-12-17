@@ -955,18 +955,17 @@ def verify_tabularfm_transformation_confs(confs, entity_type):
 
         # Initialize defaults to avoid "possibly undefined" errors (Pylint W0631)
         type_name = ""
+        if entity_type == "nodes":
+            type_name = type_conf["node_type"]
+        elif entity_type == "edges":
+            type_name = ":".join(type_conf['relation'])
+        else:
+            raise ValueError(
+                f"Not valid type name {entity_type} for "
+                "tabularFM verification function"
+            )
 
         if tabular_transformation_count > 1:
-            if entity_type == "nodes":
-                type_name = type_conf["node_type"]
-            elif entity_type == "edges":
-                type_name = ":".join(type_conf['relation'])
-            else:
-                raise ValueError(
-                    f"Not valid type name {entity_type} for "
-                    "tabularFM verification function"
-                )
-
             logging.warning(
                 "There are two tabular foundation model embedding transforms "
                 "in node type %s, both of which will generate the same embedding",
@@ -991,9 +990,17 @@ def verify_tabularfm_transformation_confs(confs, entity_type):
                             f"{entity_type} {type_name}"
                         )
 
-                    for label_conf in label_conf_list:
-                        if label_conf["task_type"] == "classification":
-                            feat_conf["transform"]["target_col"] = label_conf["label_col"]
+                    # Read the first classification label as the target column.
+                    target_label = next((lc for lc in label_conf_list 
+                                        if lc["task_type"] == "classification"), None)
+
+                    if not target_label:
+                        raise ValueError(
+                            f"Not found target_col defined in unlabeled "
+                            f"{entity_type} {type_name}"
+                        )
+
+                    feat_conf["transform"]["target_col"] = target_label["label_col"]
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
