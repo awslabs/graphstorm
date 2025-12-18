@@ -851,7 +851,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
 
         # set projection weights on edge features
         for canonical_etype in g.canonical_etypes:
-            if self.feat_size[canonical_etype] > 1:
+            if self.feat_size[canonical_etype] > 0:
                 feat_dim = self.feat_size[canonical_etype]
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                 nn.init.xavier_uniform_(input_projs.T, gain=nn.init.calculate_gain('linear'))
