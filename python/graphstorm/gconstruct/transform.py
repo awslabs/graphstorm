@@ -1498,6 +1498,14 @@ class TabularFMTransform(FeatTransform):
 
                         del cached_hidden_embeddings['final_layer_norm']
 
+                finally:
+                    for hook in hooks:
+                        hook.remove()
+                    cached_hidden_embeddings.clear()
+                    if batch_idx % 10 == 0:
+                        th.cuda.empty_cache()
+                        gc.collect()
+
             th.cuda.empty_cache()
             gc.collect()
 
