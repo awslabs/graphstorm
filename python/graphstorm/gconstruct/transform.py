@@ -1446,9 +1446,6 @@ class TabularFMTransform(FeatTransform):
 
         embeddings = []
         avg_embeddings = []
-        save_interval = 1024 * 10
-        file_counter = 0
-        temp_files = []
 
         with th.no_grad():
             for batch_idx, batch in enumerate(
