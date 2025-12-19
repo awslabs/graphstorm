@@ -484,7 +484,7 @@ def _parse_file_format(conf, is_node, in_mem):
                 for feat_key in feat_conf["feature_col"]:
                     keys.append(feat_key)
             elif 'transform' in feat_conf and feat_conf['transform']['name'] == 'tabular':
-                # We need to read all columns
+                # Read all columns to handle tabular foundation model feature.
                 keys = None
                 continue
             else:

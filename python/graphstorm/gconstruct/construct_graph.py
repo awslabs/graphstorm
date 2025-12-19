@@ -937,7 +937,9 @@ def is_homogeneous(confs):
     return len(ntypes) == 1 and len(etypes) == 1
 
 def verify_tabularfm_transformation_confs(confs, entity_type):
-    """ Verify the tabularFM feature transformation
+    """ Verify the tabular foundation model feature transformation.
+    Add target column to the config if user not specified.
+
     Parameter
     ----------
     confs: dict

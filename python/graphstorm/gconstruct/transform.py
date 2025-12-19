@@ -1341,7 +1341,9 @@ class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
         self._target_ntype = etype[2]
 
 class TabularFMTransform(FeatTransform):
-    """Transform input tabular numerical columns into tabular foundation model embedding.
+    """Transform input tabular numerical columns into tabular foundation model 
+    embedding with Mitra Model. Each row would expect a label column for Mitra.
+    Mitra Model: https://arxiv.org/abs/2510.21204
 
     Parameters
     ----------
@@ -1427,6 +1429,7 @@ class TabularFMTransform(FeatTransform):
             rng=trainer.rng,
         )
 
+        # Need to use DataLoader for DatasetFinetune
         loader = th.utils.data.DataLoader(
             dataset,
             batch_size=1,
@@ -1493,34 +1496,7 @@ class TabularFMTransform(FeatTransform):
                         embeddings.append(embedding_slice.astype(np.float32))
                         avg_embeddings.append(avg_embedding_slice.astype(np.float32))
 
-                        if len(embeddings) >= save_interval:
-                            temp_emb_file = os.path.join(save_dir,
-                                            f'embeddings_part_{file_counter}.npy')
-                            temp_avg_file = os.path.join(save_dir,
-                                            f'avg_embeddings_part_{file_counter}.npy')
-
-                            try:
-                                np.save(temp_emb_file, np.concatenate(embeddings, axis=0))
-                                np.save(temp_avg_file, np.concatenate(avg_embeddings, axis=0))
-                            except ValueError:
-                                np.save(temp_emb_file, np.vstack(embeddings))
-                                np.save(temp_avg_file, np.vstack(avg_embeddings))
-
-                            temp_files.append((temp_emb_file, temp_avg_file))
-                            file_counter += 1
-                            embeddings = []
-                            avg_embeddings = []
-                            gc.collect()
-
                         del cached_hidden_embeddings['final_layer_norm']
-
-                finally:
-                    for hook in hooks:
-                        hook.remove()
-                    cached_hidden_embeddings.clear()
-                    if batch_idx % 10 == 0:
-                        th.cuda.empty_cache()
-                        gc.collect()
 
             th.cuda.empty_cache()
             gc.collect()
@@ -1550,6 +1526,8 @@ class TabularFMTransform(FeatTransform):
             else:
                 result[k] = arr
 
+        # Increase ag.max_memory_usage_ratio to avoid OOM
+        # Set ag.max_rows to avoid maximum rows.
         feats_df = pd.DataFrame(result)
         self.tabular_fm_predictor.fit(
             feats_df,

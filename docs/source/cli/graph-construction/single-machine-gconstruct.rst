@@ -189,6 +189,15 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "bucket_cnt": 2,
                   "slide_window_size": 10},
 
+* **Numerical Feature Transformation with Tabular Foundation Model ** will do feature engineering with `Mitra Model <https://www.amazon.science/blog/mitra-mixed-synthetic-priors-for-enhancing-tabular-foundation-models>`_ 
+The tabular foundation model generates embeddings for all columns within the input table. The Mitra model expects a label column per row, defaulting to the selection node/edge label in the graph. The ``name`` field is ``tabular``, and optional ``target_col`` specifies the label column for tabular foundation model. 
+
+.. note:: The label classes are restricted to a maximum of 10.
+
+  .. code:: json
+    "transform": {"name": "tabular",
+                  "target_col": str}
+
 * **No-op vector parsing and truncation** This is a no-op transformation that passes data along as-is.
   The input data needs to be single values, or vectors of float values. The transfomation parameters are:
 
