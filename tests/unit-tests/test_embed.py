@@ -326,6 +326,33 @@ def test_input_layer4(dev):
     assert_almost_equal(embed[1][('n0', 'r1', 'n1')].detach().cpu().numpy(),
         g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10, 14)].detach().cpu().numpy())
 
+    # Test 5: Test 1D input edge feature as a corner case
+    #         ('n0', 'r0', 'n1') has 1D, ('n0', 'r1', 'n1') has 2D
+    g.edges[('n0', 'r0', 'n1')].data['feat'] = th.randn(g.num_edges(('n0', 'r0', 'n1')), 1)
+
+    edge_feat_size = get_edge_feat_size(g, {('n0', 'r0', 'n1'): ['feat'], \
+                                            ('n0', 'r1', 'n1'): ['feat']})
+    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2, activation=None)
+    assert len(edge_input_layer.input_projs) == 2
+    assert list(edge_input_layer.input_projs.keys())[0] == str(('n0', 'r0', 'n1'))
+    assert list(edge_input_layer.input_projs.keys())[1] == str(('n0', 'r1', 'n1'))
+    edge_input_layer = edge_input_layer.to(dev)
+
+    # run forward for 10 edges
+    block_edge_feat_list = [{('n0', 'r0', 'n1'): \
+                             g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10)].to(dev)}]
+    nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r0', 'n1'))])
+    embed = edge_input_layer(block_edge_feat_list)
+    # test output dimensions
+    assert len(embed) == 1
+    assert len(embed[0][('n0', 'r0', 'n1')]) == 10
+    # test output device
+    for _, emb in embed[0].items():
+        assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+    # test output values, should be equal to the inputs in the 1st dimension
+    assert_almost_equal(embed[0][('n0', 'r0', 'n1')][:, 0].detach().cpu().numpy(),
+        g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10)].squeeze().detach().cpu().numpy())
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1465,8 +1492,3 @@ def test_input_layer4metadatagraph(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-
-if __name__ == '__main__':
-    test_LM_learnable_rt_layer('cpu', 'bert-base-uncased')
-    test_pure_learnable_input_layer4metadatagraph('cpu')
-    test_input_layer4metadatagraph('cpu')
