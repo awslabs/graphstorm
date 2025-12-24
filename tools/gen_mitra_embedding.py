@@ -262,7 +262,7 @@ def get_instance_embeddings(fold_predictor, batch_data, save_dir=None) -> tuple:
     -----
     - Embeddings are saved in chunks to manage memory for large datasets
     - Temporary files are automatically cleaned up after merging
-    - Uses GPU if available for faster processing
+    - Uses GPUs if available for faster processing
     """
     if fold_predictor.transform_features is not None:
         batch_data = fold_predictor._learner.transform_features(batch_data)
