@@ -16,7 +16,7 @@
     Mitra Embedding Generation Tool for GraphStorm
 
     This tool generates Mitra embeddings from custom datasets in parquet format
-    for use in GraphStorm.
+    to be used in GraphStorm.
 
     Expected Input Directory Structure
     -----------------------------------
