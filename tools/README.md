@@ -118,6 +118,98 @@ The conversion script has a minimum memory requirement of 2X of the size of the 
 python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --low-mem
 ```
 
+## Generate Mitra embeddings for graph data
+The node features are crucial to the GNN prediction results. However, feature engineering for node features is challenging when different feature types (numerical, categorical, temporal) appear within the same node type, and this can significantly influence final performance. For example, it is difficult to determine whether performance issues stem from feature normalization or the model training procedure. This script supports the usage of Mitra [[paper](https://arxiv.org/abs/2510.21204) [website](https://auto.gluon.ai/dev/tutorials/tabular/tabular-foundational-models.html)], a Tabular Foundation Model (TFM) developed by AutoGluon, to automatically handle the feature engineering process. TFM is trained to automatically handle single-table prediction tasks with heterogeneous column types and diverse data distributions via in-context learning, without manual feature engineering. With the usage of mitra embedding, users can focus more on the problem itself.
+
+**Important**: The current version of Mitra TFM supports a maximum of 10 classes for multiclass classification problems.
+
+**Installation:**
+```bash
+# version: 
+# autogluon.common 1.4.0
+# autogluon.core 1.4.0
+# autogluon.features 1.4.0
+# autogluon.tabular 1.4.0
+pip install autogluon.tabular[mitra]
+```
+
+
+### Dataset Specifications
+Your datasets, parquet files, should be organized in subdirectories by node and edge types:
+
+```
+dataset_path/
+├── ntype_1/
+│   ├── *.parquet
+│   └── ...
+├── ntype_2/
+│   ├── *.parquet
+│   └── ...
+├── etype_1/
+├── *.parquet
+│   └── ...
+```
+You can also refer to the GraphStorm [Use Your Own Data](https://graphstorm.readthedocs.io/en/latest/tutorials/own-data.html) guide for details on Parquet-format support and instructions on the format of customer raw data in parquet when working with custom datasets.
+
+
+```bash
+# parquet data (auto-detect all feature columns)
+python3 tools/gen_mitra_embedding.py \
+    --dataset_path data_path \
+    --target-ntype target_ntype \
+    --label-name label \
+    --node-id-col node_id
+```
+
+**Command Arguments:**
+- `--dataset_path`: Path to base directory containing node type subdirectories (e.g., `data/my_data/`)
+- `--target-ntype`: Node type name (used as subdirectory name, e.g., `user`, `product`, `movie`)
+- `--label-name`: Column name to use as the label/target in input parquet (required)
+- `--feature-cols`: (Optional) Comma-separated feature column names. If omitted, uses all columns except label and node_id
+- `--node-id-col`: Column name for node IDs (default: `node_id`). If not present, sequential IDs will be created
+
+**Directory Structure:**
+- Input parquet files: `{dataset_path}/{target-ntype}/*.parquet`
+- Output embeddings: `{dataset_path}/{target-ntype}/mitra_embeddings.parquet`
+
+**Output Files:**
+The output file `mitra_embeddings.parquet` contains:
+1. `node_id`: Node identifier
+2. Label column (name from `--label-name`): Original label values
+3. Embedding dimensions: `0`, `1`, `2`, ... (numeric column names, it is 512 dimensions)
+The output file can be used as node features in GraphStorm graph construction and replace the raw features in the target node types.
+
+
+After generating Mitra embeddings, the resulting features are saved to  
+`{dataset_path}/{target-ntype}/mitra_embeddings.parquet`.
+Next, refer to the [GraphStorm “Use Your Own Data” guide](https://graphstorm.readthedocs.io/en/latest/tutorials/own-data.html) to write the json configuration for graph construction. 
+Note that for the target node type, only the `mitra_embedding` feature is required.
+You can then leverage GraphStorm’s built-in GNN models—such as RGCN, RGAT, and HGT—to perform graph machine learning (GML) tasks. 
+
+
+### MovieLens-100k Example
+The MovieLens workflow involves two steps: downloading/converting the dataset, then generating embeddings.
+
+**Step 1: Download and Convert MovieLens Data**
+
+```bash
+# Download and convert all MovieLens data (users, movies, ratings)
+# Output: data/ml-100k-parquet/user/, data/ml-100k-parquet/movie/, data/ml-100k-parquet/rating/
+python3 tools/download_movielens.py --output-dir data/ml-100k-parquet
+```
+
+**Step 2: Generate Mitra Embeddings**
+
+```bash
+# Generate embeddings for users with prediction target gender
+python3 tools/gen_mitra_embedding.py \
+    --dataset_path data/ml-100k-parquet \
+    --target-ntype user \
+    --label-name gender \
+    --node-id-col user_id
+```
+
+
 ## Do graph data sanity check
 GraphStorm provides a tool to do graph feature and mask sanity check. Use `graph_sanity_check.py` script with `--dataset-path` pointing to the distDGL folder of partitions to check a partitioned graph data. By default, it will check whether any node feature or edge feature has `NaN` (Not a Number) or `Inf` (Infinite number) data. It will also check whether the features are normalized into the range of [-1, 1]. If not, it will print a warning. Use the argument `--node-masks` to specify the node masks to check and `--edge-masks` to specify the edge masks to check. The script will check whether GraphStorm can parse the mask without any error.
 
@@ -132,4 +224,3 @@ ERROR: [Node type: user][Feature Name: test][Part part0]: There are NaN values i
 ERROR: [Node type: user][Feature Name: test][Part part1]: There are NaN values in the feature, please check.
 WARNING: [Node type: movie][Feature Name: label][Part part0]: There are some value out of the range of [-1, 1].It won't cause any error, but it is recommended to normalize the feature.
 WARNING: [Node type: movie][Feature Name: label][Part part1]: There are some value out of the range of [-1, 1].It won't cause any error, but it is recommended to normalize the feature.
-```
