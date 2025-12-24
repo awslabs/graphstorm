@@ -153,7 +153,7 @@ You can also refer to the GraphStorm [Use Your Own Data](https://graphstorm.read
 
 
 ```bash
-# Custom parquet data (auto-detect all feature columns)
+# parquet data (auto-detect all feature columns)
 python3 tools/gen_mitra_embedding.py \
     --dataset_path data_path \
     --target-ntype target_ntype \
