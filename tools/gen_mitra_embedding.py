@@ -111,7 +111,7 @@ def load_parquet_data(data_path, feature_cols=None, label_col='label', node_id_c
     data_path : str
         Path to directory containing parquet files
     feature_cols : list of str, optional
-        List of column names to use as features. If None, uses all columns except label_col and node_id_col
+        List of column names of features. If None, uses all columns except label_col and node_id_col
     label_col : str
         Column name to use as label
     node_id_col : str
