@@ -29,7 +29,7 @@ from transformers import AutoConfig, AutoModel
 import dgl
 
 from .embed import GSNodeInputLayer
-from .embed import GSNodeEncoderInputLayer
+from .embed import GSNodeEncoderInputLayer, GSNodeEncoderInputLayer4GraphFromMetadata
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
 from .utils import (
@@ -41,7 +41,7 @@ from .utils import (
 from ..utils import get_rank, get_world_size, create_dist_tensor
 from ..wholegraph import WholeGraphDistTensor
 from ..distributed import flush_data
-from ..config.config import GS_LM_FEATURE_KEY
+from ..config.config import GS_LM_FEATURE_KEY, GS_LE_FEATURE_KEY
 
 class LMModels(nn.Module):
     """ LM model collection
@@ -883,13 +883,22 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)
 
-class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
-    """ The node encoder input layer with language model (LM) supported for graphs
-    initialized from `GSGraphMetadata`.
 
-    This input layer treats node features in the same way as the ``GSNodeEncoderInputLayer``.
-    In addition, the input layer reloads LM layer and projection layer on nodes with tokenized 
-    features.
+class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer4GraphFromMetadata):
+    """ The node encoder input layer with language model (LM) supported for graphs
+    initialized from `GSGraphFromMetadata`.
+
+    .. versionadded:: 0.5.1
+        Add the `GSLMNodeEncoderInputLayer4GraphFromMetaData` class to support create a node
+        input layer by using a `GSGraphFromMetadata` as the initial argument.
+
+    This input layer treats node features in the same way as the
+    ``GSNodeEncoderInputLayer4GraphFromMetadata``. In addition, the input layer reloads LM layer
+    and projection layer on nodes with tokenized features.
+    
+    This input layer also handles a special case where a GraphStorm model uses learnable embedding
+    during training, but cannot reload these learnable embeddings from `GSGraphFromMetadata`. This
+    use case could occur in real-time inference on SageMaker AI inference endpoints.
 
     Parameters
     ----------
@@ -1047,6 +1056,10 @@ class GSLMNodeEncoderInputLayer4GraphFromMetaData(GSNodeEncoderInputLayer):
                     nfeat_w_lm_emb[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
                 nfeat_w_lm_emb[ntype] = lm_feat
+
+        # add learnable embedding (if contains) to output dict for downstream forward()
+        if GS_LE_FEATURE_KEY in input_feats:
+            nfeat_w_lm_emb[GS_LE_FEATURE_KEY] = input_feats[GS_LE_FEATURE_KEY]
 
         return super(GSLMNodeEncoderInputLayer4GraphFromMetaData, self).\
                 forward(nfeat_w_lm_emb, input_nodes)

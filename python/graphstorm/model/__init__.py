@@ -17,10 +17,12 @@
 """
 from .embed import (GSPureLearnableInputLayer,
                     GSNodeEncoderInputLayer,
-                    GSEdgeEncoderInputLayer)
+                    GSEdgeEncoderInputLayer,
+                    GSPureLearnableInputLayer4GraphFromMetaData,
+                    GSNodeEncoderInputLayer4GraphFromMetadata)
 from .lm_embed import (GSLMNodeEncoderInputLayer,
-                    GSPureLMNodeInputLayer,
-                    GSLMNodeEncoderInputLayer4GraphFromMetaData)
+                       GSPureLMNodeInputLayer,
+                       GSLMNodeEncoderInputLayer4GraphFromMetaData)
 
 from .utils import sparse_emb_initializer
 
