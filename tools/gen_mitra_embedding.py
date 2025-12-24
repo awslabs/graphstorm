@@ -31,7 +31,7 @@
     
     Example structures:
     
- ingle node type:
+ Single node type:
        data/
       user/
            └── users.parquet
