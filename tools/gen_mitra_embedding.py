@@ -20,7 +20,7 @@
 
     Expected Input Directory Structure
     -----------------------------------
-    The tool expects parquet files organized by node type:
+    The tool expects parquet files organized by node types:
     
     dataset_path/
     └── target_ntype/              # Node type directory (e.g., 'user', 'product', 'movie')
