@@ -17,7 +17,7 @@
 
     This tool downloads the MovieLens-100k dataset and converts all data files
     (users, movies, ratings) to parquet format for the
-    and gen_mitra_embedding.py.
+     gen_mitra_embedding.py script.
     
     Output Structure:
     -----------------
