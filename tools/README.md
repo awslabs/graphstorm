@@ -134,7 +134,7 @@ pip install autogluon.tabular[mitra]
 ```
 
 
-### Custom Dataset Example
+### Dataset Specifications
 For custom datasets, parquet files should be organized in subdirectories by node and edge types:
 
 ```
