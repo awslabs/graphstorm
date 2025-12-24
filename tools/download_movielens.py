@@ -88,7 +88,7 @@ def convert_movielens_to_parquet(raw_data_path, output_dir):
     """
     Convert all MovieLens raw data files to parquet format.
     
-    This function converts users, movies, and ratings data into separate
+    This function converts `users`, `movies`, and `ratings` data into separate
     parquet files organized by node/edge type for GraphStorm gconstruct.
     
     Parameters
