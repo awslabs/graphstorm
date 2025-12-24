@@ -1343,7 +1343,7 @@ class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
 class TabularFMTransform(FeatTransform):
     """Transform input tabular numerical columns into tabular foundation model 
     embedding with Mitra Model. Each row would expect a label column for Mitra.
-    Mitra Model: https://arxiv.org/abs/2510.21204
+    Mitra Model: https://arxiv.org/abs/2510.2120. It is an experimental feature.
 
     Parameters
     ----------
