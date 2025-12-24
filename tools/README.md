@@ -176,7 +176,7 @@ python3 tools/gen_mitra_embedding.py \
 The output file `mitra_embeddings.parquet` contains:
 1. `node_id`: Node identifier
 2. Label column (name from `--label-name`): Original label values
-3. Embedding dimensions: `0`, `1`, `2`, ... (numeric column names, typically 512 dimensions)
+3. Embedding dimensions: `0`, `1`, `2`, ... (numeric column names, it is 512 dimensions)
 The output file can be used as node features in GraphStorm graph construction and replace the raw features in the target node types.
 
 
