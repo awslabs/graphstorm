@@ -96,7 +96,7 @@ def convert_movielens_to_parquet(raw_data_path, output_dir):
     raw_data_path : str
         Path to the directory containing MovieLens files (e.g., data/ml-100k/ml-100k)
     output_dir : str
-        Directory where parquet files will be saved in subdirectories by type
+        Directory where parquet files will be saved in subdirectories by types
         
     Returns
     -------
