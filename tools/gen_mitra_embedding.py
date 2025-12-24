@@ -164,6 +164,9 @@ def load_parquet_data(data_path, feature_cols=None, label_col='label', node_id_c
         if missing_cols:
             raise ValueError(f"Feature columns not found: {missing_cols}")
     
+    if len(feature_cols) == 0:
+        raise ValueError(f"No avaliable feature columns besides label_col {label_col} and node_id_col {node_id_col}")
+
     print(f"Using {len(feature_cols)} feature columns: {feature_cols}")
     
     # Create features dataframe
