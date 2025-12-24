@@ -54,7 +54,7 @@
     -------------------------
     Each parquet file must contain:
     - Feature columns: Numeric columns used for embedding generation
-    - Label column: Target column for classification (specified by --label-name)
+    - Label column: Target column for classification (specified by --label-col)
     - Node ID column: Unique identifier for each node (specified by --node-id-col)
       If not present, sequential IDs will be auto-generated
     
@@ -449,7 +449,7 @@ if __name__ == '__main__':
             python tools/gen_mitra_embedding.py \\
                 --dataset_path data \\
                 --target-ntype target_ntype \\
-                --label-name target_label
+                --label-col target_label
                 --node-id-col node_id
                 """
     )
@@ -457,7 +457,7 @@ if __name__ == '__main__':
                        help="Base path to dataset directory. Tool will look for parquet files in dataset_path/target-ntype/")
     parser.add_argument("--target-ntype", type=str, required=True,
                        help="Target node type. Tool will read and write in dataset_path/target-ntype/")
-    parser.add_argument("--label-name", type=str, required=True, 
+    parser.add_argument("--label-col", type=str, required=True, 
                        help="Label column name in parquet files (used for classification task)")
     parser.add_argument("--feature-cols", type=str, default=None,
                        help="Comma-separated list of feature column names. If not specified, uses all columns except label and node_id")
@@ -473,7 +473,7 @@ if __name__ == '__main__':
     print(f"Input directory:  {data_path_with_ntype}")
     print(f"Output directory: {data_path_with_ntype}")
     print(f"Node type:        {args.target_ntype}")
-    print(f"Label column:     {args.label_name}")
+    print(f"Label column:     {args.label_col}")
     print(f"Node ID column:   {args.node_id_col}")
     print(f"{'='*70}\n")
     
@@ -493,7 +493,7 @@ if __name__ == '__main__':
     
     table, node_ids = load_parquet_data(
         data_path_with_ntype, feature_cols=feature_cols, 
-        label_col=args.label_name, node_id_col=args.node_id_col
+        label_col=args.label_col, node_id_col=args.node_id_col
     )
     
     print(f"  Data loaded successfully:")
@@ -557,7 +557,7 @@ if __name__ == '__main__':
     os.makedirs(output_dir, exist_ok=True)
     
     # Determine target column name
-    target_col_name = args.label_name
+    target_col_name = args.label_col
     
     # Create DataFrame with node_id, target label, and embeddings
     embedding_df = pd.DataFrame(mitra_embeddings)
