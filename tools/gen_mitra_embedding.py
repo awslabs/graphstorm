@@ -256,7 +256,7 @@ def get_instance_embeddings(fold_predictor, batch_data, save_dir=None) -> tuple:
     tuple of (np.ndarray, np.ndarray)
         - embeddings: Instance embeddings from the model [N, embedding_dim]
         - avg_embeddings: Average embeddings across features [N, embedding_dim]
-        Returns empty arrays if no embeddings are generated
+    Returns empty arrays if no embeddings are generated
         
     Notes
     -----
