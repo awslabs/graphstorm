@@ -161,7 +161,7 @@ python3 tools/gen_mitra_embedding.py \
     --node-id-col node_id
 ```
 
-**Custom Dataset Parameters:**
+**Command Arguments:**
 - `--dataset_path`: Path to base directory containing node type subdirectories (e.g., `data/my_data/`)
 - `--target-ntype`: Node type name (used as subdirectory name, e.g., `user`, `product`, `movie`)
 - `--label-name`: Column name to use as the label/target in input parquet (required)
