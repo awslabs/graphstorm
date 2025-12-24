@@ -39,7 +39,8 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              BucketTransform,
                                              HardEdgeDstNegativeTransform,
                                              Tokenizer,
-                                             Text2BERT)
+                                             Text2BERT,
+                                             TabularFMTransform)
 from graphstorm.gconstruct.transform import (_check_label_stats_type,
                                              collect_label_stats,
                                              CustomLabelProcessor,
@@ -1117,6 +1118,45 @@ def test_bucket_transform(out_dtype):
     feats = np.array([1, 10, 20, np.inf])
     with assert_raises(AssertionError):
         bucket_feats = transform(feats)
+
+@pytest.mark.parametrize("out_dtype", [None, np.float16])
+def test_tabular_fm_transform(out_dtype):
+    # Create sample tabular data with more columns but fewer rows
+    np.random.seed(42)
+    sample_data = {
+        'feature1': np.random.randn(20),
+        'feature2': np.random.randn(20),
+        'feature3': np.random.randint(0, 5, 20),
+        'feature4': np.random.uniform(0, 1, 20),
+        'feature5': np.random.exponential(2, 20),
+        'feature6': np.random.randint(10, 100, 20),
+        'feature7': np.random.normal(5, 2, 20),
+        'feature8': np.random.beta(2, 3, 20),
+        'feature9': np.random.poisson(3, 20),
+        'feature10': np.random.gamma(2, 2, 20)
+    }
+    
+    # Create TabularFMTransform instance
+    transform = TabularFMTransform("test_col", "test_feat", 
+                                   out_dtype=out_dtype, target_col='feature3')
+    
+    # Test the transform
+    result = transform(sample_data)
+    
+    # Verify the result structure
+    assert "test_feat" in result
+    assert isinstance(result["test_feat"], np.ndarray)
+    
+    # Check output dtype
+    if out_dtype is not None:
+        assert result["test_feat"].dtype == out_dtype
+    else:
+        assert result["test_feat"].dtype == np.float32
+    
+    # Verify feature dimension is set
+    assert hasattr(transform, 'feat_dim')
+    assert isinstance(transform.feat_dim, tuple)
+
 
 @pytest.mark.parametrize("id_dtype", [str, np.int64])
 def test_hard_edge_dst_negative_transform(id_dtype):

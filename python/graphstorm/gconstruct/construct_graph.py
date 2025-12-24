@@ -936,6 +936,74 @@ def is_homogeneous(confs):
     etypes = set(tuple(conf['relation']) for conf in confs["edges"])
     return len(ntypes) == 1 and len(etypes) == 1
 
+def verify_tabularfm_transformation_confs(confs, entity_type):
+    """ Verify the tabular foundation model feature transformation.
+    Add target column to the config if user not specified.
+
+    Parameter
+    ----------
+    confs: dict
+        A dict containing the node/edge type config
+    entity_type: str
+        Node/Edge
+    """
+    # pylint: disable=too-many-nested-blocks
+    for type_conf in confs[entity_type]:
+        tabular_transformation_count = sum(
+            1
+            for feat_conf in type_conf.get("features", [])
+            if feat_conf.get("transform", {}).get("name") == "tabular"
+        )
+
+        # Initialize defaults to avoid "possibly undefined" errors (Pylint W0631)
+        type_name = ""
+        if entity_type == "nodes":
+            type_name = type_conf["node_type"]
+        elif entity_type == "edges":
+            type_name = ":".join(type_conf['relation'])
+        else:
+            raise ValueError(
+                f"Not valid type name {entity_type} for "
+                "tabularFM verification function"
+            )
+
+        if tabular_transformation_count > 1:
+            logging.warning(
+                "There are two tabular foundation model embedding transforms "
+                "in node type %s, both of which will generate the same embedding",
+                type_name
+            )
+
+        label_conf_list = type_conf.get("labels", [])
+
+        if "features" in type_conf:
+            for feat_conf in type_conf["features"]:
+                transform = feat_conf.get("transform")
+
+                # Using parentheses fixes the Bad Indentation (W0311)
+                if (
+                    transform
+                    and transform.get("name") == "tabular"
+                    and "target_col" not in transform
+                ):
+                    if not label_conf_list:
+                        raise ValueError(
+                            f"Not found target_col defined in unlabeled "
+                            f"{entity_type} {type_name}"
+                        )
+
+                    # Read the first classification label as the target column.
+                    target_label = next((lc for lc in label_conf_list
+                                        if lc["task_type"] == "classification"), None)
+
+                    if not target_label:
+                        raise ValueError(
+                            f"Not found target_col defined in unlabeled "
+                            f"{entity_type} {type_name}"
+                        )
+
+                    feat_conf["transform"]["target_col"] = target_label["label_col"]
+
 def verify_confs(confs):
     """ Verify the configuration of the input data.
     Parameter
@@ -974,6 +1042,10 @@ def verify_confs(confs):
         confs["is_homogeneous"] = True
     else:
         confs["is_homogeneous"] = False
+
+    # Add target column to tabularFM transform
+    verify_tabularfm_transformation_confs(confs, "nodes")
+    verify_tabularfm_transformation_confs(confs, "edges")
 
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
