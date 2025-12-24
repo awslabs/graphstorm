@@ -189,7 +189,7 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "bucket_cnt": 2,
                   "slide_window_size": 10},
 
-* **Numerical Feature Transformation with Tabular Foundation Model ** performs feature engineering using the `Mitra Model <https://www.amazon.science/blog/mitra-mixed-synthetic-priors-for-enhancing-tabular-foundation-models>`_, 
+* **Numerical Feature Transformation with Tabular Foundation Model** performs feature engineering using the `Mitra Model <https://www.amazon.science/blog/mitra-mixed-synthetic-priors-for-enhancing-tabular-foundation-models>`_, 
 an experimental feature validated on the `H2GB Dataset <https://github.com/junhongmit/H2GB?tab=readme-ov-file>`_ for the combination of tabular foundation model embedding and graph neural network. 
 This model generates embeddings with the input for all original columns within each node/edge type, requiring a label column per row that defaults to the graph's primary classfication label. 
 In the configuration, the name field must be set to ``tabular``, while the optional ``target_col`` attribute specifies the label column for the tabular foundation model. Currently, the Mitra model strictly supports fully numerical tables, meaning every input column must contain only numerical values.
