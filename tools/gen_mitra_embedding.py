@@ -71,7 +71,7 @@
     - label_column: Original label values
     - 0, 1, 2, ...: Embedding dimensions (512-dimensional by default)
 
-    Important Limitation
+    Limitation:
     --------------------
     The current version of Mitra TFM (Tabular Foundation Model) requires the number 
     of classes for classification problems to be no more than 10. Datasets exceeding 
