@@ -471,6 +471,10 @@ def _parse_file_format(conf, is_node, in_mem):
         keys = [conf["source_id_col"], conf["dest_id_col"]]
     else:
         keys = []
+    if "labels" in conf:
+        for label_conf in conf["labels"]:
+            if "label_col" in label_conf:
+                keys.append(label_conf["label_col"])
     if "features" in conf:
         for feat_conf in conf["features"]:
             assert "feature_col" in feat_conf, "A feature config needs a feature_col."
@@ -479,15 +483,15 @@ def _parse_file_format(conf, is_node, in_mem):
             elif isinstance(feat_conf["feature_col"], list):
                 for feat_key in feat_conf["feature_col"]:
                     keys.append(feat_key)
+            elif 'transform' in feat_conf and feat_conf['transform']['name'] == 'tabular':
+                # Read all columns to handle tabular foundation model feature.
+                keys = None
+                continue
             else:
                 raise TypeError("Feature column must be a str or a list of string.")
-    if "labels" in conf:
-        for label_conf in conf["labels"]:
-            if "label_col" in label_conf:
-                keys.append(label_conf["label_col"])
 
     # We need to remove duplicated keys to avoid retrieve the same data multiple times.
-    keys = list(set(keys))
+    keys = list(set(keys)) if keys else None
     if fmt["name"] == "parquet":
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":

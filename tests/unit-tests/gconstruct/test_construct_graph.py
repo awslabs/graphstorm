@@ -34,7 +34,8 @@ from graphstorm.gconstruct.construct_graph import (parse_edge_data,
                                                    parse_edge_nid_data,
                                                    verify_confs,
                                                    is_homogeneous,
-                                                   _collect_parsed_edge_data)
+                                                   _collect_parsed_edge_data,
+                                                   verify_tabularfm_transformation_confs)
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
@@ -3302,3 +3303,79 @@ def test_parse_edge_nid_data():
                                     True,
                                     edge_conf,
                                     read_file)
+                                    
+def test_verifytabularfm_transformation_confs():
+    """Test verify_tabularfm_transformation_confs function"""
+    
+    # Base configuration
+    base_conf = {
+        "nodes": [
+            {
+                "node_type": "user",
+                "features": [
+                    {
+                        "feature_name": "tabular_feat",
+                        "transform": {
+                            "name": "tabular"
+                        }
+                    }
+                ],
+                "labels": [
+                    {
+                        "label_col": "age",
+                        "task_type": "classification"
+                    }
+                ]
+            }
+        ]
+    }
+    
+    # Test 1: Should add target_col automatically
+    conf = copy.deepcopy(base_conf)
+    verify_tabularfm_transformation_confs(conf, "nodes")
+    assert conf["nodes"][0]["features"][0]["transform"]["target_col"] == "age"
+    
+    # Test 2: Should not modify existing target_col
+    conf = copy.deepcopy(base_conf)
+    conf["nodes"][0]["features"][0]["transform"]["target_col"] = "custom_target"
+    verify_tabularfm_transformation_confs(conf, "nodes")
+    assert conf["nodes"][0]["features"][0]["transform"]["target_col"] == "custom_target"
+    
+    # Test 3: Multiple tabular transforms should add target_col to both
+    conf = copy.deepcopy(base_conf)
+    conf["nodes"][0]["features"].append({
+        "feature_name": "tabular_feat2",
+        "transform": {"name": "tabular"}
+    })
+    verify_tabularfm_transformation_confs(conf, "nodes")
+    assert conf["nodes"][0]["features"][0]["transform"]["target_col"] == "age"
+    assert conf["nodes"][0]["features"][1]["transform"]["target_col"] == "age"
+    
+    # Test 4: No labels should raise ValueError
+    conf = copy.deepcopy(base_conf)
+    del conf["nodes"][0]["labels"]
+    with pytest.raises(ValueError, match="Not found target_col defined in unlabeled nodes user"):
+        verify_tabularfm_transformation_confs(conf, "nodes")
+    
+    # Test 5: Non-classification labels should raise ValueError
+    conf = copy.deepcopy(base_conf)
+    conf["nodes"][0]["labels"][0]["task_type"] = "regression"
+    with pytest.raises(ValueError, match="Not found target_col defined in unlabeled nodes user"):
+        verify_tabularfm_transformation_confs(conf, "nodes")
+    
+    # Test 6: Test with edges
+    edge_conf = {
+        "edges": [
+            {
+                "relation": ["user", "rating", "movie"],
+                "features": [{"feature_name": "tabular_feat", "transform": {"name": "tabular"}}],
+                "labels": [{"label_col": "rating", "task_type": "classification"}]
+            }
+        ]
+    }
+    verify_tabularfm_transformation_confs(edge_conf, "edges")
+    assert edge_conf["edges"][0]["features"][0]["transform"]["target_col"] == "rating"
+    
+    # Test 7: Invalid entity_type should raise ValueError
+    with pytest.raises(ValueError, match="Not valid type name invalid_type"):
+        verify_tabularfm_transformation_confs({"invalid_type": [{"features": [{"transform": {"name": "tabular"}}, {"transform": {"name": "tabular"}}]}]}, "invalid_type")
