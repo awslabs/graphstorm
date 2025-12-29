@@ -8,6 +8,8 @@ GS_HOME=$(pwd)
 # Install graphstorm from checked out code
 pip3 install "$GS_HOME" --upgrade
 
+python3 -m pip install autogluon.tabular[mitra]==1.4.0 einops==0.8.1
+
 bash ./tests/end2end-tests/create_data.sh
 bash ./tests/end2end-tests/graphbolt-gs-integration/graphbolt-graph-construction.sh
 bash ./tests/end2end-tests/graphbolt-gs-integration/graphbolt-training-inference.sh

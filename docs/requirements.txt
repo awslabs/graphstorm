@@ -5,3 +5,5 @@ pandoc
 torch>=2.2.0
 -f https://data.dgl.ai/wheels-internal/repo.html
 dgl==1.0.4
+autogluon.tabular[mitra]==1.4.0
+einops==0.8.1

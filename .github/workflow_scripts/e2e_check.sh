@@ -3,6 +3,8 @@ cd ../../
 
 set -ex
 
+python3 -m pip install autogluon.tabular[mitra]==1.4.0 einops==0.8.1
+
 sh ./tests/end2end-tests/setup.sh
 sh ./tests/end2end-tests/create_data.sh
 sh ./tests/end2end-tests/tools/test_mem_est.sh
