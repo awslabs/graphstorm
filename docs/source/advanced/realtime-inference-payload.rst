@@ -4,7 +4,6 @@ Advanced Real-time Inference Payload Prepare
 ====================================================
 
 .. _introduction:
-
 Introduction
 ------------
 
