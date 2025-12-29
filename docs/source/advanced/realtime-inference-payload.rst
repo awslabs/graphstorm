@@ -1,6 +1,6 @@
 .. _realtime_inference_payload:
 
-Real-time Inference Payload Prepare in GraphStorm
+Advanced Real-time Inference Payload Prepare
 ====================================================
 
 .. _introduction:
@@ -106,7 +106,9 @@ To use raw text input in real-time inference, the model must be trained with tex
 **During Graph Construction:**
 
 * Text features must be defined in the graph construction configuration (GConstruct or GSProcessing).
-* Feature names in the payload must match the ``feature_name`` entries in the construction configuration.
+* Features names must match the ``feature_name`` entries defined in :ref:`GConstruct JSON specification
+  <gconstruction-json>`, or the ``name`` values of ``features`` fields defined in
+  :ref:`GSProcessing JSON specification <gsprocessing_input_configuration>`.
 
 **During Model Training:**
 
