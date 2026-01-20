@@ -22,9 +22,18 @@ import re
 from typing import List, Optional, Sequence, Union
 
 import boto3
-from sagemaker.processing import ScriptProcessor
+from sagemaker.processing import (
+    ProcessingInput,
+    ProcessingOutput,
+    ScriptProcessor,
+)
 from sagemaker.spark.processing import PySparkProcessor
 from sagemaker.pytorch.estimator import PyTorch
+from sagemaker.tuner import (
+    HyperbandStrategyConfig,
+    HyperparameterTuner,
+    StrategyConfig,
+)
 from sagemaker.workflow.functions import Join
 from sagemaker.workflow.parameters import ParameterInteger, ParameterString
 from sagemaker.workflow.pipeline import Pipeline
@@ -33,14 +42,24 @@ from sagemaker.workflow.steps import (
     CacheConfig,
     ProcessingStep,
     TrainingStep,
-    ProcessingInput,
-    ProcessingOutput,
+    TuningStep,
 )
 
 from pipeline_parameters import (
     PipelineArgs,
     parse_pipeline_args,
     save_pipeline_args,
+)
+
+# TODO: We need this to be a module to be able to import it
+# from launch.launch_hyperparameter_tuning import (
+#     get_metric_definitions,
+#     parse_hyperparameter_ranges,
+# )
+# For now duplicate code from launch/launch_hyperparameter_tuning.py
+from tuning_utils import (
+    get_metric_definitions,
+    parse_hyperparameter_ranges,
 )
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -247,6 +266,24 @@ class GraphStormPipelineGenerator:
         pipeline_steps: List[Union[ProcessingStep, TrainingStep]] = []
         for job in self.args.task_config.jobs_to_run:
             step = self._create_step(job, args)
+            # TODO: Make cache invalidation more robust
+            # Processing steps do not invalidate cache when only
+            # the output changes, we should add an env var to ensure
+            # that happens.
+
+            # https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-default-keys.html
+            # Processing steps will only invalidate cache when one of the following changes
+            # * AppSpecification
+            # * Environment
+            # * ProcessingInputs.
+            # Here we propose adding an env var that helps invalidate the cache when the output changes:
+            # if isinstance(step, ProcessingStep):
+            #     assert step.processor
+            #     if step.processor.env is None:
+            #         step.processor.env = {}
+            #     step.processor.env.update(
+            #         {"SM_PIPELINE_STEP_OUTPUTS": [output.destination or "" for output in step.outputs or []]}
+            #     )
             if step:
                 pipeline_steps.append(step)
 
@@ -272,10 +309,12 @@ class GraphStormPipelineGenerator:
             "gsprocessing": self._create_gsprocessing_step,
             "dist_part": self._create_dist_part_step,
             "gb_convert": self._create_gb_convert_step,
+            "hpo": self._create_tuning_step,
             "train": self._create_train_step,
             "inference": self._create_inference_step,
         }
         step_generator = step_generators.get(job_type)
+        assert step_generator, f"Unknown job type: {job_type}"
         return step_generator(args) if step_generator else None
 
     def _create_gconstruct_step(self, args: PipelineArgs) -> ProcessingStep:
@@ -283,6 +322,14 @@ class GraphStormPipelineGenerator:
         assert args.graph_construction_config.config_filename, (
             "Graph construction config file must be specified for GConstruct step. "
             "Use --graph-construction-config-filename"
+        )
+
+        gconstruct_s3_output = Join(
+            on="/",
+            values=[
+                self.output_subpath,
+                "gconstruct",
+            ],
         )
 
         gconstruct_processor = ScriptProcessor(
@@ -293,14 +340,7 @@ class GraphStormPipelineGenerator:
             command=["python3"],
             sagemaker_session=self.pipeline_session,
             volume_size_in_gb=self.volume_size_gb_param,
-        )
-
-        gconstruct_s3_output = Join(
-            on="/",
-            values=[
-                self.output_subpath,
-                "gconstruct",
-            ],
+            env={"GCONSTRUCT_OUTPUT": gconstruct_s3_output},
         )
 
         gc_local_input_path = "/opt/ml/processing/input"
@@ -524,6 +564,112 @@ class GraphStormPipelineGenerator:
         )
         # No need to update next step input for GB convert
         return gb_convert_step
+
+    def _create_tuning_step(self, args: PipelineArgs) -> TuningStep:
+        # Implementation for HPO tuning step
+        hpo_output_path = Join(
+            on="/",
+            values=[
+                self.output_subpath,
+                "hpo",
+            ],
+        )
+
+        train_params = {
+            "eval-metric": args.tuning_config.metric_name,
+            "graph-data-s3": self.next_step_data_input,
+            "graph-name": self.graph_name_param,
+            "log-level": args.task_config.log_level,
+            "num-trainers": self.num_trainers_param,
+            "task-type": args.training_config.train_inference_task,
+            "topk-model-to-save": "1",
+            "train-yaml-s3": self.train_config_file_param,
+            "use-graphbolt": args.training_config.use_graphbolt_str,
+        }
+
+        # Add strategy-specific parameters
+        if args.tuning_config.strategy == "Hyperband":
+            # Hyperband must control max epochs and early stopping
+            # Set num-epochs of GraphStorm to hyperband max epoch
+            # Disable early-stop of GraphStorm
+            train_params.update(
+                {
+                    "num-epochs": args.tuning_config.hb_max_epochs,
+                    "use_early_stop": "false",
+                }
+            )
+
+        # Base train estimator for all HPO jobs
+        train_estimator = PyTorch(
+            entry_point=os.path.basename(args.script_paths.train_script),
+            source_dir=os.path.dirname(args.script_paths.train_script),
+            image_uri=self.train_infer_image,
+            role=args.aws_config.execution_role,
+            instance_count=self.instance_count_param,
+            instance_type=self.train_infer_instance,
+            output_path=hpo_output_path, # All tuners should create output under "hpo"
+            py_version="py3",
+            hyperparameters=train_params,
+            sagemaker_session=self.pipeline_session,
+            disable_profiler=True,
+            debugger_hook_config=False,
+            volume_size=self.volume_size_gb_param, # Do not compress model output
+            disable_output_compression=True
+        )
+
+        hyperparameter_ranges = parse_hyperparameter_ranges(
+            args.tuning_config.hyperparameter_ranges
+        )
+
+        # Get metric definitions based on strategy
+        metric_definitions = get_metric_definitions(
+            args.tuning_config.metric_name,
+            args.tuning_config.eval_mask,
+            args.tuning_config.strategy,
+        )
+        # Configure the tuner
+        tuner_config = {
+            "estimator": train_estimator,
+            # Use first metric as objective
+            "objective_metric_name": metric_definitions[0]["Name"],
+            "hyperparameter_ranges": hyperparameter_ranges,
+            "objective_type": args.tuning_config.objective_type,
+            "max_jobs": args.tuning_config.max_jobs,
+            "max_parallel_jobs": args.tuning_config.max_parallel_jobs,
+            "metric_definitions": metric_definitions,
+            "strategy": args.tuning_config.strategy,
+        }
+
+        # Add Hyperband-specific configuration if needed
+        if args.tuning_config.strategy == "Hyperband":
+            tuner_config["strategy_config"] = StrategyConfig(
+                HyperbandStrategyConfig(
+                    max_resource=args.tuning_config.hb_max_epochs,
+                    min_resource=args.tuning_config.hb_min_epochs,
+                )
+            )
+
+        tuning_step = TuningStep(
+            name="Tuning",
+            tuner=HyperparameterTuner(**tuner_config),
+            cache_config=self.cache_config,
+            inputs={"train": self.train_config_file_param},
+        )
+
+        # For selecting the best model see
+        # https://sagemaker.readthedocs.io/en/stable/amazon_sagemaker_model_building_pipeline.html#tuningstep
+        best_model_path = Join(
+            on="/",
+            values=[
+                hpo_output_path,
+                tuning_step.properties.BestTrainingJob.TrainingJobName,
+                "output/model"
+            ],
+        )
+
+        self.model_input_path = best_model_path
+
+        return tuning_step
 
     def _create_train_step(self, args: PipelineArgs) -> TrainingStep:
         # Implementation for Training step
