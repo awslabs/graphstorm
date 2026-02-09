@@ -1,5 +1,5 @@
 # GraphStorm Distributed Processing
 
 This library enables distributed pre-processing of
-graph data that can then be fed into a
+graph data that can then be fed into the
 GraphStorm distributed training pipeline.
