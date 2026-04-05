@@ -202,7 +202,7 @@ if __name__ == "__main__":
     if "volume_size_in_gb" not in processor_kwargs:
         byte_size_on_s3 = script_utils.determine_byte_size_on_s3(
             s3_input_bucket, s3_input_key, s3_boto
-        ) // (1024 * 1024 * 1024)
+        )
         input_total_size_in_gb = max(1, byte_size_on_s3 // (1024 * 1024 * 1024))
         logging.info("Total data size: <= %d GB", input_total_size_in_gb)
         # Heuristic: total storage of 6+ times the total input size should be
