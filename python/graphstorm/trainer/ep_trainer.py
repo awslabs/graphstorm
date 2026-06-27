@@ -227,11 +227,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 self.optimizer.zero_grad()
                 loss.backward()
                 rt_profiler.record('train_backward')
+                if max_grad_norm is not None:
+                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.optimizer.step()
                 rt_profiler.record('train_step')
 
-                if max_grad_norm is not None:
-                    th.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, grad_norm_type)
                 self.log_metric("Train loss", loss.item(), total_steps)
 
                 if i % 20 == 0 and get_rank() == 0:
