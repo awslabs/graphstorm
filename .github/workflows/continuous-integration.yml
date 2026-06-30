@@ -1,3 +1,4 @@
+
 # Graphstorm CI
 # Test execution order - [lint] -> [pytest] -> [end2end_cpu, end2end, end2end_mgpu]
 name: continuous-integration
@@ -35,7 +36,7 @@ defaults:
   run:
     shell: bash
 
-# All test scripts split in individual .sh files and moved to .github/workflow scripts
+# All test scripts split in individual .sh files and moved to .github/workflow_scripts
 env:
   COMMAND-PYTEST: chmod +x ./pytest_check.sh && ./pytest_check.sh
   COMMAND-LINT: chmod +x ./lint_check.sh && ./lint_check.sh
@@ -47,6 +48,9 @@ env:
 
 jobs:
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LINT CHECK
+  # ─────────────────────────────────────────────────────────────────────────────
   lint_check:
     if: ${{ github.event_name == 'push' ||
       (github.event_name == 'pull_request_target'
@@ -54,46 +58,61 @@ jobs:
       && github.event.label.name == 'ready') }}
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        role-duration-seconds: 14400
-        aws-region: us-east-1
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
-        pip3 install boto3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-LINT }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-LINT }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          role-duration-seconds: 14400
+          aws-region: us-east-1
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          pip3 install boto3
+
+      - name: Submit Job (for Push)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GIT_REF: ${{ github.ref }}
+          LINT_COMMAND: ${{ env.COMMAND-LINT }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          echo "Start submitting job - Push"
+          python3 ./submitJob.py --job-type CI-LINT-PUSH \
+                                 --name "Graphstorm-LintTest-Push-${GIT_REF}" \
+                                 --command "${LINT_COMMAND}" \
+                                 --remote "https://github.com/${REPO_NAME}" \
+                                 --source-ref "${GIT_REF}" \
+                                 --wait
+
+      - name: Submit Job (for Pull Request)
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          LINT_COMMAND: ${{ env.COMMAND-LINT }}
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Start submitting job - Pull Request"
+          python3 ./submitJob.py --job-type CI-LINT-PUSH \
+                                 --name "Graphstorm-LintTest-PR#-${PR_NUMBER}" \
+                                 --command "${LINT_COMMAND}" \
+                                 --remote "https://github.com/${PR_REPO}" \
+                                 --source-ref "${PR_SHA}" \
+                                 --wait
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PYTEST CHECK
+  # ─────────────────────────────────────────────────────────────────────────────
   pytest_check:
     if: ${{ github.event_name == 'push' ||
       (github.event_name == 'pull_request_target'
@@ -102,45 +121,60 @@ jobs:
     needs: lint_check
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        aws-region: us-east-1
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
-        pip3 install boto3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-PyTest-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-PYTEST }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-CPU --name Graphstorm-PyTest-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-PYTEST }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          aws-region: us-east-1
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          pip3 install boto3
+
+      - name: Submit Job (for Push)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GIT_REF: ${{ github.ref }}
+          PYTEST_COMMAND: ${{ env.COMMAND-PYTEST }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          echo "Start submitting job - Push"
+          python3 ./submitJob.py --job-type CI-CPU-PUSH \
+                                 --name "Graphstorm-PyTest-Push-${GIT_REF}" \
+                                 --command "${PYTEST_COMMAND}" \
+                                 --remote "https://github.com/${REPO_NAME}" \
+                                 --source-ref "${GIT_REF}" \
+                                 --wait
+
+      - name: Submit Job (for Pull Request)
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          PYTEST_COMMAND: ${{ env.COMMAND-PYTEST }}
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Start submitting job - Pull Request"
+          python3 ./submitJob.py --job-type CI-CPU \
+                                 --name "Graphstorm-PyTest-PR#-${PR_NUMBER}" \
+                                 --command "${PYTEST_COMMAND}" \
+                                 --remote "https://github.com/${PR_REPO}" \
+                                 --source-ref "${PR_SHA}" \
+                                 --wait
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # END-TO-END CPU CHECK
+  # ─────────────────────────────────────────────────────────────────────────────
   e2e_cpu_check:
     if: ${{ github.event_name == 'push' ||
       (github.event_name == 'pull_request_target'
@@ -149,45 +183,60 @@ jobs:
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        aws-region: us-east-1
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
-        pip3 install boto3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-CPU-CHECK-PUSH --name Graphstorm-E2ETest-CPU-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-E2E-CPU-TEST }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-CPU-CHECK --name Graphstorm-E2ETest-CPU-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-E2E-CPU-TEST }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          aws-region: us-east-1
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          pip3 install boto3
+
+      - name: Submit Job (for Push)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GIT_REF: ${{ github.ref }}
+          E2E_CPU_COMMAND: ${{ env.COMMAND-E2E-CPU-TEST }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          echo "Start submitting job - Push"
+          python3 ./submitJob.py --job-type CI-CPU-CHECK-PUSH \
+                                 --name "Graphstorm-E2ETest-CPU-Push-${GIT_REF}" \
+                                 --command "${E2E_CPU_COMMAND}" \
+                                 --remote "https://github.com/${REPO_NAME}" \
+                                 --source-ref "${GIT_REF}" \
+                                 --wait
+
+      - name: Submit Job (for Pull Request)
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          E2E_CPU_COMMAND: ${{ env.COMMAND-E2E-CPU-TEST }}
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Start submitting job - Pull Request"
+          python3 ./submitJob.py --job-type CI-CPU-CHECK \
+                                 --name "Graphstorm-E2ETest-CPU-PR#-${PR_NUMBER}" \
+                                 --command "${E2E_CPU_COMMAND}" \
+                                 --remote "https://github.com/${PR_REPO}" \
+                                 --source-ref "${PR_SHA}" \
+                                 --wait
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # END-TO-END CHECK (GPU)
+  # ─────────────────────────────────────────────────────────────────────────────
   e2e_check:
     if: ${{ github.event_name == 'push' ||
       (github.event_name == 'pull_request_target'
@@ -196,46 +245,61 @@ jobs:
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        role-duration-seconds: 14400
-        aws-region: us-east-1
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
-        pip3 install boto3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-CPU-PUSH --name Graphstorm-E2ETest-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-E2E }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-CPU --name Graphstorm-E2ETest-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-E2E }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          role-duration-seconds: 14400
+          aws-region: us-east-1
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          pip3 install boto3
+
+      - name: Submit Job (for Push)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GIT_REF: ${{ github.ref }}
+          E2E_COMMAND: ${{ env.COMMAND-E2E }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          echo "Start submitting job - Push"
+          python3 ./submitJob.py --job-type CI-CPU-PUSH \
+                                 --name "Graphstorm-E2ETest-Push-${GIT_REF}" \
+                                 --command "${E2E_COMMAND}" \
+                                 --remote "https://github.com/${REPO_NAME}" \
+                                 --source-ref "${GIT_REF}" \
+                                 --wait
+
+      - name: Submit Job (for Pull Request)
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          E2E_COMMAND: ${{ env.COMMAND-E2E }}
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Start submitting job - Pull Request"
+          python3 ./submitJob.py --job-type CI-CPU \
+                                 --name "Graphstorm-E2ETest-PR#-${PR_NUMBER}" \
+                                 --command "${E2E_COMMAND}" \
+                                 --remote "https://github.com/${PR_REPO}" \
+                                 --source-ref "${PR_SHA}" \
+                                 --wait
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # END-TO-END MULTI-GPU CHECK
+  # ─────────────────────────────────────────────────────────────────────────────
   e2e_mgpu_check:
     if: ${{ github.event_name == 'push' ||
       (github.event_name == 'pull_request_target'
@@ -244,44 +308,60 @@ jobs:
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        aws-region: us-east-1
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
-        pip3 install boto3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-GPU-PUSH --name Graphstorm-E2E-MGPUTest-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-E2E-MGPU }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-GPU --name Graphstorm-E2E-MGPUTest-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-E2E-MGPU }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          aws-region: us-east-1
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          pip3 install boto3
+
+      - name: Submit Job (for Push)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GIT_REF: ${{ github.ref }}
+          E2E_MGPU_COMMAND: ${{ env.COMMAND-E2E-MGPU }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          echo "Start submitting job - Push"
+          python3 ./submitJob.py --job-type CI-GPU-PUSH \
+                                 --name "Graphstorm-E2E-MGPUTest-Push-${GIT_REF}" \
+                                 --command "${E2E_MGPU_COMMAND}" \
+                                 --remote "https://github.com/${REPO_NAME}" \
+                                 --source-ref "${GIT_REF}" \
+                                 --wait
+
+      - name: Submit Job (for Pull Request)
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          E2E_MGPU_COMMAND: ${{ env.COMMAND-E2E-MGPU }}
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Start submitting job - Pull Request"
+          python3 ./submitJob.py --job-type CI-GPU \
+                                 --name "Graphstorm-E2E-MGPUTest-PR#-${PR_NUMBER}" \
+                                 --command "${E2E_MGPU_COMMAND}" \
+                                 --remote "https://github.com/${PR_REPO}" \
+                                 --source-ref "${PR_SHA}" \
+                                 --wait
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # END-TO-END MULTI-GPU MULTITASK CHECK
+  # ─────────────────────────────────────────────────────────────────────────────
   e2e_mgpu_check_multitask:
     if: ${{ github.event_name == 'push' ||
       (github.event_name == 'pull_request_target'
@@ -290,44 +370,60 @@ jobs:
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        aws-region: us-east-1
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
-        pip3 install boto3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-GPU-PUSH --name Graphstorm-E2E-MGPUTest-MultiTask-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-E2E-MGPU-MULTITASK }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-GPU --name Graphstorm-E2E-MGPUTest-MultiTask-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-E2E-MGPU-MULTITASK }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          aws-region: us-east-1
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          pip3 install boto3
+
+      - name: Submit Job (for Push)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GIT_REF: ${{ github.ref }}
+          E2E_MGPU_MT_COMMAND: ${{ env.COMMAND-E2E-MGPU-MULTITASK }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          echo "Start submitting job - Push"
+          python3 ./submitJob.py --job-type CI-GPU-PUSH \
+                                 --name "Graphstorm-E2E-MGPUTest-MultiTask-Push-${GIT_REF}" \
+                                 --command "${E2E_MGPU_MT_COMMAND}" \
+                                 --remote "https://github.com/${REPO_NAME}" \
+                                 --source-ref "${GIT_REF}" \
+                                 --wait
+
+      - name: Submit Job (for Pull Request)
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          E2E_MGPU_MT_COMMAND: ${{ env.COMMAND-E2E-MGPU-MULTITASK }}
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Start submitting job - Pull Request"
+          python3 ./submitJob.py --job-type CI-GPU \
+                                 --name "Graphstorm-E2E-MGPUTest-MultiTask-PR#-${PR_NUMBER}" \
+                                 --command "${E2E_MGPU_MT_COMMAND}" \
+                                 --remote "https://github.com/${PR_REPO}" \
+                                 --source-ref "${PR_SHA}" \
+                                 --wait
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # END-TO-END GRAPHBOLT CHECK
+  # ─────────────────────────────────────────────────────────────────────────────
   e2e_graphbolt:
     if: ${{ github.event_name == 'push' ||
       (github.event_name == 'pull_request_target'
@@ -336,48 +432,62 @@ jobs:
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
-        aws-region: us-east-1
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pytest
-        pip3 install boto3
-    - name: Submit Job (for Push)
-      if: ${{ github.event_name == 'push' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Push"
-        python3 ./submitJob.py --job-type CI-GPU-DGL230 --name Graphstorm-E2E-Test-GB-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-E2E-GB }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
-    - name: Submit Job (for Pull Request)
-      if: ${{ github.event_name == 'pull_request_target' }}
-      shell: bash
-      run: |
-        echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-GPU-DGL230 --name Graphstorm-E2E-Test-GB-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-E2E-GB }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+          aws-region: us-east-1
 
-  # Auto-remove the 'ready' label after the CI run so the maintainer must
-  # re-apply it to trigger another run. always() ensures the label is removed
-  # even when upstream jobs fail, otherwise a failed run would leave the
-  # approval sticky and re-triggerable.
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest
+          pip3 install boto3
+
+      - name: Submit Job (for Push)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GIT_REF: ${{ github.ref }}
+          E2E_GB_COMMAND: ${{ env.COMMAND-E2E-GB }}
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          echo "Start submitting job - Push"
+          python3 ./submitJob.py --job-type CI-GPU-DGL230 \
+                                 --name "Graphstorm-E2E-Test-GB-Push-${GIT_REF}" \
+                                 --command "${E2E_GB_COMMAND}" \
+                                 --remote "https://github.com/${REPO_NAME}" \
+                                 --source-ref "${GIT_REF}" \
+                                 --wait
+
+      - name: Submit Job (for Pull Request)
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          E2E_GB_COMMAND: ${{ env.COMMAND-E2E-GB }}
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Start submitting job - Pull Request"
+          python3 ./submitJob.py --job-type CI-GPU-DGL230 \
+                                 --name "Graphstorm-E2E-Test-GB-PR#-${PR_NUMBER}" \
+                                 --command "${E2E_GB_COMMAND}" \
+                                 --remote "https://github.com/${PR_REPO}" \
+                                 --source-ref "${PR_SHA}" \
+                                 --wait
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # AUTO-REMOVE 'ready' LABEL
+  # Ensures the maintainer must re-apply it to trigger another run.
+  # always() ensures the label is removed even when upstream jobs fail.
+  # ─────────────────────────────────────────────────────────────────────────────
   remove_ready_label:
     needs: [lint_check, pytest_check, e2e_cpu_check, e2e_check,
             e2e_mgpu_check, e2e_mgpu_check_multitask, e2e_graphbolt]
@@ -387,13 +497,14 @@ jobs:
       && github.event.label.name == 'ready' }}
     runs-on: ubuntu-latest
     steps:
-    - name: Remove 'ready' label
-      uses: actions/github-script@v7
-      with:
-        script: |
-          await github.rest.issues.removeLabel({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-            name: 'ready'
-          }).catch(err => { if (err.status !== 404) throw err; });
+      - name: Remove 'ready' label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              name: 'ready'
+            }).catch(err => { if (err.status !== 404) throw err; });
+
