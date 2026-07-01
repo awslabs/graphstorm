@@ -1042,6 +1042,90 @@ def test_rgcn_nc4ef():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_node_trainer_grad_clip_before_step():
+    """ Test that ``--max-grad-norm`` clips gradients *before* the optimizer step.
+
+    Gradient clipping (``th.nn.utils.clip_grad_norm_``) must run between
+    ``loss.backward()`` and ``optimizer.step()``; otherwise the optimizer applies
+    the un-clipped gradients and the clip becomes a no-op for that update (issue
+    #1366). This test spies on ``clip_grad_norm_`` and ``GSOptimizer.step`` and
+    asserts the clip is observed before the step on every training iteration.
+    """
+    from graphstorm.model import GSOptimizer
+
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer = GSgnnNodePredictionTrainer(model)
+        trainer.setup_device(device)
+
+        train_dataloader = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=True)
+
+        # Record the relative order in which clipping and the optimizer step are
+        # called; both spies call through to the originals so fit() runs for real.
+        call_order = []
+        orig_clip = th.nn.utils.clip_grad_norm_
+        orig_step = GSOptimizer.step
+
+        def spy_clip(*args, **kwargs):
+            call_order.append("clip")
+            return orig_clip(*args, **kwargs)
+
+        def spy_step(self, *args, **kwargs):
+            call_order.append("step")
+            return orig_step(self, *args, **kwargs)
+
+        with patch.object(th.nn.utils, "clip_grad_norm_", side_effect=spy_clip), \
+             patch.object(GSOptimizer, "step", autospec=True, side_effect=spy_step):
+            trainer.fit(
+                train_loader=train_dataloader,
+                num_epochs=1,
+                max_grad_norm=1.0)
+
+    # At every point in the call sequence the number of observed clips must be
+    # >= the number of observed steps; this holds iff each clip precedes its
+    # paired step. On the buggy ordering the first event is a step, so the
+    # invariant fails immediately.
+    clips = steps = 0
+    for event in call_order:
+        if event == "clip":
+            clips += 1
+        else:
+            steps += 1
+        assert clips >= steps, (
+            "clip_grad_norm_ must be called before optimizer.step() on every "
+            f"iteration, but observed a step before its clip. Order: {call_order}")
+    assert steps > 0, "optimizer.step() was never called; the training loop did not run"
+    assert clips == steps, (
+        f"expected one clip per step, got {clips} clips and {steps} steps")
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def test_rgat_nc4ef():
     """ Test RGAT model Node Classification traning pipeline with/without edge features.
     """
