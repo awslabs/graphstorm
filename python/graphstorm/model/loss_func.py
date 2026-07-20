@@ -16,7 +16,6 @@
     Loss functions.
 """
 import logging
-import warnings
 
 import torch as th
 from torch import nn
@@ -123,13 +122,6 @@ class FocalLossFunc(GSLayer):
         super(FocalLossFunc, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
-        # TODO: Focal loss should also produce (N, num_classes) output
-        if get_rank() == 0:
-            warnings.warn(
-                "Focal loss currently produces predictions with shape (N, 1) where N "
-                "is the number of targets. This behavior will change in v0.5.0"
-                "to produce predictions of shape (N, 2).",
-                FutureWarning)
 
     def forward(self, logits, labels):
         """ The forward function.
@@ -137,31 +129,42 @@ class FocalLossFunc(GSLayer):
         Parameters
         ----------
         logits: torch.Tensor
-            The prediction results.
+            The prediction results, shape (N, 2) containing [score_class0, score_class1]
         labels: torch.Tensor
-            The training labels.
+            The training labels
 
         Returns
         -------
         loss: Tensor
             The loss value.
+
+        .. versionchanged:: 0.5.0
+            Produce (N, 2)-shaped instead of (N, 1), matching other loss functions
+            (e.g. binary cross-entropy).
+
         """
-        # We need to reshape logits into a 1D float tensor
-        # and cast labels into a float tensor.
-        inputs = logits.squeeze()
+        # Extract logits for positive class (class 1)
+        inputs = logits[:, 1]  # Shape: (N,)
         targets = labels.float()
 
+        # Compute probabilities using sigmoid
         pred = th.sigmoid(inputs)
+
+        # Compute binary cross entropy
         ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+
+        # Get probability of correct class
         pred_t = pred * targets + (1 - pred) * (1 - targets)
+
+        # Apply focal loss modulation
         loss = ce_loss * ((1 - pred_t) ** self.gamma)
 
+        # Apply alpha balancing
         if self.alpha >= 0:
             alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
             loss = alpha_t * loss
 
-        loss = loss.mean()
-        return loss
+        return loss.mean()
 
     @property
     def in_dims(self):
